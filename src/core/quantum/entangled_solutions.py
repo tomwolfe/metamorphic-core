@@ -1,5 +1,7 @@
-# quantum_entangled_solutions.py
+# entangled_solutions.py
 from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
+from ..ethics.governance import QuantumEthicalValidator  # Relative import
+from .ethical_validation import EthicalQuantumCore  # Sibling import
 
 class EntangledSolutionGenerator:
     def __init__(self, ethical_validator):

@@ -1,9 +1,11 @@
 # api/ethical_endpoints.py
 from flask import Blueprint, request, jsonify
-from .quantum_ethical_core import QuantumEthicalValidator
+from src.core.ethics.governance import QuantumEthicalValidator  # Absolute import
+from src.core.quantum.ethical_validation import EthicalQuantumCore  # New import
 
 ethical_bp = Blueprint('ethical', __name__)
 validator = QuantumEthicalValidator()
+quantum_core = EthicalQuantumCore()  # Now using correct class
 
 @ethical_bp.route('/analyze', methods=['POST'])
 def ethical_analysis():

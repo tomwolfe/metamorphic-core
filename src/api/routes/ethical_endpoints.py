@@ -23,3 +23,22 @@ def ethical_analysis():
         }), 403
 
     return jsonify({"status": "APPROVED", "analysis": analysis_result})
+
+@ethical_bp.route('/audit/<state_id>', methods=['GET'])
+def get_audit_trail(state_id: str):
+    """Retrieve complete audit trail with quantum state"""
+    try:
+        # Load ethical audit
+        with open(f"ethical_audits/{state_id}.json") as f:
+            audit_data = json.load(f)
+
+        # Load quantum state
+        with open(f"quantum_states/{state_id}.json") as f:
+            quantum_state = json.load(f)
+
+        return jsonify({
+            "audit": audit_data,
+            "quantum_state": quantum_state
+        })
+    except FileNotFoundError:
+        return jsonify({"error": "Audit trail not found"}), 404

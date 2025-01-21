@@ -19,8 +19,7 @@ def ethical_analysis():
         return jsonify({
             "status": "REJECTED",
             "analysis": analysis_result,
-            # You might want to expose some quantum state info if needed
-            # "quantum_state": quantum_core.analyze_quantum_state(hash(code))
+            "quantum_state": quantum_core.analyze_quantum_state(hash(code))
         }), 403
 
     return jsonify({"status": "APPROVED", "analysis": analysis_result})

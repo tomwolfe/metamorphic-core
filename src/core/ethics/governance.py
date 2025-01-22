@@ -1,44 +1,45 @@
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 import json
-from ..quantum.state_preservation import QuantumStatePreserver
-from .constraints import EthicalConstraint, ConstraintCategory, RiskProfile, EthicalViolation
-from ..quantum.circuit_analysis import QuantumCircuitAnalyzer
+from datetime import datetime
 from hashlib import sha256
+from ..quantum.state_preservation import QuantumStatePreserver
+from .constraints import (
+    EthicalConstraint,
+    ConstraintCategory,
+    RiskProfile,
+    EthicalViolation,
+    CORE_CONSTRAINTS  # Added from constraints.py
+)
+from ..quantum.ethical_validation import EthicalQuantumCore  # Changed import
 
 class QuantumEthicalValidator:
     """Applies ethical constraints to quantum code analysis results."""
 
-    def __init__(
-        self,
-        constraints: list[EthicalConstraint] = None,
-        risk_profile: RiskProfile = None,
-    ):
-        if constraints is None:
-            constraints = []
-        self.constraints = constraints
-        self.risk_profile = risk_profile or RiskProfile()
-        self.quantum_analyzer = QuantumCircuitAnalyzer()
-        self.state_preserver = QuantumStatePreserver()  # New dependency
+    def __init__(self, constraints: List[EthicalConstraint] = None):
+        self.constraints = constraints or CORE_CONSTRAINTS  # Use default constraints
+        self.quantum_analyzer = EthicalQuantumCore()  # Changed to correct class
+        self.state_preserver = QuantumStatePreserver()
 
     def _hash_code(self, code_sample: str) -> str:
         """Creates a SHA-256 hash of the code sample for anonymity."""
         return sha256(code_sample.encode()).hexdigest()
 
     def validate_code(self, code_sample: str) -> Dict:
-        """Modified to include state preservation"""
-        # Existing quantum analysis
+        """Full validation pipeline with quantum state preservation"""
         quantum_metrics = self.quantum_analyzer.analyze_quantum_state(
             self._hash_code(code_sample)
         )
+        
+        if 'error' in quantum_metrics:
+            return {
+                'approved': False,
+                'error': quantum_metrics['error'],
+                'constraints_violated': ['system_error']
+            }
 
-        # Preserve quantum state
         state_id = self.state_preserver.preserve_state(code_sample)
-
-        # Existing validation logic
         validation_result = self._apply_ethical_rules(quantum_metrics)
-
-        # Add preservation metadata
         validation_result["quantum_state_id"] = state_id
         return validation_result
 
@@ -46,32 +47,46 @@ class QuantumEthicalValidator:
         """Adds a new ethical constraint to the validator."""
         self.constraints.append(constraint)
 
-    def set_risk_profile(self, risk_profile: RiskProfile):
-        """Sets the risk profile for the validator."""
-        self.risk_profile = risk_profile
-
     def _apply_ethical_rules(self, quantum_metrics: dict) -> dict:
-        """
-        Applies ethical constraints based on quantum analysis results.
-        Args:
-            quantum_metrics (dict): A dictionary containing the results of quantum analysis.
-        Returns:
-            dict: A dictionary containing the validation results, including whether the
-                  code is approved and any violated constraints.
-        """
-        violations: list[EthicalViolation] = []
+        """Applies ethical constraints based on quantum analysis results."""
+        violations = []
+        
         for constraint in self.constraints:
-            if constraint.condition(quantum_metrics):
-                risk = self.risk_profile.get_risk(constraint.category)
-                violations.append(EthicalViolation(constraint, risk))
-
-        approved = len(violations) == 0
-        risk_breakdown = self.risk_profile.get_risk_breakdown() if not approved else {}
+            if constraint.category == ConstraintCategory.BIAS:
+                if quantum_metrics['bias_prob'] > constraint.quantum_weight:
+                    violations.append(EthicalViolation(
+                        constraint=constraint,
+                        violation_timestamp=datetime.utcnow(),
+                        severity=quantum_metrics['bias_prob'],
+                        quantum_state_id="N/A"  # Will be updated later
+                    ))
+                    
+            elif constraint.category == ConstraintCategory.SAFETY:
+                if quantum_metrics['safety_prob'] > constraint.quantum_weight:
+                    violations.append(EthicalViolation(
+                        constraint=constraint,
+                        violation_timestamp=datetime.utcnow(),
+                        severity=quantum_metrics['safety_prob'],
+                        quantum_state_id="N/A"
+                    ))
+                    
+            elif constraint.category == ConstraintCategory.TRANSPARENCY:
+                if quantum_metrics['transparency_prob'] < constraint.quantum_weight:
+                    violations.append(EthicalViolation(
+                        constraint=constraint,
+                        violation_timestamp=datetime.utcnow(),
+                        severity=quantum_metrics['transparency_prob'],
+                        quantum_state_id="N/A"
+                    ))
 
         return {
-            "approved": approved,
-            "constraints_violated": [v.to_dict() for v in violations],
-            "risk_breakdown": risk_breakdown,
+            "approved": len(violations) == 0,
+            "constraints_violated": [v.dict() for v in violations],
+            "risk_breakdown": {
+                'bias_risk': quantum_metrics.get('bias_prob', 0),
+                'safety_risk': quantum_metrics.get('safety_prob', 0),
+                'transparency_score': quantum_metrics.get('transparency_prob', 0)
+            }
         }
 
 class EthicalAuditLogger:
@@ -86,10 +101,14 @@ class EthicalAuditLogger:
         audit_entry = {
             "timestamp": str(datetime.utcnow()),
             "decision": validation_result["approved"],
-            "violations": validation_result["constraints_violated"],
+            "violations": [v for v in validation_result["constraints_violated"]],
             "quantum_state": validation_result["quantum_state_id"],
-            "risk_metrics": validation_result["risk_breakdown"],
+            "risk_metrics": validation_result["risk_breakdown"]
         }
+
+        # Update violations with actual state ID
+        for violation in audit_entry["violations"]:
+            violation["quantum_state_id"] = audit_entry["quantum_state"]
 
         with open(f"{self.audit_path}{audit_entry['quantum_state']}.json", "w") as f:
             json.dump(audit_entry, f, indent=2)

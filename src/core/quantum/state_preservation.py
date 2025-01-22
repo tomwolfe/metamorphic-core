@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
-from qiskit import QuantumCircuit  # Added import
+from pathlib import Path
+from qiskit import QuantumCircuit
 from qiskit.qasm3 import dumps
 from .ethical_validation import EthicalQuantumCore
 
@@ -9,13 +10,15 @@ class QuantumStatePreserver:
     
     def __init__(self):
         self.quantum_core = EthicalQuantumCore()
-        self.storage_path = "quantum_states/"
+        self.storage_path = Path("quantum_states/")
+        # Create directory if it doesn't exist
+        self.storage_path.mkdir(parents=True, exist_ok=True)
     
     def preserve_state(self, code_sample: str) -> str:
         """Save quantum circuit state with timestamped metadata"""
         state_id = f"QSTATE_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
         
-        # Create a simple unitary circuit instead of using EthicalQuantumCore's version
+        # Create valid quantum circuit
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
@@ -32,9 +35,10 @@ class QuantumStatePreserver:
         return state_id
     
     def _save_to_disk(self, state_id: str, data: dict):
-        """Save quantum state with error handling"""
+        """Save quantum state with proper path handling"""
         try:
-            with open(f"{self.storage_path}{state_id}.json", "w") as f:
+            file_path = self.storage_path / f"{state_id}.json"
+            with file_path.open("w") as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
             print(f"State preservation failed: {str(e)}")

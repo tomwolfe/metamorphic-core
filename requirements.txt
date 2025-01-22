@@ -9,3 +9,4 @@ qiskit-terra>=0.24.0
 pydantic>=2.6.4
 numpy>=1.26.0
 python-dotenv>=1.0.0
+qiskit-aer>=0.16.0

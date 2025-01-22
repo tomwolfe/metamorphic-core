@@ -14,19 +14,13 @@ from .constraints import (
 from ..quantum.ethical_validation import EthicalQuantumCore  # Changed import
 
 class QuantumEthicalValidator:
-    """Applies ethical constraints to quantum code analysis results."""
-
-    def __init__(self, constraints: List[EthicalConstraint] = None):
-        self.constraints = constraints or CORE_CONSTRAINTS  # Use default constraints
-        self.quantum_analyzer = EthicalQuantumCore()  # Changed to correct class
+    def __init__(self):
+        self.constraints = CORE_CONSTRAINTS
+        self.quantum_analyzer = EthicalQuantumCore()
         self.state_preserver = QuantumStatePreserver()
-
-    def _hash_code(self, code_sample: str) -> str:
-        """Creates a SHA-256 hash of the code sample for anonymity."""
-        return sha256(code_sample.encode()).hexdigest()
+        self.audit_logger = EthicalAuditLogger()  # Add this line
 
     def validate_code(self, code_sample: str) -> Dict:
-        """Full validation pipeline with quantum state preservation"""
         quantum_metrics = self.quantum_analyzer.analyze_quantum_state(
             self._hash_code(code_sample)
         )
@@ -41,7 +35,15 @@ class QuantumEthicalValidator:
         state_id = self.state_preserver.preserve_state(code_sample)
         validation_result = self._apply_ethical_rules(quantum_metrics)
         validation_result["quantum_state_id"] = state_id
+        
+        # Add audit logging
+        self.audit_logger.log_decision(validation_result)  # New line
+        
         return validation_result
+        
+    def _hash_code(self, code_sample: str) -> str:
+        """Creates a SHA-256 hash of the code sample for anonymity."""
+        return sha256(code_sample.encode()).hexdigest()
 
     def add_constraint(self, constraint: EthicalConstraint):
         """Adds a new ethical constraint to the validator."""

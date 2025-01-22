@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from src.core.ethics.governance import QuantumEthicalValidator
 from src.core.quantum.ethical_validation import EthicalQuantumCore
 from ..core.visualization.quantum_audit import QuantumAuditVisualizer
+import json
 
 ethical_bp = Blueprint('ethical', __name__)
 validator = QuantumEthicalValidator()
@@ -54,6 +55,17 @@ def visualize_audit(state_id: str):
             "risk_breakdown": visualizer.create_risk_breakdown_figure(state_id).to_json(),
             "quantum_state": visualizer.create_quantum_state_figure(state_id).to_json()
         })
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+
+# New Predictive Risk Analysis Endpoint
+@ethical_bp.route('/predict/<state_id>', methods=['GET'])
+def get_risk_prediction(state_id: str):
+    """Get predictive risk analysis"""
+    try:
+        visualizer = QuantumAuditVisualizer()
+        fig = visualizer.create_risk_prediction_figure(state_id)
+        return jsonify(fig.to_json())
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
 

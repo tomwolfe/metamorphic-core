@@ -1,13 +1,12 @@
 from qiskit import QuantumCircuit
-from qiskit.execute_function import execute
-from qiskit.providers.aer import Aer  # Explicit import for Aer
+from qiskit.primitives import Sampler
 import numpy as np
 
 class EthicalQuantumCore:
-    """Handles quantum state analysis for ethical validation without business logic"""
+    """Handles quantum state analysis for ethical validation using modern Qiskit primitives"""
     
     def __init__(self):
-        self.backend = Aer.get_backend('qasm_simulator')
+        self.sampler = Sampler()
         self._ethical_weights = {
             'bias': 0.4,
             'safety': 0.3,
@@ -17,21 +16,30 @@ class EthicalQuantumCore:
     def create_ethical_circuit(self) -> QuantumCircuit:
         """Generate quantum circuit representing ethical decision weights"""
         qc = QuantumCircuit(3)
+        # Initialize qubits with valid quantum states
         qc.initialize([np.sqrt(self._ethical_weights['bias']), 
                       np.sqrt(1 - self._ethical_weights['bias'])], 0)
-        qc.initialize([np.sqrt(self._ethical_weights['safety'])], 1)
+        qc.initialize([np.sqrt(self._ethical_weights['safety']),
+                      np.sqrt(1 - self._ethical_weights['safety'])], 1)
         qc.cx(0, 1)
         qc.cx(1, 2)
+        qc.measure_all()  # Explicit measurement for sampling
         return qc
 
     def analyze_quantum_state(self, code_hash: str) -> dict:
         """
-        Perform quantum measurement of ethical state probabilities
+        Perform quantum measurement of ethical state probabilities using Sampler
         Returns raw quantum metrics without ethical interpretation
         """
         try:
             qc = self.create_ethical_circuit()
-            counts = execute(qc, self.backend, shots=1000).result().get_counts()
+            job = self.sampler.run(qc, shots=1000)
+            result = job.result()
+            quasi_dist = result.quasi_dists[0]
+            
+            # Convert quasi-distribution to counts
+            counts = {format(state, '03b'): int(round(prob * 1000)) 
+                     for state, prob in quasi_dist.items()}
             
             total_shots = sum(counts.values())
             return {

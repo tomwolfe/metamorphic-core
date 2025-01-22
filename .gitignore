@@ -30,3 +30,5 @@ logs/
 # IDE
 .vscode/
 .idea/
+
+quantum_states/

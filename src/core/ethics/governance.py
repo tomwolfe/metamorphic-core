@@ -4,21 +4,24 @@ import json
 from datetime import datetime
 from hashlib import sha256
 from ..quantum.state_preservation import QuantumStatePreserver
+from ..prediction.risk_model import QuantumRiskPredictor  # New import
 from .constraints import (
     EthicalConstraint,
     ConstraintCategory,
     RiskProfile,
     EthicalViolation,
-    CORE_CONSTRAINTS  # Added from constraints.py
+    CORE_CONSTRAINTS
 )
-from ..quantum.ethical_validation import EthicalQuantumCore  # Changed import
+from ..quantum.ethical_validation import EthicalQuantumCore
+
 
 class QuantumEthicalValidator:
     def __init__(self):
         self.constraints = CORE_CONSTRAINTS
         self.quantum_analyzer = EthicalQuantumCore()
         self.state_preserver = QuantumStatePreserver()
-        self.audit_logger = EthicalAuditLogger()  # Add this line
+        self.audit_logger = EthicalAuditLogger()
+        self.risk_predictor = QuantumRiskPredictor()  # New instance
 
     def validate_code(self, code_sample: str) -> Dict:
         quantum_metrics = self.quantum_analyzer.analyze_quantum_state(
@@ -36,8 +39,8 @@ class QuantumEthicalValidator:
         validation_result = self._apply_ethical_rules(quantum_metrics)
         validation_result["quantum_state_id"] = state_id
         
-        # Add audit logging
-        self.audit_logger.log_decision(validation_result)  # New line
+        self.audit_logger.log_decision(validation_result)
+        validation_result['predicted_risk'] = self._predict_future_risk(validation_result)  # New line
         
         return validation_result
         
@@ -60,7 +63,7 @@ class QuantumEthicalValidator:
                         constraint=constraint,
                         violation_timestamp=datetime.utcnow(),
                         severity=quantum_metrics['bias_prob'],
-                        quantum_state_id="N/A"  # Will be updated later
+                        quantum_state_id="N/A"
                     ))
                     
             elif constraint.category == ConstraintCategory.SAFETY:
@@ -90,6 +93,19 @@ class QuantumEthicalValidator:
                 'transparency_score': quantum_metrics.get('transparency_prob', 0)
             }
         }
+
+    def _predict_future_risk(self, current_result: dict) -> float:
+        """Predict risk trajectory over next development cycles"""
+        historical_data = self._load_historical_context()
+        return self.risk_predictor.predict_risk(
+            current_result | {"historical_context": historical_data}
+        )
+    
+    def _load_historical_context(self) -> list:
+        """Load relevant historical audits for prediction"""
+        # Implementation using EthicalAuditLogger (placeholder)
+        return []
+
 
 class EthicalAuditLogger:
     """Handles audit trail generation and querying"""

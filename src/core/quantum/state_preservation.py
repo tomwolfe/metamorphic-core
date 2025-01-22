@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from qiskit import QuantumCircuit  # Added import
 from qiskit.qasm3 import dumps
 from .ethical_validation import EthicalQuantumCore
 
@@ -13,13 +14,17 @@ class QuantumStatePreserver:
     def preserve_state(self, code_sample: str) -> str:
         """Save quantum circuit state with timestamped metadata"""
         state_id = f"QSTATE_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
-        qc = self.quantum_core.create_ethical_circuit()
+        
+        # Create a simple unitary circuit instead of using EthicalQuantumCore's version
+        qc = QuantumCircuit(2)
+        qc.h(0)
+        qc.cx(0, 1)
         
         preservation_data = {
             "id": state_id,
             "qasm": dumps(qc),
             "timestamp": str(datetime.utcnow()),
-            "code_sample": code_sample[:1000],  # Truncate for storage
+            "code_sample": code_sample[:1000],
             "metrics": self.quantum_core.analyze_quantum_state(code_sample)
         }
         

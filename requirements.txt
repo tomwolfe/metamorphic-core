@@ -5,6 +5,7 @@ prometheus-client>=0.20.0
 structlog>=24.1.0
 flask-limiter>=3.5.0
 qiskit>=0.45.0
+qiskit-terra>=0.24.0
 pydantic>=2.6.4
 numpy>=1.26.0
 python-dotenv>=1.0.0

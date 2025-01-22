@@ -17,7 +17,7 @@ class QuantumStatePreserver:
         
         preservation_data = {
             "id": state_id,
-            "qasm": qasm3.dumps(qc),
+            "qasm": dumps(qc),
             "timestamp": str(datetime.utcnow()),
             "code_sample": code_sample[:1000],  # Truncate for storage
             "metrics": self.quantum_core.analyze_quantum_state(code_sample)

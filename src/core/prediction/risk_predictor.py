@@ -2,10 +2,7 @@
 from qiskit import QuantumCircuit
 from qiskit_aer import Aer  # Changed import source
 from qiskit.circuit.library import ZZFeatureMap, RealAmplitudes
-# File: src/core/prediction/risk_predictor.py
 import numpy as np
-#from qiskit import QuantumCircuit, Aer, execute
-#from qiskit.circuit.library import ZZFeatureMap, RealAmplitudes
 
 class QuantumRiskPredictor:
     """Quantum-enhanced risk prediction (Temporal Forecasting)"""

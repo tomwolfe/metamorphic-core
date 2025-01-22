@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from qiskit import qasm3
+from qiskit.qasm3 import dumps
 from .ethical_validation import EthicalQuantumCore
 
 class QuantumStatePreserver:

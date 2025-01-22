@@ -76,3 +76,30 @@ class QuantumAuditVisualizer:
         )
         
         return fig
+
+    def create_risk_prediction_figure(self, state_id: str, forecast_period=5) -> go.Figure:
+        """Visualize risk predictions over future cycles"""
+        data = self.load_audit_data(state_id)
+        predictions = self._generate_predictions(data, forecast_period)
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=list(range(forecast_period)),
+            y=predictions,
+            mode='lines+markers',
+            name='Predicted Risk'
+        ))
+        
+        fig.update_layout(
+            title=f"Risk Prediction - {state_id}",
+            xaxis_title="Development Cycles Ahead",
+            yaxis_title="Predicted Risk Score",
+            hovermode="x unified"
+        )
+        
+        return fig
+
+    def _generate_predictions(self, data: dict, periods: int) -> list:
+        """Generate temporal risk predictions"""
+        # Implementation using QuantumRiskPredictor
+        return []

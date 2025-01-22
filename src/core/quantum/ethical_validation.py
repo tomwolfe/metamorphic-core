@@ -1,4 +1,5 @@
-from qiskit import QuantumCircuit, Aer, execute
+from qiskit import QuantumCircuit, execute
+from qiskit.providers.aer import Aer  # Explicit import for Aer
 import numpy as np
 
 class EthicalQuantumCore:

@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from src.core.ethics.governance import QuantumEthicalValidator
 from src.core.quantum.ethical_validation import EthicalQuantumCore
+from ..core.visualization.quantum_audit import QuantumAuditVisualizer
 
 ethical_bp = Blueprint('ethical', __name__)
 validator = QuantumEthicalValidator()
@@ -42,3 +43,42 @@ def get_audit_trail(state_id: str):
         })
     except FileNotFoundError:
         return jsonify({"error": "Audit trail not found"}), 404
+
+@ethical_bp.route('/visualize/<state_id>', methods=['GET'])
+def visualize_audit(state_id: str):
+    """Render interactive audit visualization"""
+    try:
+        visualizer = QuantumAuditVisualizer()
+        
+        return jsonify({
+            "risk_breakdown": visualizer.create_risk_breakdown_figure(state_id).to_json(),
+            "quantum_state": visualizer.create_quantum_state_figure(state_id).to_json()
+        })
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+
+@ethical_bp.route('/visualize/html/<state_id>', methods=['GET'])
+def visualize_audit_html(state_id: str):
+    """Return complete HTML visualization report"""
+    visualizer = QuantumAuditVisualizer()
+    
+    return f"""
+    <html>
+        <head>
+            <title>Quantum Audit Report - {state_id}</title>
+            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        </head>
+        <body>
+            <div id="risk-breakdown"></div>
+            <div id="quantum-state"></div>
+            
+            <script>
+                var riskData = {visualizer.create_risk_breakdown_figure(state_id).to_json()};
+                var quantumData = {visualizer.create_quantum_state_figure(state_id).to_json()};
+                
+                Plotly.newPlot('risk-breakdown', riskData.data, riskData.layout);
+                Plotly.newPlot('quantum-state', quantumData.data, quantumData.layout);
+            </script>
+        </body>
+    </html>
+    """

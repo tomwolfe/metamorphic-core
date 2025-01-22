@@ -6,14 +6,13 @@ import numpy as np
 
 class QuantumRiskPredictor:
     """Quantum-enhanced risk prediction (Qiskit 1.0+ compatible)"""
-    
     def __init__(self, num_qubits=3, time_steps=5):
         self.num_qubits = num_qubits
         self.time_steps = time_steps
         self.backend = Aer.get_backend('aer_simulator')
-        self.params = ParameterVector('θ', length=num_qubits*2)
+        self.params = ParameterVector('θ', length=num_qubits * time_steps)  # Changed
         self._build_circuit()
-
+        
     def _build_circuit(self):
         """Build parameterized quantum circuit"""
         self.feature_map = ZZFeatureMap(self.num_qubits)

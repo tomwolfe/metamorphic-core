@@ -58,19 +58,31 @@ class FormalSpecification:
         try:
             self.solver.push()
             
+            # Normalize prediction keys
+            canonical_map = {
+                "bias_risk": "BiasRisk",
+                "transparency_score": "TransparencyScore",
+                "immediate_risk": "ImmediateRisk",
+                "long_term_risk": "LongTermRisk"
+            }
+            normalized_preds = {
+                canonical_map.get(k, k): v 
+                for k, v in predictions.items()
+            }
+
             # Add all registered constraints
             for constr in self.constraints.values():
                 self.solver.add(constr)
             
             # Verify each prediction value
-            for pred_key, pred_value in predictions.items():
-                var_map = {
-                    "BiasRisk": self.bias_risk,
-                    "TransparencyScore": self.transparency_score,
-                    "ImmediateRisk": self.immediate_risk,
-                    "LongTermRisk": self.long_term_risk
-                }
-                
+            var_map = {
+                "BiasRisk": self.bias_risk,
+                "TransparencyScore": self.transparency_score,
+                "ImmediateRisk": self.immediate_risk,
+                "LongTermRisk": self.long_term_risk
+            }
+            
+            for pred_key, pred_value in normalized_preds.items():
                 if pred_key in var_map:
                     self.solver.add(var_map[pred_key] == pred_value)
             
@@ -80,7 +92,7 @@ class FormalSpecification:
             if check_result == sat:
                 model = self.solver.model()
                 results["verified"] = False
-                results["violations"] = self._find_violations(model, predictions)
+                results["violations"] = self._find_violations(model, normalized_preds)
                 results["counterexample"] = json.loads(
                     json.dumps(model, cls=Z3JSONEncoder)
                 )
@@ -141,7 +153,8 @@ class FormalSpecification:
             "Immediate risk": "immediate_risk",
             "Long-term risk": "long_term_risk"
         }
-        for k in mapping:
-            if k in constraint:
-                return mapping[k]
+        # Match using startswith for robust partial matching
+        for phrase in mapping:
+            if constraint.startswith(phrase):
+                return mapping[phrase]
         return "unknown"

@@ -139,7 +139,8 @@ class EthicalAuditLogger:
                 "violations": validation_result["constraints_violated"]
             },
             "metrics": validation_result["risk_breakdown"],
-            "predictions": validation_result.get("predictions", {})
+            "predictions": validation_result.get("predictions", {}),
+            "formal_verification": validation_result.get("formal_proof", {})  # Added this line
         }
 
         # Add security chain for critical decisions

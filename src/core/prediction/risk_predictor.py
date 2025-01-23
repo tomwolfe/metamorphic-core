@@ -1,49 +1,56 @@
 from qiskit import QuantumCircuit
-from qiskit_aer import Aer
 from qiskit.circuit.library import ZZFeatureMap, RealAmplitudes
-from qiskit.circuit import ParameterVector
+from qiskit_aer import Aer
 import numpy as np
 
 class QuantumRiskPredictor:
-    """Quantum-enhanced risk prediction (Qiskit 1.0+ compatible)"""
+    """Quantum-enhanced risk prediction with dynamic parameter binding"""
+    
     def __init__(self, num_qubits=3, time_steps=5):
         self.num_qubits = num_qubits
         self.time_steps = time_steps
         self.backend = Aer.get_backend('aer_simulator')
-        self.params = ParameterVector('θ', length=num_qubits * time_steps)
         self._build_circuit()
         
     def _build_circuit(self):
-        """Build parameterized quantum circuit"""
-        self.feature_map = ZZFeatureMap(self.num_qubits)
-        self.var_form = RealAmplitudes(self.num_qubits, entanglement='linear')
+        """Construct adaptive quantum circuit with proper parameters"""
+        # Create parameterized feature map
+        self.feature_map = ZZFeatureMap(self.num_qubits, reps=2)
+        
+        # Create variational form with matching parameters
+        self.var_form = RealAmplitudes(self.num_qubits, reps=2)
+        
+        # Combine circuits and collect actual parameters
         self.circuit = self.feature_map.compose(self.var_form)
         self.circuit.measure_all()
+        
+        # Get actual parameters from constructed circuit
+        self.parameters = list(self.circuit.parameters)
+        self.num_params = len(self.parameters)
 
     def forecast_risk(self, history: list) -> dict:
-        """Predict risk using quantum temporal analysis"""
+        """Predict risk using quantum-enhanced analysis"""
         processed_data = self._preprocess(history)
-        param_bind = {self.params[i]: processed_data[i] for i in range(len(self.params))}
+        param_bind = self._match_parameters(processed_data)
         results = self._execute_circuit(param_bind)
         return self._interpret_results(results)
 
     def _preprocess(self, data: list) -> np.ndarray:
-        """Ensure consistent input data format"""
-        if len(data) < self.time_steps:
-            # Pad with default values if history is short
-            padding = [{
-                'bias_risk': 0.0,
-                'safety_risk': 0.0,
-                'transparency_score': 0.5
-            }] * (self.time_steps - len(data))
-            data = padding + data
-            
+        """Prepare historical data for quantum processing"""
         return np.array([
             [entry.get('bias_risk', 0.0), 
              entry.get('safety_risk', 0.0),
              entry.get('transparency_score', 0.5)]
             for entry in data[-self.time_steps:]
-        ]).flatten() / 2.0  # Normalize to [0, 0.5] range
+        ]).flatten() / 2.0  # Normalize to [0, 0.5]
+
+    def _match_parameters(self, data: np.ndarray) -> dict:
+        """Align input data with circuit parameters"""
+        # Use modulo to safely map data to parameters
+        return {
+            param: data[i % len(data)]
+            for i, param in enumerate(self.parameters)
+        }
 
     def _execute_circuit(self, parameters: dict) -> dict:
         """Execute parameter-bound quantum circuit"""
@@ -55,7 +62,7 @@ class QuantumRiskPredictor:
         """Convert quantum measurements to risk predictions"""
         total = sum(counts.values())
         return {
-            'next_cycle': counts.get('0'*self.num_qubits, 0)/total,
-            '3_cycle': np.mean([v/total for v in counts.values()]),
-            '5_cycle': max(counts.values())/total
+            'next_hour': counts.get('0'*self.num_qubits, 0)/total,
+            'next_day': np.mean(list(counts.values()))/total,
+            'next_week': max(counts.values())/total
         }

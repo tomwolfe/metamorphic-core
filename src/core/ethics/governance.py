@@ -4,6 +4,9 @@ from typing import Dict, List
 import json
 from datetime import datetime
 from hashlib import sha256
+import numpy as np
+
+# Core imports
 from ..quantum.state_preservation import QuantumStatePreserver
 from .constraints import (
     EthicalConstraint,
@@ -23,6 +26,17 @@ class QuantumEthicalValidator:
         self.state_preserver = QuantumStatePreserver()
         self.risk_predictor = QuantumRiskPredictor()
         self.audit_logger = EthicalAuditLogger()
+        self._setup_default_history()
+
+    def _setup_default_history(self):
+        """Initialize with baseline historical data"""
+        self.history = [
+            {
+                'bias_risk': 0.2,
+                'safety_risk': 0.3,
+                'transparency_score': 0.8
+            } for _ in range(self.risk_predictor.time_steps)
+        ]
 
     def validate_code(self, code_sample: str) -> Dict:
         """Full quantum-ethical validation pipeline with prediction"""
@@ -43,9 +57,9 @@ class QuantumEthicalValidator:
         validation_result = self._apply_ethical_rules(quantum_metrics)
         validation_result["quantum_state_id"] = state_id
         
-        # Risk prediction and auditing
-        historical_data = self._load_historical_context(state_id)
-        validation_result["predictions"] = self.risk_predictor.forecast_risk(historical_data)
+        # Update history and predict
+        self._update_history(validation_result['risk_breakdown'])
+        validation_result["predictions"] = self.risk_predictor.forecast_risk(self.history)
         self.audit_logger.log_decision(validation_result)
         
         return validation_result
@@ -91,10 +105,9 @@ class QuantumEthicalValidator:
             mitigation_plan=constraint.default_mitigation
         )
 
-    def _load_historical_context(self, state_id: str) -> list:
-        """Load relevant audit history for predictions"""
-        # Placeholder - will implement in next phase
-        return []
+    def _update_history(self, new_metrics: dict):
+        """Maintain rolling window of historical data"""
+        self.history = self.history[1:] + [new_metrics]
 
 class EthicalAuditLogger:
     """Quantum audit trail manager with cryptographic integrity"""
@@ -109,7 +122,7 @@ class EthicalAuditLogger:
             "metadata": {
                 "timestamp": str(datetime.utcnow()),
                 "quantum_state_id": validation_result["quantum_state_id"],
-                "system_version": "0.7.1"
+                "system_version": "0.8.2"
             },
             "decision": {
                 "approved": validation_result["approved"],
@@ -119,16 +132,16 @@ class EthicalAuditLogger:
             "predictions": validation_result.get("predictions", {})
         }
 
-        # Add quantum state hash chain
-        if validation_result["constraints_violated"]:
-            audit_entry["security_chain"] = self._generate_security_chain(audit_entry)
+        # Add security chain for critical decisions
+        if not validation_result["approved"]:
+            audit_entry["security_hash"] = self._generate_security_hash(audit_entry)
 
         file_path = self.audit_path / f"{validation_result['quantum_state_id']}.json"
         with file_path.open("w") as f:
             json.dump(audit_entry, f, indent=2)
 
-    def _generate_security_chain(self, audit_entry: dict) -> str:
-        """Create cryptographic hash chain for security-critical audits"""
+    def _generate_security_hash(self, audit_entry: dict) -> str:
+        """Create immutable security hash for critical audits"""
         return sha256(
             json.dumps(audit_entry, sort_keys=True).encode()
         ).hexdigest()

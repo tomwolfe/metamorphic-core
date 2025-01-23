@@ -2,7 +2,7 @@
 from z3 import *
 from datetime import datetime
 import json
-from typing import Dict
+from typing import Dict, List
 from .z3_serializer import Z3JSONEncoder
 
 class FormalSpecification:
@@ -74,7 +74,7 @@ class FormalSpecification:
             for constr in self.constraints.values():
                 self.solver.add(constr)
             
-            # Verify each prediction value
+            # Add prediction equalities
             var_map = {
                 "BiasRisk": self.bias_risk,
                 "TransparencyScore": self.transparency_score,
@@ -86,18 +86,14 @@ class FormalSpecification:
                 if pred_key in var_map:
                     self.solver.add(var_map[pred_key] == pred_value)
             
-            # Check satisfaction
+            # Check satisfaction with proper logic
             check_result = self.solver.check()
             
             if check_result == sat:
-                model = self.solver.model()
-                results["verified"] = False
-                results["violations"] = self._find_violations(model, normalized_preds)
-                results["counterexample"] = json.loads(
-                    json.dumps(model, cls=Z3JSONEncoder)
-                )
-            elif check_result == unsat:
                 results["verified"] = True
+            elif check_result == unsat:
+                results["verified"] = False
+                results["violations"] = self._find_unsat_core(normalized_preds)
             else:
                 results["verified"] = "unknown"
                 
@@ -109,7 +105,6 @@ class FormalSpecification:
 
     def _parse_constraint(self, constraint: str):
         """Convert natural language constraint to Z3 expression"""
-        # Simple parser for demonstration - extend for more complex constraints
         if "never exceeds" in constraint:
             var_name, value = constraint.split(" never exceeds ")
             return self._get_z3_var(var_name) <= float(value)
@@ -129,32 +124,30 @@ class FormalSpecification:
         }
         return var_map[var_name.strip()]
 
-    def _find_violations(self, model: ModelRef, predictions: Dict) -> list:
-        """Identify which predictions violate constraints"""
-        violations = []
-        for name, constr in self.constraints.items():
-            try:
-                if not model.eval(constr):
-                    violations.append({
-                        "constraint": name,
-                        "predicted_value": predictions.get(
-                            self._get_prediction_key(name), None
-                        )
-                    })
-            except Z3Exception:
-                continue
-        return violations
+    def _find_unsat_core(self, predictions: Dict) -> List[str]:
+        """Identify which specific constraints are violated"""
+        unsat_core = []
+        
+        for constraint, expr in self.constraints.items():
+            temp_solver = Solver()
+            temp_solver.add(expr)
+            
+            # Add relevant predictions
+            for pred_key, pred_value in predictions.items():
+                if pred_key == "BiasRisk":
+                    temp_solver.add(self.bias_risk == pred_value)
+                elif pred_key == "TransparencyScore":
+                    temp_solver.add(self.transparency_score == pred_value)
+                elif pred_key == "ImmediateRisk":
+                    temp_solver.add(self.immediate_risk == pred_value)
+                elif pred_key == "LongTermRisk":
+                    temp_solver.add(self.long_term_risk == pred_value)
+            
+            if temp_solver.check() == unsat:
+                unsat_core.append(constraint)
+        
+        return unsat_core
 
-    def _get_prediction_key(self, constraint: str) -> str:
-        """Map constraint to prediction key"""
-        mapping = {
-            "Bias risk": "bias_risk",
-            "Transparency": "transparency_score",
-            "Immediate risk": "immediate_risk",
-            "Long-term risk": "long_term_risk"
-        }
-        # Match using startswith for robust partial matching
-        for phrase in mapping:
-            if constraint.startswith(phrase):
-                return mapping[phrase]
-        return "unknown"
+    def get_constraint_names(self) -> List[str]:
+        """Get list of registered constraints"""
+        return list(self.constraints.keys())

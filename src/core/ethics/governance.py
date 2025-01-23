@@ -16,6 +16,7 @@ from .constraints import (
 )
 from ..prediction.risk_predictor import QuantumRiskPredictor
 from ..quantum.ethical_validation import EthicalQuantumCore
+from ..verification.specification import FormalSpecification  # New import
 
 class QuantumEthicalValidator:
     """Quantum-powered ethical governance engine with predictive capabilities"""
@@ -25,6 +26,7 @@ class QuantumEthicalValidator:
         self.quantum_analyzer = EthicalQuantumCore()
         self.state_preserver = QuantumStatePreserver()
         self.risk_predictor = QuantumRiskPredictor()
+        self.formal_verifier = FormalSpecification()  # Added formal verifier
         self.audit_logger = EthicalAuditLogger()
         self._setup_default_history()
 
@@ -60,6 +62,8 @@ class QuantumEthicalValidator:
         # Update history and predict
         self._update_history(validation_result['risk_breakdown'])
         validation_result["predictions"] = self.risk_predictor.forecast_risk(self.history)
+        # Formal verification of predictions
+        validation_result["formal_proof"] = self._verify_formally(validation_result["predictions"])
         self.audit_logger.log_decision(validation_result)
         
         return validation_result
@@ -108,6 +112,12 @@ class QuantumEthicalValidator:
     def _update_history(self, new_metrics: dict):
         """Maintain rolling window of historical data"""
         self.history = self.history[1:] + [new_metrics]
+
+    def _verify_formally(self, predictions: dict) -> dict:
+        """Mathematical proof of prediction validity"""
+        self.formal_verifier.add_safety_invariant("Bias risk never exceeds 0.25")
+        self.formal_verifier.add_ethical_guardrail("Transparency never drops below 0.4")
+        return self.formal_verifier.verify_predictions(predictions)
 
 class EthicalAuditLogger:
     """Quantum audit trail manager with cryptographic integrity"""

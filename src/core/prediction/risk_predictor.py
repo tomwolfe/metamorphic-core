@@ -1,4 +1,4 @@
-# src/core/prediction/risk_model.py
+# src/core/prediction/risk_predictor.py
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ParameterVector
 from qiskit.primitives import Sampler

@@ -1,6 +1,5 @@
 # Environment
 .env
-*.env*
 
 # Secrets
 secrets/
@@ -33,3 +32,7 @@ logs/
 
 quantum_states/
 ethical_audits/
+audit_logs/
+
+.DS_Store
+repo_to_single_file.sh

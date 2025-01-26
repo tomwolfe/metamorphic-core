@@ -1,5 +1,5 @@
 import numpy as np
-from qiskit.providers.aer import Aer, execute  # Correct import path
+from qiskit_aer import Aer, execute  # Correct direct import
 from qiskit import QuantumCircuit
 from qiskit.algorithms.optimizers import COBYLA
 from qiskit_machine_learning.neural_networks import SamplerQNN

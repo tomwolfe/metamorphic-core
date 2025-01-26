@@ -13,3 +13,4 @@ plotly>=5.18.0          # Interactive visualization
 kaleido>=0.2.1          # Static image export for Plotly
 pandas>=2.0.0           # Data handling for visualizations
 z3-solver>=4.13.4.0
+docker>=7.0.0

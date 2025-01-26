@@ -1,8 +1,9 @@
+
 from qiskit import QuantumCircuit
 from qiskit.primitives import Sampler  # New primitives interface
 from qiskit_aer import AerSimulator  # Modern Aer simulator
 import numpy as np
-from qiskit.algorithms.optimizers import COBYLA
+from qiskit_algorithms.optimizers import COBYLA
 from qiskit_machine_learning.neural_networks import SamplerQNN
 from sklearn.preprocessing import MinMaxScaler
 

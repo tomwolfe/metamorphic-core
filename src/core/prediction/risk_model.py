@@ -1,5 +1,6 @@
 import numpy as np
-from qiskit_aer import Aer, execute  # Correct direct import
+from qiskit import execute  # Core Qiskit function
+from qiskit_aer import Aer  # Simulator backend
 from qiskit import QuantumCircuit
 from qiskit.algorithms.optimizers import COBYLA
 from qiskit_machine_learning.neural_networks import SamplerQNN

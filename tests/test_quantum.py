@@ -21,3 +21,13 @@ def test_quantum_analysis_with_mocks(mock_sampler):
         
     assert 'basis_states' in result
     assert sum(result['basis_states'].values()) == 1000  # Validate shot normalization
+
+def test_quantum_error_handling():
+    """Test graceful degradation when quantum analysis fails"""
+    with patch('src.core.quantum.ethical_validation.Sampler') as mock_sampler:
+        mock_sampler.side_effect = Exception("Quantum backend unreachable")
+        core = EthicalQuantumCore()
+        result = core.analyze_quantum_state("test")
+        
+    assert "error" in result
+    assert "basis_states" in result  # Should still return partial data

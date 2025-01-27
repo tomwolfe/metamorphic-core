@@ -23,7 +23,7 @@ SENSITIVE_PATHS = [
     "repo_to_single_file.sh",
     "repo_contents.txt",
 
-    "venv/',
+    "venv/"
 ]
 
 @pytest.mark.security

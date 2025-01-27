@@ -102,18 +102,22 @@ class FormalSpecification:
             
         results["proofs"] = self.proofs
         return results
-
+    
     def _parse_constraint(self, constraint: str):
         """Convert natural language constraint to Z3 expression"""
-        if "never exceeds" in constraint:
-            var_name, value = constraint.split(" never exceeds ")
+        # Update pattern matching
+        if "under" in constraint:
+            var_name, value = constraint.split(" under ")
             return self._get_z3_var(var_name) <= float(value)
-        elif "never drops below" in constraint:
-            var_name, value = constraint.split(" never drops below ")
-            return self._get_z3_var(var_name) >= float(value)
+        elif "exceeds" in constraint:
+            var_name, value = constraint.split(" exceeds ")
+            return self._get_z3_var(var_name) > float(value)
+        elif "drops below" in constraint:
+            var_name, value = constraint.split(" drops below ")
+            return self._get_z3_var(var_name) < float(value)
         else:
             raise ValueError(f"Unsupported constraint format: {constraint}")
-
+            
     def _get_z3_var(self, var_name: str):
         """Map natural language names to Z3 variables"""
         var_map = {

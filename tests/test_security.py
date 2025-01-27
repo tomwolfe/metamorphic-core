@@ -20,8 +20,10 @@ SENSITIVE_PATHS = [
     
     # Security-sensitive files
     "docker-compose.yml",  # Should only use .example version
-    "repo_to_single_file.sh"
-    "repo_contents.txt"
+    "repo_to_single_file.sh",
+    "repo_contents.txt",
+
+    "venv/',
 ]
 
 @pytest.mark.security

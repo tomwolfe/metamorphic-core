@@ -39,11 +39,13 @@ def mock_verifier():
     }
     return mock
 
+# File: tests/test_ethics.py
+
 def test_approval_with_valid_proof(mock_verifier):
     """Test code approval when formal proofs verify all constraints"""
     with patch('src.core.ethics.governance.FormalSpecification') as mock_spec:
-        mock_spec.return_value = mock_verifier
-        mock_verifier.verify_predictions.return_value = {
+        mock_spec_instance = mock_spec.return_value
+        mock_spec_instance.verify_predictions.return_value = {
             "verified": True,
             "violations": []
         }

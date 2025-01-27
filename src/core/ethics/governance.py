@@ -12,13 +12,13 @@ class QuantumEthicalValidator:
         self.formal_verifier = FormalSpecification()
         self.audit_logger = EthicalAuditLogger()
         self._load_ethical_framework()
-
+    
     def _load_ethical_framework(self):
         """Load ethical guidelines into verification system"""
         self.formal_verifier.add_safety_invariant("Bias risk never exceeds 0.25")
         self.formal_verifier.add_ethical_guardrail("Transparency never drops below 0.4")
-        self.formal_verifier.add_safety_invariant("Privacy risk remains under 0.3")
-
+        self.formal_verifier.add_safety_invariant("Privacy risk never exceeds 0.3")  # Fixed format
+        
     def validate_code(self, code_sample: str) -> Dict[str, Any]:
         """Perform comprehensive ethical validation"""
         validation_result = {

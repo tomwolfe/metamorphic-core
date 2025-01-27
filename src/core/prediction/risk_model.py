@@ -9,11 +9,11 @@ from sklearn.preprocessing import MinMaxScaler
 
 class QuantumRiskPredictor:
     """Quantum-enhanced risk prediction using historical audit data"""
-    
+
     def __init__(self, num_qubits=4):
+        self.backend = AerSimulator()  # Direct simulator initialization
         self.num_qubits = num_qubits
         self.scaler = MinMaxScaler()
-        self.backend = Aer.get_backend('qasm_simulator')
         
         # Quantum neural network setup
         self.qnn = self._create_qnn()

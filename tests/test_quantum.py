@@ -28,6 +28,7 @@ def test_quantum_analysis_with_mocks(mock_sampler):
 def test_quantum_error_handling():
     """Test graceful degradation when quantum analysis fails"""
     with patch('src.core.quantum.ethical_validation.Sampler') as mock_sampler:
+        # Raise error on Sampler instantiation
         mock_sampler.side_effect = Exception("Quantum backend unreachable")
         core = EthicalQuantumCore()
         result = core.analyze_quantum_state("test")

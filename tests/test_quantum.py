@@ -33,4 +33,4 @@ def test_quantum_error_handling():
         result = core.analyze_quantum_state("test")
         
     assert "error" in result
-    assert "basis_states" in result  # Should still return partial data
+    assert isinstance(result["basis_states"], dict)

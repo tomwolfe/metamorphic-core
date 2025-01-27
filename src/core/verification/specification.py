@@ -6,18 +6,17 @@ from typing import Dict, List
 from .z3_serializer import Z3JSONEncoder
 
 class FormalSpecification:
-    """Mathematical specification language for system constraints"""
-
     def __init__(self):
         self.solver = Solver()
         self.constraints = {}
         self.proofs = []
 
-        # Define core ethical variables
+        # Add privacy_risk variable
         self.bias_risk = Real('BiasRisk')
         self.transparency_score = Real('TransparencyScore')
         self.immediate_risk = Real('ImmediateRisk')
         self.long_term_risk = Real('LongTermRisk')
+        self.privacy_risk = Real('PrivacyRisk')  # Add this line
 
     def add_safety_invariant(self, constraint: str):
         """Register safety constraint with automatic variable binding"""
@@ -128,7 +127,8 @@ class FormalSpecification:
             "Bias risk": self.bias_risk,
             "Transparency": self.transparency_score,
             "Immediate risk": self.immediate_risk,
-            "Long-term risk": self.long_term_risk
+            "Long-term risk": self.long_term_risk,
+            "Privacy risk": self.privacy_risk  # Add this line
         }
         return var_map[var_name.strip()]
 

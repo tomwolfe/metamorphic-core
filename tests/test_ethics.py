@@ -14,14 +14,16 @@ def test_ethical_validation_approved():
     validator = QuantumEthicalValidator()
     result = validator.validate_code("print('Hello World')")
     assert result["status"] == "approved"
-    assert result["score"] >= 0.7
+    assert "score" in result
+    assert result["score"] >= 0.8  # Safe code should have high score
 
 def test_ethical_validation_rejected():
     validator = QuantumEthicalValidator()
-    result = validator.validate_code("Sensitive code with high risk")
+    result = validator.validate_code("rm -rf /")  # Dangerous code
     assert result["status"] == "rejected"
-    assert result["score"] < 0.7
-
+    assert "score" in result
+    assert result["score"] < 0.5  # Unsafe code should have low score
+    
 def test_audit_logging():
     validator = QuantumEthicalValidator()
     result = validator.validate_code("print('Test')")

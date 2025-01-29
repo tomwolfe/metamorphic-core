@@ -1,5 +1,5 @@
 from qiskit import QuantumCircuit
-from qiskit.primitives import SamplerV2 as Sampler
+from qiskit.primitives import Sampler
 import numpy as np
 
 class EthicalQuantumCore:

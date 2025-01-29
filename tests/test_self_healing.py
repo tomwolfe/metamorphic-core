@@ -10,10 +10,11 @@ class TestSelfHealing(unittest.TestCase):
     def setUp(self):
         self.orchestrator = HealingOrchestrator()
 
-    
     @patch('docker.from_env')
     def test_healing_loop(self, mock_docker):
-        mock_docker.return_value.containers.run.return_value = MagicMock()
+        mock_client = MagicMock()
+        mock_docker.return_value = mock_client
+        mock_client.containers.run.return_value = MagicMock()
 
         """Test full healing cycle"""
         # Simulate constraint violation

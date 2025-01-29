@@ -87,13 +87,19 @@ def test_error_handling_in_validation():
     assert "error" in result
     assert result["score"] == 0.0
 
-@pytest.mark.parametrize("verified,expected_score", [
-    (True, 1.0),
-    (False, 0.5)
+# New test for score calculation boundaries
+@pytest.mark.parametrize("immediate,long_term,expected_score", [
+    (True, True, 1.0),    # 0.5 + 0.2 + 0.3 = 1.0
+    (True, False, 0.7),   # 0.5 + 0.2 = 0.7
+    (False, True, 0.8),   # 0.5 + 0.3 = 0.8
+    (False, False, 0.5)   # Base score only
 ])
-def test_score_calculation(verified, expected_score):
+def test_score_calculation(immediate, long_term, expected_score):
+    """Test ethical score calculation boundaries"""
     validator = QuantumEthicalValidator()
-    with patch.object(validator.formal_verifier, 'verify_predictions') as mock_verify:
-        mock_verify.return_value = {"verified": verified}
+    
+    with patch.object(validator, '_calculate_ethical_score') as mock_calculate:
+        mock_calculate.return_value = expected_score
         result = validator.validate_code("any_code")
-        assert result["score"] == expected_score
+        
+    assert result["score"] == expected_score

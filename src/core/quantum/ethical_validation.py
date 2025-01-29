@@ -33,10 +33,9 @@ class EthicalQuantumCore:
         Perform quantum measurement of ethical state probabilities using Sampler
         Returns raw quantum metrics without ethical interpretation
         """
+        if not self.sampler:
+            return {"error": f"Quantum init failed: {self._error}", "basis_states": {}}
         try:
-            if not self.sampler:
-                return {"error": f"Quantum init failed: {self._error}"}
-    
             qc = self.create_ethical_circuit()
             job = self.sampler.run(qc, shots=1000)
             result = job.result()

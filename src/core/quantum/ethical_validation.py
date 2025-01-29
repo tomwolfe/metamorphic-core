@@ -1,4 +1,5 @@
-from qiskit.primitives import StatevectorSampler  # Changed import
+from qiskit import QuantumCircuit
+from qiskit.primitives import StatevectorSampler
 import numpy as np
 
 class EthicalQuantumCore:
@@ -9,7 +10,7 @@ class EthicalQuantumCore:
             'transparency': 0.5
         }
         try:
-            self.sampler = StatevectorSampler()  # Using V2 primitive
+            self.sampler = StatevectorSampler()
         except Exception as e:
             self.sampler = None
             self._error = str(e)

@@ -1,4 +1,5 @@
 # tests/test_self_healing.py
+from unittest.mock import patch
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -8,8 +9,12 @@ from src.core.self_healing.orchestrator import HealingOrchestrator
 class TestSelfHealing(unittest.TestCase):
     def setUp(self):
         self.orchestrator = HealingOrchestrator()
-        
-    def test_healing_loop(self):
+
+    
+    @patch('docker.from_env')
+    def test_healing_loop(self, mock_docker):
+        mock_docker.return_value.containers.run.return_value = MagicMock()
+
         """Test full healing cycle"""
         # Simulate constraint violation
         self.orchestrator.spec.add_safety_invariant("Bias risk never exceeds 0.25")

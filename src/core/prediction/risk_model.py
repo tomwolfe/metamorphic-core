@@ -1,4 +1,4 @@
-
+from qiskit.circuit import ParameterVector
 from qiskit import QuantumCircuit
 from qiskit.primitives import Sampler  # New primitives interface
 from qiskit_aer import AerSimulator  # Modern Aer simulator
@@ -19,12 +19,15 @@ class QuantumRiskPredictor:
         self.qnn = self._create_qnn()
         self.optimizer = COBYLA(maxiter=100)
         
+    
     def _create_qnn(self):
-        """Create quantum neural network for temporal pattern recognition"""
+        """Create parameterized quantum circuit"""
+        params = ParameterVector('input', self.num_qubits)
         feature_map = QuantumCircuit(self.num_qubits)
         for qubit in range(self.num_qubits):
             feature_map.h(qubit)
-            feature_map.ry(np.pi/4, qubit)
+            feature_map.ry(params[qubit], qubit)
+
         
         ansatz = QuantumCircuit(self.num_qubits)
         for qubit in range(self.num_qubits-1):

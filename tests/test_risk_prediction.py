@@ -13,7 +13,7 @@ def mock_sampler():
     
 def test_risk_prediction(mock_sampler):
     with patch('qiskit.primitives.Sampler', return_value=mock_sampler):
-        predictor = QuantumRiskPredictor(num_qubits=2)
+        predictor = QuantumRiskPredictor(num_qubits=4)
         
         # Wrap mock data in a list of sequences
         mock_data = [

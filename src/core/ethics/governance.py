@@ -70,12 +70,12 @@ class QuantumEthicalValidator:
             "privacy_risk": 0.1  # Added missing required metric
         }
 
+
     def _calculate_ethical_score(self, proof: Dict) -> float:
-        """Calculate composite score from verification results"""
-        base_score = 0.5
-        if proof.get('verified', False): # Check overall 'verified' status
-            base_score = 1.0 # If verified, give full score
-        return min(max(base_score, 0.0), 1.0)
+        """Calculate score based on verification status"""
+        if proof.get('verified', False):
+            return 1.0
+        return 0.5  # Base score when unverified but no errors
 
 class EthicalAuditLogger:
     def __init__(self):

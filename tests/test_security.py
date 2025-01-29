@@ -13,11 +13,6 @@ SENSITIVE_PATHS = [
     "secrets/",
     "credentials/",
     
-    # Audit artifacts
-    "quantum_states/",
-    "ethical_audits/",
-    "audit_logs/",
-    
     # Security-sensitive files
     "docker-compose.yml",  # Should only use .example version
     "repo_to_single_file.sh",

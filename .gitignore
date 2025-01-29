@@ -37,4 +37,4 @@ audit_logs/
 .DS_Store
 repo_to_single_file.sh
 repo_contents.txt
-.coverage
+.coverage*

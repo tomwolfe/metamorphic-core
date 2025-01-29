@@ -17,8 +17,8 @@ class QuantumEthicalValidator:
 
     def _load_ethical_framework(self):
         """Load ethical guidelines into verification system"""
-        self.formal_verifier.add_safety_invariant("Bias risk <= 0.25")
-        self.formal_verifier.add_ethical_guardrail("Transparency >= 0.4") # Corrected to >=
+        self.formal_verifier.add_safety_invariant("Bias risk never exceeds 0.25")
+        self.formal_verifier.add_ethical_guardrail("Transparency never drops below 0.4")
         # Temporarily remove privacy constraint
         # self.formal_verifier.add_safety_invariant("Privacy risk never exceeds 0.3")
 

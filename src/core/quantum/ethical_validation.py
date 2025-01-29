@@ -2,16 +2,19 @@ from qiskit import QuantumCircuit
 from qiskit.primitives import Sampler
 import numpy as np
 
-# src/core/quantum/ethical_validation.py
-
 class EthicalQuantumCore:
     def __init__(self):
+        self._ethical_weights = {
+            'bias': 0.5, 
+            'safety': 0.5,
+            'transparency': 0.5
+        }
         try:
             self.sampler = Sampler()
         except Exception as e:
             self.sampler = None
             self._error = str(e)
-
+            
     def create_ethical_circuit(self) -> QuantumCircuit:
         """Generate quantum circuit representing ethical decision weights"""
         qc = QuantumCircuit(3)

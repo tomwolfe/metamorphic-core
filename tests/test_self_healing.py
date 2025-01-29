@@ -10,8 +10,9 @@ class TestSelfHealing(unittest.TestCase):
     def setUp(self):
         self.orchestrator = HealingOrchestrator()
 
-    @patch('src.core.self_healing.core.docker.from_env')
-    def test_healing_loop(self, mock_docker):
+    @patch('docker.from_env')
+    @patch('src.core.self_healing.core.subprocess.run')
+    def test_healing_loop(self, mock_run, mock_docker):
         mock_client = MagicMock()
         mock_docker.return_value = mock_client
         mock_container = MagicMock()

@@ -7,6 +7,7 @@ from .z3_serializer import Z3JSONEncoder
 class FormalSpecification:
     def __init__(self):
         self.solver = Solver()
+        self.solver.set(unsat_core=True)  # Add this line
         self.constraints = {}
         self.proofs = []
         self.valid_constraints = set()

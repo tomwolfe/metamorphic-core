@@ -1,53 +1,46 @@
+# File: src/core/ethics/governance.py
 import os
 import json
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from z3 import ModelRef
 from ..verification.specification import FormalSpecification
 from ..verification.z3_serializer import Z3JSONEncoder
-from ..quantum.state_preservation import QuantumStatePreserver # Import state preserver
+from ..quantum.state_preservation import QuantumStatePreserver
 
 class QuantumEthicalValidator:
     def __init__(self):
         self.formal_verifier = FormalSpecification()
         self.audit_logger = EthicalAuditLogger()
-        self.state_preserver = QuantumStatePreserver() # Initialize state preserver
+        self.state_preserver = QuantumStatePreserver()
         self._load_ethical_framework()
 
     def _load_ethical_framework(self):
         """Load ethical guidelines into verification system"""
         self.formal_verifier.add_safety_invariant("Bias risk never exceeds 0.25")
         self.formal_verifier.add_ethical_guardrail("Transparency never drops below 0.4")
-        # Temporarily remove privacy constraint
-        # self.formal_verifier.add_safety_invariant("Privacy risk never exceeds 0.3")
 
     def validate_code(self, code_sample: str) -> Dict[str, Any]:
         """Perform comprehensive ethical validation"""
-        state_id = self.state_preserver.preserve_state(code_sample) # Preserve state first
+        state_id = self.state_preserver.preserve_state(code_sample)
         validation_result = {
-            "state_id": state_id, # Add state_id to result
+            "state_id": state_id,
             "status": "pending",
             "score": 0.0,
             "predictions": self._predict_ethical_impact(code_sample),
             "formal_proof": None,
             "timestamp": str(datetime.utcnow()),
-            "code_sample_hash": hash(code_sample) # Include code sample hash
+            "code_sample_hash": hash(code_sample)
         }
 
         try:
-            # Formal mathematical verification
             validation_result["formal_proof"] = self.formal_verifier.verify_predictions(
                 validation_result["predictions"]
             )
-
-            # Calculate composite ethical score
             validation_result["score"] = self._calculate_ethical_score(
                 validation_result["formal_proof"]
             )
-
-            # Determine final status
             validation_result["status"] = "approved" if validation_result["score"] >= 0.7 else "rejected"
-
         except Exception as e:
             validation_result.update({
                 "status": "error",
@@ -55,7 +48,6 @@ class QuantumEthicalValidator:
                 "score": 0.0
             })
 
-        # Log decision with serialization handling
         self.audit_logger.log_decision(validation_result)
         return validation_result
 
@@ -66,14 +58,12 @@ class QuantumEthicalValidator:
             "transparency_score": 0.7,
             "immediate_risk": 0.1,
             "long_term_risk": 0.2,
-            "privacy_risk": 0.1  # Added missing required metric
+            "privacy_risk": 0.1
         }
 
     def _calculate_ethical_score(self, proof: Dict) -> float:
         """Calculate score based on verification status"""
-        if proof.get('verified', False):
-            return 1.0
-        return 0.5  # Base score when unverified but no errors
+        return 1.0 if proof.get('verified', False) else 0.5
 
 class EthicalAuditLogger:
     def __init__(self):
@@ -83,14 +73,13 @@ class EthicalAuditLogger:
     def log_decision(self, validation_result: dict):
         """Log decision with Z3 model serialization handling"""
         processed_proof = self._process_z3_models(validation_result.get("formal_proof", {}))
-
         audit_entry = {
             "timestamp": datetime.utcnow().isoformat(),
             "decision": validation_result["status"],
             "ethical_score": validation_result["score"],
             "formal_proof": processed_proof,
             "model_version": self._get_model_version(),
-            "code_sample_hash": validation_result.get("code_sample_hash") # Use hash from result
+            "code_sample_hash": validation_result.get("code_sample_hash")
         }
 
         filename = f"decision_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.json"
@@ -103,21 +92,17 @@ class EthicalAuditLogger:
         """Convert Z3 models to serializable format"""
         if not proof_data:
             return {}
-
-        processed = {}
-        if proof_data.get('model'): # Process model if present
-             processed['model'] = self._convert_z3_model(proof_data['model'])
-        return processed
+        return {
+            'model': self._convert_z3_model(proof_data['model'])
+        } if proof_data.get('model') else {}
 
     def _convert_z3_model(self, model_data: dict) -> dict:
         """Recursively convert Z3 model components"""
-        converted = {}
-        for k, v in model_data.items():
-            if isinstance(v, ModelRef):
-                converted[k] = json.loads(json.dumps(v, cls=Z3JSONEncoder))
-            else:
-                converted[k] = v
-        return converted
+        return {
+            k: json.loads(json.dumps(v, cls=Z3JSONEncoder))
+            if isinstance(v, ModelRef) else v
+            for k, v in model_data.items()
+        }
 
     def _get_model_version(self) -> str:
         """Get current ethical model version"""
@@ -125,29 +110,58 @@ class EthicalAuditLogger:
 
 class EthicalGovernanceEngine:
     """Orchestrates complete ethical oversight"""
-
+    
     def __init__(self):
         self.validator = QuantumEthicalValidator()
         self.history = []
-
-    def evaluate_development_cycle(self, code: str) -> Dict:
-        """Full ethical evaluation pipeline"""
-        result = self.validator.validate_code(code)
-        return result
-
-    def get_ethical_health_report(self) -> dict:
-        """Generate comprehensive ethical health report"""
-        return {
-            "average_score": 0.85,  # Should come from actual metrics
-            "recent_issues": [
-                # This would be populated from audit logs
-            ],
-            "model_version": self.get_ethical_model_version(),
+        self.health_data = {
+            "average_score": 0.85,
+            "recent_issues": [],
             "violation_stats": {
                 "last_24h": 0,
                 "last_week": 0
             }
         }
-        
+
+    def get_ethical_health_report(self) -> dict:
+        """Return comprehensive ethical health status"""
+        return {
+            "average_score": self.health_data["average_score"],
+            "recent_issues": self.health_data["recent_issues"],
+            "model_version": self.get_ethical_model_version(),
+            "active_constraints": len(self.validator.formal_verifier.constraints),
+            "violation_stats": self.health_data["violation_stats"]
+        }
+
+    def evaluate_development_cycle(self, code: str) -> Dict:
+        """Full ethical evaluation pipeline"""
+        result = self.validator.validate_code(code)
+        self._update_health_data(result)
+        return result
+
     def get_ethical_model_version(self) -> str:
-        return "ETHICAL_MODEL_v2.3.1"  # Match version from EthicalAuditLogger
+        """Get current ethical model version"""
+        return "ETHICAL_MODEL_v2.3.1"
+
+    def _update_health_data(self, validation_result: dict):
+        """Update health metrics based on validation results"""
+        if validation_result["status"] == "rejected":
+            self.health_data["recent_issues"].append({
+                "timestamp": datetime.utcnow().isoformat(),
+                "issue_type": "ethical_violation",
+                "score": validation_result["score"]
+            })
+            self.health_data["violation_stats"]["last_week"] += 1
+            
+        # Maintain rolling average of scores
+        total = self.health_data["average_score"] * len(self.history)
+        total += validation_result["score"]
+        self.history.append(validation_result["score"])
+        self.health_data["average_score"] = total / len(self.history)
+
+        # Keep only last 100 entries for rolling average
+        if len(self.history) > 100:
+            removed = self.history.pop(0)
+            self.health_data["average_score"] = (
+                self.health_data["average_score"] * 100 - removed
+            ) / 99

@@ -1,17 +1,16 @@
-from qiskit.circuit import ParameterVector
-from qiskit import QuantumCircuit
-from qiskit.primitives import Sampler  # New primitives interface
-from qiskit_aer import AerSimulator  # Modern Aer simulator
-import numpy as np
+# File: src/core/prediction/risk_model.py
+from qiskit.circuit import ParameterVector, QuantumCircuit
+from qiskit.primitives import StatevectorSampler  # Updated to V2 primitive
 from qiskit_algorithms.optimizers import COBYLA
 from qiskit_machine_learning.neural_networks import SamplerQNN
+import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
 class QuantumRiskPredictor:
-    """Quantum-enhanced risk prediction using historical audit data"""
-
+    """Quantum-enhanced risk prediction using modern Qiskit primitives"""
+    
     def __init__(self, num_qubits=4):
-        self.backend = AerSimulator()  # Direct simulator initialization
+        self.sampler = StatevectorSampler()  # V2 primitive
         self.num_qubits = num_qubits
         self.scaler = MinMaxScaler()
         
@@ -19,33 +18,35 @@ class QuantumRiskPredictor:
         self.qnn = self._create_qnn()
         self.optimizer = COBYLA(maxiter=100)
         
-    
     def _create_qnn(self):
-        """Create parameterized quantum circuit"""
+        """Create parameterized quantum circuit with V2 integration"""
         params = ParameterVector('input', self.num_qubits)
         feature_map = QuantumCircuit(self.num_qubits)
         for qubit in range(self.num_qubits):
             feature_map.h(qubit)
             feature_map.ry(params[qubit], qubit)
-
         
         ansatz = QuantumCircuit(self.num_qubits)
         for qubit in range(self.num_qubits-1):
             ansatz.cx(qubit, qubit+1)
         
         return SamplerQNN(
+            sampler=self.sampler,
             circuit=feature_map.compose(ansatz),
             input_params=feature_map.parameters,
-            weight_params=ansatz.parameters
+            weight_params=ansatz.parameters,
+            input_gradients=True
         )
     
     def train(self, historical_data: list):
-        """Train on historical audit data"""
+        """Train using V2-compatible approach"""
         X, y = self._preprocess_data(historical_data)
         
-        # Quantum training loop
         def cost_function(weights):
-            predictions = self.qnn.forward(X, weights)
+            # V2 returns a JobV1 object, we need to process results
+            job = self.qnn.forward(X, weights)
+            results = job.result()
+            predictions = np.array([r.data.meas.get('0', 0) for r in results])
             return np.mean((predictions - y)**2)
         
         initial_weights = np.random.rand(self.qnn.num_weights)
@@ -55,9 +56,11 @@ class QuantumRiskPredictor:
         ).x
         
     def predict_risk(self, current_state: dict) -> float:
-        """Predict future risk probability (0-1 scale)"""
+        """Predict risk using V2 primitive results"""
         processed_input = self._process_current_state(current_state)
-        return self.qnn.forward(processed_input, self.optimal_weights)[0]
+        job = self.qnn.forward(processed_input, self.optimal_weights)
+        results = job.result()
+        return float(results[0].data.meas.get('0', 0))
     
     def _preprocess_data(self, data: list):
         """Convert audit trails to temporal features"""

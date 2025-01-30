@@ -18,15 +18,18 @@ def test_risk_prediction(mock_sampler):
     with patch('qiskit.primitives.StatevectorSampler', return_value=mock_sampler):
         predictor = QuantumRiskPredictor(num_qubits=4)
         
+        # Wrap data in nested list to match expected sequence format
         mock_data = [
-            {'risk_metrics': {
-                'bias_risk': 0.1,
-                'safety_risk': 0.2,
-                'transparency_score': 0.8,
-                'composite_risk': 0.15
-            }}
+            [{
+                'risk_metrics': {
+                    'bias_risk': 0.1,
+                    'safety_risk': 0.2,
+                    'transparency_score': 0.8,
+                    'composite_risk': 0.15
+                }
+            }]
         ]
         
         predictor.train(mock_data)
-        prediction = predictor.predict_risk(mock_data[0])
+        prediction = predictor.predict_risk(mock_data[0][0])
         assert 0 <= prediction <= 1

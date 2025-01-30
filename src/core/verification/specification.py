@@ -7,8 +7,9 @@ from .z3_serializer import Z3JSONEncoder
 class FormalSpecification:
     def __init__(self):
         self.solver = Solver()
-        self.solver.set(unsat_core=True)  # Add this line
+        self.solver.set(unsat_core=True)
         self.constraints = {}
+        self.parsed_constraints = []  # Track parsed constraint details
         self.proofs = []
         self.last_violations = []
         self.valid_constraints = set()
@@ -24,33 +25,58 @@ class FormalSpecification:
             'PrivacyRisk': Real('PrivacyRisk')
         }
 
-    def add_safety_invariant(self, constraint: str):
-        """Register safety constraint with automatic variable binding"""
+    def _parse_constraint(self, constraint: str) -> dict:
+        """Parse natural language constraint into structured format"""
+        if "never exceeds" in constraint:
+            parts = constraint.split("never exceeds")
+            var_name = parts[0].strip().replace(" ", "")
+            value = float(parts[1].strip())
+            return {
+                'z3_expr': self.z3_vars[var_name] <= value,
+                'variable': var_name,
+                'operator': '<=',
+                'threshold': value
+            }
+        elif "never drops below" in constraint:
+            parts = constraint.split("never drops below")
+            var_name = parts[0].strip().replace(" ", "")
+            value = float(parts[1].strip())
+            return {
+                'z3_expr': self.z3_vars[var_name] >= value,
+                'variable': var_name,
+                'operator': '>=',
+                'threshold': value
+            }
+        else:
+            raise ValueError(f"Unsupported constraint format: {constraint}")
+
+    def _add_constraint(self, constraint: str, constraint_type: str):
+        """Internal method to add constraints with structured parsing"""
         try:
-            z3_expr = self._parse_constraint(constraint)
-            self.constraints[constraint] = z3_expr
+            parsed = self._parse_constraint(constraint)
+            self.constraints[constraint] = parsed['z3_expr']
+            self.parsed_constraints.append({
+                'name': constraint,
+                'variable': parsed['variable'],
+                'operator': parsed['operator'],
+                'threshold': parsed['threshold']
+            })
             self.proofs.append({
-                'type': 'invariant',
+                'type': constraint_type,
                 'constraint': constraint,
-                'z3_expression': str(z3_expr),
+                'z3_expression': str(parsed['z3_expr']),
                 'timestamp': datetime.utcnow().isoformat()
             })
         except Exception as e:
-            raise ValueError(f"Constraint parsing failed: {str(e)}")
+            raise ValueError(f"{constraint_type} parsing failed: {str(e)}")
+
+    def add_safety_invariant(self, constraint: str):
+        """Register safety constraint with automatic variable binding"""
+        self._add_constraint(constraint, 'invariant')
 
     def add_ethical_guardrail(self, constraint: str):
         """Register ethical constraint with automatic binding"""
-        try:
-            z3_expr = self._parse_constraint(constraint)
-            self.constraints[constraint] = z3_expr
-            self.proofs.append({
-                'type': 'guardrail',
-                'constraint': constraint,
-                'z3_expression': str(z3_expr),
-                'timestamp': datetime.utcnow().isoformat()
-            })
-        except Exception as e:
-            raise ValueError(f"Guardrail parsing failed: {str(e)}")
+        self._add_constraint(constraint, 'guardrail')
 
     def verify_predictions(self, predictions: Dict[str, float]) -> Dict:
         """Verify predictions against all registered constraints"""
@@ -62,12 +88,11 @@ class FormalSpecification:
 
         self.solver.push()
         try:
-            # Add all constraints
+            # Add all constraints to solver
             for constraint_str, constr in self.constraints.items():
-                print(f"Asserting and tracking constraint: {constraint_str} - {constr}")
                 self.solver.assert_and_track(constr, constraint_str)
 
-            # Add prediction equalities
+            # Map predictions to Z3 variables
             canonical_map = {
                 "bias_risk": "BiasRisk",
                 "transparency_score": "TransparencyScore",
@@ -76,6 +101,7 @@ class FormalSpecification:
                 "privacy_risk": "PrivacyRisk"
             }
             
+            # Add prediction equalities to solver
             for pred_key, pred_value in predictions.items():
                 z3_var = canonical_map.get(pred_key)
                 if z3_var and z3_var in self.z3_vars:
@@ -87,10 +113,24 @@ class FormalSpecification:
                 results["verified"] = True
                 self.valid_constraints = set(self.constraints.keys())
             elif check_result == unsat:
+                # Check all constraints against predictions directly
+                violations = []
+                pred_values = {canonical_map[k]: v 
+                             for k, v in predictions.items() 
+                             if k in canonical_map}
+                
+                for pc in self.parsed_constraints:
+                    current_value = pred_values.get(pc['variable'])
+                    if current_value is None:
+                        continue
+                    if (pc['operator'] == '<=' and current_value > pc['threshold']) or \
+                       (pc['operator'] == '>=' and current_value < pc['threshold']):
+                        violations.append(pc['name'])
+                
                 results["verified"] = False
-                results["violations"] = self._get_unsat_core()
-                self.valid_constraints -= set(results["violations"])
-                self.last_violations = results["violations"]
+                results["violations"] = violations
+                self.valid_constraints = set(self.constraints.keys()) - set(violations)
+                self.last_violations = violations
             else:
                 results["verified"] = "unknown"
 
@@ -99,34 +139,6 @@ class FormalSpecification:
 
         results["proofs"] = self.proofs
         return results
-
-    def _parse_constraint(self, constraint: str):
-        """Convert natural language constraint to Z3 expression"""
-        if "never exceeds" in constraint:
-            parts = constraint.split("never exceeds")
-            # Normalize variable name by removing spaces
-            var_name = parts[0].strip().replace(" ", "")
-            value = float(parts[1].strip())
-            return self.z3_vars[var_name] <= value
-        elif "never drops below" in constraint:
-            parts = constraint.split("never drops below")
-            var_name = parts[0].strip().replace(" ", "")
-            value = float(parts[1].strip())
-            return self.z3_vars[var_name] >= value
-        else:
-            raise ValueError(f"Unsupported constraint format: {constraint}")
-            
-    def _get_unsat_core(self) -> List[str]:
-        """Identify violated constraints from unsat core"""
-        core = self.solver.unsat_core()
-        return [self._z3_expr_to_constraint_name(expr) for expr in core]
-
-    def _z3_expr_to_constraint_name(self, expr) -> str:
-        """Map Z3 expression back to original constraint string"""
-        for name, z3_expr in self.constraints.items():
-            if z3_expr == expr:
-                return name
-        return str(expr)
 
     def get_constraint_names(self) -> List[str]:
         """Get list of registered constraints"""

@@ -17,9 +17,10 @@ class QuantumEthicalValidator:
 
     def _load_ethical_framework(self):
         """Load ethical guidelines into verification system"""
-        self.formal_verifier.add_safety_invariant("Bias risk never exceeds 0.25")
-        self.formal_verifier.add_ethical_guardrail("Transparency never drops below 0.4")
-
+        # Use normalized constraint names
+        self.formal_verifier.add_safety_invariant("BiasRisk never exceeds 0.25")
+        self.formal_verifier.add_ethical_guardrail("TransparencyScore never drops below 0.4")
+        
     def validate_code(self, code_sample: str) -> Dict[str, Any]:
         """Perform comprehensive ethical validation"""
         state_id = self.state_preserver.preserve_state(code_sample)

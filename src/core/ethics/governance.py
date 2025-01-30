@@ -1,4 +1,3 @@
-# src/core/ethics/governance.py
 import os
 import json
 from datetime import datetime
@@ -70,7 +69,6 @@ class QuantumEthicalValidator:
             "privacy_risk": 0.1  # Added missing required metric
         }
 
-
     def _calculate_ethical_score(self, proof: Dict) -> float:
         """Calculate score based on verification status"""
         if proof.get('verified', False):
@@ -135,6 +133,46 @@ class EthicalGovernanceEngine:
     def evaluate_development_cycle(self, code: str) -> Dict:
         """Full ethical evaluation pipeline"""
         result = self.validator.validate_code(code)
+        return result
+
+    def get_ethical_health_report(self) -> Dict[str, Any]:
+        """Generate a comprehensive health report of the ethical governance system"""
+        latest_validations = self.history[-10:] if self.history else []
+        
+        report = {
+            "model_version": self.get_ethical_model_version(),
+            "system_status": "healthy",  # Default to healthy
+            "metrics": {
+                "average_ethical_score": 0.0,
+                "recent_validation_count": len(latest_validations),
+                "failed_validations": 0,
+                "bias_alerts": 0,
+                "transparency_warnings": 0
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        # Calculate metrics from recent validations
+        if latest_validations:
+            scores = [v.get("score", 0.0) for v in latest_validations]
+            failed = sum(1 for v in latest_validations if v.get("status") == "rejected")
+            
+            report["metrics"].update({
+                "average_ethical_score": sum(scores) / len(scores),
+                "failed_validations": failed,
+                # Count warnings from predictions
+                "bias_alerts": sum(1 for v in latest_validations 
+                                 if v.get("predictions", {}).get("bias_risk", 0) > 0.2),
+                "transparency_warnings": sum(1 for v in latest_validations 
+                                          if v.get("predictions", {}).get("transparency_score", 1) < 0.5)
+            })
+            
+            # Update system status based on metrics
+            if (report["metrics"]["average_ethical_score"] < 0.6 or 
+                report["metrics"]["failed_validations"] > len(latest_validations) * 0.3):
+                report["system_status"] = "degraded"
+                
+        return report
 
     def get_ethical_model_version(self) -> str:
         return "ETHICAL_MODEL_v2.3.1"  # Match version from EthicalAuditLogger

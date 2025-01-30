@@ -135,3 +135,6 @@ class EthicalGovernanceEngine:
     def evaluate_development_cycle(self, code: str) -> Dict:
         """Full ethical evaluation pipeline"""
         result = self.validator.validate_code(code)
+
+    def get_ethical_model_version(self) -> str:
+        return "ETHICAL_MODEL_v2.3.1"  # Match version from EthicalAuditLogger

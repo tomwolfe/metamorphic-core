@@ -100,17 +100,18 @@ class FormalSpecification:
         """Convert natural language constraint to Z3 expression"""
         if "never exceeds" in constraint:
             parts = constraint.split("never exceeds")
-            var_name = parts[0].strip()
+            # Normalize variable name by removing spaces
+            var_name = parts[0].strip().replace(" ", "")
             value = float(parts[1].strip())
             return self.z3_vars[var_name] <= value
         elif "never drops below" in constraint:
             parts = constraint.split("never drops below")
-            var_name = parts[0].strip()
+            var_name = parts[0].strip().replace(" ", "")
             value = float(parts[1].strip())
             return self.z3_vars[var_name] >= value
         else:
             raise ValueError(f"Unsupported constraint format: {constraint}")
-
+            
     def _get_unsat_core(self) -> List[str]:
         """Identify violated constraints from unsat core"""
         core = self.solver.unsat_core()

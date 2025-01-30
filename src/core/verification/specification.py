@@ -118,7 +118,7 @@ class FormalSpecification:
     def _get_unsat_core(self) -> List[str]:
         """Identify violated constraints from unsat core"""
         core = self.solver.unsat_core()
-        return [str(expr) for expr in core]
+        return [self._z3_expr_to_constraint_name(expr) for expr in core]
 
     def _z3_expr_to_constraint_name(self, expr) -> str:
         """Map Z3 expression back to original constraint string"""

@@ -63,8 +63,9 @@ class FormalSpecification:
         self.solver.push()
         try:
             # Add all constraints
-            for constr in self.constraints.values():
-                self.solver.add(constr)
+            for constraint_str, constr in self.constraints.items():
+                print(f"Asserting and tracking constraint: {constraint_str} - {constr_expr}")
+                self.solver.assert_and_track(constr_expr, constraint_str)
 
             # Add prediction equalities
             canonical_map = {

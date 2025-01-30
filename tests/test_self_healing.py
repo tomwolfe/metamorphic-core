@@ -8,9 +8,12 @@ from src.core.self_healing.orchestrator import HealingOrchestrator
 from unittest.mock import patch, MagicMock
 
 class TestSelfHealing(unittest.TestCase):
-    @patch('time.sleep')  # Mock sleep to prevent hanging
+    @patch('src.core.ethics.governance.EthicalGovernanceEngine')
+    @patch('docker.from_env')
+    @patch('subprocess.run')
     @patch('src.core.self_healing.orchestrator.HealingOrchestrator._needs_intervention', return_value=True)
-    def test_healing_loop(self, mock_needs, mock_sleep, mock_run, mock_docker, mock_ethics):
+    @patch('time.sleep')
+    def test_healing_loop(self, mock_sleep, mock_needs, mock_run, mock_docker, mock_ethics):
         mock_ethics.return_value.get_ethical_model_version.return_value = "v2.3.1"
         mock_client = MagicMock()
         mock_docker.return_value = mock_client
@@ -21,7 +24,7 @@ class TestSelfHealing(unittest.TestCase):
         
         orchestrator = HealingOrchestrator()
         orchestrator.start_healing_loop(interval=1)
-        orchestrator.stop()  # Immediate stop after starting
+        orchestrator.stop()
         
         mock_client.containers.run.assert_called_once()
         

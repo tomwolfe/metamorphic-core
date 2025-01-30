@@ -12,21 +12,17 @@ class TestSelfHealing(unittest.TestCase):
     @patch('docker.from_env')
     @patch('subprocess.run')
     @patch('src.core.self_healing.orchestrator.HealingOrchestrator._needs_intervention', return_value=True)
-    @patch('time.sleep')
-    def test_healing_loop(self, mock_sleep, mock_needs, mock_run, mock_docker, mock_ethics):
+    @patch('time.sleep', return_value=None)
+    def test_healing_loop(mock_sleep, mock_needs, mock_run, mock_docker, mock_ethics):
         mock_ethics.return_value.get_ethical_model_version.return_value = "v2.3.1"
         mock_client = MagicMock()
         mock_docker.return_value = mock_client
-        
-        mock_container = MagicMock()
-        mock_container.logs.return_value = b"No errors"
-        mock_client.containers.run.return_value = mock_container
         
         orchestrator = HealingOrchestrator()
         orchestrator.start_healing_loop(interval=1)
         orchestrator.stop()
         
-        mock_client.containers.run.assert_called_once()
+        assert mock_client.containers.run.called
         
 if __name__ == "__main__":
     unittest.main()

@@ -58,9 +58,9 @@ class QuantumRiskPredictor:
         processed_input = self._process_current_state(current_state)
         input_scaled = self.scaler.transform([processed_input])
         
-    # Get probabilities directly from QNN
-    probabilities = self.qnn.forward(input_scaled, self.optimal_weights)
-    return float(probabilities[0])
+        # Get probabilities directly from QNN
+        probabilities = self.qnn.forward(input_scaled, self.optimal_weights)
+        return float(probabilities[0])
     
     def _preprocess_data(self, data: list):
         """Convert audit trails to temporal features"""

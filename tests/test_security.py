@@ -43,3 +43,22 @@ def test_no_hardcoded_secrets():
     env_example = Path(".env.example").read_text()
     assert "your_key_here" in env_example, "Sample key placeholder missing"
     assert "LLM_PROVIDER=gemini" in env_example, "Sample config missing"
+
+def test_no_github_key_in_example():
+    """Ensure GitHub API key not committed"""
+    env_example = Path(".env.example").read_text()
+    assert "GITHUB_API_KEY=your_github_token" in env_example, "GitHub key placeholder missing"
+    assert "your_github_token" not in env_example, "Actual GitHub key committed"
+
+def test_no_hardcoded_github_urls():
+    """Scan for raw GitHub URLs in codebase"""
+    tracked_files = subprocess.check_output(["git", "ls-files"], text=True).splitlines()
+    
+    violations = []
+    for file in tracked_files:
+        if file.endswith(".py"):
+            content = Path(file).read_text()
+            if "api.github.com" in content and "os.getenv('GITHUB_API_KEY')" not in content:
+                violations.append(f"Potential hardcoded GitHub API URL in {file}")
+    
+    assert not violations, "\n".join(violations)

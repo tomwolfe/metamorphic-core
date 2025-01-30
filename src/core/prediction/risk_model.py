@@ -52,16 +52,15 @@ class QuantumRiskPredictor:
             fun=cost_function,
             x0=initial_weights
         ).x
-        
+
     def predict_risk(self, current_state: dict) -> float:
         """Predict risk using V2 primitive results"""
         processed_input = self._process_current_state(current_state)
-        input_scaled = self.scaler.transform([processed_input])
+        job = self.qnn.forward(processed_input, self.optimal_weights)
+        results = job.result()
+        # Extract probability from nested array structure
+        return float(results[0].data.meas.get(0, 0))  # Handle V2 result format
         
-        # Get probabilities directly from QNN
-        probabilities = self.qnn.forward(input_scaled, self.optimal_weights)
-        return float(probabilities[0])
-    
     def _preprocess_data(self, data: list):
         """Convert audit trails to temporal features"""
         # Feature engineering from historical sequences

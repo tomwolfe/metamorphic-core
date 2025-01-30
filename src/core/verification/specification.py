@@ -10,6 +10,7 @@ class FormalSpecification:
         self.solver.set(unsat_core=True)  # Add this line
         self.constraints = {}
         self.proofs = []
+        self.last_violations = []
         self.valid_constraints = set()
         self._init_z3_vars()
 
@@ -29,7 +30,7 @@ class FormalSpecification:
             z3_expr = self._parse_constraint(constraint)
             self.constraints[constraint] = z3_expr
             self.proofs.append({
-                'type': 'safety',
+                'type': 'invariant',
                 'constraint': constraint,
                 'z3_expression': str(z3_expr),
                 'timestamp': datetime.utcnow().isoformat()
@@ -43,7 +44,7 @@ class FormalSpecification:
             z3_expr = self._parse_constraint(constraint)
             self.constraints[constraint] = z3_expr
             self.proofs.append({
-                'type': 'ethics',
+                'type': 'guardrail',
                 'constraint': constraint,
                 'z3_expression': str(z3_expr),
                 'timestamp': datetime.utcnow().isoformat()
@@ -88,6 +89,7 @@ class FormalSpecification:
                 results["verified"] = False
                 results["violations"] = self._get_unsat_core()
                 self.valid_constraints -= set(results["violations"])
+                self.last_violations = results["violations"]
             else:
                 results["verified"] = "unknown"
 
@@ -116,7 +118,7 @@ class FormalSpecification:
     def _get_unsat_core(self) -> List[str]:
         """Identify violated constraints from unsat core"""
         core = self.solver.unsat_core()
-        return [self._z3_expr_to_constraint_name(expr) for expr in core]
+        return [str(expr) for expr in core]
 
     def _z3_expr_to_constraint_name(self, expr) -> str:
         """Map Z3 expression back to original constraint string"""
@@ -132,3 +134,7 @@ class FormalSpecification:
     def get_valid_constraints(self) -> List[str]:
         """Get list of currently satisfied constraints"""
         return list(self.valid_constraints)
+
+    def get_violated_constraints(self) -> List[str]:
+        """Get list of violated constraints from last verification"""
+        return self.last_violations

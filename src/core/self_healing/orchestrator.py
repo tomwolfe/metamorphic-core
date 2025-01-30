@@ -44,10 +44,10 @@ class HealingOrchestrator:
         """Process monitoring data into healable format"""
         return {
             "ethical_violations": health["ethical_health"]["recent_issues"],
-            "constraint_violations": self.spec.get_violations(),  # Use correct method
+            "constraint_violations": self.spec.get_violated_constraints(),
             "stability_metrics": health["system_stability"]
         }
-        
+
     def stop(self):
         """Graceful shutdown"""
         self.running = False

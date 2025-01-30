@@ -80,10 +80,13 @@ class QuantumRiskPredictor:
     
     def _extract_temporal_features(self, sequence: list):
         """Feature engineering from audit sequences"""
-        last_entry = sequence[-1]['risk_metrics']
+        if not sequence:
+            return [0.0] * 4  # Return zero-filled features for empty sequence
+        
+        last_entry = sequence[-1].get('risk_metrics', {})
         return [
-            last_entry['bias_risk'],
-            last_entry['safety_risk'],
+            last_entry.get('bias_risk', 0.0),
+            last_entry.get('safety_risk', 0.0),
             len(sequence),
-            np.mean([e['risk_metrics']['transparency_score'] for e in sequence])
+            np.mean([e.get('risk_metrics', {}).get('transparency_score', 0.0) for e in sequence])
         ]

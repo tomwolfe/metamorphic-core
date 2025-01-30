@@ -43,10 +43,8 @@ class QuantumRiskPredictor:
         X, y = self._preprocess_data(historical_data)
         
         def cost_function(weights):
-            # V2 returns a JobV1 object, we need to process results
-            job = self.qnn.forward(X, weights)
-            results = job.result()
-            predictions = np.array([r.data.meas.get('0', 0) for r in results])
+            # Get predictions directly from QNN forward pass
+            predictions = self.qnn.forward(X, weights)
             return np.mean((predictions - y)**2)
         
         initial_weights = np.random.rand(self.qnn.num_weights)

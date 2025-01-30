@@ -14,31 +14,24 @@ class HealingOrchestrator:
         self.healing_core = SelfHealingCore(self.spec, self.ethics)
         self.running = False
 
+
     def start_healing_loop(self, interval: int = 60):
         """Main autonomous healing loop"""
         self.running = True
-        while self.running:
-            try:
+        try:
+            while self.running:
                 health_status = self.healing_core.monitor_system_health()
-                
                 if self._needs_intervention(health_status):
                     violations = self._analyze_violations(health_status)
                     patch = self.healing_core.generate_healing_patch(violations)
-                    
                     if self.healing_core.validate_patch(patch):
                         self.healing_core.deploy_patch(patch)
-                        print("Successfully deployed healing patch")
-                    else:
-                        print("Generated patch failed validation")
-                        
                 time.sleep(interval)
-                
-            except KeyboardInterrupt:
-                self.stop()
-            except Exception as e:
-                print(f"Healing loop error: {str(e)}")
-                self.healing_core._rollback_system()
-
+        except KeyboardInterrupt:
+            self.stop()
+        finally:
+            self.running = False
+            
     def _needs_intervention(self, health: dict) -> bool:
         """Quantum decision-making for healing activation"""
         return (

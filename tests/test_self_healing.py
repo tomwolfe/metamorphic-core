@@ -8,10 +8,11 @@ from src.core.self_healing.orchestrator import HealingOrchestrator
 from unittest.mock import patch, MagicMock
 
 class TestSelfHealing(unittest.TestCase):
-    @patch('subprocess.run')  # Fix patch target
+    @patch('src.core.ethics.governance.EthicalGovernanceEngine')  # Mock ethics engine
     @patch('docker.from_env')
-    def test_healing_loop(self, mock_docker, mock_run):
-        # Mock Docker client
+    @patch('subprocess.run')
+    def test_healing_loop(self, mock_run, mock_docker, mock_ethics):
+        mock_ethics.return_value.get_ethical_model_version.return_value = "v2.3.1"
         mock_client = MagicMock()
         mock_docker.return_value = mock_client
         

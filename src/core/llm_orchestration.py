@@ -1,4 +1,3 @@
-=== File: src/core/llm_orchestration.py ===
 import os
 import re
 from enum import Enum

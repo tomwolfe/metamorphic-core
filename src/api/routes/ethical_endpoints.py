@@ -2,11 +2,30 @@ from flask import Blueprint, request, jsonify
 from src.core.ethics.governance import QuantumEthicalValidator
 from src.core.quantum.ethical_validation import EthicalQuantumCore
 from ..core.visualization.quantum_audit import QuantumAuditVisualizer
+from src.core.llm_orchestration import format_math_prompt, extract_boxed_answer
 import json
 
 ethical_bp = Blueprint('ethical', __name__)
 validator = QuantumEthicalValidator()
 quantum_core = EthicalQuantumCore()
+
+# Add new endpoint
+@ethical_bp.route('/solve-math', methods=['POST'])
+@limiter.limit("3/minute")
+def solve_math_problem():
+    problem = request.json.get('problem')
+    if not problem:
+        return jsonify({"error": "No problem provided"}), 400
+        
+    try:
+        formatted_prompt = format_math_prompt(problem)
+        response = current_app.llm_orchestrator.generate(formatted_prompt)
+        return jsonify({
+            "solution": extract_boxed_answer(response),
+            "full_response": response
+        })
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 500
 
 @ethical_bp.route('/analyze', methods=['POST'])
 def ethical_analysis():

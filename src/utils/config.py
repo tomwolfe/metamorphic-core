@@ -1,4 +1,3 @@
-=== File: src/utils/config.py ===
 import os
 from dotenv import load_dotenv
 

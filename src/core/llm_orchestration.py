@@ -2,7 +2,7 @@ import os
 import re
 from enum import Enum
 from typing import Optional
-from google import genai as google_genai
+import google.generativeai as genai
 from huggingface_hub import InferenceClient
 from src.utils.config import SecureConfig
 

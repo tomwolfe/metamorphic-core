@@ -20,7 +20,7 @@ def test_answer_extraction():
     assert extract_boxed_answer(r"Answer: \boxed{4}") == "4"
     assert extract_boxed_answer("No box here") == "No box here"
 
-@patch('huggingface_hub.InferenceClient.text_generation')
+@patch('google.generativeai.GenerativeModel.generate_content')
 def test_hf_generation_params(mock_generate):
     mock_generate.return_value = "Test response"
     orchestrator = LLMOrchestrator()
@@ -43,14 +43,14 @@ def test_hf_generation_params(mock_generate):
                 return_full_text=False
             )
 
-@patch('google.genai.client.GenerativeModel.generate_content')
+@patch('google.generativeai.GenerativeModel.generate_content')
 def test_gemini_thinking_model(mock_generate_content):
     mock_generate_content.return_value = MagicMock(
         candidates=[MagicMock(
             content=MagicMock(
                 parts=[
-                    {'text': "Model Thought: Thinking process...", 'thought': True},
-                    {'text': "Model Response: Final answer.", 'thought': False}
+                    MagicMock(text="Model Thought: Thinking process...", thought=True),
+                    MagicMock(text="Model Response: Final answer.", thought=False)
                 ]
             )
         )]

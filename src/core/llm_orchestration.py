@@ -10,7 +10,7 @@ from pydantic import BaseModel, ValidationError
 class LLMProvider(str, Enum):
     GEMINI = "gemini"
     HUGGING_FACE = "huggingface"
-    
+
 class LLMConfig(BaseModel):
     provider: LLMProvider
     gemini_api_key: Optional[str] = None
@@ -43,7 +43,7 @@ class LLMOrchestrator:
                 raise RuntimeError("GEMINI_API_KEY is required for Gemini provider")
             genai.configure(api_key=self.config.gemini_api_key)
             self.client = genai.GenerativeModel('gemini-pro')
-            
+
         elif self.config.provider == LLMProvider.HUGGING_FACE:
             if not self.config.hf_api_key:
                 raise RuntimeError("HUGGING_FACE_API_KEY is required for Hugging Face provider")
@@ -51,7 +51,7 @@ class LLMOrchestrator:
                 token=self.config.hf_api_key,
                 model="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
             )
-            
+
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config.provider}")
 
@@ -82,4 +82,18 @@ class LLMOrchestrator:
                 repetition_penalty=1.2,
                 do_sample=True,
                 seed=42,
-                stop_sequences=["</s>
+                stop_sequences=["</s>"], # Line 85 - Corrected: Closing quote added
+                return_full_text=False
+            )
+        except Exception as e:
+            raise RuntimeError(f"Hugging Face error: {str(e)}")
+
+def format_math_prompt(question: str) -> str:
+    return f"""Please reason step by step and put your final answer within \\boxed{{}}.
+
+Question: {question}
+Answer:"""
+
+def extract_boxed_answer(text: str) -> str:
+    match = re.search(r'\\boxed{([^}]+)}', text)
+    return match.group(1) if match else text

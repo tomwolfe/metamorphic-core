@@ -86,5 +86,5 @@ def test_gemini_client_initialization():
     with patch.dict('os.environ', {'LLM_PROVIDER': 'gemini', 'GEMINI_API_KEY': 'test_key'}):
         orchestrator = LLMOrchestrator()
         assert isinstance(orchestrator.client, google.genai.Client)
-        assert orchestrator.client.api_key == 'test_key'
+        assert orchestrator.client.api_key == 'test_key'  # Ensure api_key is accessible
         assert orchestrator.client.model == 'gemini-2.0-flash-exp'  # Updated to gemini-2.0-flash-exp

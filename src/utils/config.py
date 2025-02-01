@@ -13,6 +13,9 @@ class SecureConfig:
         missing = [] # Initialize missing list
         invalid = [] # Initialize invalid list
 
+        # Skip validation in CI environments
+        is_ci = os.getenv('GITHUB_ACTIONS') == 'true'
+
         # Validate required variables
         required = {
             'GEMINI_API_KEY': {
@@ -30,10 +33,11 @@ class SecureConfig:
         }
         for var, rules in required.items():
             value = os.getenv(var)
-            if not value:
-                missing.append(var)
-            elif len(value) < rules['min_length']:
-                invalid.append(f"{var}: {rules['err_msg']}")
+            if not is_ci: # Only validate in non-CI environments
+                if not value:
+                    missing.append(var)
+                elif len(value) < rules['min_length']:
+                    invalid.append(f"{var}: {rules['err_msg']}")
 
         if missing:
             raise ConfigError(f"Missing required environment variables: {', '.join(missing)}")

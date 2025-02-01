@@ -1,16 +1,20 @@
+=== File: tests/test_llm_orchestration.py ===
 import pytest
 from unittest.mock import patch, MagicMock
 from src.core.llm_orchestration import (
     LLMOrchestrator,
+    LLMProvider,  # ADDED: Import LLMProvider
     format_math_prompt,
     extract_boxed_answer
 )
 
 def test_math_prompt_formatting():
     formatted = format_math_prompt("2+2")
-    assert r"\boxed{}" in formatted
+    # Check for properly escaped LaTeX using raw string in assert
+    assert r"\\boxed{}" in formatted
     assert "step by step" in formatted
     assert "Question: 2+2" in formatted
+    assert "Answer:" in formatted
 
 def test_answer_extraction():
     assert extract_boxed_answer(r"Answer: \boxed{4}") == "4"
@@ -20,18 +24,21 @@ def test_answer_extraction():
 def test_hf_generation_params(mock_generate):
     mock_generate.return_value = "Test response"
     orchestrator = LLMOrchestrator()
-    orchestrator._configure_providers()
-    
-    if orchestrator.active_provider == LLMProvider.HUGGING_FACE:
-        orchestrator.generate("test")
-        mock_generate.assert_called_with(
-            "test",
-            max_new_tokens=2048,
-            temperature=0.6,
-            top_p=0.95,
-            repetition_penalty=1.2,
-            do_sample=True,
-            seed=42,
-            stop_sequences=["</s>"],
-            return_full_text=False
-        )
+    # No need to call orchestrator._configure_providers() directly here
+
+    # Use patch.dict to ensure Hugging Face provider is active for this test
+    with patch.dict('os.environ', {'LLM_PROVIDER': 'huggingface'}):
+        orchestrator._configure_providers() # Configure providers within the patched env
+        if orchestrator.active_provider == LLMProvider.HUGGING_FACE:
+            orchestrator.generate("test")
+            mock_generate.assert_called_with(
+                "test",
+                max_new_tokens=2048,
+                temperature=0.6,
+                top_p=0.95,
+                repetition_penalty=1.2,
+                do_sample=True,
+                seed=42,
+                stop_sequences=["</s>"],
+                return_full_text=False
+            )

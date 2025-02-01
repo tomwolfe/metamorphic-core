@@ -20,7 +20,7 @@ def test_answer_extraction():
     assert extract_boxed_answer(r"Answer: \boxed{4}") == "4"
     assert extract_boxed_answer("No box here") == "No box here"
 
-@patch('google.generativeai.GenerativeModel.generate_content')
+@patch('google.genai.GenerativeModel.generate_content')
 def test_hf_generation_params(mock_generate):
     mock_generate.return_value = "Test response"
     orchestrator = LLMOrchestrator()
@@ -43,7 +43,7 @@ def test_hf_generation_params(mock_generate):
                 return_full_text=False
             )
 
-@patch('google.generativeai.GenerativeModel.generate_content')
+@patch('google.genai.GenerativeModel.generate_content')
 def test_gemini_thinking_model(mock_generate_content):
     mock_generate_content.return_value = MagicMock(
         candidates=[MagicMock(

@@ -14,23 +14,29 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
+    - name: Set environment variables
+      run: |
+        echo "GEMINI_API_KEY=test_gemini_key" >> $GITHUB_ENV
+        echo "YOUR_GITHUB_API_KEY=test_github_key" >> $GITHUB_ENV
+        echo "HUGGING_FACE_API_KEY=test_hf_key" >> $GITHUB_ENV
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-        
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements/base.txt
         pip install -r requirements/dev.txt
         pip install pytest pytest-cov
-            
+
     - name: Run tests with coverage
       run: |
         pytest --cov=src --cov-report=term --cov-report=html tests/
-        
+
     - name: Upload coverage artifact
       uses: actions/upload-artifact@v4
       with:

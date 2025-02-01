@@ -43,7 +43,7 @@ def test_hf_generation_params(mock_generate):
                 return_full_text=False
             )
 
-@patch('google.genai.client.GenerativeModel.generate_content')
+@patch('google.generativeai.GenerativeModel.generate_content')
 def test_gemini_thinking_model(mock_generate_content):
     mock_generate_content.return_value = MagicMock(
         candidates=[MagicMock(

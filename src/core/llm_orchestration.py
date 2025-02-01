@@ -1,3 +1,42 @@
+class LLMOrchestrator:
+    def _configure_providers(self):
+        self.active_provider = SecureConfig.get('LLM_PROVIDER', LLMProvider.GEMINI)
+
+        if self.active_provider == LLMProvider.GEMINI:
+            self.client = genai.Client(
+                api_key=SecureConfig.get('GEMINI_API_KEY')
+            )
+        elif self.active_provider == LLMProvider.HUGGING_FACE:
+            self.client = InferenceClient(
+                token=SecureConfig.get('HUGGING_FACE_API_KEY'),
+                model="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+            )
+
+    def _gemini_generate(self, prompt: str) -> str:
+        try:
+            response = self.client.models.generate_content(
+                model='gemini-2.0-flash-thinking-exp',
+                contents=prompt,
+                config={
+                    'thinking_config': genai.types.ThinkingConfig(include_thoughts=True),
+                    'http_options': {'api_version': 'v1alpha'}
+                }
+            )
+            
+            full_response = []
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, 'thought') and part.thought:
+                    full_response.append(f"**Model Thought:**\n{part.text}")
+                else:
+                    full_response.append(f"**Model Response:**\n{part.text}")
+            
+            return "\n\n".join(full_response)
+
+        except Exception as e:
+            raise RuntimeError(f"Gemini error: {str(e)}")
+
+
+
 import os
 import re
 from enum import Enum
@@ -31,7 +70,7 @@ class LLMOrchestrator:
         self.active_provider = SecureConfig.get('LLM_PROVIDER', LLMProvider.GEMINI)
 
         if self.active_provider == LLMProvider.GEMINI:
-           self.client = genai.Client(
+            self.client = genai.Client(
                 api_key=SecureConfig.get('GEMINI_API_KEY')
             )
         elif self.active_provider == LLMProvider.HUGGING_FACE:
@@ -40,30 +79,33 @@ class LLMOrchestrator:
                 model="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
             )
 
+    def _gemini_generate(self, prompt: str) -> str:
+        try:
+            response = self.client.models.generate_content(
+                model='gemini-2.0-flash-thinking-exp',
+                contents=prompt,
+                config={
+                    'thinking_config': genai.types.ThinkingConfig(include_thoughts=True),
+                    'http_options': {'api_version': 'v1alpha'}
+                }
+            )
+            
+            full_response = []
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, 'thought') and part.thought:
+                    full_response.append(f"**Model Thought:**\n{part.text}")
+                else:
+                    full_response.append(f"**Model Response:**\n{part.text}")
+            
+            return "\n\n".join(full_response)
+
+        except Exception as e:
+            raise RuntimeError(f"Gemini error: {str(e)}")
+
     def generate(self, prompt: str) -> str:
         if self.active_provider == LLMProvider.GEMINI:
             return self._gemini_generate(prompt)
         return self._hf_generate(prompt)
-
-    def _gemini_generate(self, prompt: str) -> str:
-        try:
-            model = self.client.models.GenerativeModel('gemini-2.0-flash-thinking-exp')
-            config = {'generation_config': {'include_thoughts': True}} # Enable thinking process
-            response = model.generate_content(
-                contents=prompt,
-                config=config
-            )
-            full_response_text = "" # Capture both thoughts and response
-            for part in response.candidates[0].content.parts:
-                if part.thought:
-                    full_response_text += f"**Model Thought:**\n{part.text}\n\n" # Mark thoughts clearly
-                else:
-                    full_response_text += f"**Model Response:**\n{part.text}\n\n" # Mark response
-
-            return full_response_text.strip() # Return combined text
-
-        except Exception as e:
-            raise RuntimeError(f"Gemini error: {str(e)}")
 
     def _hf_generate(self, prompt: str) -> str:
         try:

@@ -19,7 +19,7 @@ class SecureConfig:
                 'min_length': 32,
                 'err_msg': 'Invalid Gemini API key format'
             },
-            'GITHUB_API_KEY': {
+            'YOUR_GITHUB_API_KEY': {
                 'min_length': 40,
                 'err_msg': 'Invalid GitHub API key format'
             },

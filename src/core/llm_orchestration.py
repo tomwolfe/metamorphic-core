@@ -31,10 +31,8 @@ class LLMOrchestrator:
         self.active_provider = SecureConfig.get('LLM_PROVIDER', LLMProvider.GEMINI)
 
         if self.active_provider == LLMProvider.GEMINI:
-            self.client = google_genai.Client( # Initialize client with v1alpha API version
-                api_key=SecureConfig.get('GEMINI_API_KEY'),
-                http_options={'api_version':'v1alpha'}
-            )
+            genai.configure(api_key=SecureConfig.get('GEMINI_API_KEY'))
+            self.client = genai.GenerativeModel('gemini-pro')
         elif self.active_provider == LLMProvider.HUGGING_FACE:
             self.client = InferenceClient(
                 token=SecureConfig.get('HUGGING_FACE_API_KEY'),
@@ -48,7 +46,7 @@ class LLMOrchestrator:
 
     def _gemini_generate(self, prompt: str) -> str:
         try:
-            config = {'thinking_config': {'include_thoughts': True}} # Enable thinking process
+            config = {'generation_config': {'include_thoughts': True}} # Enable thinking process
             response = self.client.models.generate_content(
                 model='gemini-2.0-flash-thinking-exp', # Use Flash Thinking model
                 contents=prompt,

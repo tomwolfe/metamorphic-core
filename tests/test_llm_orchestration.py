@@ -43,7 +43,7 @@ def test_hf_generation_params(mock_generate):
                 return_full_text=False
             )
 
-@patch('google.generativeai.GenerativeModel.generate_content')
+@patch('google.generativeai.client.GenerativeModel.generate_content') # <--- Updated patch target
 def test_gemini_thinking_model(mock_generate_content):
     mock_response_text = "**Model Thought:** Thinking process...\n\n**Model Response:** Final answer."
     mock_generate_content.return_value = MagicMock(
@@ -58,7 +58,6 @@ def test_gemini_thinking_model(mock_generate_content):
 
         mock_generate_content.assert_called_once() # Verify mock is called
         assert response == mock_response_text # Check direct return value
-
 
 @patch('huggingface_hub.InferenceClient.text_generation')
 def test_deepseek_generation(mock_hf_generate):

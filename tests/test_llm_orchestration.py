@@ -1,3 +1,4 @@
+# tests/test_llm_orchestration.py
 import pytest
 from unittest.mock import patch, MagicMock
 from src.core.llm_orchestration import (
@@ -48,8 +49,8 @@ def test_gemini_thinking_model(mock_generate_content):
         candidates=[MagicMock(
             content=MagicMock(
                 parts=[
-                    MagicMock(text="Model Thought: Thinking process...", thought=True),
-                    MagicMock(text="Model Response: Final answer.", thought=False)
+                    {'text': "Model Thought: Thinking process...", 'thought': True},
+                    {'text': "Model Response: Final answer.", 'thought': False}
                 ]
             )
         )]

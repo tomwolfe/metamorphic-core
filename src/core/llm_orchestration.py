@@ -12,8 +12,8 @@ class LLMProvider(str, Enum):
 
 def format_math_prompt(question: str) -> str:
     """Format math problems according to model recommendations"""
-    return f"""Please reason step by step, and put your final answer within \boxed{{}}.
-    
+    return f"""Please reason step by step, and put your final answer within \\boxed{{}}.
+
 Question: {question}
 Answer:"""
 
@@ -26,10 +26,10 @@ class LLMOrchestrator:
     def __init__(self):
         self.client = None
         self._configure_providers()
-        
+
     def _configure_providers(self):
         self.active_provider = SecureConfig.get('LLM_PROVIDER', LLMProvider.GEMINI)
-        
+
         if self.active_provider == LLMProvider.GEMINI:
             self.client = google_genai.Client(
                 api_key=SecureConfig.get('GEMINI_API_KEY')
@@ -39,12 +39,12 @@ class LLMOrchestrator:
                 token=SecureConfig.get('HUGGING_FACE_API_KEY'),
                 model="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
             )
-            
+
     def generate(self, prompt: str) -> str:
         if self.active_provider == LLMProvider.GEMINI:
             return self._gemini_generate(prompt)
         return self._hf_generate(prompt)
-        
+
     def _gemini_generate(self, prompt: str) -> str:
         try:
             response = self.client.models.generate_content(
@@ -54,7 +54,7 @@ class LLMOrchestrator:
             return response.text
         except Exception as e:
             raise RuntimeError(f"Gemini error: {str(e)}")
-            
+
     def _hf_generate(self, prompt: str) -> str:
         try:
             return self.client.text_generation(

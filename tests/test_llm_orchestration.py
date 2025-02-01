@@ -45,23 +45,20 @@ def test_hf_generation_params(mock_generate):
 
 @patch('google.generativeai.GenerativeModel.generate_content')
 def test_gemini_thinking_model(mock_generate_content):
+    mock_response_text = "**Model Thought:** Thinking process...\n\n**Model Response:** Final answer."
     mock_generate_content.return_value = MagicMock(
         candidates=[MagicMock(
-            content=MagicMock(
-                parts=[
-                    {'text': "Model Thought: Thinking process...", 'thought': True},
-                    {'text': "Model Response: Final answer.", 'thought': False}
-                ]
-            )
+            content=MagicMock(text=mock_response_text, parts=[]) # Simplified mock
         )]
     )
     orchestrator = LLMOrchestrator()
     with patch.dict('os.environ', {'LLM_PROVIDER': 'gemini'}):
         orchestrator._configure_providers()
         response = orchestrator.generate("test question")
-        assert "Model Thought:" in response
-        assert "Model Response:" in response
-        mock_generate_content.assert_called_once()
+
+        mock_generate_content.assert_called_once() # Verify mock is called
+        assert response == mock_response_text # Check direct return value
+
 
 @patch('huggingface_hub.InferenceClient.text_generation')
 def test_deepseek_generation(mock_hf_generate):

@@ -2,7 +2,7 @@ import os
 import re
 from enum import Enum
 from typing import Optional
-from google import genai
+import google.genai as genai
 from huggingface_hub import InferenceClient
 from src.utils.config import SecureConfig
 from pydantic import BaseModel, ValidationError
@@ -41,9 +41,8 @@ class LLMOrchestrator:
         if self.config.provider == LLMProvider.GEMINI:
             if not self.config.gemini_api_key:
                 raise RuntimeError("GEMINI_API_KEY is required for Gemini provider")
-            genai.configure(api_key=self.config.gemini_api_key)
-            self.client = genai.GenerativeModel('gemini-pro')
-
+            self.client = genai.Client(api_key=self.config.gemini_api_key)
+            self.client.model = 'gemini-2.0-flash-exp'  # Updated to gemini-2.0-flash-exp
         elif self.config.provider == LLMProvider.HUGGING_FACE:
             if not self.config.hf_api_key:
                 raise RuntimeError("HUGGING_FACE_API_KEY is required for Hugging Face provider")
@@ -51,7 +50,6 @@ class LLMOrchestrator:
                 token=self.config.hf_api_key,
                 model="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
             )
-
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config.provider}")
 
@@ -67,7 +65,11 @@ class LLMOrchestrator:
 
     def _gemini_generate(self, prompt: str) -> str:
         try:
-            response = self.client.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.client.model,
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(temperature=0.6, top_p=0.95, repetition_penalty=1.2)
+            )
             return ''.join(part.text for part in response.candidates[0].content.parts)
         except Exception as e:
             raise RuntimeError(f"Gemini error: {str(e)}")
@@ -82,7 +84,7 @@ class LLMOrchestrator:
                 repetition_penalty=1.2,
                 do_sample=True,
                 seed=42,
-                stop_sequences=["</s>"], # Line 85 - Corrected: Closing quote added
+                stop_sequences=["</s>"],
                 return_full_text=False
             )
         except Exception as e:
@@ -92,7 +94,7 @@ def format_math_prompt(question: str) -> str:
     return f"""Please reason step by step and put your final answer within \\boxed{{}}.
 
 Question: {question}
-Answer:"""
+Answer: """
 
 def extract_boxed_answer(text: str) -> str:
     match = re.search(r'\\boxed{([^}]+)}', text)

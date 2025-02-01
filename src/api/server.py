@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_limiter import Limiter
 from src.core import ArchitectureGraph, QuantumCodeOptimizer
-import google.generativeai as genai
+from google import genai
 from src.utils.config import SecureConfig
 
 app = Flask(__name__)

@@ -2,7 +2,7 @@ import os
 import re
 from enum import Enum
 from typing import Optional
-import google.generativeai as genai
+from google import genai
 from huggingface_hub import InferenceClient
 from src.utils.config import SecureConfig
 from pydantic import BaseModel, ValidationError

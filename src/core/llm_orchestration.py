@@ -43,6 +43,8 @@ class LLMOrchestrator:
                 raise RuntimeError("GEMINI_API_KEY is required for Gemini provider")
             self.client = genai.Client(api_key=self.config.gemini_api_key)
             self.client.model = 'gemini-2.0-flash-exp'  # Updated to gemini-2.0-flash-exp
+            # Store the api_key for testing purposes
+            self.client.api_key = self.config.gemini_api_key
         elif self.config.provider == LLMProvider.HUGGING_FACE:
             if not self.config.hf_api_key:
                 raise RuntimeError("HUGGING_FACE_API_KEY is required for Hugging Face provider")

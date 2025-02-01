@@ -68,7 +68,7 @@ class LLMOrchestrator:
             response = self.client.models.generate_content(
                 model=self.client.model,
                 contents=prompt,
-                config=genai.types.GenerateContentConfig(temperature=0.6, top_p=0.95, repetition_penalty=1.2)
+                config=genai.types.GenerateContentConfig(temperature=0.6, top_p=0.95)
             )
             return ''.join(part.text for part in response.candidates[0].content.parts)
         except Exception as e:

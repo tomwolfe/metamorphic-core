@@ -6,6 +6,7 @@ from src.core.llm_orchestration import (
     format_math_prompt,
     extract_boxed_answer
 )
+import google.genai  # Ensure the import is present
 from src.utils.config import ConfigError
 
 def test_math_prompt_formatting():

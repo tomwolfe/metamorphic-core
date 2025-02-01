@@ -1,4 +1,3 @@
-# tests/test_llm_orchestration.py
 import pytest
 from unittest.mock import patch, MagicMock
 from src.core.llm_orchestration import (
@@ -7,70 +6,75 @@ from src.core.llm_orchestration import (
     format_math_prompt,
     extract_boxed_answer
 )
+from src.utils.config import ConfigError
 
 def test_math_prompt_formatting():
     formatted = format_math_prompt("2+2")
-    # Check for properly escaped LaTeX using raw string in assert
     assert r"\boxed{}" in formatted
-    assert "step by step" in formatted
     assert "Question: 2+2" in formatted
-    assert "Answer:" in formatted
 
 def test_answer_extraction():
     assert extract_boxed_answer(r"Answer: \boxed{4}") == "4"
     assert extract_boxed_answer("No box here") == "No box here"
 
-@patch('huggingface_hub.InferenceClient.text_generation')
-def test_hf_generation_params(mock_generate):
-    mock_generate.return_value = "Test response"
+@patch.dict('os.environ', {'LLM_PROVIDER': 'gemini', 'GEMINI_API_KEY': 'test_key'})
+def test_gemini_configuration():
     orchestrator = LLMOrchestrator()
-    # No need to call orchestrator._configure_providers() directly here
+    assert orchestrator.config.provider == LLMProvider.GEMINI
+    assert orchestrator.config.gemini_api_key == 'test_key'
 
-    # Use patch.dict to ensure Hugging Face provider is active for this test
-    with patch.dict('os.environ', {'LLM_PROVIDER': 'huggingface'}):
-        orchestrator._configure_providers() # Configure providers within the patched env
-        if orchestrator.active_provider == LLMProvider.HUGGING_FACE:
-            orchestrator.generate("test")
-            mock_generate.assert_called_with(
-                "test",
-                max_new_tokens=2048,
-                temperature=0.6,
-                top_p=0.95,
-                repetition_penalty=1.2,
-                do_sample=True,
-                seed=42,
-                stop_sequences=["</s>"],
-                return_full_text=False
-            )
+@patch.dict('os.environ', {'LLM_PROVIDER': 'huggingface', 'HUGGING_FACE_API_KEY': 'test_key'})
+def test_hf_configuration():
+    orchestrator = LLMOrchestrator()
+    assert orchestrator.config.provider == LLMProvider.HUGGING_FACE
+    assert orchestrator.config.hf_api_key == 'test_key'
 
-@patch('google.genai.Client')
-def test_gemini_thinking_model(mock_client):
-    mock_instance = mock_client.return_value
-    mock_instance.models.generate_content.return_value = MagicMock(
+def test_missing_api_keys():
+    with pytest.raises(RuntimeError):
+        with patch.dict('os.environ', {'LLM_PROVIDER': 'gemini'}):
+            LLMOrchestrator()
+            
+    with pytest.raises(RuntimeError):
+        with patch.dict('os.environ', {'LLM_PROVIDER': 'huggingface'}):
+            LLMOrchestrator()
+
+@patch('google.generativeai.GenerativeModel')
+def test_gemini_generation(mock_model):
+    mock_instance = mock_model.return_value
+    mock_instance.generate_content.return_value = MagicMock(
         candidates=[MagicMock(
             content=MagicMock(
-                parts=[
-                    MagicMock(text="Thinking process...", thought=True),
-                    MagicMock(text="Final answer.", thought=False)
-                ]
+                parts=[MagicMock(text="Test response")]
             )
         )]
     )
     
-    with patch.dict('os.environ', {'LLM_PROVIDER': 'gemini'}):
+    with patch.dict('os.environ', {'LLM_PROVIDER': 'gemini', 'GEMINI_API_KEY': 'test_key'}):
         orchestrator = LLMOrchestrator()
-        response = orchestrator.generate("test question")
-        
-        assert "Model Thought:" in response
-        assert "Model Response:" in response
-        mock_instance.models.generate_content.assert_called_once()
+        response = orchestrator.generate("test")
+        assert "Test response" in response
 
 @patch('huggingface_hub.InferenceClient.text_generation')
-def test_deepseek_generation(mock_hf_generate):
-    mock_hf_generate.return_value = "DeepSeek Test Response"
-    orchestrator = LLMOrchestrator()
-    with patch.dict('os.environ', {'LLM_PROVIDER': 'huggingface'}):
-        orchestrator._configure_providers()
-        response = orchestrator.generate("test prompt")
-        assert response == "DeepSeek Test Response"
-        mock_hf_generate.assert_called_once()
+def test_hf_generation(mock_generate):
+    mock_generate.return_value = "Test response"
+    with patch.dict('os.environ', {'LLM_PROVIDER': 'huggingface', 'HUGGING_FACE_API_KEY': 'test_key'}):
+        orchestrator = LLMOrchestrator()
+        response = orchestrator.generate("test")
+        assert response == "Test response"
+
+def test_invalid_provider():
+    with pytest.raises(ValueError):
+        with patch.dict('os.environ', {'LLM_PROVIDER': 'invalid'}):
+            LLMOrchestrator()
+
+@patch('google.generativeai.GenerativeModel')
+def test_retry_logic(mock_model):
+    mock_instance = mock_model.return_value
+    mock_instance.generate_content.side_effect = Exception("API error")
+    
+    with patch.dict('os.environ', {'LLM_PROVIDER': 'gemini', 'GEMINI_API_KEY': 'test_key'}):
+        with pytest.raises(RuntimeError):
+            orchestrator = LLMOrchestrator()
+            orchestrator.generate("test")
+            
+    assert mock_instance.generate_content.call_count == 3

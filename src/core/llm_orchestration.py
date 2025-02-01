@@ -1,111 +1,76 @@
-class LLMOrchestrator:
-    def _configure_providers(self):
-        self.active_provider = SecureConfig.get('LLM_PROVIDER', LLMProvider.GEMINI)
-
-        if self.active_provider == LLMProvider.GEMINI:
-            self.client = genai.Client(
-                api_key=SecureConfig.get('GEMINI_API_KEY')
-            )
-        elif self.active_provider == LLMProvider.HUGGING_FACE:
-            self.client = InferenceClient(
-                token=SecureConfig.get('HUGGING_FACE_API_KEY'),
-                model="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
-            )
-
-    def _gemini_generate(self, prompt: str) -> str:
-        try:
-            response = self.client.models.generate_content(
-                model='gemini-2.0-flash-thinking-exp',
-                contents=prompt,
-                config={
-                    'thinking_config': genai.types.ThinkingConfig(include_thoughts=True),
-                    'http_options': {'api_version': 'v1alpha'}
-                }
-            )
-            
-            full_response = []
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, 'thought') and part.thought:
-                    full_response.append(f"**Model Thought:**\n{part.text}")
-                else:
-                    full_response.append(f"**Model Response:**\n{part.text}")
-            
-            return "\n\n".join(full_response)
-
-        except Exception as e:
-            raise RuntimeError(f"Gemini error: {str(e)}")
-
-
-
 import os
 import re
 from enum import Enum
 from typing import Optional
-import google.genai as genai
+import google.generativeai as genai
 from huggingface_hub import InferenceClient
 from src.utils.config import SecureConfig
+from pydantic import BaseModel, ValidationError
 
 class LLMProvider(str, Enum):
     GEMINI = "gemini"
     HUGGING_FACE = "huggingface"
-
-def format_math_prompt(question: str) -> str:
-    """Format math problems according to model recommendations"""
-    return f"""Please reason step by step, and put your final answer within \\boxed{{}}.
-
-Question: {question}
-Answer:"""
-
-def extract_boxed_answer(text: str) -> str:
-    """Extract LaTeX boxed answers from model response"""
-    match = re.search(r'\\boxed{([^}]+)}', text)
-    return match.group(1) if match else text
+    
+class LLMConfig(BaseModel):
+    provider: LLMProvider
+    gemini_api_key: Optional[str] = None
+    hf_api_key: Optional[str] = None
+    max_retries: int = 3
+    timeout: int = 30
 
 class LLMOrchestrator:
     def __init__(self):
         self.client = None
+        self.active_provider = None
+        self.config = self._load_config()
         self._configure_providers()
 
-    def _configure_providers(self):
-        self.active_provider = SecureConfig.get('LLM_PROVIDER', LLMProvider.GEMINI)
-
-        if self.active_provider == LLMProvider.GEMINI:
-            self.client = genai.Client(
-                api_key=SecureConfig.get('GEMINI_API_KEY')
+    def _load_config(self) -> LLMConfig:
+        try:
+            return LLMConfig(
+                provider=LLMProvider(SecureConfig.get('LLM_PROVIDER', LLMProvider.GEMINI)),
+                gemini_api_key=SecureConfig.get('GEMINI_API_KEY'),
+                hf_api_key=SecureConfig.get('HUGGING_FACE_API_KEY'),
+                max_retries=int(SecureConfig.get('LLM_MAX_RETRIES', 3)),
+                timeout=int(SecureConfig.get('LLM_TIMEOUT', 30))
             )
-        elif self.active_provider == LLMProvider.HUGGING_FACE:
+        except ValidationError as e:
+            raise RuntimeError(f"Invalid LLM configuration: {str(e)}")
+
+    def _configure_providers(self):
+        if self.config.provider == LLMProvider.GEMINI:
+            if not self.config.gemini_api_key:
+                raise RuntimeError("GEMINI_API_KEY is required for Gemini provider")
+            genai.configure(api_key=self.config.gemini_api_key)
+            self.client = genai.GenerativeModel('gemini-pro')
+            
+        elif self.config.provider == LLMProvider.HUGGING_FACE:
+            if not self.config.hf_api_key:
+                raise RuntimeError("HUGGING_FACE_API_KEY is required for Hugging Face provider")
             self.client = InferenceClient(
-                token=SecureConfig.get('HUGGING_FACE_API_KEY'),
+                token=self.config.hf_api_key,
                 model="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
             )
+            
+        else:
+            raise ValueError(f"Unsupported LLM provider: {self.config.provider}")
+
+    def generate(self, prompt: str) -> str:
+        for attempt in range(self.config.max_retries):
+            try:
+                if self.config.provider == LLMProvider.GEMINI:
+                    return self._gemini_generate(prompt)
+                return self._hf_generate(prompt)
+            except Exception as e:
+                if attempt == self.config.max_retries - 1:
+                    raise RuntimeError(f"LLM API failed after {self.config.max_retries} attempts: {str(e)}")
 
     def _gemini_generate(self, prompt: str) -> str:
         try:
-            response = self.client.models.generate_content(
-                model='gemini-2.0-flash-thinking-exp',
-                contents=prompt,
-                config={
-                    'thinking_config': genai.types.ThinkingConfig(include_thoughts=True),
-                    'http_options': {'api_version': 'v1alpha'}
-                }
-            )
-            
-            full_response = []
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, 'thought') and part.thought:
-                    full_response.append(f"**Model Thought:**\n{part.text}")
-                else:
-                    full_response.append(f"**Model Response:**\n{part.text}")
-            
-            return "\n\n".join(full_response)
-
+            response = self.client.generate_content(prompt)
+            return ''.join(part.text for part in response.candidates[0].content.parts)
         except Exception as e:
             raise RuntimeError(f"Gemini error: {str(e)}")
-
-    def generate(self, prompt: str) -> str:
-        if self.active_provider == LLMProvider.GEMINI:
-            return self._gemini_generate(prompt)
-        return self._hf_generate(prompt)
 
     def _hf_generate(self, prompt: str) -> str:
         try:
@@ -117,8 +82,4 @@ class LLMOrchestrator:
                 repetition_penalty=1.2,
                 do_sample=True,
                 seed=42,
-                stop_sequences=["</s>"],
-                return_full_text=False
-            )
-        except Exception as e:
-            raise RuntimeError(f"Hugging Face error: {str(e)}")
+                stop_sequences=["</s>

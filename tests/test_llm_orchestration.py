@@ -7,6 +7,7 @@ from src.core.llm_orchestration import (
     extract_boxed_answer
 )
 from src.utils.config import ConfigError
+import google.genai  # Import genai here
 
 def test_math_prompt_formatting():
     formatted = format_math_prompt("2+2")
@@ -22,7 +23,7 @@ def test_gemini_configuration():
     orchestrator = LLMOrchestrator()
     assert orchestrator.config.provider == LLMProvider.GEMINI
     assert orchestrator.config.gemini_api_key == 'test_key'
-    assert isinstance(orchestrator.client, genai.Client)
+    assert isinstance(orchestrator.client, google.genai.Client)
     assert orchestrator.client.model == 'gemini-2.0-flash-exp'  # Updated to gemini-2.0-flash-exp
 
 @patch.dict('os.environ', {'LLM_PROVIDER': 'huggingface', 'HUGGING_FACE_API_KEY': 'test_key'})
@@ -77,13 +78,13 @@ def test_retry_logic(mock_client):
     with patch.dict('os.environ', {'LLM_PROVIDER': 'gemini', 'GEMINI_API_KEY': 'test_key'}):
         with pytest.raises(RuntimeError):
             orchestrator = LLMOrchestrator()
-            orchestrator.generate("test")
+            response = orchestrator.generate("test")
             
     assert mock_instance.models.generate_content.call_count == 3
 
 def test_gemini_client_initialization():
     with patch.dict('os.environ', {'LLM_PROVIDER': 'gemini', 'GEMINI_API_KEY': 'test_key'}):
         orchestrator = LLMOrchestrator()
-        assert isinstance(orchestrator.client, genai.Client)
+        assert isinstance(orchestrator.client, google.genai.Client)
         assert orchestrator.client.api_key == 'test_key'
         assert orchestrator.client.model == 'gemini-2.0-flash-exp'  # Updated to gemini-2.0-flash-exp

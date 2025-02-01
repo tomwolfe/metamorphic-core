@@ -31,8 +31,9 @@ class LLMOrchestrator:
         self.active_provider = SecureConfig.get('LLM_PROVIDER', LLMProvider.GEMINI)
 
         if self.active_provider == LLMProvider.GEMINI:
-            self.client = google_genai.Client(
-                api_key=SecureConfig.get('GEMINI_API_KEY')
+            self.client = google_genai.Client( # Initialize client with v1alpha API version
+                api_key=SecureConfig.get('GEMINI_API_KEY'),
+                http_options={'api_version':'v1alpha'}
             )
         elif self.active_provider == LLMProvider.HUGGING_FACE:
             self.client = InferenceClient(
@@ -47,11 +48,21 @@ class LLMOrchestrator:
 
     def _gemini_generate(self, prompt: str) -> str:
         try:
+            config = {'thinking_config': {'include_thoughts': True}} # Enable thinking process
             response = self.client.models.generate_content(
-                model='gemini-2.0-flash-exp',
-                contents=prompt
+                model='gemini-2.0-flash-thinking-exp', # Use Flash Thinking model
+                contents=prompt,
+                config=config
             )
-            return response.text
+            full_response_text = "" # Capture both thoughts and response
+            for part in response.candidates[0].content.parts:
+                if part.thought:
+                    full_response_text += f"**Model Thought:**\n{part.text}\n\n" # Mark thoughts clearly
+                else:
+                    full_response_text += f"**Model Response:**\n{part.text}\n\n" # Mark response
+
+            return full_response_text.strip() # Return combined text
+
         except Exception as e:
             raise RuntimeError(f"Gemini error: {str(e)}")
 

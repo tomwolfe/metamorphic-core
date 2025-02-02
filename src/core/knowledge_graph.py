@@ -1,6 +1,7 @@
 from pydantic import BaseModel, UUID4
 from typing import List, Dict, Optional, Any
 import uuid
+import re
 
 class Edge(BaseModel):
     id: UUID4
@@ -68,10 +69,20 @@ class KnowledgeGraph(BaseModel):
         related_nodes = []
         for edge_id in edge_ids:
             edge = self.edges.get(edge_id)
-            if edge and (not relationship_type or edge.type == relationship_type):
-                target_node = self.get_node(edge.target)
-                if target_node:
-                    related_nodes.append(target_node)
+            if edge is None:
+                continue
+            if relationship_type and edge.type != relationship_type:
+                continue
+            # Determine the related node
+            if edge.source == node_id:
+                related_node_id = edge.target
+            elif edge.target == node_id:
+                related_node_id = edge.source
+            else:
+                continue  # should not happen as node_id is in relationships
+            related_node = self.get_node(related_node_id)
+            if related_node:
+                related_nodes.append(related_node)
         return related_nodes
 
     def search(self, query: str) -> List[Node]:
@@ -92,7 +103,7 @@ class KnowledgeGraph(BaseModel):
         for node_id in results:
             node = self.get_node(node_id)
             if node:
-                match_count = sum(1 for keyword in keywords if keyword in node.content.lower())
+                match_count = sum(1 for keyword in keywords if keyword in self.search_index.get(keyword, []))
                 relevance[node_id] = match_count
         # Sort by relevance
         sorted_node_ids = sorted(relevance.keys(), key=lambda x: relevance[x], reverse=True)
@@ -102,12 +113,18 @@ class KnowledgeGraph(BaseModel):
         """
         Update the search index with the content of the node.
         """
-        words = node.content.lower().split()
+        content = node.content.lower()
+        # Extract words, removing non-alphanumeric characters from start and end
+        words = content.split()
         for word in words:
-            if word not in self.search_index:
-                self.search_index[word] = []
-            if node.id not in self.search_index[word]:
-                self.search_index[word].append(node.id)
+            # Clean the word by stripping non-alphanumeric characters
+            cleaned_word = re.sub(r'^[^a-zA-Z0-9]+', '', word)
+            cleaned_word = re.sub(r'[^a-zA-Z0-9]+$', '', cleaned_word)
+            if cleaned_word:
+                if cleaned_word not in self.search_index:
+                    self.search_index[cleaned_word] = []
+                if node.id not in self.search_index[cleaned_word]:
+                    self.search_index[cleaned_word].append(node.id)
 
 def initialize_knowledge_graph() -> KnowledgeGraph:
     """

@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Optional
 import google.genai as genai
 from huggingface_hub import InferenceClient
-from src.utils.config import SecureConfig
+from src.utils.config import SecureConfig, ConfigError
 from pydantic import BaseModel, ValidationError
 
 class LLMProvider(str, Enum):
@@ -27,6 +27,7 @@ class LLMOrchestrator:
 
     def _load_config(self) -> LLMConfig:
         try:
+            SecureConfig.load()  # Load config before accessing env vars
             return LLMConfig(
                 provider=LLMProvider(SecureConfig.get('LLM_PROVIDER', LLMProvider.GEMINI)),
                 gemini_api_key=SecureConfig.get('GEMINI_API_KEY'),
@@ -34,7 +35,7 @@ class LLMOrchestrator:
                 max_retries=int(SecureConfig.get('LLM_MAX_RETRIES', 3)),
                 timeout=int(SecureConfig.get('LLM_TIMEOUT', 30))
             )
-        except ValidationError as e:
+        except (ValidationError, ConfigError) as e:  # Catch both error types
             raise RuntimeError(f"Invalid LLM configuration: {str(e)}")
 
     def _configure_providers(self):

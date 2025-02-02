@@ -3,9 +3,6 @@ from typing import List, Dict, Optional, Any
 import uuid
 
 class Edge(BaseModel):
-    """
-    Represents a relationship between two nodes in the Knowledge Graph.
-    """
     id: UUID4
     source: UUID4
     target: UUID4
@@ -13,9 +10,6 @@ class Edge(BaseModel):
     weight: float = 1.0
 
 class Node(BaseModel):
-    """
-    Represents an entity in the Knowledge Graph (e.g., ethical principle, constraint, code example).
-    """
     id: UUID4
     type: str
     content: str
@@ -23,9 +17,6 @@ class Node(BaseModel):
     relationships: List[UUID4] = []
 
 class KnowledgeGraph(BaseModel):
-    """
-    Core Knowledge Graph class for storing and querying nodes and edges.
-    """
     nodes: Dict[UUID4, Node] = {}
     edges: Dict[UUID4, Edge] = {}
     search_index: Dict[str, List[UUID4]] = {}
@@ -117,35 +108,35 @@ class KnowledgeGraph(BaseModel):
             if node.id not in self.search_index[word]:
                 self.search_index[word].append(node.id)
 
-    def initialize_knowledge_graph() -> KnowledgeGraph:
-        """
-        Initialize the Knowledge Graph with example data.
-        """
-        kg = KnowledgeGraph()
-        transparency = kg.add_node(Node(
-            type="ethical_principle",
-            content="Systems must be transparent to users and stakeholders."
-        ))
-        fairness = kg.add_node(Node(
-            type="ethical_principle",
-            content="Systems must treat all users fairly and without bias."
-        ))
-        no_bias = kg.add_node(Node(
-            type="constraint",
-            content="Avoid introducing systemic bias into algorithms."
-        ))
-        encrypt_data = kg.add_node(Node(
-            type="constraint",
-            content="Encrypt all sensitive user data."
-        ))
-        hello_world = kg.add_node(Node(
-            type="code_example",
-            content="print('Hello, world!')",
-            metadata={
-                "language": "Python",
-                "description": "A basic 'Hello, world!' example."
-            }
-        ))
-        kg.add_edge(transparency, hello_world, "related_to")
-        kg.add_edge(no_bias, hello_world, "applies_to")
-        return kg
+def initialize_knowledge_graph() -> KnowledgeGraph:
+    """
+    Initialize the Knowledge Graph with example data.
+    """
+    kg = KnowledgeGraph()
+    transparency = kg.add_node(Node(
+        type="ethical_principle",
+        content="Systems must be transparent to users and stakeholders."
+    ))
+    fairness = kg.add_node(Node(
+        type="ethical_principle",
+        content="Systems must treat all users fairly and without bias."
+    ))
+    no_bias = kg.add_node(Node(
+        type="constraint",
+        content="Avoid introducing systemic bias into algorithms."
+    ))
+    encrypt_data = kg.add_node(Node(
+        type="constraint",
+        content="Encrypt all sensitive user data."
+    ))
+    hello_world = kg.add_node(Node(
+        type="code_example",
+        content="print('Hello, world!')",
+        metadata={
+            "language": "Python",
+            "description": "A basic 'Hello, world!' example."
+        }
+    ))
+    kg.add_edge(transparency, hello_world, "related_to")
+    kg.add_edge(no_bias, hello_world, "applies_to")
+    return kg

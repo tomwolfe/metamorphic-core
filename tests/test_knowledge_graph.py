@@ -20,7 +20,8 @@ def test_search_functionality():
 
 def test_relationships():
     kg = initialize_knowledge_graph()
-    hello_world = list(kg.nodes.values())[2]
+    # Find the hello_world node by content
+    hello_world = next(node for node in kg.nodes.values() if node.content == "print('Hello, world!')")
     related_nodes = kg.get_relationships(hello_world.id, "related_to")
     assert len(related_nodes) == 1
     assert related_nodes[0].type == "ethical_principle"

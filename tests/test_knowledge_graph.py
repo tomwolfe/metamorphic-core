@@ -1,4 +1,4 @@
-from src.core.knowledge_graph import KnowledgeGraph, initialize_knowledge_graph
+from src.core.knowledge_graph import KnowledgeGraph, Node, initialize_knowledge_graph
 from pydantic import UUID4
 import pytest
 

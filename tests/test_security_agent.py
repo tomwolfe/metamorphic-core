@@ -41,11 +41,13 @@ def test_env_validation_invalid_hf():
         assert "Invalid configuration for HUGGING_FACE_API_KEY" in str(excinfo.value)
 
 def test_env_validation_missing_vars():
-    with patch.dict('os.environ', {}):
-        with pytest.raises(ConfigError) as excinfo: # Expect ConfigError now
+    with patch.dict('os.environ', {
+        'GITHUB_ACTIONS': 'false',  # Ensure validation runs even in CI
+    }):
+        with pytest.raises(ConfigError) as excinfo:
             SecurityAgent()
-        assert "Missing required environment variable" in str(excinfo.value) # Corrected assertion message to be more general
-
+        assert "Missing required environment variable" in str(excinfo.value)
+        
 def test_env_validation_example_keys():
     with patch.dict('os.environ', {
         'GEMINI_API_KEY': 'your_key_here',

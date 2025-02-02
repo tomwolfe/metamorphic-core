@@ -74,9 +74,11 @@ The ecosystem is actively under development, with a focus on foundational compon
   GEMINI_API_KEY=your_key_here
   HUGGING_FACE_API_KEY=your_key_here (optional)
   YOUR_GITHUB_API_KEY=your_token_here (optional)
+  
 3. Start Redis (optional for rate limiting):
 
   docker-compose -f docker-compose.yml.example up -d redis
+  
 4. Set Up Virtual Environment (recommended):
 
   python -m venv venv

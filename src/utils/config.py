@@ -52,6 +52,3 @@ class SecureConfig:
         if value is None and default is None:
             raise ConfigError(f"Environment variable {var_name} not found")
         return value
-
-# Initialize configuration on import
-SecureConfig.load()

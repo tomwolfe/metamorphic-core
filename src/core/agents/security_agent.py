@@ -22,16 +22,13 @@ class SecurityAgent:
         except Exception as e:
             self.logger.critical(f"Environment validation failed: {str(e)}")
             raise
-            
+
     def sanitize_input(self, input_str: str, max_length: int = 1000) -> Optional[str]:
         """Basic input sanitization for API endpoints"""
         if not input_str:
             return None
-    
+
         # Remove '@' and other specified non-allowed characters
-        sanitized = re.sub(r'[^a-zA-Z0-9\s_\-\.,:;!?]', '', input_str)[:max_length]
+        # Characters allowed: letters, digits, whitespace, _, -, ., ,, ;, :, !, ?
+        sanitized = re.sub(r'[^a-zA-Z0-9\s_\-.,:;!?]', '', input_str)[:max_length]
         return sanitized.strip()
-        
-    def audit_security_event(self, event_type: str, details: dict):
-        """Log security events with structured formatting"""
-        self.logger.info(f"SECURITY_EVENT|{event_type}|{json.dumps(details)}")

@@ -11,7 +11,7 @@ class Edge(BaseModel):
     weight: float = 1.0
 
 class Node(BaseModel):
-    id: Optional[UUID4] = None  # Make ID optional
+    id: Optional[UUID4] = None
     type: str
     content: str
     metadata: Dict[str, Any] = {}
@@ -23,26 +23,17 @@ class KnowledgeGraph(BaseModel):
     search_index: Dict[str, List[UUID4]] = {}
 
     def add_node(self, node: Node) -> UUID4:
-        """
-        Add a node to the Knowledge Graph.
-        """
         if not node.id:
-            node.id = uuid.uuid4()  # Generate ID if not provided
+            node.id = uuid.uuid4()
         node_id = node.id
         self.nodes[node_id] = node
         self._update_search_index(node)
         return node_id
 
     def get_node(self, node_id: UUID4) -> Optional[Node]:
-        """
-        Retrieve a node by its ID.
-        """
         return self.nodes.get(node_id)
 
     def add_edge(self, source: UUID4, target: UUID4, edge_type: str, weight: float = 1.0) -> UUID4:
-        """
-        Add an edge between two nodes.
-        """
         edge_id = uuid.uuid4()
         edge = Edge(
             id=edge_id,
@@ -52,7 +43,6 @@ class KnowledgeGraph(BaseModel):
             weight=weight
         )
         self.edges[edge_id] = edge
-        # Update relationships in source and target nodes
         if source in self.nodes:
             self.nodes[source].relationships.append(edge_id)
         if target in self.nodes:
@@ -60,9 +50,6 @@ class KnowledgeGraph(BaseModel):
         return edge_id
 
     def get_relationships(self, node_id: UUID4, relationship_type: str = None) -> List[Node]:
-        """
-        Get nodes related to a given node, optionally filtered by relationship type.
-        """
         if node_id not in self.nodes:
             return []
         edge_ids = self.nodes[node_id].relationships
@@ -73,51 +60,39 @@ class KnowledgeGraph(BaseModel):
                 continue
             if relationship_type and edge.type != relationship_type:
                 continue
-            # Determine the related node
             if edge.source == node_id:
                 related_node_id = edge.target
             elif edge.target == node_id:
                 related_node_id = edge.source
             else:
-                continue  # should not happen as node_id is in relationships
+                continue
             related_node = self.get_node(related_node_id)
             if related_node:
                 related_nodes.append(related_node)
         return related_nodes
 
     def search(self, query: str) -> List[Node]:
-        """
-        Perform a basic semantic search in the Knowledge Graph.
-        """
         if not query:
             return []
         keywords = query.lower().split()
         results = []
-        # Search in search_index for matching keywords
         for keyword in keywords:
             for node_id in self.search_index.get(keyword, []):
                 if node_id not in results:
                     results.append(node_id)
-        # Return nodes in order of relevance (number of matching keywords)
         relevance = {}
         for node_id in results:
             node = self.get_node(node_id)
             if node:
-                match_count = sum(1 for keyword in keywords if keyword in self.search_index.get(keyword, []))
+                match_count = sum(1 for kw in keywords if kw in self.search_index.get(kw, []))
                 relevance[node_id] = match_count
-        # Sort by relevance
         sorted_node_ids = sorted(relevance.keys(), key=lambda x: relevance[x], reverse=True)
-        return [self.get_node(node_id) for node_id in sorted_node_ids if self.get_node(node_id)]
+        return [self.get_node(nid) for nid in sorted_node_ids if self.get_node(nid)]
 
     def _update_search_index(self, node: Node) -> None:
-        """
-        Update the search index with the content of the node.
-        """
         content = node.content.lower()
-        # Extract words, removing non-alphanumeric characters from start and end
-        words = content.split()
+        words = re.findall(r"\b[a-zA-Z0-9']+\b", content)
         for word in words:
-            # Clean the word by stripping non-alphanumeric characters
             cleaned_word = re.sub(r'^[^a-zA-Z0-9]+', '', word)
             cleaned_word = re.sub(r'[^a-zA-Z0-9]+$', '', cleaned_word)
             if cleaned_word:
@@ -127,9 +102,6 @@ class KnowledgeGraph(BaseModel):
                     self.search_index[cleaned_word].append(node.id)
 
 def initialize_knowledge_graph() -> KnowledgeGraph:
-    """
-    Initialize the Knowledge Graph with example data.
-    """
     kg = KnowledgeGraph()
     transparency = kg.add_node(Node(
         type="ethical_principle",

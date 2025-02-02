@@ -29,6 +29,5 @@ class SecurityAgent:
             return None
 
         # Remove '@' and other specified non-allowed characters
-        # Characters allowed: letters, digits, whitespace, _, -, ., ,, ;, :, !, ?
-        sanitized = re.sub(r'[^a-zA-Z0-9\s_\-.,:;!?]', '', input_str)[:max_length]
+        sanitized = re.sub(r'[^a-zA-Z0-9\s_\-\.,:;!?]', '', input_str)[:max_length]
         return sanitized.strip()

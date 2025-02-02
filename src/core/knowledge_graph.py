@@ -118,51 +118,34 @@ class KnowledgeGraph(BaseModel):
                 self.search_index[word].append(node.id)
 
     def initialize_knowledge_graph() -> KnowledgeGraph:
-      """
-      Initialize the Knowledge Graph with example data.
-      """
-      kg = KnowledgeGraph()
-      
-      # Add ethical principles
-      transparency = kg.add_node(Node(
-          type="ethical_principle",
-          content="Systems must be transparent to users and stakeholders."
-      ))
-      fairness = kg.add_node(Node(
-          type="ethical_principle",
-          content="Systems must treat all users fairly and without bias."
-      ))
-      
-      # Add constraints
-      no_bias = kg.add_node(Node(
-          type="constraint",
-          content="Avoid introducing systemic bias into algorithms."
-      ))
-      encrypt_data = kg.add_node(Node(
-          type="constraint",
-          content="Encrypt all sensitive user data."
-      ))
-      
-      # Add example code
-      hello_world = kg.add_node(Node(
-          type="code_example",
-          content="print('Hello, world!')",
-          metadata={
-              "language": "Python",
-              "description": "A basic 'Hello, world!' example."
-          }
-      ))
-      
-      # Add relationships
-      kg.add_edge(
-          source=transparency,
-          target=hello_world,
-          edge_type="related_to"
-      )
-      kg.add_edge(
-          source=no_bias,
-          target=hello_world,
-          edge_type="applies_to"
-      )
-      
-      return kg
+        """
+        Initialize the Knowledge Graph with example data.
+        """
+        kg = KnowledgeGraph()
+        transparency = kg.add_node(Node(
+            type="ethical_principle",
+            content="Systems must be transparent to users and stakeholders."
+        ))
+        fairness = kg.add_node(Node(
+            type="ethical_principle",
+            content="Systems must treat all users fairly and without bias."
+        ))
+        no_bias = kg.add_node(Node(
+            type="constraint",
+            content="Avoid introducing systemic bias into algorithms."
+        ))
+        encrypt_data = kg.add_node(Node(
+            type="constraint",
+            content="Encrypt all sensitive user data."
+        ))
+        hello_world = kg.add_node(Node(
+            type="code_example",
+            content="print('Hello, world!')",
+            metadata={
+                "language": "Python",
+                "description": "A basic 'Hello, world!' example."
+            }
+        ))
+        kg.add_edge(transparency, hello_world, "related_to")
+        kg.add_edge(no_bias, hello_world, "applies_to")
+        return kg

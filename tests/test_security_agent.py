@@ -8,7 +8,6 @@ def test_sanitization():
     assert agent.sanitize_input("Test@123") == "Test123"
     assert agent.sanitize_input("<script>alert()</script>") == "scriptalertscript"
     assert agent.sanitize_input(None) is None
-    # Expected output now reflects the original order of allowed characters
     assert agent.sanitize_input("Special chars: !@#$%^&*()_+=-`~[]{}|;':\",./<>?") == "Special chars: !_ -;:,.?"
     long_input = "A" * 2000
     assert len(agent.sanitize_input(long_input)) == 1000
@@ -16,7 +15,7 @@ def test_sanitization():
 def test_env_validation_valid():
     with patch.dict('os.environ', {
         'GEMINI_API_KEY': 'AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-        'YOUR_GITHUB_API_KEY': 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        'YOUR_GITHUB_API_KEY': 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
         'HUGGING_FACE_API_KEY': 'hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
     }):
         agent = SecurityAgent()

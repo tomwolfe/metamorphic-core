@@ -25,8 +25,9 @@ class KnowledgeGraph(BaseModel):
         """
         Add a node to the Knowledge Graph.
         """
-        node_id = uuid.uuid4()
-        node.id = node_id
+        if not node.id:
+            node.id = uuid.uuid4()  # Generate ID if not provided
+        node_id = node.id
         self.nodes[node_id] = node
         self._update_search_index(node)
         return node_id

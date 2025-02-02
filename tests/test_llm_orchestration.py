@@ -32,6 +32,7 @@ def test_hf_configuration():
     assert orchestrator.config.provider == LLMProvider.HUGGING_FACE
     assert orchestrator.config.hf_api_key == 'test_key'
 
+@patch.dict('os.environ', {'GITHUB_ACTIONS': 'false'})  # Force validation
 def test_missing_api_keys():
     with pytest.raises(RuntimeError):
         with patch.dict('os.environ', {'LLM_PROVIDER': 'gemini'}):
@@ -40,7 +41,7 @@ def test_missing_api_keys():
     with pytest.raises(RuntimeError):
         with patch.dict('os.environ', {'LLM_PROVIDER': 'huggingface'}):
             LLMOrchestrator()
-
+            
 @patch('google.genai.Client')
 def test_gemini_generation(mock_client):
     mock_instance = mock_client.return_value

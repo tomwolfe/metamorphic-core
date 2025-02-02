@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+import re
 
 class ConfigError(Exception):
     pass
@@ -20,15 +21,18 @@ class SecureConfig:
         required = {
             'GEMINI_API_KEY': {
                 'min_length': 32,
-                'err_msg': 'Invalid Gemini API key format'
+                'err_msg': 'Invalid Gemini API key format',
+                'pattern': r'^AIzaSy[a-zA-Z0-9_-]{35}$'
             },
             'YOUR_GITHUB_API_KEY': {
                 'min_length': 40,
-                'err_msg': 'Invalid GitHub API key format'
+                'err_msg': 'Invalid GitHub API key format',
+                'pattern': r'^ghp_[a-zA-Z0-9]{36}$'
             },
             'HUGGING_FACE_API_KEY': { # Add validation for Hugging Face API Key
                 'min_length': 32,
-                'err_msg': 'Invalid Hugging Face API key format'
+                'err_msg': 'Invalid Hugging Face API key format',
+                'pattern': r'^hf_[a-zA-Z0-9]{30}$'
             }
         }
         for var, rules in required.items():
@@ -38,6 +42,9 @@ class SecureConfig:
                     missing.append(var)
                 elif len(value) < rules['min_length']:
                     invalid.append(f"{var}: {rules['err_msg']}")
+                elif 'pattern' in rules and not re.match(rules['pattern'], value):
+                    invalid.append(f"{var}: {rules['err_msg']}")
+
 
         if missing:
             raise ConfigError(f"Missing required environment variables: {', '.join(missing)}")

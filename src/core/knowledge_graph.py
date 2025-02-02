@@ -10,7 +10,7 @@ class Edge(BaseModel):
     weight: float = 1.0
 
 class Node(BaseModel):
-    id: UUID4
+    id: Optional[UUID4] = None  # Make ID optional
     type: str
     content: str
     metadata: Dict[str, Any] = {}

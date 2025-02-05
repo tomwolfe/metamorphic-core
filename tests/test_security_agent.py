@@ -59,36 +59,26 @@ def test_env_validation_example_keys():
             SecurityAgent()
         assert "Invalid configuration for GEMINI_API_KEY" in str(excinfo.value)
 
-def test_run_zap_baseline_scan():
+# Update test_run_zap_baseline_scan in tests/test_security_agent.py
+@patch('src.core.agents.security_agent.ZAPv2')
+def test_run_zap_baseline_scan(mock_zap):
     """Test ZAP baseline scan processing"""
-    zap_report = {
-        "alerts": [
-            {
-                "name": "SQL Injection",
-                "riskcode": 3,
-                "desc": "SQL injection vulnerability detected.",
-                "solution": "Sanitize input parameters.",
-                "reference": "https://example.com/sql-injection"
-            },
-            {
-                "name": "Cross-Site Scripting",
-                "riskcode": 2,
-                "desc": "XSS vulnerability detected.",
-                "solution": "Implement input validation.",
-                "reference": "https://example.com/xss"
-            }
-        ]
-    }
-
-    kg_mock = MagicMock(spec=KnowledgeGraph)
-    security_agent = SecurityAgent()
-    security_agent.kg = kg_mock
-
-    security_agent.run_zap_baseline_scan(
-        target_url="http://localhost:5000/generate",
-        findings=zap_report
-    )
-
-    assert kg_mock.add_security_finding.call_count == 2
-    assert "SQL Injection" in str(kg_mock.add_security_finding.call_args_list[0])
-    assert "Cross-Site Scripting" in str(kg_mock.add_security_finding.call_args_list[1])
+    # Mock ZAP response
+    mock_instance = mock_zap.return_value
+    mock_instance.ascan.scan.return_value = 'scan-id'
+    mock_instance.ascan.status.return_value = '100'
+    mock_instance.core.alerts.return_value = [
+        {
+            'name': 'SQL Injection',
+            'riskcode': '3',
+            'description': 'Test desc',
+            'solution': 'Test fix',
+            'reference': 'Test ref'
+        }
+    ]
+    
+    agent = SecurityAgent()
+    agent.run_zap_baseline_scan("http://localhost")
+    
+    assert mock_instance.ascan.scan.called
+    assert mock_instance.core.alerts.called

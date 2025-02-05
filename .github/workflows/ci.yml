@@ -1,67 +1,118 @@
-# .github/workflows/ci.yml
 name: CI
 
 on: [push, pull_request]
 
 jobs:
-  test:
+  integration-test:
     runs-on: ubuntu-latest
     services:
       redis:
-        image: redis
+        image: redis:latest
         ports:
           - 6379:6379
-      flask-app:
-        image: your-flask-image
-        ports:
-          - 5000:5000
-        env:
-          GEMINI_API_KEY: test
-          YOUR_GITHUB_API_KEY: test
-          HUGGING_FACE_API_KEY: test
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set environment variables
-      run: |
-        eecho "GEMINI_API_KEY=AIzaSyTESTTESTTESTTESTTESTTESTTEST" >> $GITHUB_ENV
-        echo "YOUR_GITHUB_API_KEY=ghp_TESTTESTTESTTESTTESTTEST" >> $GITHUB_ENV
-        echo "HUGGING_FACE_API_KEY=hf_TESTTESTTESTTESTTESTTEST" >> $GITHUB_ENV
-        echo "ZAP_API_KEY=test_zap_key" >> $GITHUB_ENV
-        echo "COMPOSE_PROJECT_NAME=metamorphic-core" >> $GITHUB_ENV
-        echo "GITHUB_ACTIONS=true" >> $GITHUB_ENV
+      - name: Set environment variables from secrets
+        run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
+          echo "YOUR_GITHUB_API_KEY=${{ secrets.YOUR_GITHUB_API_KEY }}" >> $GITHUB_ENV
+          echo "HUGGING_FACE_API_KEY=${{ secrets.HUGGING_FACE_API_KEY }}" >> $GITHUB_ENV
+          echo "ZAP_API_KEY=${{ secrets.ZAP_API_KEY }}" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=metamorphic-core" >> $GITHUB_ENV
+          echo "GITHUB_ACTIONS=true" >> $GITHUB_ENV
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements/base.txt
-        pip install -r requirements/dev.txt
-        pip install pytest pytest-cov
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('requirements/**') }}
+          restore-keys: pip-${{ runner.os }}-
 
-    - name: Run ZAP Baseline Scan
-      uses: zaproxy/action-baseline@v0.14.0
-      with:
-        target: http://flask:5000/generate
-        format: json
-        report_file: zap_report.json
-        fail_action: false
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/base.txt
+          pip install -r requirements/dev.txt
+          pip install pytest pytest-cov
 
-    - name: Run tests with coverage
-      run: |
-        pip show google-genai
+      - name: Build Flask app Docker image
+        run: docker build -t flask-app-test .
 
-    - name: Run tests with coverage
-      run: |
-        pytest --cov=src --cov-report=term --cov-report=html tests/
+      - name: Run Flask app Docker container
+        run: docker run -d -p 5000:5000 --name flask-app-container flask-app-test
 
-    - name: Upload coverage artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report
-        path: htmlcov/
+      - name: Wait for Flask app to start
+        run: |
+          max_attempts=30
+          attempt=0
+          while [ $attempt -lt $max_attempts ]; do
+            if curl --output /dev/null --silent --head --fail http://localhost:5000/generate; then
+              echo "Flask app is ready!"
+              break
+            fi
+            echo "Waiting for Flask app to start... ($attempt/$max_attempts)"
+            sleep 2
+            attempt=$((attempt + 1))
+          done
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Flask app did not start in time."
+            exit 1
+          fi
+
+      - name: Run ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: http://localhost:5000/generate
+          format: json
+          report_file: zap_report.json
+          docker_name: 'ghcr.io/zaproxy/zaproxy:stable'
+          verbosity: verbose
+
+      - name: Parse ZAP report and fail on high-risk issues
+        run: |
+          cat zap_report.json | jq '.alerts | map(select(.risk == "high")) | length' > high_risk_count
+          high_risk=$(cat high_risk_count)
+          if [ $high_risk -gt 0 ]; then
+            echo "Found $high_risk high-risk issues."
+            exit 1
+          fi
+
+      - name: Run tests with coverage
+        run: pytest --cov=src --cov-report=term --cov-report=html tests/
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: htmlcov/
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: integration-test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image with cache
+        uses: docker/metadata-action@v4
+        with:
+          images: metamorphic-core
+        run: |
+          docker buildx build --cache-from type=local,mode=max --push -t metamorphic-core .
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metamorphic-core-docker-image
+          path: metamorphic-core.tar

@@ -5,6 +5,7 @@ import os
 from unittest.mock import patch, MagicMock
 from src.core.agents.security_agent import SecurityAgent
 from src.core.knowledge_graph import KnowledgeGraph
+from src.utils.config import ConfigError
 
 def testsanitization():
     agent = SecurityAgent()

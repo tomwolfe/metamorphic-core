@@ -72,6 +72,7 @@ def test_no_hardcoded_github_urls():
 
     assert not violations, "\n".join(violations)
 
+@pytest.mark.skipif(os.getenv('CI') == 'true', reason="Needs Docker in CI")
 def test_zap_scan_integration():
     """Test ZAP baseline scan integration - requires docker-compose up -d zap flask running"""
     agent = SecurityAgent()

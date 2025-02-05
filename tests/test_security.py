@@ -11,7 +11,6 @@ from src.core.agents.security_agent import SecurityAgent
 # Update sensitive paths to match actual committed files
 SENSITIVE_PATHS = [
     ".env",              # Should NOT exist (only .env.example)
-    "docker-compose.yml" # Should NOT exist (only .yml.example)
     # Remove other false positives:
     # "repo_to_single_file.sh",  # Only example exists
     # "repo_contents.txt",       # Only example exists

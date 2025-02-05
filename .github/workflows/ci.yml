@@ -11,15 +11,26 @@ jobs:
         image: redis
         ports:
           - 6379:6379
+      flask-app:
+        image: your-flask-image
+        ports:
+          - 5000:5000
+        env:
+          GEMINI_API_KEY: test
+          YOUR_GITHUB_API_KEY: test
+          HUGGING_FACE_API_KEY: test
 
     steps:
     - uses: actions/checkout@v4
 
     - name: Set environment variables
       run: |
-        echo "GEMINI_API_KEY=test_gemini_key" >> $GITHUB_ENV
-        echo "YOUR_GITHUB_API_KEY=test_github_key" >> $GITHUB_ENV
-        echo "HUGGING_FACE_API_KEY=test_hf_key" >> $GITHUB_ENV
+        eecho "GEMINI_API_KEY=AIzaSyTESTTESTTESTTESTTESTTESTTEST" >> $GITHUB_ENV
+        echo "YOUR_GITHUB_API_KEY=ghp_TESTTESTTESTTESTTESTTEST" >> $GITHUB_ENV
+        echo "HUGGING_FACE_API_KEY=hf_TESTTESTTESTTESTTESTTEST" >> $GITHUB_ENV
+        echo "ZAP_API_KEY=test_zap_key" >> $GITHUB_ENV
+        echo "COMPOSE_PROJECT_NAME=metamorphic-core" >> $GITHUB_ENV
+        echo "GITHUB_ACTIONS=true" >> $GITHUB_ENV
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -32,6 +43,14 @@ jobs:
         pip install -r requirements/base.txt
         pip install -r requirements/dev.txt
         pip install pytest pytest-cov
+
+    - name: Run ZAP Baseline Scan
+      uses: zaproxy/action-baseline@v0.14.0
+      with:
+        target: http://flask:5000/generate
+        format: json
+        report_file: zap_report.json
+        fail_action: false
 
     - name: Run tests with coverage
       run: |

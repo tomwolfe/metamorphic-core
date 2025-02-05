@@ -16,23 +16,25 @@ class SecureConfig:
 
         # Skip validation in CI environments
         is_ci = os.getenv('GITHUB_ACTIONS') == 'true'
+        if is_ci:
+            return cls
 
         # Validate required variables
         required = {
             'GEMINI_API_KEY': {
-                'min_length': 32,
+                'min_length': 39,  # "AIzaSy" (7) + 32 chars
                 'err_msg': 'Invalid Gemini API key format',
-                'pattern': r'^AIzaSy[a-zA-Z0-9_-]{35}$'
+                'pattern': r'^AIzaSy[a-zA-Z0-9_-]{32,35}$'  # Allow 32-35 chars after prefix
             },
             'YOUR_GITHUB_API_KEY': {
                 'min_length': 40,
                 'err_msg': 'Invalid GitHub API key format',
                 'pattern': r'^ghp_[a-zA-Z0-9]{36}$'
             },
-            'HUGGING_FACE_API_KEY': { # Add validation for Hugging Face API Key
-                'min_length': 32,
+            'HUGGING_FACE_API_KEY': {
+                'min_length': 34,
                 'err_msg': 'Invalid Hugging Face API key format',
-                'pattern': r'^hf_[a-zA-Z0-9]{30}$'
+                'pattern': r'^hf_[a-zA-Z0-9]{30,}$'  # Allow 30+ chars after prefix
             }
         }
         for var, rules in required.items():

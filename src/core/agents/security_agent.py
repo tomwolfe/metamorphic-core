@@ -50,7 +50,7 @@ class SecurityAgent:
         Run OWASP ZAP baseline scan and process findings.
         """
         zap_api_key = os.getenv('ZAP_API_KEY', 'changeme') # default API key from docker-compose
-        zap_address = 'http://zap:8080' # Assuming 'zap' service name in docker-compose
+        zap_address = 'http://localhost:8080' if os.getenv('CI') else 'http://zap:8080'
 
         try:
             zap = ZAPv2(apikey=zap_api_key, proxies={'http': zap_address, 'https': zap_address})

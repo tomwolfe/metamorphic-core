@@ -1,4 +1,4 @@
-# File: tests/test_security.py
+# tests/test_security.py
 import subprocess
 import sys
 import os
@@ -75,6 +75,10 @@ def test_no_hardcoded_github_urls():
 @pytest.mark.skipif(os.getenv('CI') == 'true', reason="Needs Docker in CI")
 def test_zap_scan_integration():
     """Test ZAP baseline scan integration - requires docker-compose up -d zap flask running"""
+    with patch('src.utils.config.SecureConfig.get') as mock_get:
+        mock_get.side_effect = lambda var_name, default=None: {
+            'GEMINI_API_KEY': 'test_key', 'YOUR_GITHUB_API_KEY': 'test_key', 'HUGGING_FACE_API_KEY': 'test_key' # Mock required keys for SecurityAgent init
+        }.get(var_name, default)
     agent = SecurityAgent()
     target_url = "http://localhost:5000/generate" # Or your flask app URL when testing
 

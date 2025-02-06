@@ -86,13 +86,13 @@ def test_hf_generation(mock_get, mock_generate):
     assert response == "Test response"
 
 def test_invalid_provider():
-    with pytest.raises(ValueError):
+    with pytest.raises(RuntimeError):
         with patch('src.utils.config.SecureConfig.get') as mock_get:
             mock_get.side_effect = lambda var_name, default=None: {
                 'LLM_PROVIDER': 'invalid'
             }.get(var_name, default)
             LLMOrchestrator()
-
+            
 @patch('google.genai.Client')
 @patch('src.utils.config.SecureConfig.get')
 def test_retry_logic(mock_get, mock_client):

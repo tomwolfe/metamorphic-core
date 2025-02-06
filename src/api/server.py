@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import logging
+import logging, redis
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from src.core.llm_orchestration import LLMOrchestrator # Correct import
@@ -39,6 +39,11 @@ def generate_endpoint():
             "status": "error"
         }), 500
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint."""
+    return jsonify({"status": "ready"}), 200
+
 @app.before_request
 def startup_debug():
     global startup_done
@@ -49,9 +54,12 @@ def startup_debug():
         app.logger.info(f"Flask running on {ip}:5000")
         app.logger.info(f"Flask host binding to: 0.0.0.0:5000") # Explicit log
         try:
-            # Placeholder: Add your Redis client ping here if you have one in Flask app context.
-            # redis_client = app.redis # Example - replace with your actual redis client if applicable
-            # redis_client.ping()
+            redis_client = redis.Redis(host='localhost', port=6379)
+            response = redis_client.ping()
+            if response:
+                app.logger.info("Redis connection successful")
+            else:
+                app.logger.warning("Redis ping failed but connection might still be alive.")
             app.logger.info("Placeholder: Successfully checked Redis connection (if configured)")
         except Exception as e:
             app.logger.error(f"Placeholder: Redis connection check failed (if configured): {str(e)}")

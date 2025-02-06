@@ -63,11 +63,11 @@ def test_env_validation_invalid_hf(mock_get):
 
 @patch('src.utils.config.SecureConfig.get')
 def test_env_validation_missing_vars(mock_get):
-    mock_get.return_value = None
+    mock_get.side_effect = ConfigError()  # Simulate missing variables
     with pytest.raises(ConfigError) as excinfo:
         SecurityAgent()
     assert "Missing required environment variable" in str(excinfo.value)
-
+    
 @patch('src.utils.config.SecureConfig.get')
 def test_env_validation_example_keys(mock_get):
     mock_get.side_effect = lambda var_name, default=None: {

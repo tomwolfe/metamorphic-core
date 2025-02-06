@@ -73,7 +73,7 @@ def test_env_validation_example_keys(mock_get):
     mock_get.side_effect = lambda var_name, default=None: {
         'GEMINI_API_KEY': 'your_key_here',
         'YOUR_GITHUB_API_KEY': 'your_github_token',
-        'HUGGING_FACE_API_KEY': 'your_hf_api_key'
+        'HUGGING_FACE_API_KEY': 'yourhfaipkey'
     }.get(var_name, default)
     with pytest.raises(ValueError) as excinfo:
         SecurityAgent()
@@ -85,7 +85,7 @@ def test_run_zap_baseline_scan(mock_get, mock_zap):
     mock_get.return_value = 'test_zap_key'
     mock_instance = mock_zap.return_value
     mock_instance.ascan.scan.return_value = 'scan-id'
-    mock_instance.ascan.status.return_value = '100'
+    mock_instance.ascan.status.return_value = 100
     mock_instance.core.alerts.return_value = []
 
     agent = SecurityAgent()

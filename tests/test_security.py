@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 from src.core.agents.security_agent import SecurityAgent
 from src.utils.config import SecureConfig
 import logging
+import subprocess
 
 def test_zap_scan_integration():
     """Test ZAP baseline scan integration - requires Docker in CI"""

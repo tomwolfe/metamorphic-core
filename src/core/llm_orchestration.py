@@ -1,5 +1,6 @@
 import os
 import re
+import logging
 from enum import Enum
 from typing import Optional
 import google.genai as genai
@@ -27,7 +28,7 @@ class LLMOrchestrator:
 
     def _load_config(self) -> LLMConfig:
         try:
-            SecureConfig.load()  # Load config before accessing env vars
+            SecureConfig.load()
             return LLMConfig(
                 provider=LLMProvider(SecureConfig.get('LLM_PROVIDER', 'gemini')),
                 gemini_api_key=SecureConfig.get('GEMINI_API_KEY'),
@@ -35,7 +36,8 @@ class LLMOrchestrator:
                 max_retries=int(SecureConfig.get('LLM_MAX_RETRIES', 3)),
                 timeout=int(SecureConfig.get('LLM_TIMEOUT', 30))
             )
-        except (ValidationError, ConfigError) as e:  # Catch both error types
+        except (ValidationError, ConfigError, ValueError) as e:
+            logging.error(f"Error loading LLM configuration: {str(e)}")
             raise RuntimeError(f"Invalid LLM configuration: {str(e)}")
 
     def _configure_providers(self):
@@ -43,8 +45,7 @@ class LLMOrchestrator:
             if not self.config.gemini_api_key:
                 raise RuntimeError("GEMINI_API_KEY is required for Gemini provider")
             self.client = genai.Client(api_key=self.config.gemini_api_key)
-            self.client.model = 'gemini-2.0-flash-exp'  # Updated to gemini-2.0-flash-exp
-            # Store the api_key for testing purposes
+            self.client.model = 'gemini-2.0-flash-exp'
             self.client.api_key = self.config.gemini_api_key
         elif self.config.provider == LLMProvider.HUGGING_FACE:
             if not self.config.hf_api_key:
@@ -63,6 +64,7 @@ class LLMOrchestrator:
                     return self._gemini_generate(prompt)
                 return self._hf_generate(prompt)
             except Exception as e:
+                logging.error(f"Attempt {attempt + 1} failed: {str(e)}")
                 if attempt == self.config.max_retries - 1:
                     raise RuntimeError(f"LLM API failed after {self.config.max_retries} attempts: {str(e)}")
 
@@ -75,6 +77,7 @@ class LLMOrchestrator:
             )
             return ''.join(part.text for part in response.candidates[0].content.parts)
         except Exception as e:
+            logging.error(f"Gemini error: {str(e)}")
             raise RuntimeError(f"Gemini error: {str(e)}")
 
     def _hf_generate(self, prompt: str) -> str:
@@ -91,6 +94,7 @@ class LLMOrchestrator:
                 return_full_text=False
             )
         except Exception as e:
+            logging.error(f"Hugging Face error: {str(e)}")
             raise RuntimeError(f"Hugging Face error: {str(e)}")
 
 def format_math_prompt(question: str) -> str:

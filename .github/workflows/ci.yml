@@ -56,8 +56,9 @@ jobs:
             -e GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
             -e HUGGING_FACE_API_KEY=${{ secrets.HUGGING_FACE_API_KEY }} \
             -e ZAP_API_KEY=${{ secrets.ZAP_API_KEY }} \
+            -e PYTHONPATH=/app/src \  # ADD THIS LINE: Set PYTHONPATH
             flask-app-test
-
+            
       - name: Wait for Flask app to start
         run: |
           max_attempts=30

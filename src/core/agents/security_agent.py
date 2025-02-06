@@ -57,7 +57,7 @@ class SecurityAgent:
             self.logger.info(f"[SecurityAgent] Starting ZAP baseline scan against: {target_url}")
 
             # Actively scan the target
-            scan_id = zap.ascan.scan(target_url=target_url, scanpolicyname='Baseline')
+            scan_id = zap.ascan.scan(url=target_url, scanpolicyname='Baseline')
             while int(zap.ascan.status(scan_id)) < 100:
                 self.logger.info(f"[SecurityAgent] ZAP Scan Progress: {zap.ascan.status(scan_id)}%")
                 time.sleep(5)

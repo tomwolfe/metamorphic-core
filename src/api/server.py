@@ -5,6 +5,8 @@ from flask_limiter.util import get_remote_address
 from src.core.llm_orchestration import LLMOrchestrator # Correct import
 from src.utils.config import SecureConfig
 import os # ADD THIS LINE
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))) # Add src directory to path
 
 startup_done = False # Flag to track if startup has run
 

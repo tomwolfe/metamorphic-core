@@ -24,16 +24,14 @@ class SecurityAgent:
         try:
             required_vars = ['GEMINI_API_KEY', 'YOUR_GITHUB_API_KEY', 'HUGGING_FACE_API_KEY']
             for var in required_vars:
-                if var not in os.environ:
-                    raise ConfigError(f"Missing required environment variable: {var}")
-                value = os.environ[var]
+                value = SecureConfig.get(var)
                 if not value or value == 'invalid' or value.startswith('your_'):
                     raise ValueError(f"Invalid configuration for {var}")
             return True
         except (ValueError, ConfigError) as e:
             self.logger.critical(f"Environment validation failed: {str(e)}")
             raise e
-
+            
     def sanitize_input(self, input_str: str, max_length: int = 1000) -> Optional[str]:
         """Basic input sanitization for API endpoints"""
         if not input_str:

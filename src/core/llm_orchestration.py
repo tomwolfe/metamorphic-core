@@ -29,7 +29,7 @@ class LLMOrchestrator:
         try:
             SecureConfig.load()  # Load config before accessing env vars
             return LLMConfig(
-                provider=LLMProvider(SecureConfig.get('LLM_PROVIDER', LLMProvider.GEMINI)),
+                provider=LLMProvider(SecureConfig.get('LLM_PROVIDER', 'gemini')),
                 gemini_api_key=SecureConfig.get('GEMINI_API_KEY'),
                 hf_api_key=SecureConfig.get('HUGGING_FACE_API_KEY'),
                 max_retries=int(SecureConfig.get('LLM_MAX_RETRIES', 3)),

@@ -78,27 +78,20 @@ class SecurityAgent:
             self.logger.error(f"[SecurityAgent] Error running ZAP scan: {str(e)}")
             return {"error": str(e), "alerts": []}
 
-    def _process_zap_results(self, target_url: str, alerts: List[Dict]): # Modified to accept target_url
-        """
-        Process ZAP scan findings and store them in the knowledge graph.
-        """
-        vulnerabilities = [
-            alert for alert in alerts
-            if alert.get("riskcode", '0') in ['3', '2']  # High (3) and Medium (2) severity as strings
-        ]
-
-        for vulnerability in vulnerabilities:
+    def _process_zap_results(self, target_url: str, alerts: List[Dict]):
+        # Add temporal context to findings
+        for vuln in vulnerabilities:
             self.kg.add_security_finding(
                 target_url=target_url,
-                vulnerability_name=vulnerability.get("name", "Unknown"),
-                severity=vulnerability.get("riskcode", '0'), # Keep as string for now
-                description=vulnerability.get("description", "No description available"), # Corrected key name
-                solution=vulnerability.get("solution", "No solution available"),
-                reference=vulnerability.get("reference", "No reference available")
+                vulnerability_name=vuln.get("name"),
+                severity=str(vuln.get("risk")), # Convert to string
+                description=vuln.get("description"),
+                solution=vuln.get("solution"),
+                reference=vuln.get("reference"),
+                timestamp=datetime.utcnow().isoformat(), # NEW
+                scan_id=self.current_scan_id # NEW
             )
-
-        self.logger.info(f"[SecurityAgent] Processed {len(vulnerabilities)} findings from ZAP scan.")
-
+            
 if __name__ == "__main__":
     import logging
     logging.basicConfig(level=logging.INFO)

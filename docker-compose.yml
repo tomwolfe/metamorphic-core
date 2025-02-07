@@ -1,14 +1,5 @@
-# docker-compose.yml
+version: "3.9"
 services:
-  zap:
-    image: ghcr.io/zaproxy/zaproxy:stable
-    ports:
-      - 8080:8080
-    environment:
-      ZAP_API_KEY: ${ZAP_API_KEY:-changeme}
-    networks:
-      - metamorphic
-
   metamorphic-core:
     build: .
     env_file:
@@ -19,3 +10,31 @@ services:
       - ./src:/app/src
     networks:
       - metamorphic
+    depends_on:
+      - redis
+      - zap
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - metamorphic
+
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    ports:
+      - "8080:8080"
+    environment:
+      ZAP_API_KEY: ${ZAP_API_KEY:-changeme} # Default API key if not set in .env
+    networks:
+      - metamorphic
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"] # Basic health check
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  metamorphic:
+    driver: bridge

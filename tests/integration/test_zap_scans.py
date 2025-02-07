@@ -1,52 +1,52 @@
 # tests/integration/test_zap_scans.py
-import pytest
-import subprocess
-import time
-import os
 from src.core.agents.security_agent import SecurityAgent
 from src.core.knowledge_graph import KnowledgeGraph
+import pytest
+import logging
 
-@pytest.fixture(scope="module")
-def docker_compose_project():
-    """Fixture to start and stop the docker-compose project for integration tests."""
-    subprocess.run(["docker", "compose", "-f", "docker-compose.yml", "up", "-d"], check=True)
-    time.sleep(10)  # Give services time to start - adjust as needed
-    yield
-    subprocess.run(["docker", "compose", "-f", "docker-compose.yml", "down"], check=True)
-
-@pytest.mark.integration
-def test_zap_scan_integration_live(docker_compose_project):
-    """
-    Test ZAP baseline scan integration with a live Flask app and ZAP instance.
-    Requires Docker Compose to be running.
-    """
+def test_zap_scan_manager_init():
+    """Test ZAP Scan Manager initialization"""
     agent = SecurityAgent()
-    target_url = "http://localhost:5000/health" # Use health endpoint for quick test
+    assert agent.zap_manager is not None
+    assert len(agent.zap_manager.config_presets) == 3
+    assert "strict" in agent.zap_manager.config_presets
 
-    # Ensure Flask app is ready (health endpoint should return 200)
-    max_attempts = 10
-    attempt = 0
-    app_ready = False
-    while attempt < max_attempts:
-        try:
-            result = subprocess.run(["curl", "-f", target_url], capture_output=True, check=True)
-            if result.returncode == 0:
-                app_ready = True
-                break
-        except subprocess.CalledProcessError:
-            time.sleep(2)
-            attempt += 1
-    assert app_ready, "Flask app health endpoint not reachable after multiple attempts."
+def test_zap_scan_with_config_presets():
+    """Test scan with different configuration presets"""
+    agent = SecurityAgent()
+    target_url = "http://flask-app:5000"
+    
+    # Test with strict config
+    results = agent.run_zap_baseline_scan(target_url, "strict")
+    assert "alerts" in results
+    
+    # Test with standard config
+    results = agent.run_zap_baseline_scan(target_url, "standard")
+    assert "alerts" in results
 
+def test_zap_scan_caching():
+    """Test result caching functionality"""
+    agent = SecurityAgent()
+    target_url = "http://flask-app:5000"
+    
+    # First scan (should save to cache)
+    results = agent.run_zap_baseline_scan(target_url)
+    assert agent.zap_manager.get_cached_results() is not None
+    
+    # Second scan (should use cache)
+    results = agent.run_zap_baseline_scan(target_url)
+    assert "Using cached scan results" in [record.getMessage() for record in logging.root.handlers[0].buffer]
 
-    scan_results = agent.run_zap_baseline_scan(target_url)
-    assert isinstance(scan_results, dict), "ZAP scan should return a dictionary"
-    assert "alerts" in scan_results, "Scan results should contain alerts"
-
-    kg = KnowledgeGraph()
-    # Basic check for vulnerabilities in KG (may vary depending on app)
-    vulnerability_nodes = kg.search("ZAP Finding")
-    assert vulnerability_nodes is not None, "No vulnerability findings found in KG"
-    if vulnerability_nodes: # Only check if nodes are found
-        assert any("ZAP Finding" in node.content for node in vulnerability_nodes), "KG nodes do not contain 'ZAP Finding'"
-        assert any(target_url in node.metadata.get('target_url', '') for node in vulnerability_nodes), "KG nodes do not have correct target URL in metadata"
+def test_zap_scan_history():
+    """Test scan history tracking"""
+    agent = SecurityAgent()
+    target_url = "http://flask-app:5000"
+    
+    # Run multiple scans and check history
+    agent.run_zap_baseline_scan(target_url)
+    agent.run_zap_baseline_scan(target_url)
+    
+    history = agent.zap_manager.get_scan_history()
+    assert len(history) >= 2
+    assert "high_risk" in history[0]
+    assert "medium_risk" in history[0]

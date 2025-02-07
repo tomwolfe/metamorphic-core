@@ -1,6 +1,6 @@
 # src/core/agents/security_agent.py
 from src.utils.config import SecureConfig, ConfigError
-from src.core.knowledge_graph import KnowledgeGraph
+from src.core.knowledge_graph import KnowledgeGraph, Node
 from typing import Optional, Dict, List
 import re
 import logging
@@ -8,11 +8,14 @@ import json
 import os
 from zapv2 import ZAPv2  # Import ZAP client
 import time
+from datetime import datetime
+import uuid
 
 class SecurityAgent:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.kg = KnowledgeGraph()  # Initialize Knowledge Graph
+        self.current_scan_id = None # Track current scan ID
         try:
             self._validate_environment()
         except (ValueError, ConfigError) as e:
@@ -22,7 +25,7 @@ class SecurityAgent:
     def _validate_environment(self) -> bool:
         """Validate all security-critical environment variables"""
         try:
-            required_vars = ['GEMINI_API_KEY', 'YOUR_GITHUB_API_KEY', 'HUGGING_FACE_API_KEY']
+            required_vars = ['GEMINI_API_KEY', 'YOUR_GITHUB_API_KEY', 'HUGGING_FACE_API_KEY', 'ZAP_API_KEY']
             for var in required_vars:
                 try:
                     value = SecureConfig.get(var)
@@ -38,7 +41,7 @@ class SecurityAgent:
         except ConfigError as e:
             self.logger.critical(f"Environment validation failed: Missing required variables")
             raise
-            
+
     def sanitize_input(self, input_str: str, max_length: int = 1000) -> Optional[str]:
         """Basic input sanitization for API endpoints"""
         if not input_str:
@@ -55,7 +58,7 @@ class SecurityAgent:
         Run OWASP ZAP baseline scan and process findings.
         """
         zap_api_key = os.getenv('ZAP_API_KEY', 'changeme') # default API key from docker-compose
-        zap_address = 'http://localhost:8080' if os.getenv('CI') else 'http://zap:8080'
+        zap_address = 'http://zap:8080' # Use service name from docker-compose
 
         try:
             zap = ZAPv2(apikey=zap_api_key, proxies={'http': zap_address, 'https': zap_address})
@@ -63,6 +66,7 @@ class SecurityAgent:
 
             # Actively scan the target
             scan_id = zap.ascan.scan(url=target_url, scanpolicyname='Baseline')
+            self.current_scan_id = scan_id # Store scan ID
             while int(zap.ascan.status(scan_id)) < 100:
                 self.logger.info(f"[SecurityAgent] ZAP Scan Progress: {zap.ascan.status(scan_id)}%")
                 time.sleep(5)
@@ -72,26 +76,52 @@ class SecurityAgent:
             alerts = zap.core.alerts()
             self.logger.info(f"[SecurityAgent] Number of ZAP alerts found: {len(alerts)}")
             self._process_zap_results(target_url, alerts) # Pass target_url to processing
-            return alerts # Return alerts for testing/debugging
+            return {"alerts": alerts, "scan_id": scan_id} # Return alerts and scan_id
 
         except Exception as e:
             self.logger.error(f"[SecurityAgent] Error running ZAP scan: {str(e)}")
-            return {"error": str(e), "alerts": []}
+            return {"error": str(e), "alerts": [], "scan_id": None}
 
-    def _process_zap_results(self, target_url: str, alerts: List[Dict]):
-        # Add temporal context to findings
-        for vuln in vulnerabilities:
-            self.kg.add_security_finding(
-                target_url=target_url,
-                vulnerability_name=vuln.get("name"),
-                severity=str(vuln.get("risk")), # Convert to string
-                description=vuln.get("description"),
-                solution=vuln.get("solution"),
-                reference=vuln.get("reference"),
-                timestamp=datetime.utcnow().isoformat(), # NEW
-                scan_id=self.current_scan_id # NEW
+    def _process_zap_results(self, target_url: str, alerts: List[Dict]): # Modified to accept target_url
+        """
+        Process ZAP scan findings and store them in the knowledge graph.
+        """
+        vulnerabilities = [
+            alert for alert in alerts
+            if alert.get("riskcode", '0') in ['3', '2']  # High (3) and Medium (2) severity as strings
+        ]
+
+        for vulnerability in vulnerabilities:
+            finding_node = Node(
+                type="security_vulnerability",
+                content=f"ZAP Finding: {vulnerability.get('name', 'Unknown Vulnerability')}",
+                metadata={
+                    "target_url": target_url,
+                    "vulnerability_name": vulnerability.get("name", "Unknown"),
+                    "severity": vulnerability.get("riskcode", '0'), # Keep as string for now
+                    "description": vulnerability.get("description", "No description available"), # Corrected key name
+                    "solution": vulnerability.get("solution", "No solution available"),
+                    "reference": vulnerability.get("reference", "No reference available"),
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "scan_id": self.current_scan_id
+                }
             )
-            
+            finding_node_id = self.kg.add_node(finding_node)
+
+            # Create relationships - link vulnerability to target URL as node
+            target_node_content = f"Scanned URL: {target_url}"
+            target_node_search_results = self.kg.search(target_node_content)
+            if target_node_search_results:
+                target_node_id = target_node_search_results[0].id
+            else:
+                target_node = Node(type="scan_target", content=target_node_content, metadata={"url": target_url})
+                target_node_id = self.kg.add_node(target_node)
+
+            self.kg.add_edge(finding_node_id, target_node_id, "found_in_scan")
+
+
+        self.logger.info(f"[SecurityAgent] Processed {len(vulnerabilities)} findings from ZAP scan and stored in KG.")
+
 if __name__ == "__main__":
     import logging
     logging.basicConfig(level=logging.INFO)

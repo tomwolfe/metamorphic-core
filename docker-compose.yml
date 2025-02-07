@@ -1,4 +1,14 @@
+# docker-compose.yml
 services:
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    ports:
+      - 8080:8080
+    environment:
+      ZAP_API_KEY: ${ZAP_API_KEY:-changeme}
+    networks:
+      - metamorphic
+
   metamorphic-core:
     build: .
     env_file:
@@ -7,3 +17,5 @@ services:
       - "5000:5000"
     volumes:
       - ./src:/app/src
+    networks:
+      - metamorphic

@@ -10,12 +10,15 @@ from zapv2 import ZAPv2  # Import ZAP client
 import time
 from datetime import datetime
 import uuid
+from .zap_scan_manager import ZAPScanManager
 
 class SecurityAgent:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.kg = KnowledgeGraph()  # Initialize Knowledge Graph
         self.current_scan_id = None # Track current scan ID
+        self.zap_manager = ZAPScanManager()  # Initialize ZAP Scan Manager
+
         try:
             self._validate_environment()
         except (ValueError, ConfigError) as e:
@@ -53,34 +56,72 @@ class SecurityAgent:
         """Log security events with structured formatting"""
         self.logger.info(f"SECURITY_EVENT|{event_type}|{json.dumps(details)}")
 
-    def run_zap_baseline_scan(self, target_url: str): # Modified to take target_url
+    def run_zap_baseline_scan(self, target_url: str, config_preset: str = "standard") -> Dict:
         """
-        Run OWASP ZAP baseline scan and process findings.
+        Run OWASP ZAP baseline scan with scan manager integration.
         """
-        zap_api_key = os.getenv('ZAP_API_KEY', 'changeme') # default API key from docker-compose
-        zap_address = 'http://zap:8080' # Use service name from docker-compose
+        zap_api_key = os.getenv('ZAP_API_KEY', 'changeme')
+        zap_address = 'http://zap:8080'
 
         try:
             zap = ZAPv2(apikey=zap_api_key, proxies={'http': zap_address, 'https': zap_address})
             self.logger.info(f"[SecurityAgent] Starting ZAP baseline scan against: {target_url}")
 
-            # Actively scan the target
+            # Apply scan configuration preset
+            config = self.zap_manager.set_scan_config(config_preset)
+            self.logger.info(f"[SecurityAgent] Using scan configuration: {config}")
+
+            # Apply policy and configuration to ZAP
+            self._apply_zap_configuration(zap, config)
+
+            # Start scan
             scan_id = zap.ascan.scan(url=target_url, scanpolicyname='Baseline')
-            self.current_scan_id = scan_id # Store scan ID
+            self.current_scan_id = scan_id
             while int(zap.ascan.status(scan_id)) < 100:
                 self.logger.info(f"[SecurityAgent] ZAP Scan Progress: {zap.ascan.status(scan_id)}%")
                 time.sleep(5)
 
             self.logger.info(f"[SecurityAgent] ZAP scan completed for: {target_url}")
-            # Fetch alerts
-            alerts = zap.core.alerts()
+
+            # Check for cached results
+            cached_results = self.zap_manager.get_cached_results()
+            if cached_results:
+                self.logger.info("[SecurityAgent] Using cached scan results")
+                alerts = cached_results.get("alerts", [])
+            else:
+                # Fetch fresh results
+                alerts = zap.core.alerts()
+                self.zap_manager.save_scan_results({"alerts": alerts, "scan_id": scan_id}, target_url)
+
             self.logger.info(f"[SecurityAgent] Number of ZAP alerts found: {len(alerts)}")
-            self._process_zap_results(target_url, alerts) # Pass target_url to processing
-            return {"alerts": alerts, "scan_id": scan_id} # Return alerts and scan_id
+            self._process_zap_results(target_url, alerts)
+
+            # Check for high-risk changes
+            if self.zap_manager.has_high_risk_changes({"alerts": alerts}):
+                self.audit_security_event("HIGH_RISK_VULNERABILITIES_DETECTED", {
+                    "target_url": target_url,
+                    "scan_id": scan_id,
+                    "alert_count": len([a for a in alerts if a.get("risk") == "High"]) # Corrected to 'High' string
+                })
+
+            return {"alerts": alerts, "scan_id": scan_id}
 
         except Exception as e:
             self.logger.error(f"[SecurityAgent] Error running ZAP scan: {str(e)}")
             return {"error": str(e), "alerts": [], "scan_id": None}
+
+    def _apply_zap_configuration(self, zap: ZAPv2, config: Dict) -> None:
+        """
+        Apply custom configuration to ZAP scan.
+        """
+        # Example: Apply attack mode and depth settings
+        for setting, value in config.items():
+            if setting == "attackMode":
+                zap.ascan.set_option_attack_mode(value)
+            elif setting == "maxDepth":
+                zap.ascan.set_option_max_depth(value)
+            elif setting == "maxChildren":
+                zap.ascan.set_option_max_children(value)
 
     def _process_zap_results(self, target_url: str, alerts: List[Dict]): # Modified to accept target_url
         """

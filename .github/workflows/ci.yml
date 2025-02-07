@@ -129,6 +129,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: metamorphic-core:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.COMPOSE_PROJECT_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

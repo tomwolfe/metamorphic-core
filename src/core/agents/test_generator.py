@@ -1,8 +1,9 @@
 # File: src/core/agents/test_generator.py
-from src.core.knowledge_graph import KnowledgeGraph, Node  # Add Node import
-from uuid import UUID4
+from pydantic import UUID4  # Changed import source
+from src.core.llm_orchestration import LLMOrchestrator
+from src.core.knowledge_graph import KnowledgeGraph, Node
 
-class TestGeneratorAgent:  # Renamed from TestGenerationAgent
+class TestGeneratorAgent:
     def __init__(self):
         self.llm = LLMOrchestrator()
         self.kg = KnowledgeGraph()

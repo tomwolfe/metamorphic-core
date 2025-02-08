@@ -7,12 +7,15 @@ from z3 import ModelRef
 from ..verification.specification import FormalSpecification
 from ..verification.z3_serializer import Z3JSONEncoder
 from ..quantum.state_preservation import QuantumStatePreserver
+from src.core.agents.specification_analyzer import SpecificationAnalyzer
+from src.core.agents.knowledge_graph import KnowledgeGraph
 
 class QuantumEthicalValidator:
     def __init__(self):
         self.formal_verifier = FormalSpecification()
         self.audit_logger = EthicalAuditLogger()
         self.state_preserver = QuantumStatePreserver()
+        self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())
         self._load_ethical_framework()
 
     def _load_ethical_framework(self):
@@ -24,10 +27,13 @@ class QuantumEthicalValidator:
     def validate_code(self, code_sample: str) -> Dict[str, Any]:
         """Perform comprehensive ethical validation"""
         state_id = self.state_preserver.preserve_state(code_sample)
+        spec_analysis = self.spec_analyzer.analyze_python_spec(code_sample)
+        
         validation_result = {
             "state_id": state_id,
             "status": "pending",
             "score": 0.0,
+            "spec_analysis": spec_analysis,
             "predictions": self._predict_ethical_impact(code_sample),
             "formal_proof": None,
             "timestamp": str(datetime.utcnow()),

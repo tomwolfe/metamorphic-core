@@ -1,3 +1,4 @@
+# tests/test_security.py
 import pytest
 import os
 from unittest.mock import patch, MagicMock
@@ -13,7 +14,8 @@ def test_zap_scan_integration():
         mock_get.side_effect = lambda var_name, default=None: {
             'GEMINI_API_KEY': 'test_key',
             'YOUR_GITHUB_API_KEY': 'test_key',
-            'HUGGING_FACE_API_KEY': 'test_key'
+            'HUGGING_FACE_API_KEY': 'test_key',
+            'ZAP_API_KEY': 'test_zap_key'  # Added ZAP_API_KEY
         }.get(var_name, default)
         agent = SecurityAgent()
         target_url = "http://localhost:5000/generate"

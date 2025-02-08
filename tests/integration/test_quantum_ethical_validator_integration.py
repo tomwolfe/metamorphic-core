@@ -15,6 +15,6 @@ class TestQuantumEthicalValidator(unittest.TestCase):
         self.assertGreater(len(result['spec_analysis']['functions']), 0)
         
         # Verify KG storage
-        kg = KnowledgeGraph()
+        kg = self.validator.spec_analyzer.kg # Access KG from validator
         results = kg.search("spec_analysis")
         self.assertTrue(any(n.type == "spec_analysis" for n in results))

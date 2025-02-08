@@ -1,4 +1,24 @@
 # File: src/core/ethics/governance.py
+class QuantumEthicalValidator:
+    def __init__(self):
+        self.formal_verifier = FormalSpecification()
+        self.audit_logger = EthicalAuditLogger()
+        self.state_preserver = QuantumStatePreserver()
+        self._load_ethical_framework()
+        self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())  # Add this line
+
+    def validate_code(self, code_sample: str) -> Dict[str, Any]:
+        """Updated validation with spec analysis"""
+        state_id = self.state_preserver.preserve_state(code_sample)
+        validation_result = {
+            "state_id": state_id,
+            "spec_analysis": self.spec_analyzer.analyze_python_spec(code_sample),  # Add this
+            "status": "pending",
+         
+
+
+
+# File: src/core/ethics/governance.py
 import os
 import json
 from datetime import datetime
@@ -15,22 +35,15 @@ class QuantumEthicalValidator:
         self.formal_verifier = FormalSpecification()
         self.audit_logger = EthicalAuditLogger()
         self.state_preserver = QuantumStatePreserver()
-        self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())
         self._load_ethical_framework()
+        self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())  # Add this line
 
-    def _load_ethical_framework(self):
-        """Load ethical guidelines into verification system"""
-        # Use normalized constraint names
-        self.formal_verifier.add_safety_invariant("BiasRisk never exceeds 0.25")
-        self.formal_verifier.add_ethical_guardrail("TransparencyScore never drops below 0.4")
-        
     def validate_code(self, code_sample: str) -> Dict[str, Any]:
-        """Perform comprehensive ethical validation"""
+        """Updated validation with spec analysis"""
         state_id = self.state_preserver.preserve_state(code_sample)
-        spec_analysis = self.spec_analyzer.analyze_python_spec(code_sample)
-        
         validation_result = {
             "state_id": state_id,
+            "spec_analysis": self.spec_analyzer.analyze_python_spec(code_sample),  # Add this
             "status": "pending",
             "score": 0.0,
             "spec_analysis": spec_analysis,
@@ -58,6 +71,12 @@ class QuantumEthicalValidator:
         self.audit_logger.log_decision(validation_result)
         return validation_result
 
+    def _load_ethical_framework(self):
+        """Load ethical guidelines into verification system"""
+        # Use normalized constraint names
+        self.formal_verifier.add_safety_invariant("BiasRisk never exceeds 0.25")
+        self.formal_verifier.add_ethical_guardrail("TransparencyScore never drops below 0.4")
+        
     def _predict_ethical_impact(self, code: str) -> Dict[str, float]:
         """Predict ethical impact with all required metrics"""
         return {

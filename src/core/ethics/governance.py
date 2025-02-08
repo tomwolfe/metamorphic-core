@@ -9,7 +9,7 @@ from ..verification.z3_serializer import Z3JSONEncoder
 from ..quantum.state_preservation import QuantumStatePreserver
 from src.core.agents.specification_analyzer import SpecificationAnalyzer
 from src.core.knowledge_graph import KnowledgeGraph
-from src.core.agents.test_generator import TestGenerationAgent
+from src.core.agents.test_generator import TestGeneratorAgent  # Updated import name
 
 class QuantumEthicalValidator:
     def __init__(self):
@@ -18,8 +18,8 @@ class QuantumEthicalValidator:
         self.state_preserver = QuantumStatePreserver()
         self._load_ethical_framework()
         self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())
-        self.test_generator = TestGeneratorAgent()
-
+        self.test_generator = TestGeneratorAgent()  # Updated class name
+        
     def validate_code(self, code_sample: str) -> Dict[str, Any]:
         """Updated validation with spec analysis"""
         state_id = self.state_preserver.preserve_state(code_sample)

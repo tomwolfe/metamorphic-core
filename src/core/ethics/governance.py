@@ -1,24 +1,4 @@
 # File: src/core/ethics/governance.py
-class QuantumEthicalValidator:
-    def __init__(self):
-        self.formal_verifier = FormalSpecification()
-        self.audit_logger = EthicalAuditLogger()
-        self.state_preserver = QuantumStatePreserver()
-        self._load_ethical_framework()
-        self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())  # Add this line
-
-    def validate_code(self, code_sample: str) -> Dict[str, Any]:
-        """Updated validation with spec analysis"""
-        state_id = self.state_preserver.preserve_state(code_sample)
-        validation_result = {
-            "state_id": state_id,
-            "spec_analysis": self.spec_analyzer.analyze_python_spec(code_sample),  # Add this
-            "status": "pending",
-         
-
-
-
-# File: src/core/ethics/governance.py
 import os
 import json
 from datetime import datetime

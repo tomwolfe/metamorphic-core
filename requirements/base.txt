@@ -8,7 +8,6 @@ flask-limiter>=3.5.0
 qiskit>=1.0.0
 pydantic>=2.6.4
 numpy>=1.26.0
-python-dotenv>=1.0.0
 qiskit-aer>=0.16.0
 plotly>=5.18.0          # Interactive visualization
 kaleido>=0.2.1          # Static image export for Plotly

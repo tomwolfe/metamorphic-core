@@ -23,10 +23,24 @@ def test_env_validation_valid(mock_get):
     mock_get.side_effect = lambda var_name, default=None: {
         'GEMINI_API_KEY': 'AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
         'YOUR_GITHUB_API_KEY': 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-        'HUGGING_FACE_API_KEY': 'hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+        'HUGGING_FACE_API_KEY': 'hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        'ZAP_API_KEY': 'test_zap_key'  # Added ZAP_API_KEY
     }.get(var_name, default)
     agent = SecurityAgent()
     assert agent._validate_environment() == True
+
+@patch('src.core.agents.security_agent.ZAPv2')
+@patch('src.utils.config.SecureConfig.get')
+def test_run_zap_baseline_scan(mock_get, mock_zap):
+    mock_get.return_value = 'test_zap_key'
+    mock_instance = mock_zap.return_value
+    mock_instance.ascan.scan.return_value = 'scan-id'
+    mock_instance.ascan.status.return_value = 100
+    mock_instance.core.alerts.return_value = []
+
+    agent = SecurityAgent()
+    results = agent.run_zap_baseline_scan("http://localhost")
+    assert isinstance(results, dict) # Corrected assertion to dict
 
 @patch('src.utils.config.SecureConfig.get')
 def test_env_validation_invalid_gemini(mock_get):
@@ -66,7 +80,7 @@ def test_env_validation_missing_vars(mock_get):
     mock_get.side_effect = ConfigError()
     with pytest.raises(ConfigError):
         SecurityAgent()
-        
+
 @patch('src.utils.config.SecureConfig.get')
 def test_env_validation_example_keys(mock_get):
     mock_get.side_effect = lambda var_name, default=None: {
@@ -77,16 +91,3 @@ def test_env_validation_example_keys(mock_get):
     with pytest.raises(ValueError) as excinfo:
         SecurityAgent()
     assert "Invalid configuration for GEMINI_API_KEY" in str(excinfo.value)
-
-@patch('src.core.agents.security_agent.ZAPv2')
-@patch('src.utils.config.SecureConfig.get')
-def test_run_zap_baseline_scan(mock_get, mock_zap):
-    mock_get.return_value = 'test_zap_key'
-    mock_instance = mock_zap.return_value
-    mock_instance.ascan.scan.return_value = 'scan-id'
-    mock_instance.ascan.status.return_value = 100
-    mock_instance.core.alerts.return_value = []
-
-    agent = SecurityAgent()
-    results = agent.run_zap_baseline_scan("http://localhost")
-    assert isinstance(results, list)

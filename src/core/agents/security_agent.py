@@ -55,57 +55,57 @@ class SecurityAgent:
     def audit_security_event(self, event_type: str, details: dict):
         """Log security events with structured formatting"""
         self.logger.info(f"SECURITY_EVENT|{event_type}|{json.dumps(details)}")
-
+    
     def run_zap_baseline_scan(self, target_url: str, config_preset: str = "standard") -> Dict:
         """
         Run OWASP ZAP baseline scan with scan manager integration.
         """
         zap_api_key = os.getenv('ZAP_API_KEY', 'changeme')
         zap_address = 'http://zap:8080'
-
+    
         try:
             zap = ZAPv2(apikey=zap_api_key, proxies={'http': zap_address, 'https': zap_address})
             self.logger.info(f"[SecurityAgent] Starting ZAP baseline scan against: {target_url}")
-
+    
             # Apply scan configuration preset
             config = self.zap_manager.set_scan_config(config_preset)
             self.logger.info(f"[SecurityAgent] Using scan configuration: {config}")
-
+    
             # Apply policy and configuration to ZAP
             self._apply_zap_configuration(zap, config)
-
-            # Start scan
-            scan_id = zap.ascan.scan(url=target_url, scanpolicyname='Baseline')
-            self.current_scan_id = scan_id
-            while int(zap.ascan.status(scan_id)) < 100:
-                self.logger.info(f"[SecurityAgent] ZAP Scan Progress: {zap.ascan.status(scan_id)}%")
-                time.sleep(5)
-
-            self.logger.info(f"[SecurityAgent] ZAP scan completed for: {target_url}")
-
-            # Check for cached results
-            cached_results = self.zap_manager.get_cached_results()
-            if cached_results:
-                self.logger.info("[SecurityAgent] Using cached scan results")
-                alerts = cached_results.get("alerts", [])
-            else:
-                # Fetch fresh results
+    
+            # Start scan if fresh
+            if not self.zap_manager.get_cached_results(target_url):
+                scan_id = zap.ascan.scan(url=target_url, scanpolicyname='Baseline')
+                while int(zap.ascan.status(scan_id)) < 100:
+                    self.logger.info(f"[SecurityAgent] ZAP Scan Progress: {zap.ascan.status(scan_id)}%")
+                    time.sleep(5)
                 alerts = zap.core.alerts()
                 self.zap_manager.save_scan_results({"alerts": alerts, "scan_id": scan_id}, target_url)
-
+            else:
+                # Using cached results, generate a new scan ID for history tracking
+                scan_id = str(uuid.uuid4())
+                alerts = self.zap_manager.get_cached_results(target_url).get("alerts", [])
+    
+            self.current_scan_id = scan_id
+            self.logger.info(f"[SecurityAgent] ZAP scan completed for: {target_url}")
+    
+            # Ensure the latest results are saved regardless of being cached or fresh
+            self.zap_manager.save_scan_results({"alerts": alerts, "scan_id": scan_id}, target_url)
+    
             self.logger.info(f"[SecurityAgent] Number of ZAP alerts found: {len(alerts)}")
             self._process_zap_results(target_url, alerts)
-
+    
             # Check for high-risk changes
             if self.zap_manager.has_high_risk_changes({"alerts": alerts}):
                 self.audit_security_event("HIGH_RISK_VULNERABILITIES_DETECTED", {
                     "target_url": target_url,
                     "scan_id": scan_id,
-                    "alert_count": len([a for a in alerts if a.get("risk") == "High"]) # Corrected to 'High' string
+                    "alert_count": len([a for a in alerts if a.get("risk") == "High"]) 
                 })
-
+    
             return {"alerts": alerts, "scan_id": scan_id}
-
+    
         except Exception as e:
             self.logger.error(f"[SecurityAgent] Error running ZAP scan: {str(e)}")
             return {"error": str(e), "alerts": [], "scan_id": None}

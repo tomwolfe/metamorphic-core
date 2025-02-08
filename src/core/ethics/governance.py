@@ -26,7 +26,6 @@ class QuantumEthicalValidator:
             "spec_analysis": self.spec_analyzer.analyze_python_spec(code_sample),  # Add this
             "status": "pending",
             "score": 0.0,
-            "spec_analysis": spec_analysis,
             "predictions": self._predict_ethical_impact(code_sample),
             "formal_proof": None,
             "timestamp": str(datetime.utcnow()),

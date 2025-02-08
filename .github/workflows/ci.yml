@@ -23,6 +23,7 @@ jobs:
           echo "ZAP_API_KEY=${{ secrets.ZAP_API_KEY }}" >> $GITHUB_ENV
           echo "COMPOSE_PROJECT_NAME=metamorphic-core" >> $GITHUB_ENV
           echo "GITHUB_ACTIONS=true" >> $GITHUB_ENV
+          echo "PYTHONPATH=src:." >> $GITHUB_ENV
 
       - name: Set up Python
         uses: actions/setup-python@v5

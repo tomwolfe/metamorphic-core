@@ -10,7 +10,7 @@ from zapv2 import ZAPv2  # Import ZAP client
 import time
 from datetime import datetime
 import uuid
-from .zap_scan_manager import ZAPScanManager
+from .security_agent.zap_scan_manager import ZAPScanManager
 
 class SecurityAgent:
     def __init__(self):

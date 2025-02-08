@@ -1,25 +1,20 @@
+# File: tests/integration/test_quantum_ethical_validator_integration.py
 import unittest
-from unittest import TestCase
 from src.core.ethics.governance import QuantumEthicalValidator
+from src.core.knowledge_graph import KnowledgeGraph
 
-class TestQuantumEthicalValidator(TestCase):
-    def setUp(self) -> None:
+class TestQuantumEthicalValidator(unittest.TestCase):
+    def setUp(self):
         self.validator = QuantumEthicalValidator()
-
-    def test_init(self):
-        """Test if QuantumEthicalValidator initializes correctly with required components"""
-        self.assertTrue(hasattr(self.validator, 'spec_analyzer'), 
-                       "spec_analyzer attribute not found")
-        self.assertTrue(hasattr(self.validator.spec_analyzer, 'knowledge_graph'),
-                       "knowledge_graph not initialized in spec_analyzer")
-
-    def test_validate_code(self):
-        """Test if code validation includes specification analysis"""
-        sample_code = "print('Hello, World!')"
-        result = self.validator.validate_code(sample_code)
-        self.assertIn('spec_analysis', result, "spec_analysis missing in validation result")
-        self.assertIsInstance(result['spec_analysis'], dict, 
-                             "spec_analysis should be a dictionary")
-
-if __name__ == "__main__":
-    unittest.main()
+        
+    def test_spec_analysis_integration(self):
+        valid_code = "def example():\n    print('Hello World')"
+        result = self.validator.validate_code(valid_code)
+        
+        self.assertIn('spec_analysis', result)
+        self.assertGreater(len(result['spec_analysis']['functions']), 0)
+        
+        # Verify KG storage
+        kg = KnowledgeGraph()
+        results = kg.search("spec_analysis")
+        self.assertTrue(any(n.type == "spec_analysis" for n in results))

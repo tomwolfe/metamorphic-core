@@ -77,16 +77,17 @@ class CodeReviewAgent:
             'F': 'error',          # Fatal errors
             'W': 'warning',        # Warnings
             'C': 'warning',        # Conventions (potential issues)
+            'E001': 'style',       # Flake8 E001: Whitespace error
+            'E002': 'style',       # Flake8 E002: Continuation line indentation
+            'E123': 'style',       # Flake8 E123: Indentation not a multiple of four
             'E1': 'style', 'W6': 'style',  # PEP8 style (example subsets)
             'E2': 'style', 'E3': 'style', 'E4': 'style', 'E5': 'style',
             'E7': 'style', 'E9': 'style', 'C0': 'style', 'C4': 'style', 'C9': 'style',
-            # 'E001': 'info', 'E002': 'info', # Specific E codes to 'info' based on tests - Removed to align with more general error severity
-            'E123': 'style', # E123 to style
         }
 
         for match in self.issue_pattern.finditer(output):
             issue_details = match.groupdict()
-            code_prefix = issue_details['code'][0] # First char of code indicates category
-            issue_details['severity'] = severity_map.get(code_prefix, 'info') # Default to 'info' if not mapped, or if code_prefix not in map, it will default to info.
+            code = issue_details['code']  # Use full code for specific mapping
+            issue_details['severity'] = severity_map.get(code, severity_map.get(code[0], 'info'))
             findings.append(issue_details)
         return {'static_analysis': findings}

@@ -99,14 +99,14 @@ jobs:
 
       - name: Run tests with coverage
         run: pytest --cov=src --cov-report=term --cov-report=html tests/
-
+    
       - name: Run Generated Tests
         run: |
           GENERATED_TESTS_FILE="generated_tests.py"
-          python -c "from src.core.agents.test_generator import TestGeneratorAgent; \
-          TestGeneratorAgent()._store_tests('placeholder', 0)"  # Example test retrieval
+          python -c "from src.core.agents.test_generator import TestGenAgent; \
+          TestGenAgent()._store_tests('placeholder', 0)"  # Updated class name
           pytest $GENERATED_TESTS_FILE --cov=src --cov-append
-
+      
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:

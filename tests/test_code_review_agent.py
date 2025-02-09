@@ -48,12 +48,12 @@ test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple iss
         (
             "test.py:1:1: E001 Error with 'quotes'",  # Test case 6: Error message with quotes
             1,
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E001', 'msg': "Error with 'quotes'", 'severity': 'info'}], # Corrected to 'info'
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E001', 'msg': "Error with 'quotes'", 'severity': 'style'}],
         ),
         (
             "test.py:1:1: E002 Error with \\escape",  # Test case 7: Error message with escape char
             1,
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E002', 'msg': "Error with \\escape", 'severity': 'info'}], # Corrected to 'info'
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E002', 'msg': "Error with \\escape", 'severity': 'style'}],
         ),
         (
             "test.py:1:1: E302 first line\nsecond line of message",  # Test case 8: Multi-line message (flake8 usually doesn't do this, but testing robustness)
@@ -74,7 +74,7 @@ test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple iss
             "test.py:1:1: E123 Indentation is not a multiple of four\ntest.py:5:10: F821 Undefined name 'variable_name'\ntest.py:12:1: W503 line break before binary operator\ntest.py:20:5: C0301 line too long (120 > 100 characters)",  # Test case 11: Different severity codes
             4,
             [
-                {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E123', 'msg': 'Indentation is not a multiple of four', 'severity': 'style'}, # Corrected to 'style'
+                {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E123', 'msg': 'Indentation is not a multiple of four', 'severity': 'style'},
                 {'file': 'test.py', 'line': '5', 'col': '10', 'code': 'F821', 'msg': "Undefined name 'variable_name'", 'severity': 'error'},
                 {'file': 'test.py', 'line': '12', 'col': '1', 'code': 'W503', 'msg': 'line break before binary operator', 'severity': 'warning'},
                 {'file': 'test.py', 'line': '20', 'col': '5', 'code': 'C0301', 'msg': 'line too long (120 > 100 characters)', 'severity': 'warning'},

@@ -380,7 +380,7 @@ def test_store_findings_stores_code_snippet(review_agent):
 
         x = 10""" # Intentionally has extra lines
 
-    review_agent.store_findings(sample_findings, "codehash123", code_sample)
+    review_agent.store_findings(sample_findings, code_hash_str, code_sample)
     mock_kg.add_node.assert_called_once()
     node = mock_kg.add_node.call_args[0][0]
     assert "code_snippet" in node.metadata

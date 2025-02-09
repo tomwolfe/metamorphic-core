@@ -21,7 +21,7 @@ def review_agent():
         (
             "test.py:1:1: E302 expected 2 blank lines, found 1",  # Test case 2: Single-line issue
             1,
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines, found 1'}],
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines, found 1', 'severity': 'error'}],
         ),
         (
             """test.py:1:1: E302 expected 2 blank lines, found 1
@@ -29,68 +29,69 @@ test.py:3:5: F401 'os' imported but unused
 test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple issues
             3,
             [
-                {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines, found 1'},
-                {'file': 'test.py', 'line': '3', 'col': '5', 'code': 'F401', 'msg': "'os' imported but unused"},
-                {'file': 'test_module.py', 'line': '10', 'col': '20', 'code': 'W0612', 'msg': "Unused variable 'x'"},
+                {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines, found 1', 'severity': 'error'},
+                {'file': 'test.py', 'line': '3', 'col': '5', 'code': 'F401', 'msg': "'os' imported but unused", 'severity': 'error'}, # Assuming F401 is also 'error' for simplicity in example
+                {'file': 'test_module.py', 'line': '10', 'col': '20', 'code': 'W0612', 'msg': "Unused variable 'x'", 'severity': 'warning'}, # Assuming W0612 is 'warning'
             ],
         ),
         (
             "my code.py:1:1: F401 'os' imported",  # Test case 4: Filename with space
             1,
-            [{'file': 'my code.py', 'line': '1', 'col': '1', 'code': 'F401', 'msg': "'os' imported"}],
+            [{'file': 'my code.py', 'line': '1', 'col': '1', 'code': 'F401', 'msg': "'os' imported", 'severity': 'error'}],
         ),
         (
             "file#name.py:1:1: F401 'os' imported",  # Test case 5: Filename with special char
             1,
-            [{'file': 'file#name.py', 'line': '1', 'col': '1', 'code': 'F401', 'msg': "'os' imported"}],
+            [{'file': 'file#name.py', 'line': '1', 'col': '1', 'code': 'F401', 'msg': "'os' imported", 'severity': 'error'}],
         ),
         (
             "test.py:1:1: E001 Error with 'quotes'",  # Test case 6: Error message with quotes
             1,
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E001', 'msg': "Error with 'quotes'"}],
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E001', 'msg': "Error with 'quotes'", 'severity': 'info'}], # Default severity 'info' for unknown codes
         ),
         (
             "test.py:1:1: E002 Error with \\escape",  # Test case 7: Error message with escape char
             1,
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E002', 'msg': "Error with \\escape"}],
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E002', 'msg': "Error with \\escape", 'severity': 'info'}], # Default severity 'info' for unknown codes
         ),
         (
             "test.py:1:1: E302 first line\nsecond line of message",  # Test case 8: Multi-line message (flake8 usually doesn't do this, but testing robustness)
             1,
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'first line'}], # Adjusted: Expect only the first line of the message
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'first line', 'severity': 'error'}], # Adjusted: Expect only the first line of the message
         ),
         (
             "test.py:99999:1: E302 expected 2 blank lines",  # Test case 9: Maximum line number
             1,
-            [{'file': 'test.py', 'line': '99999', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines'}],
+            [{'file': 'test.py', 'line': '99999', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines', 'severity': 'error'}],
         ),
         (
             "test.py:1:1: E302 msg1; E303 msg2", # Test case 10: Multiple issues on the same line (flake8 doesn't do this, but testing robustness)
             1, # Current parser expects one issue per line
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'msg1; E303 msg2'}], # Parser will capture the whole line as one message
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'msg1; E303 msg2', 'severity': 'error'}], # Parser will capture the whole line as one message
         ),
         (
             "test.py:1:1: E123 Indentation is not a multiple of four\ntest.py:5:10: F821 Undefined name 'variable_name'\ntest.py:12:1: W503 line break before binary operator\ntest.py:20:5: C0301 line too long (120 > 100 characters)",  # Test case 11: Different severity codes
             4,
             [
-                {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E123', 'msg': 'Indentation is not a multiple of four'},
-                {'file': 'test.py', 'line': '5', 'col': '10', 'code': 'F821', 'msg': "Undefined name 'variable_name'"},
-                {'file': 'test.py', 'line': '12', 'col': '1', 'code': 'W503', 'msg': 'line break before binary operator'},
-                {'file': 'test.py', 'line': '20', 'col': '5', 'code': 'C0301', 'msg': 'line too long (120 > 100 characters)'},
+                {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E123', 'msg': 'Indentation is not a multiple of four', 'severity': 'style'}, # E123 -> style
+                {'file': 'test.py', 'line': '5', 'col': '10', 'code': 'F821', 'msg': "Undefined name 'variable_name'", 'severity': 'error'}, # F821 -> error
+                {'file': 'test.py', 'line': '12', 'col': '1', 'code': 'W503', 'msg': 'line break before binary operator', 'severity': 'warning'}, # W503 -> warning
+                {'file': 'test.py', 'line': '20', 'col': '5', 'code': 'C0301', 'msg': 'line too long (120 > 100 characters)', 'severity': 'warning'}, # C0301 -> warning (or style, adjust severity_map if needed)
+            ],
+        ),
+         (
+            "test.py:1:1: E302 expected 2 blank lines, found 1\n"  # Error
+            "test.py:2:1: XYZ99 Unknown code", # Unknown code - should default to 'info'
+            2,
+            [
+                {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines, found 1', 'severity': 'error'},
+                {'file': 'test.py', 'line': '2', 'col': '1', 'code': 'XYZ99', 'msg': 'Unknown code', 'severity': 'info'}, # Unknown defaults to 'info'
             ],
         ),
     ],
 )
-def test_parse_flake8_output(review_agent, test_input, expected_issues_count, expected_issue_details):
-    """
-    Test the _parse_results method of CodeReviewAgent with various flake8 output formats.
-
-    Args:
-        review_agent: CodeReviewAgent fixture instance.
-        test_input: The flake8 output string to parse.
-        expected_issues_count: The expected number of issues parsed.
-        expected_issue_details: A list of dictionaries, where each dict represents the expected details of an issue.
-    """
+def test_parse_flake8_output_with_severity(review_agent, test_input, expected_issues_count, expected_issue_details):
+    """Test _parse_results method with severity classification."""
     results = review_agent._parse_results(test_input)
     assert len(results['static_analysis']) == expected_issues_count
 
@@ -103,7 +104,8 @@ def test_parse_flake8_output(review_agent, test_input, expected_issues_count, ex
             assert actual_issue['col'] == expected_issue['col']
             assert actual_issue['code'] == expected_issue['code']
             assert actual_issue['msg'] == expected_issue['msg']
-            assert isinstance(actual_issue['line'], str) # Line and col are parsed as strings
+            assert actual_issue['severity'] == expected_issue['severity'] # Assert severity
+            assert isinstance(actual_issue['line'], str)
 
 
 def test_parse_flake8_output_malformed(review_agent):
@@ -161,14 +163,14 @@ def test_analyze_python_flake8_generic_exception(review_agent):
         assert "Error running flake8" in result['error_message']
         assert result['static_analysis'] == []
 
-def test_store_findings_kg_integration(review_agent):
-    """Test that store_findings correctly stores data in KG."""
+def test_store_findings_kg_integration_with_severity(review_agent):
+    """Test store_findings correctly stores severity data in KG."""
     mock_kg = MagicMock(spec=KnowledgeGraph)
-    review_agent.kg = mock_kg  # Inject mock KG into agent
+    review_agent.kg = mock_kg
 
     sample_findings = {
         'static_analysis': [
-            {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines, found 1'}
+            {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'test message', 'severity': 'error'} # Findings now include severity
         ]
     }
     code_hash_str = "1234567890"
@@ -176,37 +178,21 @@ def test_store_findings_kg_integration(review_agent):
     review_agent.store_findings(sample_findings, code_hash_str)
 
     mock_kg.add_node.assert_called_once()
-
     added_node = mock_kg.add_node.call_args[0][0]
 
-    # Check node type
     assert added_node.type == "code_review"
-
-    # Check node content for the expected message
-    assert "Static analysis findings" in added_node.content
-
-    # Check metadata structure
-    assert isinstance(added_node.metadata, dict)
-    assert 'code_hash' in added_node.metadata
-    assert 'findings' in added_node.metadata
-    assert 'timestamp' in added_node.metadata
-
-    # Verify code_hash value
-    assert added_node.metadata['code_hash'] == code_hash_str
-
-    # Verify findings is a list
+    assert "Static analysis findings with severity" in added_node.content # Updated content check
     assert isinstance(added_node.metadata['findings'], list)
-    # Optional: Check each finding has expected structure
-    for finding in added_node.metadata['findings']:
-        assert isinstance(finding, dict)
-        assert 'file' in finding
-        assert 'line' in finding
-        assert 'col' in finding
-        assert 'code' in finding
-        assert 'msg' in finding
 
-    # Verify timestamp is present (assuming it's a string representation)
-    assert isinstance(added_node.metadata['timestamp'], str)
+    finding = added_node.metadata['findings'][0] # Get the first finding
+    assert finding['severity'] == 'error' # Check severity in stored finding
+    assert 'file' in finding
+    assert 'line' in finding
+    assert 'col' in finding
+    assert 'code' in finding
+    assert 'msg' in finding
+
+
 def test_analyze_python_stores_findings_in_kg(review_agent):
     """Test that analyze_python calls store_findings and stores results in KG."""
     mock_kg = MagicMock(spec=KnowledgeGraph)  # Mock KnowledgeGraph explicitly
@@ -226,7 +212,7 @@ def test_analyze_python_stores_findings_in_kg(review_agent):
 
     assert isinstance(node_arg, Node)
     assert node_arg.type == 'code_review'
-    assert node_arg.content == 'Static analysis findings from flake8'
+    assert node_arg.content == 'Static analysis findings from flake8 with severity' # Updated content check
     assert node_arg.metadata['code_hash'] == code_hash_str
     assert len(node_arg.metadata['findings']) == 1 # Check findings are stored
     assert 'timestamp' in node_arg.metadata

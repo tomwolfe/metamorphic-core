@@ -1,6 +1,8 @@
 import pytest
 from src.core.agents.code_review_agent import CodeReviewAgent
 from src.core.knowledge_graph import KnowledgeGraph
+from unittest.mock import patch, MagicMock
+import subprocess
 
 @pytest.fixture
 def review_agent():
@@ -108,3 +110,40 @@ def test_parse_flake8_output_malformed(review_agent):
     sample_output = "invalid output format - no colon separators"
     results = review_agent._parse_results(sample_output)
     assert results['static_analysis'] == [] # Should gracefully handle malformed output and return empty list
+
+def test_analyze_python_flake8_success(review_agent):
+    """Test successful execution of flake8."""
+    mock_run = MagicMock()
+    mock_run.return_value.stdout = "test.py:1:1: E302 expected 2 blank lines, found 1"
+    with patch('subprocess.run', mock_run):
+        result = review_agent.analyze_python("def code(): pass")
+        assert 'error' not in result
+        assert len(result['static_analysis']) == 1
+
+def test_analyze_python_flake8_calledprocesserror(review_agent):
+    """Test handling of subprocess.CalledProcessError from flake8."""
+    mock_run = MagicMock(side_effect=subprocess.CalledProcessError(returncode=1, cmd=['flake8'], stderr=b"Error details"))
+    with patch('subprocess.run', mock_run):
+        result = review_agent.analyze_python("def code(): pass")
+        assert result['error'] is True
+        assert "Flake8 analysis failed" in result['error_message']
+        assert "Error details" in result['error_message'] # Check stderr is logged
+        assert result['static_analysis'] == []
+
+def test_analyze_python_flake8_filenotfounderror(review_agent):
+    """Test handling of FileNotFoundError when flake8 is not found."""
+    mock_run = MagicMock(side_effect=FileNotFoundError("flake8 not found"))
+    with patch('subprocess.run', mock_run):
+        result = review_agent.analyze_python("def code(): pass")
+        assert result['error'] is True
+        assert "Flake8 executable not found" in result['error_message']
+        assert result['static_analysis'] == []
+
+def test_analyze_python_flake8_generic_exception(review_agent):
+    """Test handling of generic exceptions during flake8 execution."""
+    mock_run = MagicMock(side_effect=Exception("Generic flake8 error"))
+    with patch('subprocess.run', mock_run):
+        result = review_agent.analyze_python("def code(): pass")
+        assert result['error'] is True
+        assert "Error running flake8" in result['error_message']
+        assert result['static_analysis'] == []

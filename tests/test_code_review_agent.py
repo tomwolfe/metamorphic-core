@@ -1,3 +1,4 @@
+# tests/test_code_review_agent.py
 import pytest
 from src.core.agents.code_review_agent import CodeReviewAgent
 from src.core.knowledge_graph import KnowledgeGraph, Node
@@ -107,7 +108,6 @@ def test_parse_flake8_output_with_severity(review_agent, test_input, expected_is
             assert actual_issue['severity'] == expected_issue['severity'] # Assert severity
             assert isinstance(actual_issue['line'], str)
 
-
 def test_parse_flake8_output_malformed(review_agent):
     """Test error handling for malformed flake8 output that doesn't match the expected pattern."""
     sample_output = "invalid output format - no colon separators"
@@ -181,7 +181,7 @@ def test_store_findings_kg_integration_with_severity(review_agent):
     added_node = mock_kg.add_node.call_args[0][0]
 
     assert added_node.type == "code_review"
-    assert "Static analysis findings with severity" in added_node.content # Updated content check
+    assert "Static analysis findings from flake8 with severity" in added_node.content # Updated assertion
     assert isinstance(added_node.metadata['findings'], list)
 
     finding = added_node.metadata['findings'][0] # Get the first finding
@@ -191,7 +191,6 @@ def test_store_findings_kg_integration_with_severity(review_agent):
     assert 'col' in finding
     assert 'code' in finding
     assert 'msg' in finding
-
 
 def test_analyze_python_stores_findings_in_kg(review_agent):
     """Test that analyze_python calls store_findings and stores results in KG."""

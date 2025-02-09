@@ -3,9 +3,10 @@ from src.core.knowledge_graph import KnowledgeGraph
 import subprocess
 import tempfile
 import re
-import logging  # Import logging
+import logging
+from datetime import datetime
 
-logger = logging.getLogger(__name__)  # Get logger instance
+logger = logging.getLogger(__name__)
 
 class CodeReviewAgent:
     def __init__(self, kg: KnowledgeGraph):
@@ -14,7 +15,7 @@ class CodeReviewAgent:
             r"(?P<file>.+):(?P<line>\d+):(?P<col>\d+): (?P<code>\w+) (?P<msg>.+)")
 
     def analyze_python(self, code: str) -> dict:
-        try:  # Add try-except block
+        try:
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py') as tmp:
                 tmp.write(code)
                 tmp.flush()
@@ -22,30 +23,37 @@ class CodeReviewAgent:
                     ['flake8', tmp.name],
                     capture_output=True,
                     text=True,
-                    check=True  # Ensure CalledProcessError is raised for non-zero exit codes
+                    check=True
                 )
-                return self._parse_results(result.stdout)
-        except subprocess.CalledProcessError as e:  # Catch CalledProcessError
-            logger.error(f"Flake8 analysis failed with return code: {e.returncode}")  # Log error
-            logger.error(f"Flake8 stderr: {e.stderr}")  # Log stderr
+                parsed_results = self._parse_results(result.stdout)
+
+                if not parsed_results.get('error') and parsed_results['static_analysis']:
+                    code_hash = hash(code)
+                    self.store_findings(parsed_results, str(code_hash))
+
+                return parsed_results
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Flake8 analysis failed with return code: {e.returncode}")
+            logger.error(f"Flake8 stderr: {e.stderr}")
             return {
-                'error': True,  # Indicate error
-                'error_message': f"Flake8 analysis failed: {e}",  # Include error message
-                'static_analysis': []  # Return empty list for findings
+                'error': True,
+                'error_message': f"Flake8 analysis failed: {e}",
+                'static_analysis': []
             }
-        except FileNotFoundError as e: # Catch FileNotFoundError specifically for flake8 not being installed
-            logger.error(f"Flake8 executable not found: {str(e)}")  # Log specific FileNotFoundError
+        except FileNotFoundError as e:
+            logger.error(f"Flake8 executable not found: {str(e)}")
             return {
-                'error': True,  # Indicate error
-                'error_message': f"Flake8 executable not found: {str(e)}",  # Include error message
-                'static_analysis': []  # Return empty list for findings
+                'error': True,
+                'error_message': f"Flake8 executable not found: {str(e)}",
+                'static_analysis': []
             }
-        except Exception as e:  # Catch other exceptions as well
-            logger.error(f"Error running flake8: {str(e)}")  # Log general error
+        except Exception as e:
+            logger.error(f"Error running flake8: {str(e)}")
             return {
-                'error': True,  # Indicate error
-                'error_message': f"Error running flake8: {str(e)}",  # Include error message
-                'static_analysis': []  # Return empty list for findings
+                'error': True,
+                'error_message': f"Error running flake8: {str(e)}",
+                'static_analysis': []
             }
 
     def store_findings(self, findings: dict, code_hash: str):
@@ -55,7 +63,7 @@ class CodeReviewAgent:
             'content': 'Static analysis findings from flake8',
             'metadata': {
                 'code_hash': code_hash,
-                'findings': findings['static_analysis'], # Store the actual findings
+                'findings': findings['static_analysis'],
                 'timestamp': datetime.utcnow().isoformat()
             }
         }

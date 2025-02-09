@@ -1,3 +1,4 @@
+=== File: src/core/agents/code_review_agent.py ===
 # File: src/core/agents/code_review_agent.py
 from src.core.knowledge_graph import KnowledgeGraph, Node
 import subprocess
@@ -58,19 +59,33 @@ class CodeReviewAgent:
 
     def store_findings(self, findings: dict, code_hash: str):
         """Store static analysis findings in the Knowledge Graph."""
-        node = Node(
+        node = Node( # Recreate Node to include severity in metadata
             type="code_review",
-            content="Static analysis findings from flake8",
+            content="Static analysis findings from flake8 with severity", # Updated content for clarity
             metadata={
                 "code_hash": code_hash,
-                "findings": findings['static_analysis'],
+                "findings": [{**f, 'severity': f.get('severity', 'unknown')} for f in findings['static_analysis']], # Add severity to each finding
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
-        self.kg.add_node(node)
+        self.kg.add_node(node) # Store the updated node
+
 
     def _parse_results(self, output: str) -> dict:
         findings = []
+        severity_map = {
+            'E': 'error',  # Errors (syntax, critical)
+            'F': 'error',  # Fatal errors
+            'W': 'warning', # Warnings
+            'C': 'warning', # Conventions (potential issues)
+            'E1': 'style', 'W6': 'style', # PEP8 style (example subsets - refine as needed)
+            'E2': 'style', 'E3': 'style', 'E4': 'style', 'E5': 'style',
+            'E7': 'style', 'E9': 'style', 'C0': 'style', 'C4': 'style', 'C9': 'style'
+        }
+
         for match in self.issue_pattern.finditer(output):
-            findings.append(match.groupdict())
+            issue_details = match.groupdict()
+            code_prefix = issue_details['code'][0] # First char of code indicates category
+            issue_details['severity'] = severity_map.get(code_prefix, 'info') # Default to 'info' if not mapped
+            findings.append(issue_details)
         return {'static_analysis': findings}

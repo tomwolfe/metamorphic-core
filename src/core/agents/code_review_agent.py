@@ -4,7 +4,9 @@ from src.core.knowledge_graph import KnowledgeGraph, Node
 import subprocess
 import tempfile
 import re
+import json
 import logging
+import os
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -17,7 +19,8 @@ class CodeReviewAgent:
 
     def analyze_python(self, code: str) -> dict:
         try:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.py') as tmp:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=True) as tmp:
+                os.chmod(tmp.name, 0o600) # Restrict file permissions
                 tmp.write(code)
                 tmp.flush()
                 result = subprocess.run(
@@ -26,14 +29,19 @@ class CodeReviewAgent:
                     text=True,
                     check=True
                 )
-                parsed_results = self._parse_results(result.stdout)
+                flake8_results = self._parse_flake8_results(result.stdout, code)
 
-                if not parsed_results.get('error') and parsed_results['static_analysis']:
+                bandit_results = self._run_bandit(code)
+                merged_results = self._merge_results(flake8_results, bandit_results)
+
+                if not merged_results.get('error') and merged_results['static_analysis']:
                     code_hash = hash(code)
-                    self.store_findings(parsed_results, str(code_hash))
+                    self.store_findings(merged_results, str(code_hash), code) # Pass code to store_findings
 
-                return parsed_results
+                return merged_results
 
+        except json.JSONDecodeError as e: # Bandit can return malformed JSON
+            logger.error(f"JSONDecodeError from bandit: {e}")
         except subprocess.CalledProcessError as e:
             logger.error(f"Flake8 analysis failed with return code: {e.returncode}")
             logger.error(f"Flake8 stderr: {e.stderr}")
@@ -57,20 +65,87 @@ class CodeReviewAgent:
                 'static_analysis': []
             }
 
-    def store_findings(self, findings: dict, code_hash: str):
+    def _run_bandit(self, code: str) -> list:
+        """
+        Runs Bandit security linter and returns findings.
+        """
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=True) as tmp:
+                os.chmod(tmp.name, 0o600) # Restrict file permissions
+                tmp.write(code)
+                tmp.flush()
+                result = subprocess.run(
+                    ['bandit', '-f', 'json', '-q', tmp.name], # -q for quiet output
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                if result.stdout: # Check if stdout is not empty before parsing
+                    return json.loads(result.stdout)['results']
+                else:
+                    return [] # Return empty list if no output from bandit
+
+        except FileNotFoundError as e:
+            logger.error(f"Bandit executable not found: {str(e)}")
+            return {'error': True, 'error_message': f"Bandit executable not found: {str(e)}", 'static_analysis': []}
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Bandit analysis failed with return code: {e.returncode}")
+            logger.error(f"Bandit stderr: {e.stderr}")
+            return {'error': True, 'error_message': f"Bandit analysis failed: {e}", 'static_analysis': []}
+        except json.JSONDecodeError as e:
+            logger.error(f"JSONDecodeError parsing Bandit output: {e}")
+            logger.error(f"Bandit Output (non-JSON): {result.stdout}") # Log raw output
+            return {'error': True, 'error_message': f"Error parsing Bandit JSON output: {e}", 'static_analysis': []}
+        except Exception as e:
+            logger.error(f"Error running bandit: {str(e)}")
+            return {'error': True, 'error_message': f"Error running bandit: {str(e)}", 'static_analysis': []}
+
+    def _merge_results(self, flake8_results: dict, bandit_results: list) -> dict:
+        """
+        Merges results from Flake8 and Bandit, standardizing the format.
+        """
+        static_analysis_findings = flake8_results.get('static_analysis', [])
+
+        for bandit_finding in bandit_results:
+            static_analysis_findings.append({
+                'file': bandit_finding.get('filename'),
+                'line': str(bandit_finding.get('line_number')), # Convert to string to match flake8
+                'col': '0', # Bandit does not provide column
+                'code': bandit_finding.get('test_id'),
+                'msg': bandit_finding.get('issue_text'),
+                'severity': self._map_bandit_severity(bandit_finding.get('issue_severity', 'LOW').upper())
+            })
+        return {'static_analysis': static_analysis_findings}
+
+    def store_findings(self, findings: dict, code_hash: str, code: str): # Added code parameter
         """Store static analysis findings in the Knowledge Graph."""
         node = Node(
             type="code_review",
             content="Static analysis findings from flake8 with severity", # Updated content for clarity
             metadata={
                 "code_hash": code_hash,
+                "code_snippet": self._get_code_snippet(code), # Store full code snippet
                 "findings": [{**f, 'severity': f.get('severity', 'unknown')} for f in findings['static_analysis']], # Add severity to each finding
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
         self.kg.add_node(node)
 
-    def _parse_results(self, output: str) -> dict:
+    def _get_code_snippet(self, code: str, line_num: int = None, context: int = 5) -> str:
+        """
+        Extracts a code snippet around a given line number.
+        If line_num is None, returns the whole code.
+        """
+        if line_num is None:
+            return code.strip() # Return full code if line_num not specified
+
+        lines = code.split('\n')
+        start = max(0, line_num - context - 1)
+        end = min(len(lines), line_num + context)
+        # Adjust line numbers for display (1-based indexing)
+        return "\n".join(f"{i+1:4d} | {line}" for i, line in enumerate(lines[start:end], start=start))
+
+    def _parse_flake8_results(self, output: str, code: str) -> dict: # Added code parameter
         findings = []
         severity_map = {
             'E': 'error',          # General Errors
@@ -82,12 +157,29 @@ class CodeReviewAgent:
             'E123': 'style',       # Flake8 E123: Indentation not a multiple of four
             'E1': 'style', 'W6': 'style',  # PEP8 style (example subsets)
             'E2': 'style', 'E3': 'style', 'E4': 'style', 'E5': 'style',
-            'E7': 'style', 'E9': 'style', 'C0': 'style', 'C4': 'style', 'C9': 'style',
+            'E7': 'style', 'E9': 'style', 'C0': 'style', 'C4': 'style', 'C9': 'style', # More PEP8
+            'B': 'warning',        # Bug Bear
+            'D': 'info',           # Documentation (pydocstyle)
+            'N': 'info',           # Naming conventions
+            'T': 'info',           # Type hint checks
+            'S': 'security',       # Bandit security issues
+            'PL': 'style',         # Pylint (if integrated) - example for future plugins
+            'B9': 'security'       # Flake8-bugbear security - example
         }
 
         for match in self.issue_pattern.finditer(output):
             issue_details = match.groupdict()
             code = issue_details['code']  # Use full code for specific mapping
             issue_details['severity'] = severity_map.get(code, severity_map.get(code[0], 'info'))
+            #issue_details['code_snippet'] = self._get_code_snippet(code, int(issue_details['line'])) # Get snippet for each issue # Removed to store whole snippet in node metadata
             findings.append(issue_details)
         return {'static_analysis': findings}
+
+    def _map_bandit_severity(self, bandit_severity: str) -> str:
+        """Maps Bandit severity levels to our standard severity levels."""
+        if bandit_severity in ['HIGH', 'MEDIUM']:
+            return 'security_high' # More specific security severity
+        elif bandit_severity == 'LOW':
+            return 'security_low' # Differentiate low security risks
+        else:
+            return 'info' # Default for unknown

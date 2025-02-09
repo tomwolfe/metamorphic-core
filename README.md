@@ -70,9 +70,9 @@ The development is structured in progressive stages:
 ### Stage 2: Agent Pipeline (In Progress)
 - **Goal**: Implement AI agent pipelines for specification analysis and testing.
 - **Prompts**:
-  - **In Progress**: Prompt 2.1: Specification Analyzer Agent
-  - Prompt 2.2: Test Generation Agent
-  - Prompt 2.3: Code Review Agent
+  - **Completed**: Prompt 2.1: Specification Analyzer Agent
+  - **Completed**: Prompt 2.2: Test Generation Agent
+  - **In Progress**: Prompt 2.3: Code Review Agent
   - Prompt 2.4: Integrate Agent Pipeline
 
 ### Stage 3: Ethical Core

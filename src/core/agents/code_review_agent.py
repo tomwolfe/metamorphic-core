@@ -29,7 +29,7 @@ class CodeReviewAgent:
                     text=True,
                     check=True
                 )
-                flake8_results = self._parse_flake8_results(result.stdout, code)
+                flake8_results = self._parse_flake8_results(result.stdout)
 
                 bandit_results = self._run_bandit(code)
                 merged_results = self._merge_results(flake8_results, bandit_results)
@@ -81,7 +81,7 @@ class CodeReviewAgent:
                     check=True
                 )
                 if result.stdout: # Check if stdout is not empty before parsing
-                    return json.loads(result.stdout)['results']
+                    return json.loads(result.stdout)['results'] if result.stdout else []
                 else:
                     return [] # Return empty list if no output from bandit
 
@@ -112,7 +112,7 @@ class CodeReviewAgent:
                 'line': str(bandit_finding.get('line_number')), # Convert to string to match flake8
                 'col': '0', # Bandit does not provide column
                 'code': bandit_finding.get('test_id'),
-                'msg': bandit_finding.get('issue_text'),
+                'msg': bandit_finding.get('issue_text', 'No message provided'),
                 'severity': self._map_bandit_severity(bandit_finding.get('issue_severity', 'LOW').upper())
             })
         return {'static_analysis': static_analysis_findings}
@@ -124,7 +124,7 @@ class CodeReviewAgent:
             content="Static analysis findings from flake8 with severity", # Updated content for clarity
             metadata={
                 "code_hash": code_hash,
-                "code_snippet": self._get_code_snippet(code), # Store full code snippet
+                "code_snippet": self._get_code_snippet(code), # Store full code snippet - changed to full snippet
                 "findings": [{**f, 'severity': f.get('severity', 'unknown')} for f in findings['static_analysis']], # Add severity to each finding
                 "timestamp": datetime.utcnow().isoformat()
             }
@@ -132,20 +132,20 @@ class CodeReviewAgent:
         self.kg.add_node(node)
 
     def _get_code_snippet(self, code: str, line_num: int = None, context: int = 5) -> str:
-        """
-        Extracts a code snippet around a given line number.
-        If line_num is None, returns the whole code.
-        """
+        """Extracts a code snippet around a given line number.
+           If line_num is None, returns the whole code."""
         if line_num is None:
             return code.strip() # Return full code if line_num not specified
 
         lines = code.split('\n')
+        if not lines:
+            return ''  # Handle empty code
         start = max(0, line_num - context - 1)
         end = min(len(lines), line_num + context)
         # Adjust line numbers for display (1-based indexing)
         return "\n".join(f"{i+1:4d} | {line}" for i, line in enumerate(lines[start:end], start=start))
 
-    def _parse_flake8_results(self, output: str, code: str) -> dict: # Added code parameter
+    def _parse_flake8_results(self, output: str) -> dict: # Removed code parameter
         findings = []
         severity_map = {
             'E': 'error',          # General Errors
@@ -170,7 +170,7 @@ class CodeReviewAgent:
         for match in self.issue_pattern.finditer(output):
             issue_details = match.groupdict()
             code = issue_details['code']  # Use full code for specific mapping
-            issue_details['severity'] = severity_map.get(code, severity_map.get(code[0], 'info'))
+            issue_details['severity'] = severity_map.get(code, severity_map.get(code[0], 'info')) # Assign severity from map
             #issue_details['code_snippet'] = self._get_code_snippet(code, int(issue_details['line'])) # Get snippet for each issue # Removed to store whole snippet in node metadata
             findings.append(issue_details)
         return {'static_analysis': findings}

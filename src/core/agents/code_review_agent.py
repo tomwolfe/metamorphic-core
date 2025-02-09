@@ -1,5 +1,5 @@
 # File: src/core/agents/code_review_agent.py
-from src.core.knowledge_graph import KnowledgeGraph
+from src.core.knowledge_graph import KnowledgeGraph, Node
 import subprocess
 import tempfile
 import re
@@ -58,15 +58,15 @@ class CodeReviewAgent:
 
     def store_findings(self, findings: dict, code_hash: str):
         """Store static analysis findings in the Knowledge Graph."""
-        node = {
-            'type': 'code_review',
-            'content': 'Static analysis findings from flake8',
-            'metadata': {
-                'code_hash': code_hash,
-                'findings': findings['static_analysis'],
-                'timestamp': datetime.utcnow().isoformat()
+        node = Node(
+            type="code_review",
+            content="Static analysis findings from flake8",
+            metadata={
+                "code_hash": code_hash,
+                "findings": findings['static_analysis'],
+                "timestamp": datetime.utcnow().isoformat()
             }
-        }
+        )
         self.kg.add_node(node)
 
     def _parse_results(self, output: str) -> dict:

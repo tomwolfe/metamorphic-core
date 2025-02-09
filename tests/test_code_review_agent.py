@@ -1,8 +1,9 @@
 import pytest
 from src.core.agents.code_review_agent import CodeReviewAgent
-from src.core.knowledge_graph import KnowledgeGraph
+from src.core.knowledge_graph import KnowledgeGraph, Node
 from unittest.mock import patch, MagicMock
 import subprocess
+from datetime import datetime
 
 @pytest.fixture
 def review_agent():
@@ -137,7 +138,7 @@ def test_analyze_python_flake8_calledprocesserror(review_agent, caplog):  # Inje
             stderr_logged = True
             break
     assert stderr_logged, "Expected 'Flake8 stderr: b'Error details'' to be logged"
-    
+
 def test_analyze_python_flake8_filenotfounderror(review_agent):
     """Test handling of FileNotFoundError when flake8 is not found."""
     mock_run = MagicMock(side_effect=FileNotFoundError("flake8 not found"))
@@ -155,3 +156,54 @@ def test_analyze_python_flake8_generic_exception(review_agent):
         assert result['error'] is True
         assert "Error running flake8" in result['error_message']
         assert result['static_analysis'] == []
+
+def test_store_findings_kg_integration(review_agent):
+    """Test that store_findings correctly stores data in KG."""
+    mock_kg = MagicMock(spec=KnowledgeGraph)  # Mock KnowledgeGraph explicitly
+    review_agent.kg = mock_kg  # Inject mock KG into agent
+
+    sample_findings = {
+        'static_analysis': [
+            {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines, found 1'}
+        ]
+    }
+    code_hash_str = "1234567890"
+
+    review_agent.store_findings(sample_findings, code_hash_str)
+
+    mock_kg.add_node.assert_called_once()  # Verify add_node was called
+
+    call_args = mock_kg.add_node.call_args
+    node_arg = call_args[0][0]  # Get the Node argument passed to add_node
+
+    assert isinstance(node_arg, Node)
+    assert node_arg.type == 'code_review'
+    assert node_arg.content == 'Static analysis findings from flake8'
+    assert node_arg.metadata['code_hash'] == code_hash_str
+    assert node_arg.metadata['findings'] == sample_findings['static_analysis']
+    assert 'timestamp' in node_arg.metadata
+
+
+def test_analyze_python_stores_findings_in_kg(review_agent):
+    """Test that analyze_python calls store_findings and stores results in KG."""
+    mock_kg = MagicMock(spec=KnowledgeGraph)  # Mock KnowledgeGraph explicitly
+    review_agent.kg = mock_kg  # Inject mock KG into agent
+    mock_run = MagicMock()
+    mock_run.return_value.stdout = "test.py:1:1: E302 expected 2 blank lines, found 1"
+
+    with patch('subprocess.run', mock_run):
+        code_sample = "def example(): pass"
+        code_hash_str = str(hash(code_sample)) # Calculate expected code hash
+        review_agent.analyze_python(code_sample)
+
+    mock_kg.add_node.assert_called_once()  # Verify add_node was called
+
+    call_args = mock_kg.add_node.call_args
+    node_arg = call_args[0][0]  # Get the Node argument passed to add_node
+
+    assert isinstance(node_arg, Node)
+    assert node_arg.type == 'code_review'
+    assert node_arg.content == 'Static analysis findings from flake8'
+    assert node_arg.metadata['code_hash'] == code_hash_str
+    assert len(node_arg.metadata['findings']) == 1 # Check findings are stored
+    assert 'timestamp' in node_arg.metadata

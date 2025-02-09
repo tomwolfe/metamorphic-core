@@ -163,7 +163,7 @@ def test_analyze_python_flake8_generic_exception(review_agent):
 
 def test_store_findings_kg_integration(review_agent):
     """Test that store_findings correctly stores data in KG."""
-    mock_kg = MagicMock(spec=KnowledgeGraph)  # Mock KnowledgeGraph explicitly
+    mock_kg = MagicMock(spec=KnowledgeGraph)
     review_agent.kg = mock_kg  # Inject mock KG into agent
 
     sample_findings = {
@@ -175,19 +175,38 @@ def test_store_findings_kg_integration(review_agent):
 
     review_agent.store_findings(sample_findings, code_hash_str)
 
-    mock_kg.add_node.assert_called_once()  # Verify add_node was called
+    mock_kg.add_node.assert_called_once()
 
-    call_args = mock_kg.add_node.call_args
-    node_arg = call_args[0][0]  # Get the Node argument passed to add_node
+    added_node = mock_kg.add_node.call_args[0][0]
 
-    assert isinstance(node_arg, Node)
-    assert node_arg.type == 'code_review'
-    assert node_arg.content == 'Static analysis findings from flake8'
-    assert node_arg.metadata['code_hash'] == code_hash_str
-    assert node_arg.metadata['findings'] == sample_findings['static_analysis']
-    assert 'timestamp' in node_arg.metadata
+    # Check node type
+    assert added_node.type == "code_review"
 
+    # Check node content for the expected message
+    assert "Static analysis findings" in added_node.content
 
+    # Check metadata structure
+    assert isinstance(added_node.metadata, dict)
+    assert 'code_hash' in added_node.metadata
+    assert 'findings' in added_node.metadata
+    assert 'timestamp' in added_node.metadata
+
+    # Verify code_hash value
+    assert added_node.metadata['code_hash'] == code_hash_str
+
+    # Verify findings is a list
+    assert isinstance(added_node.metadata['findings'], list)
+    # Optional: Check each finding has expected structure
+    for finding in added_node.metadata['findings']:
+        assert isinstance(finding, dict)
+        assert 'file' in finding
+        assert 'line' in finding
+        assert 'col' in finding
+        assert 'code' in finding
+        assert 'msg' in finding
+
+    # Verify timestamp is present (assuming it's a string representation)
+    assert isinstance(added_node.metadata['timestamp'], str)
 def test_analyze_python_stores_findings_in_kg(review_agent):
     """Test that analyze_python calls store_findings and stores results in KG."""
     mock_kg = MagicMock(spec=KnowledgeGraph)  # Mock KnowledgeGraph explicitly

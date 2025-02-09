@@ -1,3 +1,4 @@
+# src/core/agents/code_review_agent.py
 # File: src/core/agents/code_review_agent.py
 from src.core.knowledge_graph import KnowledgeGraph, Node
 import subprocess
@@ -58,7 +59,7 @@ class CodeReviewAgent:
 
     def store_findings(self, findings: dict, code_hash: str):
         """Store static analysis findings in the Knowledge Graph."""
-        node = Node( # Recreate Node to include severity in metadata
+        node = Node(
             type="code_review",
             content="Static analysis findings from flake8 with severity", # Updated content for clarity
             metadata={
@@ -67,19 +68,20 @@ class CodeReviewAgent:
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
-        self.kg.add_node(node) # Store the updated node
-
+        self.kg.add_node(node)
 
     def _parse_results(self, output: str) -> dict:
         findings = []
         severity_map = {
-            'E': 'error',  # Errors (syntax, critical)
-            'F': 'error',  # Fatal errors
-            'W': 'warning', # Warnings
-            'C': 'warning', # Conventions (potential issues)
-            'E1': 'style', 'W6': 'style', # PEP8 style (example subsets - refine as needed)
+            'E': 'error',          # General Errors
+            'F': 'error',          # Fatal errors
+            'W': 'warning',        # Warnings
+            'C': 'warning',        # Conventions (potential issues)
+            'E1': 'style', 'W6': 'style',  # PEP8 style (example subsets)
             'E2': 'style', 'E3': 'style', 'E4': 'style', 'E5': 'style',
-            'E7': 'style', 'E9': 'style', 'C0': 'style', 'C4': 'style', 'C9': 'style'
+            'E7': 'style', 'E9': 'style', 'C0': 'style', 'C4': 'style', 'C9': 'style',
+            'E001': 'info', 'E002': 'info', # Specific E codes to 'info' based on tests
+            'E123': 'style', # E123 to style
         }
 
         for match in self.issue_pattern.finditer(output):

@@ -87,6 +87,6 @@ class CodeReviewAgent:
         for match in self.issue_pattern.finditer(output):
             issue_details = match.groupdict()
             code_prefix = issue_details['code'][0] # First char of code indicates category
-            issue_details['severity'] = severity_map.get(issue_details['code'], 'info') # Use full code to get severity, default to 'info' if not mapped
+            issue_details['severity'] = severity_map.get(code_prefix, 'info') # Default to 'info' if not mapped
             findings.append(issue_details)
         return {'static_analysis': findings}

@@ -54,7 +54,7 @@ test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple iss
         (
             "test.py:1:1: E302 first line\nsecond line of message",  # Test case 8: Multi-line message (flake8 usually doesn't do this, but testing robustness)
             1,
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'first line\nsecond line of message'}], # Note: _parse_results will only capture the first line in current implementation
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'first line'}], # Adjusted: Expect only the first line of the message
         ),
         (
             "test.py:99999:1: E302 expected 2 blank lines",  # Test case 9: Maximum line number

@@ -116,10 +116,14 @@ def test_analyze_python_flake8_success(review_agent):
     """Test successful execution of flake8."""
     mock_run = MagicMock()
     mock_run.return_value.stdout = "test.py:1:1: E302 expected 2 blank lines, found 1"
+    mock_kg = MagicMock(spec=KnowledgeGraph)  # Mock KnowledgeGraph here!
+    review_agent.kg = mock_kg # Inject mock KG
+
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("def code(): pass")
-        assert 'error' not in result
-        assert len(result['static_analysis']) == 1
+        assert 'error' not in result # Now assert 'error' is NOT in the result
+        assert len(result['static_analysis']) == 1 # Assert findings are parsed
+        # Optionally, add assertions to check the content of result['static_analysis'] if needed
 
 def test_analyze_python_flake8_calledprocesserror(review_agent, caplog):  # Inject caplog fixture
     """Test handling of subprocess.CalledProcessError from flake8."""

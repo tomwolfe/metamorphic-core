@@ -9,7 +9,7 @@ from datetime import datetime
 @pytest.fixture
 def review_agent():
     """Fixture to create a CodeReviewAgent instance with an in-memory KnowledgeGraph."""
-    return CodeReviewAgent() # Modified to use default KG init, or pass None if needed in other tests
+    return CodeReviewAgent()  # Modified to use default KG init, or pass None if needed in other tests
 
 @pytest.mark.parametrize(
     "test_input, expected_issues_count, expected_issue_details",
@@ -31,8 +31,8 @@ test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple iss
             3,
             [
                 {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines, found 1', 'severity': 'error'},
-                {'file': 'test.py', 'line': '3', 'col': '5', 'code': 'F401', 'msg': "'os' imported but unused", 'severity': 'error'}, # Assuming F401 is also 'error' for simplicity in example
-                {'file': 'test_module.py', 'line': '10', 'col': '20', 'code': 'W0612', 'msg': "Unused variable 'x'", 'severity': 'warning'}, # Assuming W0612 is 'warning'
+                {'file': 'test.py', 'line': '3', 'col': '5', 'code': 'F401', 'msg': "'os' imported but unused", 'severity': 'error'},
+                {'file': 'test_module.py', 'line': '10', 'col': '20', 'code': 'W0612', 'msg': "Unused variable 'x'", 'severity': 'warning'},
             ],
         ),
         (
@@ -56,9 +56,9 @@ test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple iss
             [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E002', 'msg': "Error with \\escape", 'severity': 'style'}],
         ),
         (
-            "test.py:1:1: E302 first line\nsecond line of message",  # Test case 8: Multi-line message (flake8 usually doesn't do this, but testing robustness)
+            "test.py:1:1: E302 first line\nsecond line of message",  # Test case 8: Multi-line message
             1,
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'first line', 'severity': 'error'}], # Adjusted: Expect only the first line of the message
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'first line', 'severity': 'error'}],
         ),
         (
             "test.py:99999:1: E302 expected 2 blank lines",  # Test case 9: Maximum line number
@@ -66,9 +66,9 @@ test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple iss
             [{'file': 'test.py', 'line': '99999', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines', 'severity': 'error'}],
         ),
         (
-            "test.py:1:1: E302 msg1; E303 msg2", # Test case 10: Multiple issues on the same line (flake8 doesn't do this, but testing robustness)
-            1, # Current parser expects one issue per line
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'msg1; E303 msg2', 'severity': 'error'}], # Parser will capture the whole line as one message
+            "test.py:1:1: E302 msg1; E303 msg2",  # Test case 10: Multiple issues on the same line
+            1,
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'msg1; E303 msg2', 'severity': 'error'}],
         ),
         (
             "test.py:1:1: E123 Indentation is not a multiple of four\ntest.py:5:10: F821 Undefined name 'variable_name'\ntest.py:12:1: W503 line break before binary operator\ntest.py:20:5: C0301 line too long (120 > 100 characters)",  # Test case 11: Different severity codes
@@ -80,13 +80,13 @@ test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple iss
                 {'file': 'test.py', 'line': '20', 'col': '5', 'code': 'C0301', 'msg': 'line too long (120 > 100 characters)', 'severity': 'warning'},
             ],
         ),
-         (
+        (
             "test.py:1:1: E302 expected 2 blank lines, found 1\n"  # Error
-            "test.py:2:1: XYZ99 Unknown code", # Unknown code - should default to 'info'
+            "test.py:2:1: XYZ99 Unknown code",  # Unknown code
             2,
             [
                 {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines, found 1', 'severity': 'error'},
-                {'file': 'test.py', 'line': '2', 'col': '1', 'code': 'XYZ99', 'msg': 'Unknown code', 'severity': 'info'}, # Unknown defaults to 'info'
+                {'file': 'test.py', 'line': '2', 'col': '1', 'code': 'XYZ99', 'msg': 'Unknown code', 'severity': 'info'},
             ],
         ),
     ],
@@ -105,30 +105,29 @@ def test_parse_flake8_output_with_severity(review_agent, test_input, expected_is
             assert actual_issue['col'] == expected_issue['col']
             assert actual_issue['code'] == expected_issue['code']
             assert actual_issue['msg'] == expected_issue['msg']
-            assert actual_issue['severity'] == expected_issue['severity'] # Assert severity
+            assert actual_issue['severity'] == expected_issue['severity']
             assert isinstance(actual_issue['line'], str)
 
 def test_parse_flake8_output_malformed(review_agent):
-    """Test error handling for malformed flake8 output that doesn't match the expected pattern."""
-    sample_output = "invalid output format - no colon separators"
+    """Test error handling for malformed flake8 output."""
+    sample_output = "invalid output format"
     results = review_agent._parse_results(sample_output)
-    assert results['static_analysis'] == [] # Should gracefully handle malformed output and return empty list
+    assert results['static_analysis'] == []
 
 def test_analyze_python_flake8_success(review_agent):
-    """Test successful execution of flake8."""
+    """Test successful flake8 execution."""
     mock_run = MagicMock()
     mock_run.return_value.stdout = "test.py:1:1: E302 expected 2 blank lines, found 1"
-    mock_kg = MagicMock(spec=KnowledgeGraph)  # Mock KnowledgeGraph here!
-    review_agent.kg = mock_kg # Inject mock KG
+    mock_kg = MagicMock(spec=KnowledgeGraph)
+    review_agent.kg = mock_kg
 
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("def code(): pass")
-        assert 'error' not in result # Now assert 'error' is NOT in the result
-        assert len(result['static_analysis']) == 1 # Assert findings are parsed
-        # Optionally, add assertions to check the content of result['static_analysis'] if needed
+        assert 'error' not in result
+        assert len(result['static_analysis']) == 1
 
-def test_analyze_python_flake8_calledprocesserror(review_agent, caplog):  # Inject caplog fixture
-    """Test handling of subprocess.CalledProcessError from flake8."""
+def test_analyze_python_flake8_calledprocesserror(review_agent, caplog):
+    """Test handling of subprocess.CalledProcessError."""
     mock_run = MagicMock(side_effect=subprocess.CalledProcessError(returncode=1, cmd=['flake8'], stderr=b"Error details"))
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("def code(): pass")
@@ -136,17 +135,16 @@ def test_analyze_python_flake8_calledprocesserror(review_agent, caplog):  # Inje
         assert "Flake8 analysis failed" in result['error_message']
         assert result['static_analysis'] == []
 
-    # Assert that "Error details" is in the captured log output
     log_records = caplog.records
     stderr_logged = False
     for record in log_records:
         if record.levelname == 'ERROR' and "Flake8 stderr: b'Error details'" in record.message:
             stderr_logged = True
             break
-    assert stderr_logged, "Expected 'Flake8 stderr: b'Error details'' to be logged"
+    assert stderr_logged
 
 def test_analyze_python_flake8_filenotfounderror(review_agent):
-    """Test handling of FileNotFoundError when flake8 is not found."""
+    """Test handling of FileNotFoundError."""
     mock_run = MagicMock(side_effect=FileNotFoundError("flake8 not found"))
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("def code(): pass")
@@ -155,7 +153,7 @@ def test_analyze_python_flake8_filenotfounderror(review_agent):
         assert result['static_analysis'] == []
 
 def test_analyze_python_flake8_generic_exception(review_agent):
-    """Test handling of generic exceptions during flake8 execution."""
+    """Test handling of generic exceptions."""
     mock_run = MagicMock(side_effect=Exception("Generic flake8 error"))
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("def code(): pass")
@@ -164,13 +162,13 @@ def test_analyze_python_flake8_generic_exception(review_agent):
         assert result['static_analysis'] == []
 
 def test_store_findings_kg_integration_with_severity(review_agent):
-    """Test store_findings correctly stores severity data in KG."""
+    """Test that findings with severity are stored in KG."""
     mock_kg = MagicMock(spec=KnowledgeGraph)
     review_agent.kg = mock_kg
 
     sample_findings = {
         'static_analysis': [
-            {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'test message', 'severity': 'error'} # Findings now include severity
+            {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'test message', 'severity': 'error'}
         ]
     }
     code_hash_str = "1234567890"
@@ -181,11 +179,11 @@ def test_store_findings_kg_integration_with_severity(review_agent):
     added_node = mock_kg.add_node.call_args[0][0]
 
     assert added_node.type == "code_review"
-    assert "Static analysis findings from flake8 with severity" in added_node.content # Updated assertion
+    assert "Static analysis findings from flake8 with severity" in added_node.content
     assert isinstance(added_node.metadata['findings'], list)
 
-    finding = added_node.metadata['findings'][0] # Get the first finding
-    assert finding['severity'] == 'error' # Check severity in stored finding
+    finding = added_node.metadata['findings'][0]
+    assert finding['severity'] == 'error'
     assert 'file' in finding
     assert 'line' in finding
     assert 'col' in finding
@@ -193,25 +191,46 @@ def test_store_findings_kg_integration_with_severity(review_agent):
     assert 'msg' in finding
 
 def test_analyze_python_stores_findings_in_kg(review_agent):
-    """Test that analyze_python calls store_findings and stores results in KG."""
-    mock_kg = MagicMock(spec=KnowledgeGraph)  # Mock KnowledgeGraph explicitly
-    review_agent.kg = mock_kg  # Inject mock KG into agent
+    """Test that analyze_python stores findings in KG."""
+    mock_kg = MagicMock(spec=KnowledgeGraph)
+    review_agent.kg = mock_kg
     mock_run = MagicMock()
     mock_run.return_value.stdout = "test.py:1:1: E302 expected 2 blank lines, found 1"
 
     with patch('subprocess.run', mock_run):
         code_sample = "def example(): pass"
-        code_hash_str = str(hash(code_sample)) # Calculate expected code hash
+        code_hash_str = str(hash(code_sample))
         review_agent.analyze_python(code_sample)
 
-    mock_kg.add_node.assert_called_once()  # Verify add_node was called
-
+    mock_kg.add_node.assert_called_once()
     call_args = mock_kg.add_node.call_args
-    node_arg = call_args[0][0]  # Get the Node argument passed to add_node
+    node_arg = call_args[0][0]
 
     assert isinstance(node_arg, Node)
     assert node_arg.type == 'code_review'
-    assert node_arg.content == 'Static analysis findings from flake8 with severity' # Updated content check
+    assert node_arg.content == 'Static analysis findings from flake8 with severity'
     assert node_arg.metadata['code_hash'] == code_hash_str
-    assert len(node_arg.metadata['findings']) == 1 # Check findings are stored
+    assert len(node_arg.metadata['findings']) == 1
     assert 'timestamp' in node_arg.metadata
+
+def test_kg_integration_with_severity(review_agent):
+    """Test the integration with the Knowledge Graph and severity classification."""
+    sample_code = """
+        def my_function():
+            print('Hello, World!')  # E302 expected 2 blank lines after function definition
+        """
+    
+    mock_kg = MagicMock(spec=KnowledgeGraph)
+    review_agent.kg = mock_kg
+
+    findings = review_agent.analyze_python(sample_code)
+
+    mock_kg.add_node.assert_called_at_least_once()
+    node = mock_kg.add_node.call_args[0][0]
+
+    assert node.type == "code_review"
+    assert isinstance(node.metadata['findings'], list)
+
+    if node.metadata['findings']:
+        first_finding = node.metadata['findings'][0]
+        assert first_finding['severity'] == 'style'

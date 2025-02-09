@@ -105,22 +105,27 @@ class CodeReviewAgent:
             return {'findings': [], 'error': True, 'error_message': f"Error running bandit: {str(e)}"}
 
 
-    def _merge_results(self, flake8_results: dict, bandit_results: list) -> dict:
+    def _merge_results(self, flake8_results: dict, bandit_results: dict) -> dict:
         """
         Merges results from Flake8 and Bandit, standardizing the format.
         """
         static_analysis_findings = flake8_results.get('static_analysis', [])
 
-        for bandit_finding in bandit_results:
-            static_analysis_findings.append({
-                'file': bandit_finding.get('filename'),
-                'line': str(bandit_finding.get('line_number')), # Convert to string to match flake8
-                'col': '0', # Bandit does not provide column
-                'code': bandit_finding.get('test_id'),
-                'msg': bandit_finding.get('issue_text', 'No message provided'),
-                'severity': self._map_bandit_severity(bandit_finding.get('issue_severity', 'LOW').upper())
-            })
-        return {'static_analysis': static_analysis_findings}
+        merged = {
+            'static_analysis': static_analysis_findings,
+            'errors': []
+        }
+        if not bandit_results['error']: # Process bandit findings only if no error
+            for bandit_finding in bandit_results['findings']:
+                merged['static_analysis'].append({
+                    'file': bandit_finding.get('filename'),
+                    'line': str(bandit_finding.get('line_number')), # Convert to string to match flake8
+                    'col': '0', # Bandit does not provide column
+                    'code': bandit_finding.get('test_id'),
+                    'msg': bandit_finding.get('issue_text', 'No message provided'),
+                    'severity': self._map_bandit_severity(bandit_finding.get('issue_severity', 'LOW').upper())
+                })
+        return merged
 
     def store_findings(self, findings: dict, code_hash: str, code: str): # Added code parameter
         """Store static analysis findings in the Knowledge Graph."""

@@ -43,6 +43,7 @@ jobs:
           pip install -r requirements/base.txt
           pip install -r requirements/dev.txt
           pip install pytest pytest-cov
+          pip install bandit
           pip install -e .  # Install the package in development mode
 
       - name: Build Flask app Docker image
@@ -97,6 +98,10 @@ jobs:
             exit 1
           fi
 
+      - name: Run Bandit Security Scan
+        run: |
+          bandit -r src -f txt || true # Run bandit and allow workflow to continue
+
       - name: Run tests with coverage
         run: pytest --cov=src --cov-report=term --cov-report=html tests/
 
@@ -104,14 +109,14 @@ jobs:
         run: |
           # Set up the test file path
           mkdir -p generated_tests
-          
+
           # Generate tests and store them in KG (and write to file)
           python -c "from src.core.agents.test_generator import TestGenAgent; \
           TestGenAgent().generate_tests('placeholder_code', {})"
-          
+
           # Run pytest on the generated tests
           pytest generated_tests/generated_tests.py --cov=src --cov-append
-      
+
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:

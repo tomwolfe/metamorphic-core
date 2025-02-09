@@ -10,8 +10,8 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 class CodeReviewAgent:
-    def __init__(self, kg: KnowledgeGraph):
-        self.kg = kg
+    def __init__(self, kg: KnowledgeGraph=None): # Added default None for kg for easier instantiation in some contexts
+        self.kg = kg if kg is not None else KnowledgeGraph() # Initialize KG if not provided
         self.issue_pattern = re.compile(
             r"(?P<file>.+):(?P<line>\d+):(?P<col>\d+): (?P<code>\w+) (?P<msg>.+)")
 
@@ -80,13 +80,13 @@ class CodeReviewAgent:
             'E1': 'style', 'W6': 'style',  # PEP8 style (example subsets)
             'E2': 'style', 'E3': 'style', 'E4': 'style', 'E5': 'style',
             'E7': 'style', 'E9': 'style', 'C0': 'style', 'C4': 'style', 'C9': 'style',
-            'E001': 'info', 'E002': 'info', # Specific E codes to 'info' based on tests
+            # 'E001': 'info', 'E002': 'info', # Specific E codes to 'info' based on tests - Removed to align with more general error severity
             'E123': 'style', # E123 to style
         }
 
         for match in self.issue_pattern.finditer(output):
             issue_details = match.groupdict()
             code_prefix = issue_details['code'][0] # First char of code indicates category
-            issue_details['severity'] = severity_map.get(code_prefix, 'info') # Default to 'info' if not mapped
+            issue_details['severity'] = severity_map.get(code_prefix, 'info') # Default to 'info' if not mapped, or if code_prefix not in map, it will default to info.
             findings.append(issue_details)
         return {'static_analysis': findings}

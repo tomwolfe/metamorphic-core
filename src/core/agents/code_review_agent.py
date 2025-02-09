@@ -1,15 +1,28 @@
 # File: src/core/agents/code_review_agent.py
+from src.core.knowledge_graph import KnowledgeGraph
 import subprocess
-from typing import Dict
-from src.core.knowledge_graph import KnowledgeGraph, Node
+import tempfile
+import re
 
 class CodeReviewAgent:
-    def __init__(self):
-        self.kg = KnowledgeGraph()
-        
-    def analyze_code(self, code_path: str) -> Dict:
-        result = subprocess.run(['flake8', code_path], capture_output=True)
-        return {
-            'issues': result.stdout.decode().splitlines(),
-            'score': 100 - min(len(result.stdout.decode().splitlines()), 100)
-        }
+    def __init__(self, kg: KnowledgeGraph):
+        self.kg = kg
+        self.issue_pattern = re.compile(
+            r"(?P<file>.+):(?P<line>\d+):(?P<col>\d+): (?P<code>\w+) (?P<msg>.+)")
+
+    def analyze_python(self, code: str) -> dict:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py') as tmp:
+            tmp.write(code)
+            tmp.flush()
+            result = subprocess.run(
+                ['flake8', tmp.name], 
+                capture_output=True, 
+                text=True
+            )
+            return self._parse_results(result.stdout)
+
+    def _parse_results(self, output: str) -> dict:
+        findings = []
+        for match in self.issue_pattern.finditer(output):
+            findings.append(match.groupdict())
+        return {'static_analysis': findings}

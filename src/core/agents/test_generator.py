@@ -1,7 +1,8 @@
 # File: src/core/agents/test_generator.py
-from pydantic import UUID4  # Changed import source
+from pydantic import UUID4
 from src.core.llm_orchestration import LLMOrchestrator
 from src.core.knowledge_graph import KnowledgeGraph, Node
+import os
 
 class TestGenAgent:
     def __init__(self):
@@ -23,15 +24,26 @@ class TestGenAgent:
         raw_response = self.llm.generate(prompt)
         # Clean markdown formatting
         test_code = raw_response.split("```python")[-1].split("```")[0].strip()
-        return self._store_tests(test_code, code_hash=hash(code))
+        
+        # Store tests in KG and generate the file
+        test_code = self._store_tests(test_code, code_hash=hash(code))
+        
+        # Create the tests directory if it doesn't exist
+        os.makedirs("generated_tests", exist_ok=True)
+        
+        # Write the test code to a file
+        with open("generated_tests/generated_tests.py", "w") as f:
+            f.write(test_code)
+            
+        return test_code
 
     def _store_tests(self, test_code: str, code_hash: int) -> str:
-        test_node = Node(  # Create Node instance instead of dict
+        test_node = Node(
             type="generated_test",
             content=test_code,
             metadata={
                 "source_hash": code_hash,
-                "generator": "TestGeneratorAgent"  # Update generator name
+                "generator": "TestGeneratorAgent"
             }
         )
         self.kg.add_node(test_node)

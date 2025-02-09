@@ -1,4 +1,3 @@
-=== File: src/core/agents/code_review_agent.py ===
 # File: src/core/agents/code_review_agent.py
 from src.core.knowledge_graph import KnowledgeGraph, Node
 import subprocess

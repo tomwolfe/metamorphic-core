@@ -32,7 +32,11 @@ class CodeReviewAgent:
                 flake8_results = self._parse_flake8_results(result.stdout)
 
                 bandit_results = self._run_bandit(code)
+
                 merged_results = self._merge_results(flake8_results, bandit_results)
+                if bandit_results['error']: # If bandit had an error, report it in merged results
+                    merged_results['error'] = True
+                    merged_results['error_message'] = merged_results.get('error_message', '') +  " Bandit: " + bandit_results['error_message']
 
                 if not merged_results.get('error') and merged_results['static_analysis']:
                     code_hash = hash(code)

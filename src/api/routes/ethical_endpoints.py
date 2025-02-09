@@ -6,14 +6,16 @@ from src.core.ethics.governance import QuantumEthicalValidator
 from src.core.quantum.ethical_validation import EthicalQuantumCore
 from src.core.visualization.quantum_audit import QuantumAuditVisualizer
 from src.core.llm_orchestration import format_math_prompt, extract_boxed_answer
-from src.core.agents.security_agent import SecurityAgent # Import SecurityAgent
+from src.core.agents.security_agent import SecurityAgent
+from src.core.agents.code_review_agent import CodeReviewAgent  # Import CodeReviewAgent
 import json
 
 ethical_bp = Blueprint('ethical', __name__)
 validator = QuantumEthicalValidator()
 quantum_core = EthicalQuantumCore()
-visualizer = QuantumAuditVisualizer() # Instantiate QuantumAuditVisualizer once
-security_agent = SecurityAgent() # Instantiate SecurityAgent
+visualizer = QuantumAuditVisualizer()
+security_agent = SecurityAgent()
+code_review_agent = CodeReviewAgent()  # Instantiate CodeReviewAgent
 
 limiter = Limiter(
     get_remote_address,
@@ -27,7 +29,7 @@ limiter = Limiter(
 @limiter.limit("3/minute")
 def solve_math_problem():
     problem = request.json.get('problem')
-    problem = security_agent.sanitize_input(problem) # Sanitize input
+    problem = security_agent.sanitize_input(problem)
     if not problem:
         return jsonify({"error": "No problem provided or invalid input"}), 400
 
@@ -44,9 +46,15 @@ def solve_math_problem():
 @ethical_bp.route('/analyze', methods=['POST'])
 def ethical_analysis():
     code = request.json.get('code')
-    code = security_agent.sanitize_input(code) # Sanitize code input
+    code = security_agent.sanitize_input(code)
     if not code:
         return jsonify({"error": "No code provided or invalid input"}), 400
+
+    # Perform code review analysis
+    try:
+        review_results = code_review_agent.analyze_python(code)
+    except Exception as e:
+        return jsonify({"error": "Code review failed: " + str(e)}), 500
 
     # Using the QuantumEthicalValidator for the main validation
     analysis_result = validator.validate_code(code)
@@ -55,20 +63,22 @@ def ethical_analysis():
         return jsonify({
             "status": "REJECTED",
             "analysis": analysis_result,
-            "quantum_state": quantum_core.analyze_quantum_state(hash(code))
+            "quantum_state": quantum_core.analyze_quantum_state(hash(code)),
+            "code_quality": review_results
         }), 403
 
-    return jsonify({"status": "APPROVED", "analysis": analysis_result})
+    return jsonify({
+        "status": "APPROVED", 
+        "analysis": analysis_result,
+        "code_quality": review_results
+    })
 
 @ethical_bp.route('/audit/<state_id>', methods=['GET'])
 def get_audit_trail(state_id: str):
-    """Retrieve complete audit trail with quantum state"""
     try:
-        # Load ethical audit
         with open(f"ethical_audits/{state_id}.json") as f:
             audit_data = json.load(f)
 
-        # Load quantum state
         with open(f"quantum_states/{state_id}.json") as f:
             quantum_state = json.load(f)
 
@@ -81,7 +91,6 @@ def get_audit_trail(state_id: str):
 
 @ethical_bp.route('/visualize/<state_id>', methods=['GET'])
 def visualize_audit(state_id: str):
-    """Render interactive audit visualization"""
     try:
         return jsonify({
             "risk_breakdown": visualizer.create_risk_breakdown_figure(state_id).to_json(),
@@ -90,10 +99,8 @@ def visualize_audit(state_id: str):
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
 
-# New Predictive Risk Analysis Endpoint
 @ethical_bp.route('/predict/<state_id>', methods=['GET'])
 def get_risk_prediction(state_id: str):
-    """Get predictive risk analysis"""
     try:
         fig = visualizer.create_risk_prediction_figure(state_id)
         return jsonify(fig.to_json())
@@ -102,7 +109,6 @@ def get_risk_prediction(state_id: str):
 
 @ethical_bp.route('/visualize/html/<state_id>', methods=['GET'])
 def visualize_audit_html(state_id: str):
-    """Return complete HTML visualization report"""
     return f"""
     <html>
         <head>

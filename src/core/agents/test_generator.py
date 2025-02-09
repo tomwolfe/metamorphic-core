@@ -3,11 +3,11 @@ from pydantic import UUID4  # Changed import source
 from src.core.llm_orchestration import LLMOrchestrator
 from src.core.knowledge_graph import KnowledgeGraph, Node
 
-class TestGeneratorAgent:
+class TestGenAgent:
     def __init__(self):
         self.llm = LLMOrchestrator()
         self.kg = KnowledgeGraph()
-
+        
     def generate_tests(self, code: str, spec_analysis: dict) -> str:
         prompt = f"""Generate pytest tests for this Python code:
         {code}

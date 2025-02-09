@@ -9,27 +9,30 @@ from ..verification.z3_serializer import Z3JSONEncoder
 from ..quantum.state_preservation import QuantumStatePreserver
 from src.core.agents.specification_analyzer import SpecificationAnalyzer
 from src.core.knowledge_graph import KnowledgeGraph
+from src.core.agents.test_generator import TestGenAgent
 
 class QuantumEthicalValidator:
     def __init__(self):
+        self.test_generator = TestGenAgent()
         self.formal_verifier = FormalSpecification()
         self.audit_logger = EthicalAuditLogger()
         self.state_preserver = QuantumStatePreserver()
         self._load_ethical_framework()
-        self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())  # Add this line
-
+        self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())
+        
     def validate_code(self, code_sample: str) -> Dict[str, Any]:
         """Updated validation with spec analysis"""
         state_id = self.state_preserver.preserve_state(code_sample)
         validation_result = {
             "state_id": state_id,
-            "spec_analysis": self.spec_analyzer.analyze_python_spec(code_sample),  # Add this
+            "spec_analysis": self.spec_analyzer.analyze_python_spec(code_sample),
             "status": "pending",
             "score": 0.0,
             "predictions": self._predict_ethical_impact(code_sample),
             "formal_proof": None,
             "timestamp": str(datetime.utcnow()),
-            "code_sample_hash": hash(code_sample)
+            "code_sample_hash": hash(code_sample),
+            "generated_tests": []
         }
 
         try:
@@ -40,11 +43,19 @@ class QuantumEthicalValidator:
                 validation_result["formal_proof"]
             )
             validation_result["status"] = "approved" if validation_result["score"] >= 0.7 else "rejected"
+            
+            # Generate tests based on code and specification analysis
+            validation_result["generated_tests"] = self.test_generator.generate_tests(
+                code_sample, 
+                validation_result["spec_analysis"]
+            )
+
         except Exception as e:
             validation_result.update({
                 "status": "error",
                 "error": str(e),
-                "score": 0.0
+                "score": 0.0,
+                "generated_tests": []
             })
 
         self.audit_logger.log_decision(validation_result)

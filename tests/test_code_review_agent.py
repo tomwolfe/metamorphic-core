@@ -120,16 +120,24 @@ def test_analyze_python_flake8_success(review_agent):
         assert 'error' not in result
         assert len(result['static_analysis']) == 1
 
-def test_analyze_python_flake8_calledprocesserror(review_agent):
+def test_analyze_python_flake8_calledprocesserror(review_agent, caplog):  # Inject caplog fixture
     """Test handling of subprocess.CalledProcessError from flake8."""
     mock_run = MagicMock(side_effect=subprocess.CalledProcessError(returncode=1, cmd=['flake8'], stderr=b"Error details"))
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("def code(): pass")
         assert result['error'] is True
         assert "Flake8 analysis failed" in result['error_message']
-        assert "Error details" in result['error_message'] # Check stderr is logged
         assert result['static_analysis'] == []
 
+    # Assert that "Error details" is in the captured log output
+    log_records = caplog.records
+    stderr_logged = False
+    for record in log_records:
+        if record.levelname == 'ERROR' and "Flake8 stderr: b'Error details'" in record.message:
+            stderr_logged = True
+            break
+    assert stderr_logged, "Expected 'Flake8 stderr: b'Error details'' to be logged"
+    
 def test_analyze_python_flake8_filenotfounderror(review_agent):
     """Test handling of FileNotFoundError when flake8 is not found."""
     mock_run = MagicMock(side_effect=FileNotFoundError("flake8 not found"))

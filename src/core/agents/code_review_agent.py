@@ -65,7 +65,7 @@ class CodeReviewAgent:
                 'static_analysis': []
             }
 
-    def _run_bandit(self, code: str) -> list:
+    def _run_bandit(self, code: str) -> dict:
         """
         Runs Bandit security linter and returns findings.
         """
@@ -81,24 +81,29 @@ class CodeReviewAgent:
                     check=True
                 )
                 if result.stdout: # Check if stdout is not empty before parsing
-                    return json.loads(result.stdout)['results'] if result.stdout else []
+                    return {
+                        'findings': json.loads(result.stdout)['results'] if result.stdout else [],
+                        'error': False,
+                        'error_message': None
+                    }
                 else:
-                    return [] # Return empty list if no output from bandit
+                    return {'findings': [], 'error': False, 'error_message': None} # Return empty list if no output from bandit
 
         except FileNotFoundError as e:
             logger.error(f"Bandit executable not found: {str(e)}")
-            return {'error': True, 'error_message': f"Bandit executable not found: {str(e)}", 'static_analysis': []}
+            return {'findings': [], 'error': True, 'error_message': f"Bandit executable not found: {str(e)}"}
         except subprocess.CalledProcessError as e:
             logger.error(f"Bandit analysis failed with return code: {e.returncode}")
             logger.error(f"Bandit stderr: {e.stderr}")
-            return {'error': True, 'error_message': f"Bandit analysis failed: {e}", 'static_analysis': []}
+            return {'findings': [], 'error': True, 'error_message': f"Bandit analysis failed: {e}"}
         except json.JSONDecodeError as e:
             logger.error(f"JSONDecodeError parsing Bandit output: {e}")
             logger.error(f"Bandit Output (non-JSON): {result.stdout}") # Log raw output
-            return {'error': True, 'error_message': f"Error parsing Bandit JSON output: {e}", 'static_analysis': []}
+            return {'findings': [], 'error': True, 'error_message': f"Error parsing Bandit JSON output: {e}"}
         except Exception as e:
             logger.error(f"Error running bandit: {str(e)}")
-            return {'error': True, 'error_message': f"Error running bandit: {str(e)}", 'static_analysis': []}
+            return {'findings': [], 'error': True, 'error_message': f"Error running bandit: {str(e)}"}
+
 
     def _merge_results(self, flake8_results: dict, bandit_results: list) -> dict:
         """

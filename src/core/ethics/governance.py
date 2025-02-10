@@ -10,76 +10,59 @@ from ..quantum.state_preservation import QuantumStatePreserver
 from src.core.agents.specification_analyzer import SpecificationAnalyzer
 from src.core.knowledge_graph import KnowledgeGraph
 from src.core.agents.test_generator import TestGenAgent
+from src.core.ethics.agents.security import SecurityAgent
+from src.core.ethics.agents.review import CodeReviewAgent
 
 class QuantumEthicalValidator:
     def __init__(self):
         self.test_generator = TestGenAgent()
-        self.formal_verifier = FormalSpecification()
-        self.audit_logger = EthicalAuditLogger()
         self.state_preserver = QuantumStatePreserver()
-        self._load_ethical_framework()
+        self.audit_logger = EthicalAuditLogger()
         self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())
-        
+
     def validate_code(self, code_sample: str) -> Dict[str, Any]:
-        """Updated validation with spec analysis"""
         state_id = self.state_preserver.preserve_state(code_sample)
+        
+        # Get all agent analyses
+        spec_analysis = self.spec_analyzer.analyze_python_spec(code_sample)
+        security_analysis = SecurityAgent().run_zap_baseline_scan("http://localhost:5000")
+        review_results = CodeReviewAgent().analyze_python(code_sample)
+        test_coverage = self.test_generator.generate_tests(code_sample, spec_analysis)
+
         validation_result = {
             "state_id": state_id,
-            "spec_analysis": self.spec_analyzer.analyze_python_spec(code_sample),
+            "spec_analysis": spec_analysis,
+            "security_scan": security_analysis,
+            "code_review": review_results,
+            "generated_tests": test_coverage,
             "status": "pending",
-            "score": 0.0,
-            "predictions": self._predict_ethical_impact(code_sample),
-            "formal_proof": None,
+            "score": self._calculate_score(spec_analysis, security_analysis, review_results),
             "timestamp": str(datetime.utcnow()),
-            "code_sample_hash": hash(code_sample),
-            "generated_tests": []
         }
 
-        try:
-            validation_result["formal_proof"] = self.formal_verifier.verify_predictions(
-                validation_result["predictions"]
-            )
-            validation_result["score"] = self._calculate_ethical_score(
-                validation_result["formal_proof"]
-            )
-            validation_result["status"] = "approved" if validation_result["score"] >= 0.7 else "rejected"
-            
-            # Generate tests based on code and specification analysis
-            validation_result["generated_tests"] = self.test_generator.generate_tests(
-                code_sample, 
-                validation_result["spec_analysis"]
-            )
-
-        except Exception as e:
-            validation_result.update({
-                "status": "error",
-                "error": str(e),
-                "score": 0.0,
-                "generated_tests": []
-            })
+        if validation_result["score"] < 0.7:
+            validation_result["status"] = "rejected"
+        else:
+            validation_result["status"] = "approved"
 
         self.audit_logger.log_decision(validation_result)
         return validation_result
 
-    def _load_ethical_framework(self):
-        """Load ethical guidelines into verification system"""
-        # Use normalized constraint names
-        self.formal_verifier.add_safety_invariant("BiasRisk never exceeds 0.25")
-        self.formal_verifier.add_ethical_guardrail("TransparencyScore never drops below 0.4")
-        
-    def _predict_ethical_impact(self, code: str) -> Dict[str, float]:
-        """Predict ethical impact with all required metrics"""
-        return {
-            "bias_risk": 0.15,
-            "transparency_score": 0.7,
-            "immediate_risk": 0.1,
-            "long_term_risk": 0.2,
-            "privacy_risk": 0.1
+    def _calculate_score(self, spec, security, review):
+        """Composite scoring algorithm"""
+        weights = {
+            'spec_completeness': 0.3,
+            'security_risk': 0.4,
+            'code_quality': 0.3
         }
-
-    def _calculate_ethical_score(self, proof: Dict) -> float:
-        """Calculate score based on verification status"""
-        return 1.0 if proof.get('verified', False) else 0.5
+        
+        spec_score = min(spec.get('completeness', 0), 1.0)
+        security_risk = security.get('high_risk_findings', 0) / 10  # Normalize
+        code_quality = 1 - (len(review.get('findings', [])) / 50)  # Normalize
+        
+        return (spec_score * weights['spec_completeness'] 
+                - security_risk * weights['security_risk'] 
+                + code_quality * weights['code_quality'])
 
 class EthicalAuditLogger:
     def __init__(self):
@@ -87,13 +70,14 @@ class EthicalAuditLogger:
         os.makedirs(self.log_dir, exist_ok=True)
 
     def log_decision(self, validation_result: dict):
-        """Log decision with Z3 model serialization handling"""
-        processed_proof = self._process_z3_models(validation_result.get("formal_proof", {}))
+        """Log decision with Z3 models handling"""
+        # Process any Z3 models in the validation result if needed
+        processed_models = self._process_z3_models(validation_result.get("formal_proof", {}))
         audit_entry = {
             "timestamp": datetime.utcnow().isoformat(),
             "decision": validation_result["status"],
             "ethical_score": validation_result["score"],
-            "formal_proof": processed_proof,
+            "formal_proof": processed_models,
             "model_version": self._get_model_version(),
             "code_sample_hash": validation_result.get("code_sample_hash")
         }
@@ -114,11 +98,17 @@ class EthicalAuditLogger:
 
     def _convert_z3_model(self, model_data: dict) -> dict:
         """Recursively convert Z3 model components"""
-        return {
-            k: json.loads(json.dumps(v, cls=Z3JSONEncoder))
-            if isinstance(v, ModelRef) else v
-            for k, v in model_data.items()
-        }
+        if isinstance(model_data, ModelRef):
+            return json.loads(json.dumps(model_data, cls=Z3JSONEncoder))
+        elif isinstance(model_data, dict):
+            return {
+                k: self._convert_z3_model(v)
+                for k, v in model_data.items()
+            }
+        elif isinstance(model_data, list):
+            return [self._convert_z3_model(item) for item in model_data]
+        else:
+            return model_data
 
     def _get_model_version(self) -> str:
         """Get current ethical model version"""
@@ -145,7 +135,7 @@ class EthicalGovernanceEngine:
             "average_score": self.health_data["average_score"],
             "recent_issues": self.health_data["recent_issues"],
             "model_version": self.get_ethical_model_version(),
-            "active_constraints": len(self.validator.formal_verifier.constraints),
+            "active_constraints": 0,  # Placeholder for actual implementation
             "violation_stats": self.health_data["violation_stats"]
         }
 

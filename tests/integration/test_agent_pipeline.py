@@ -2,21 +2,22 @@
 import pytest
 from src.core.ethics.governance import QuantumEthicalValidator
 from src.core.knowledge_graph import KnowledgeGraph
+from unittest.mock import patch
 
 @pytest.fixture(scope="module")
-def validator(monkeypatch):
-    # Set dummy environment variables for testing
-    monkeypatch.setenv("GEMINI_API_KEY", "test_gemini_key")
-    monkeypatch.setenv("YOUR_GITHUB_API_KEY", "test_github_key")
-    monkeypatch.setenv("HUGGING_FACE_API_KEY", "test_hf_key")
-    monkeypatch.setenv("ZAP_API_KEY", "test_zap_key")  # Add ZAP_API_KEY too, just in case
-
-    return QuantumEthicalValidator()
+def validator():
+    # Use patch to mock SecureConfig.get directly
+    with patch('src.utils.config.SecureConfig.get') as mock_config_get:
+        mock_config_get.side_effect = lambda var_name, default=None: {
+            'GEMINI_API_KEY': 'test_gemini_key',
+            'YOUR_GITHUB_API_KEY': 'test_github_key',
+            'HUGGING_FACE_API_KEY': 'test_hf_key',
+            'ZAP_API_KEY': 'test_zap_key'
+        }.get(var_name, default)
+        return QuantumEthicalValidator()
 
 def test_full_agent_pipeline(validator):
-    # This test will now run because the validator fixture
-    # sets the necessary environment variables
-    code = "def example(): pass"
+    code = "def example():\n  pass" # Added newline and indent to be valid code
     result = validator.validate_code(code)
 
     assert 'spec_analysis' in result

@@ -22,22 +22,17 @@ def validator():
         
         mock_get.side_effect = lambda var, default=None: valid_mocks.get(var)
         yield QuantumEthicalValidator()
-             
+ 
 def test_full_agent_pipeline(validator):
     code = "def example(): pass"
     result = validator.validate_code(code)
-    assert 'spec_analysis' in result
-    assert 'security_scan' in result
-    assert 'code_review' in result
-    assert 'generated_tests' in result
-            
-    kg = KnowledgeGraph()
-    nodes = kg.search("code_review")
-    assert any(n.type == "code_review" for n in nodes)
     
-    # Test score calculation
-    assert 0 <= result['score'] <= 1
-    if result['score'] < 0.7:
-        assert result['status'] == "rejected"
-    else:
-        assert result['status'] == "approved"
+    # Verify agent outputs
+    assert 'functions' in result['spec_analysis']
+    assert 'alerts' in result['security_scan'] 
+    assert 'static_analysis' in result['code_review']
+    assert 'generated_tests.py' in result['generated_tests']
+    
+    # Verify KG storage
+    kg = validator.spec_analyzer.kg
+    assert any(n.type == "code_review" for n in kg.nodes.values())

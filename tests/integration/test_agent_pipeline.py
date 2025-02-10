@@ -1,3 +1,4 @@
+import os
 import pytest
 from src.core.ethics.governance import QuantumEthicalValidator
 from unittest.mock import patch, MagicMock

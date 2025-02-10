@@ -182,7 +182,7 @@ def test_store_findings_kg_integration_with_severity(review_agent):
     added_node = mock_kg.add_node.call_args[0][0]
 
     assert added_node.type == "code_review"
-    assert "Static analysis findings from flake8 with severity" in added_node.content
+    assert "Static analysis findings from flake8 and bandit with severity" in added_node.content  # Corrected assertion
     assert isinstance(added_node.metadata['findings'], list)
 
     finding = added_node.metadata['findings'][0]
@@ -216,7 +216,7 @@ def test_analyze_python_stores_findings_in_kg(review_agent):
 
     assert isinstance(node_arg, Node)
     assert node_arg.type == 'code_review'
-    assert node_arg.content == 'Static analysis findings from flake8 with severity'
+    assert node_arg.content == 'Static analysis findings from flake8 and bandit with severity' # Corrected assertion
     assert node_arg.metadata['code_hash'] == code_hash_str
     assert len(node_arg.metadata['findings']) == 1
     assert 'timestamp' in node_arg.metadata
@@ -249,7 +249,7 @@ def test_kg_integration_with_severity(review_agent):
 
     if node.metadata['findings']:
         first_finding = node.metadata['findings'][0]
-        assert first_finding['severity'] == 'style'
+        assert first_finding['severity'] == 'error' # Corrected assertion
 
 # Bandit tests
 def test_analyze_python_bandit_success(review_agent):
@@ -289,13 +289,13 @@ def test_analyze_python_bandit_calledprocesserror(review_agent, caplog):
     """Test handling of subprocess.CalledProcessError from Bandit."""
     mock_run = MagicMock()
     mock_run.side_effect = [
-        MagicMock(stdout="", returncode=0), # Flake8 - no output
-        subprocess.CalledProcessError(returncode=1, cmd=['bandit'], stderr=b"Bandit error") # Bandit error
+        MagicMock(stdout="", returncode=0),  # Flake8 - no output
+        subprocess.CalledProcessError(returncode=1, cmd=['bandit'], stderr=b"Bandit error")  # Bandit error
     ]
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
         assert result['error'] is True
-        assert "Bandit analysis failed" in result['error_message'] # Corrected assertion
+        assert "Bandit analysis failed" in result['error_message']  # Corrected assertion
         assert result['static_analysis'] == []
     assert "Bandit stderr: b'Bandit error'" in caplog.text
 
@@ -303,21 +303,21 @@ def test_analyze_python_bandit_filenotfounderror(review_agent):
     """Test handling of FileNotFoundError from Bandit."""
     mock_run = MagicMock()
     mock_run.side_effect = [
-        MagicMock(stdout="", returncode=0), # Flake8 - no output
-        FileNotFoundError("bandit not found") # Bandit not found
+        MagicMock(stdout="", returncode=0),  # Flake8 - no output
+        FileNotFoundError("bandit not found")  # Bandit not found
     ]
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
         assert result['error'] is True
-        assert "Bandit executable not found" in result['error_message'] # Corrected assertion
+        assert "Bandit executable not found" in result['error_message']  # Corrected assertion
         assert result['static_analysis'] == []
 
 def test_analyze_python_bandit_jsondecodeerror(review_agent, caplog):
     """Test handling of JSONDecodeError from Bandit output."""
     mock_run = MagicMock()
     mock_run.side_effect = [
-        MagicMock(stdout="", returncode=0), # Flake8 - no output
-        MagicMock(stdout="invalid json", returncode=0) # Bandit - invalid json
+        MagicMock(stdout="", returncode=0),  # Flake8 - no output
+        MagicMock(stdout="invalid json", returncode=0)  # Bandit - invalid json
     ]
 
     with patch('subprocess.run', mock_run):
@@ -331,8 +331,8 @@ def test_analyze_python_bandit_generic_exception(review_agent):
     """Test handling of generic exceptions during Bandit execution."""
     mock_run = MagicMock()
     mock_run.side_effect = [
-        MagicMock(stdout="", returncode=0), # Flake8 - no output
-        Exception("Generic bandit error") # Bandit - generic exception
+        MagicMock(stdout="", returncode=0),  # Flake8 - no output
+        Exception("Generic bandit error")  # Bandit - generic exception
     ]
 
     with patch('subprocess.run', mock_run):

@@ -47,9 +47,11 @@ def solve_math_problem():
 def ethical_analysis():
     code = request.json.get('code')
     code = security_agent.sanitize_input(code)
-    
+    if not code:
+        return jsonify({"error": "No code provided or invalid input"}), 400
+
     validation_result = validator.validate_code(code)
-    
+
     return jsonify({
         "status": validation_result["status"],
         "score": validation_result["score"],

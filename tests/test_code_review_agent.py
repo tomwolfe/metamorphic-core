@@ -4,13 +4,13 @@ from src.core.agents.code_review_agent import CodeReviewAgent
 from src.core.knowledge_graph import KnowledgeGraph, Node
 from unittest.mock import patch, MagicMock
 import subprocess
-import json  # Import json for Bandit test output
+import json
 from datetime import datetime
 
 @pytest.fixture
 def review_agent():
     """Fixture to create a CodeReviewAgent instance with an in-memory KnowledgeGraph."""
-    return CodeReviewAgent()  # Modified to use default KG init, or pass None if needed in other tests
+    return CodeReviewAgent()
 
 @pytest.mark.parametrize(
     "test_input, expected_issues_count, expected_issue_details",
@@ -59,7 +59,7 @@ test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple iss
         (
             "test.py:1:1: E302 first line\nsecond line of message",  # Test case 8: Multi-line message - now correctly parsed as single line
             1,
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'first line', 'severity': 'error'}], # Expecting only first line of message
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'first line', 'severity': 'error'}],  # Expecting only first line of message
         ),
         (
             "test.py:99999:1: E302 expected 2 blank lines",  # Test case 9: Maximum line number
@@ -69,7 +69,7 @@ test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple iss
         (
             "test.py:1:1: E302 msg1; E303 msg2",  # Test case 10: Multiple issues on the same line - now correctly parsed as single line
             1,
-            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'msg1; E303 msg2', 'severity': 'error'}], # Expecting only first issue
+            [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'msg1; E303 msg2', 'severity': 'error'}],  # Expecting only first issue
         ),
         (
             "test.py:1:1: E123 Indentation is not a multiple of four\ntest.py:5:10: F821 Undefined name 'variable_name'\ntest.py:12:1: W503 line break before binary operator\ntest.py:20:5: C0301 line too long (120 > 100 characters)",  # Test case 11: Different severity codes
@@ -87,8 +87,8 @@ test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple iss
             2,
             [
                 {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'expected 2 blank lines, found 1', 'severity': 'error'},
-                {'file': 'test.py', 'line': '2', 'col': '1', 'code': 'XYZ99', 'msg': 'Unknown code', 'severity': 'info'}, #severity now defaults to info
-             ],
+                {'file': 'test.py', 'line': '2', 'col': '1', 'code': 'XYZ99', 'msg': 'Unknown code', 'severity': 'info'},  # severity now defaults to info
+            ],
         ),
     ],
 )
@@ -127,7 +127,7 @@ def test_analyze_python_flake8_success(review_agent):
 
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("def code(): pass")
-        assert 'error' not in result # Now error should not be in result
+        assert 'error' not in result  # Now error should not be in result
 
 def test_analyze_python_flake8_calledprocesserror(review_agent, caplog):
     """Test handling of subprocess.CalledProcessError."""
@@ -176,7 +176,7 @@ def test_store_findings_kg_integration_with_severity(review_agent):
     }
     code_hash_str = "1234567890"
 
-    review_agent.store_findings(sample_findings, code_hash_str, "def code(): pass") # Added code sample
+    review_agent.store_findings(sample_findings, code_hash_str, "def code(): pass")  # Added code sample
 
     mock_kg.add_node.assert_called_once()
     added_node = mock_kg.add_node.call_args[0][0]
@@ -210,7 +210,7 @@ def test_analyze_python_stores_findings_in_kg(review_agent):
         code_hash_str = str(hash(code_sample))
         review_agent.analyze_python(code_sample)
 
-    mock_kg.add_node.assert_called() # More flexible than assert_called_once
+    mock_kg.add_node.assert_called()  # More flexible than assert_called_once
     call_args = mock_kg.add_node.call_args
     node_arg = call_args[0][0]
 
@@ -234,14 +234,14 @@ def test_kg_integration_with_severity(review_agent):
     # Simulate Flake8 success + Bandit success (no findings)
     mock_run = MagicMock()
     mock_run.side_effect = [
-        MagicMock(stdout="test.py:2:1: E302 expected 2 blank lines, found 1", returncode=0), # Flake8 output with issue
+        MagicMock(stdout="test.py:2:1: E302 expected 2 blank lines, found 1", returncode=0),  # Flake8 output with issue
         MagicMock(stdout=json.dumps({'results': []}), returncode=0)  # Bandit response - no findings
     ]
 
     with patch('subprocess.run', mock_run):
         findings = review_agent.analyze_python(sample_code)
+        mock_kg.add_node.assert_called_once()  # Corrected assertion here
 
-    mock_kg.add_node.assert_called_at_least_once()
     node = mock_kg.add_node.call_args[0][0]
 
     assert node.type == "code_review"
@@ -274,11 +274,11 @@ def test_analyze_python_bandit_success(review_agent):
     # Mock both Flake8 (no issues) and Bandit (with findings)
     mock_run.side_effect = [
         MagicMock(stdout="", returncode=0),  # Flake8 - no output
-        MagicMock(stdout=json.dumps(bandit_output), returncode=0) # Bandit output with findings
+        MagicMock(stdout=json.dumps(bandit_output), returncode=0)  # Bandit output with findings
     ]
 
     with patch('subprocess.run', mock_run):
-        result = review_agent.analyze_python("import os; os.system('ls -l')") # Example code doesn't matter here for mock output
+        result = review_agent.analyze_python("import os; os.system('ls -l')")  # Example code doesn't matter here for mock output
         assert 'error' not in result
         assert len(result['static_analysis']) == 1
         finding = result['static_analysis'][0]
@@ -287,34 +287,37 @@ def test_analyze_python_bandit_success(review_agent):
 
 def test_analyze_python_bandit_calledprocesserror(review_agent, caplog):
     """Test handling of subprocess.CalledProcessError from Bandit."""
-    mock_run = MagicMock(side_effect=subprocess.CalledProcessError(returncode=1, cmd=['bandit'], stderr=b"Bandit error"))
+    mock_run = MagicMock()
+    mock_run.side_effect = [
+        MagicMock(stdout="", returncode=0), # Flake8 - no output
+        subprocess.CalledProcessError(returncode=1, cmd=['bandit'], stderr=b"Bandit error") # Bandit error
+    ]
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
         assert result['error'] is True
-        assert "Bandit analysis failed" in result['error_message']
+        assert "Bandit analysis failed" in result['error_message'] # Corrected assertion
         assert result['static_analysis'] == []
     assert "Bandit stderr: b'Bandit error'" in caplog.text
 
 def test_analyze_python_bandit_filenotfounderror(review_agent):
     """Test handling of FileNotFoundError from Bandit."""
-    mock_run = MagicMock(side_effect=FileNotFoundError("bandit not found"))
+    mock_run = MagicMock()
+    mock_run.side_effect = [
+        MagicMock(stdout="", returncode=0), # Flake8 - no output
+        FileNotFoundError("bandit not found") # Bandit not found
+    ]
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
         assert result['error'] is True
-        assert "Bandit executable not found" in result['error_message']
+        assert "Bandit executable not found" in result['error_message'] # Corrected assertion
         assert result['static_analysis'] == []
 
 def test_analyze_python_bandit_jsondecodeerror(review_agent, caplog):
     """Test handling of JSONDecodeError from Bandit output."""
     mock_run = MagicMock()
-    mock_run.return_value.stdout = "invalid json" # Bandit returns malformed JSON
-    mock_run.return_value.stderr = b""
-    mock_run.return_value.returncode = 0
-
-    # Mock Flake8 success and Bandit JSONDecodeError
     mock_run.side_effect = [
-         MagicMock(stdout="", returncode=0), # Flake8 - no output
-         MagicMock(stdout="invalid json", returncode=0) # Bandit - invalid json
+        MagicMock(stdout="", returncode=0), # Flake8 - no output
+        MagicMock(stdout="invalid json", returncode=0) # Bandit - invalid json
     ]
 
     with patch('subprocess.run', mock_run):
@@ -322,16 +325,14 @@ def test_analyze_python_bandit_jsondecodeerror(review_agent, caplog):
         assert result['error'] is True
         assert "Error parsing Bandit JSON output" in result['error_message']
         assert result['static_analysis'] == []
-    assert "Bandit Output (non-JSON): invalid json" in caplog.text # Verify raw output logged
+    assert "Bandit Output (non-JSON): invalid json" in caplog.text  # Verify raw output logged
 
 def test_analyze_python_bandit_generic_exception(review_agent):
     """Test handling of generic exceptions during Bandit execution."""
-    mock_run = MagicMock(side_effect=Exception("Generic bandit error"))
-
-    # Mock Flake8 success and Bandit generic exception
+    mock_run = MagicMock()
     mock_run.side_effect = [
         MagicMock(stdout="", returncode=0), # Flake8 - no output
-        MagicMock(side_effect=Exception("Generic bandit error")) # Bandit - generic exception
+        Exception("Generic bandit error") # Bandit - generic exception
     ]
 
     with patch('subprocess.run', mock_run):
@@ -364,7 +365,7 @@ def test_map_bandit_severity(review_agent):
     assert review_agent._map_bandit_severity('HIGH') == 'security_high'
     assert review_agent._map_bandit_severity('MEDIUM') == 'security_high'
     assert review_agent._map_bandit_severity('LOW') == 'security_low'
-    assert review_agent._map_bandit_severity('INFO') == 'info' # or 'info' for unknown
+    assert review_agent._map_bandit_severity('INFO') == 'info'  # or 'info' for unknown
 
 def test_store_findings_stores_code_snippet(review_agent):
     """Test that store_findings stores code snippet in KG metadata."""
@@ -378,7 +379,7 @@ def test_store_findings_stores_code_snippet(review_agent):
     code_sample = """def test_function():
 
 
-        x = 10""" # Intentionally has extra lines
+        x = 10"""  # Intentionally has extra lines
 
     review_agent.store_findings(sample_findings, "codehash123", code_sample)
     mock_kg.add_node.assert_called_once()
@@ -422,13 +423,13 @@ def test_get_code_snippet_empty_code(review_agent):
 
 def test_security_vulnerability_detection(review_agent):
     """End-to-end test with real security vulnerability detection by Bandit."""
-    risky_code = "import subprocess\nsubprocess.Popen(['ls', '-l', '/'])" # Example command injection
+    risky_code = "import subprocess\nsubprocess.Popen(['ls', '-l', '/'])"  # Example command injection
 
     # Mock subprocess.run to simulate flake8 passing and bandit finding issue
     mock_run = MagicMock()
     mock_run.side_effect = [
-        MagicMock(stdout="", returncode=0), # Flake8 - no output
-        MagicMock(stdout=json.dumps({ # Bandit output with vulnerability
+        MagicMock(stdout="", returncode=0),  # Flake8 - no output
+        MagicMock(stdout=json.dumps({  # Bandit output with vulnerability
             'results': [{
                 'test_id': 'B603',
                 'issue_text': 'Uses subprocess',
@@ -441,4 +442,4 @@ def test_security_vulnerability_detection(review_agent):
     ]
     with patch('subprocess.run', mock_run):
         results = review_agent.analyze_python(risky_code)
-        assert any(f['code'] == 'B603' and f['severity'] == 'security_high' for f in results['static_analysis']) # B603 is subprocess_popen_with_shell_equals_true
+        assert any(f['code'] == 'B603' and f['severity'] == 'security_high' for f in results['static_analysis'])  # B603 is subprocess_popen_with_shell_equals_true

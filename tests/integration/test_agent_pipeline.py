@@ -16,12 +16,16 @@ def validator():
         'LLM_MAX_RETRIES': '3',
         'LLM_TIMEOUT': '30'
     }
-    
-    with patch('src.utils.config.SecureConfig.get') as mock_get, \
-         patch('src.utils.config.SecureConfig.load'), \
-         patch.dict(os.environ, valid_mocks):
+
+    with patch('src.core.agents.security_agent.SecurityAgent.run_zap_baseline_scan') as mock_zap, \
+         patch('src.core.agents.test_generator.TestGenAgent.generate_tests') as mock_tests, \
+         patch.dict(os.environ, valid_mocks), \
+         patch('src.utils.config.SecureConfig.get', lambda x: valid_mocks[x]):
         
-        mock_get.side_effect = lambda var, default=None: valid_mocks.get(var)
+        # Mock agent outputs
+        mock_zap.return_value = {'alerts': [], 'scan_id': 'test_scan'}
+        mock_tests.return_value = "def test_example(): pass"
+        
         yield QuantumEthicalValidator()
  
 def test_full_agent_pipeline(validator):

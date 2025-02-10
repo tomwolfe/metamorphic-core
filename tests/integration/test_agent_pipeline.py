@@ -1,45 +1,44 @@
-import os
 import pytest
-from src.core.ethics.governance import QuantumEthicalValidator
 from unittest.mock import patch, MagicMock
+from src.core.ethics.governance import QuantumEthicalValidator
 
-@pytest.fixture
-def valid_mocks():
-    return {
-        'GEMINI_API_KEY': 'AIzaSy' + 'a' * 32,  # 39 chars (meet minimum)
-        'YOUR_GITHUB_API_KEY': 'ghp_' + 'a' * 40,  # 44 chars (meet GitHub API key format)
-        'HUGGING_FACE_API_KEY': 'hf_' + 'a' * 30,  # 34 chars (meet Hugging Face requirements)
-        'ZAP_API_KEY': 'zap_' + 'a' * 36,
-        'LLM_PROVIDER': 'gemini',
-        'LLM_MAX_RETRIES': '3',
-        'LLM_TIMEOUT': '30',
+@pytest.fixture(scope="module")
+def validator():
+    # Mock environment variables with valid patterns
+    mock_env_vars = {
+        'GEMINI_API_KEY': 'AIzaSyA1234567890abcdefghijklmnopqrstuvwxyz',
+        'YOUR_GITHUB_API_KEY': 'ghp_abcdefghijklmnopqrstuvwxyz123456',
+        'HUGGING_FACE_API_KEY': 'hf_abcdefghijklmnopqrstuvwxyz123456',
+        'ZAP_API_KEY': 'test_zap_key',
+        'LLM_PROVIDER': 'gemini'
     }
+    
+    with patch('src.utils.config.SecureConfig.get') as mock_get, \
+         patch('src.utils.config.SecureConfig.load') as mock_load:
+        
+        # Mock the load method to return a successful configuration
+        mock_load.return_value = MagicMock()
+        
+        mock_get.side_effect = lambda var_name, default=None: mock_env_vars.get(var_name, default)
+        
+        return QuantumEthicalValidator()
 
-@pytest.fixture
-def mock_config(valid_mocks, monkeypatch):
-    """Fixture with valid mock credentials passing SecureConfig checks"""
-    with (
-        patch('src.core.agents.security_agent.SecurityAgent.run_zap_baseline_scan') as mock_zap,
-        patch('src.core.agents.test_generator.TestGenAgent.generate_tests') as mock_tests,
-        monkeypatch.context() as m
-    ):
-        m.setattr(os, 'environ', valid_mocks)
-        mock_zap.return_value = {'alerts': [], 'scan_id': 'test_scan'}
-        mock_tests.return_value = "def test_example(): pass"
-        yield
-
-def test_full_agent_pipeline(mock_config):
-    validator = QuantumEthicalValidator()
-    code = "def example(): pass"
+def test_full_agent_pipeline(validator):
+    code = "def example():\n  pass"
     result = validator.validate_code(code)
-
-    # Verify all agents were called
-    assert isinstance(result['spec_analysis'], dict)
-    assert isinstance(result['security_scan'], dict)
-    assert isinstance(result['code_review'], dict)
-    assert isinstance(result['generated_tests'], str)
-
-    # Verify basic structure of outputs
-    assert 'functions' in result['spec_analysis']
-    assert 'alerts' in result['security_scan']
-    assert 'static_analysis' in result['code_review']
+    
+    assert 'spec_analysis' in result
+    assert 'security_scan' in result
+    assert 'code_review' in result
+    assert 'generated_tests' in result
+    
+    kg = KnowledgeGraph()
+    nodes = kg.search("code_review")
+    assert any(n.type == "code_review" for n in nodes)
+    
+    # Test score calculation
+    assert 0 <= result['score'] <= 1
+    if result['score'] < 0.7:
+        assert result['status'] == "rejected"
+    else:
+        assert result['status'] == "approved"

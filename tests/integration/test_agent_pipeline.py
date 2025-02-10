@@ -1,34 +1,29 @@
-# tests/integration/test_agent_pipeline.py
 import pytest
 from src.core.ethics.governance import QuantumEthicalValidator
+from unittest.mock import patch
 
 @pytest.fixture(scope="module")
 def validator():
     """Fixture to provide a QuantumEthicalValidator with mocked environment variables."""
     with patch('src.utils.config.SecureConfig') as mock_secure_config:
-        # Mock the get method to return predefined values
+        # Mock the get method
         mock_secure_config.get.side_effect = lambda var_name, default=None: {
             'GEMINI_API_KEY': 'test_gemini_key',
             'YOUR_GITHUB_API_KEY': 'test_github_key',
             'HUGGING_FACE_API_KEY': 'test_hf_key',
             'ZAP_API_KEY': 'test_zap_key',
-            # Add any other required environment variables here
-            # For example:
             'LLM_PROVIDER': 'gemini',
             'LLM_MAX_RETRIES': '3',
             'LLM_TIMEOUT': '30'
         }.get(var_name, default)
-        
-        # Mock the load method to prevent actual environment checks
+        # Mock the load method
         mock_secure_config.load.return_value = None
-        
+        # Create and return an instance of QuantumEthicalValidator
         return QuantumEthicalValidator()
 
-
-def test_full_agent_pipeline():
+def test_full_agent_pipeline(validator):
     code = "def example(): pass"
     result = validator.validate_code(code)
-    
     assert 'spec_analysis' in result
     assert 'security_scan' in result
     assert 'code_review' in result

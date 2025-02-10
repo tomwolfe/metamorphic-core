@@ -5,39 +5,24 @@ from os import environ
 
 @pytest.fixture(scope="module")
 def validator():
-    """Fixture to provide a QuantumEthicalValidator with mocked environment variables."""
-    with patch('src.utils.config.SecureConfig') as mock_secure_config,\
-         patch('src.utils.config.load_dotenv') as mock_load_dotenv:
-
-        # Mock the get method
-        mock_secure_config.get.side_effect = lambda var_name, default=None: {
-            'GEMINI_API_KEY': 'AIzaSy0123456789abcdefghijklmnopqrstuvwxyz',
-            'YOUR_GITHUB_API_KEY': 'ghp_abcdefghijklmnopqrstuvwxyz1234567890',
-            'HUGGING_FACE_API_KEY': 'hf_abcdefghijklmnopqrstuvwxyz12345',
-            'ZAP_API_KEY': 'test_zap_key',
-            'LLM_PROVIDER': 'gemini',
-            'LLM_MAX_RETRIES': '3',
-            'LLM_TIMEOUT': '30'
-        }.get(var_name, default)
+    """Fixture with valid mock credentials passing SecureConfig checks"""
+    valid_mocks = {
+        'GEMINI_API_KEY': 'AIzaSy' + 'a'*35,  # 39 chars
+        'YOUR_GITHUB_API_KEY': 'ghp_' + 'b'*36,  # 40 chars
+        'HUGGING_FACE_API_KEY': 'hf_' + 'c'*31,  # 34 chars
+        'ZAP_API_KEY': 'zap_' + 'd'*36,
+        'LLM_PROVIDER': 'gemini',
+        'LLM_MAX_RETRIES': '3',
+        'LLM_TIMEOUT': '30'
+    }
+    
+    with patch('src.utils.config.SecureConfig.get') as mock_get, \
+         patch('src.utils.config.SecureConfig.load'), \
+         patch.dict(os.environ, valid_mocks):
         
-        # Mock the load method to return None
-        mock_secure_config.load.return_value = None
-        
-        # Mock load_dotenv to do nothing
-        mock_load_dotenv.return_value = None
-        
-        # Mock environment variables using os.environ
-        with patch.dict(environ, {
-            'GEMINI_API_KEY': 'AIzaSy0123456789abcdefghijklmnopqrstuvwxyz',
-            'YOUR_GITHUB_API_KEY': 'ghp_abcdefghijklmnopqrstuvwxyz1234567890',
-            'HUGGING_FACE_API_KEY': 'hf_abcdefghijklmnopqrstuvwxyz12345',
-            'ZAP_API_KEY': 'test_zap_key',
-            'LLM_PROVIDER': 'gemini',
-            'LLM_MAX_RETRIES': '3',
-            'LLM_TIMEOUT': '30'
-        }):
-            return QuantumEthicalValidator()
-
+        mock_get.side_effect = lambda var, default=None: valid_mocks.get(var)
+        yield QuantumEthicalValidator()
+             
 def test_full_agent_pipeline(validator):
     code = "def example(): pass"
     result = validator.validate_code(code)

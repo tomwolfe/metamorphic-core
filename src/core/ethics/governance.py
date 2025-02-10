@@ -16,21 +16,18 @@ from src.core.agents.code_review_agent import CodeReviewAgent
 class QuantumEthicalValidator:
     def __init__(self):
         self.test_generator = TestGenAgent()
-        self.state_preserver = QuantumStatePreserver()
-        self.audit_logger = EthicalAuditLogger()
         self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())
-
-    def validate_code(self, code_sample: str) -> Dict[str, Any]:
-        state_id = self.state_preserver.preserve_state(code_sample)
+        self.code_review_agent = CodeReviewAgent()
+        self.security_agent = SecurityAgent()
         
-        # Get all agent analyses
+    def validate_code(self, code_sample: str) -> Dict[str, Any]:
+        # Basic pipeline integration
         spec_analysis = self.spec_analyzer.analyze_python_spec(code_sample)
-        security_analysis = SecurityAgent().run_zap_baseline_scan("http://localhost:5000")
-        review_results = CodeReviewAgent().analyze_python(code_sample)
+        security_analysis = self.security_agent.run_zap_baseline_scan("http://localhost:5000")
+        review_results = self.code_review_agent.analyze_python(code_sample)
         test_coverage = self.test_generator.generate_tests(code_sample, spec_analysis)
-
-        validation_result = {
-            "state_id": state_id,
+        
+        return {
             "spec_analysis": spec_analysis,
             "security_scan": security_analysis,
             "code_review": review_results,

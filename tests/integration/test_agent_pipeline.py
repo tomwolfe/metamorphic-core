@@ -14,7 +14,8 @@ def validator():
         'ZAP_API_KEY': 'zap_' + 'd'*36,
         'LLM_PROVIDER': 'gemini',
         'LLM_MAX_RETRIES': '3',
-        'LLM_TIMEOUT': '30'
+        'LLM_TIMEOUT': '30',
+        'LLM_PROVIDER': 'gemini'
     }
 
     with patch('src.core.agents.security_agent.SecurityAgent.run_zap_baseline_scan') as mock_zap, \

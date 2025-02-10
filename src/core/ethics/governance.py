@@ -10,8 +10,8 @@ from ..quantum.state_preservation import QuantumStatePreserver
 from src.core.agents.specification_analyzer import SpecificationAnalyzer
 from src.core.knowledge_graph import KnowledgeGraph
 from src.core.agents.test_generator import TestGenAgent
-from src.core.ethics.agents.security import SecurityAgent
-from src.core.ethics.agents.review import CodeReviewAgent
+from src.core.agents.security import SecurityAgent
+from src.core.agents.review import CodeReviewAgent
 
 class QuantumEthicalValidator:
     def __init__(self):

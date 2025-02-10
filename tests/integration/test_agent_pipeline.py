@@ -9,9 +9,9 @@ def validator():
     with patch('src.utils.config.SecureConfig') as mock_secure_config:
         # Mock the get method
         mock_secure_config.get.side_effect = lambda var_name, default=None: {
-            'GEMINI_API_KEY': 'test_gemini_key',
-            'YOUR_GITHUB_API_KEY': 'test_github_key',
-            'HUGGING_FACE_API_KEY': 'test_hf_key',
+            'GEMINI_API_KEY': 'AIzaSy_1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            'YOUR_GITHUB_API_KEY': 'ghp_abcdefghijklmnopqrstuvwxyz1234567890',
+            'HUGGING_FACE_API_KEY': 'hf_abcdefghijklmnopqrstuvwxyz12345',
             'ZAP_API_KEY': 'test_zap_key',
             'LLM_PROVIDER': 'gemini',
             'LLM_MAX_RETRIES': '3',
@@ -21,9 +21,9 @@ def validator():
         mock_secure_config.load.return_value = None
         # Mock environment variables using os.environ
         with patch.dict(environ, {
-            'GEMINI_API_KEY': 'test_gemini_key',
-            'YOUR_GITHUB_API_KEY': 'test_github_key',
-            'HUGGING_FACE_API_KEY': 'test_hf_key',
+            'GEMINI_API_KEY': 'AIzaSy_1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            'YOUR_GITHUB_API_KEY': 'ghp_abcdefghijklmnopqrstuvwxyz1234567890',
+            'HUGGING_FACE_API_KEY': 'hf_abcdefghijklmnopqrstuvwxyz12345',
             'ZAP_API_KEY': 'test_zap_key',
             'LLM_PROVIDER': 'gemini',
             'LLM_MAX_RETRIES': '3',
@@ -38,7 +38,7 @@ def test_full_agent_pipeline(validator):
     assert 'security_scan' in result
     assert 'code_review' in result
     assert 'generated_tests' in result
-    
+        
     kg = KnowledgeGraph()
     nodes = kg.search("code_review")
     assert any(n.type == "code_review" for n in nodes)

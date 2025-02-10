@@ -47,32 +47,21 @@ def solve_math_problem():
 def ethical_analysis():
     code = request.json.get('code')
     code = security_agent.sanitize_input(code)
-    if not code:
-        return jsonify({"error": "No code provided or invalid input"}), 400
-
-    # Perform code review analysis
-    try:
-        review_results = code_review_agent.analyze_python(code)
-    except Exception as e:
-        return jsonify({"error": "Code review failed: " + str(e)}), 500
-
-    # Using the QuantumEthicalValidator for the main validation
-    analysis_result = validator.validate_code(code)
-
-    if not analysis_result['approved']:
-        return jsonify({
-            "status": "REJECTED",
-            "analysis": analysis_result,
-            "quantum_state": quantum_core.analyze_quantum_state(hash(code)),
-            "code_quality": review_results
-        }), 403
-
+    
+    validation_result = validator.validate_code(code)
+    
     return jsonify({
-        "status": "APPROVED", 
-        "analysis": analysis_result,
-        "code_quality": review_results
+        "status": validation_result["status"],
+        "score": validation_result["score"],
+        "details": {
+            "spec_analysis": validation_result["spec_analysis"],
+            "security_scan": validation_result["security_scan"],
+            "code_review": validation_result["code_review"],
+            "generated_tests": validation_result["generated_tests"]
+        },
+        "quantum_state": quantum_core.analyze_quantum_state(hash(code))
     })
-
+    
 @ethical_bp.route('/audit/<state_id>', methods=['GET'])
 def get_audit_trail(state_id: str):
     try:

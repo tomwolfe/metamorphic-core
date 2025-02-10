@@ -4,10 +4,18 @@ from src.core.ethics.governance import QuantumEthicalValidator
 from src.core.knowledge_graph import KnowledgeGraph
 
 @pytest.fixture(scope="module")
-def validator():
+def validator(monkeypatch):
+    # Set dummy environment variables for testing
+    monkeypatch.setenv("GEMINI_API_KEY", "test_gemini_key")
+    monkeypatch.setenv("YOUR_GITHUB_API_KEY", "test_github_key")
+    monkeypatch.setenv("HUGGING_FACE_API_KEY", "test_hf_key")
+    monkeypatch.setenv("ZAP_API_KEY", "test_zap_key")  # Add ZAP_API_KEY too, just in case
+
     return QuantumEthicalValidator()
 
 def test_full_agent_pipeline(validator):
+    # This test will now run because the validator fixture
+    # sets the necessary environment variables
     code = "def example(): pass"
     result = validator.validate_code(code)
 

@@ -23,8 +23,12 @@ class LLMOrchestrator:
     def __init__(self):
         self.client = None
         self.active_provider = None
-        self.config = self._load_config()
-        self._configure_providers()
+        try:
+            self.config = self._load_config()
+            self._configure_providers()
+        except Exception as e:
+            logging.error(f"LLM Init Error: {str(e)}")
+            raise
 
     def _load_config(self) -> LLMConfig:
         try:

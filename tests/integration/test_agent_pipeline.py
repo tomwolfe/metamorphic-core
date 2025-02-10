@@ -1,6 +1,7 @@
 import pytest
 from src.core.ethics.governance import QuantumEthicalValidator
 from unittest.mock import patch
+from os import environ
 
 @pytest.fixture(scope="module")
 def validator():
@@ -16,10 +17,19 @@ def validator():
             'LLM_MAX_RETRIES': '3',
             'LLM_TIMEOUT': '30'
         }.get(var_name, default)
-        # Mock the load method
+        # Mock the load method to return None
         mock_secure_config.load.return_value = None
-        # Create and return an instance of QuantumEthicalValidator
-        return QuantumEthicalValidator()
+        # Mock environment variables using os.environ
+        with patch.dict(environ, {
+            'GEMINI_API_KEY': 'test_gemini_key',
+            'YOUR_GITHUB_API_KEY': 'test_github_key',
+            'HUGGING_FACE_API_KEY': 'test_hf_key',
+            'ZAP_API_KEY': 'test_zap_key',
+            'LLM_PROVIDER': 'gemini',
+            'LLM_MAX_RETRIES': '3',
+            'LLM_TIMEOUT': '30'
+        }):
+            return QuantumEthicalValidator()
 
 def test_full_agent_pipeline(validator):
     code = "def example(): pass"

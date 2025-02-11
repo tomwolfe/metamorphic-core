@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import patch, MagicMock
 from src.core.knowledge_graph import KnowledgeGraph
 from src.core.ethics.governance import QuantumEthicalValidator
+import os
+from os import environ
 
 @pytest.fixture(scope="module")
 def validator():

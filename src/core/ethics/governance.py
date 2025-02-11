@@ -29,19 +29,12 @@ class QuantumEthicalValidator:
         test_coverage = self.test_generator.generate_tests(code_sample, spec_analysis)
 
         score = self._calculate_score(spec_analysis, security_analysis, review_results)
+        status = "approved" if score >= 0.7 else "rejected" # Determine status here
 
-        if score < 0.7:
-            status = "rejected"
-        else:
-            status = "approved"
-
-        validation_result = {
+        validation_result = { # Create result dict after status is determined
             "spec_analysis": spec_analysis,
-            "security_scan": security_analysis,
-            "code_review": review_results,
-            "generated_tests": test_coverage,
-            "status": status,
-            "score": score,
+            "security_scan": security_analysis, "code_review": review_results, "generated_tests": test_coverage,
+            "status": status, "score": score,
             "timestamp": str(datetime.utcnow()),
             "code_sample_hash": hash(code_sample)
         }

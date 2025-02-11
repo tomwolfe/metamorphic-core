@@ -31,17 +31,14 @@ class CodeReviewAgent:
                         ['flake8', tmp.name],
                         capture_output=True,
                         text=True,
-                        check=True
+                        check=True,
+                        timeout=5  # Added timeout to prevent hangs
                     )
                     flake8_results = self._parse_flake8_results(result_flake8.stdout)
                 except subprocess.CalledProcessError as e:
                     logger.error(f"Flake8 analysis failed with return code: {e.returncode}")
                     logger.error(f"Flake8 stderr: {e.stderr}")
-                    flake8_results = {
-                        'error': True,
-                        'error_message': f"Flake8 analysis failed: {e}",
-                        'static_analysis': []
-                    }
+                    flake8_results = {'static_analysis': [], 'error': True, 'error_message': e.stderr}
                 except FileNotFoundError as e:
                     logger.error(f"Flake8 executable not found: {str(e)}")
                     flake8_results = {
@@ -89,7 +86,7 @@ class CodeReviewAgent:
                 tmp.write(code)
                 tmp.flush()
                 result_bandit = subprocess.run(
-                    ['bandit', '-f', 'json', '-q', tmp.name],  # -q for quiet output
+                    ['bandit', '-r', tmp.name, '-f', 'json'],
                     capture_output=True,
                     text=True,
                     check=True
@@ -116,7 +113,7 @@ class CodeReviewAgent:
             return {'findings': [], 'error': True, 'error_message': f"Error parsing Bandit JSON output: {e}"}
         except Exception as e:
             logger.error(f"Error running bandit: {str(e)}")
-            return {'findings': [], 'error': True, 'error_message': f"Error running bandit: {str(e)}"}
+            return {'findings': [], 'error': True, 'error_message': str(e)}
 
 
     def _merge_results(self, flake8_results: dict, bandit_results: dict) -> dict:

@@ -62,14 +62,18 @@ class SecurityAgent:
         zap_api_key = os.getenv('ZAP_API_KEY', 'changeme')
         zap = ZAPv2(apikey=zap_api_key, proxies={'http': 'http://localhost:8080'})
 
+
         try:
             self.logger.info(f"Starting ZAP scan against: {target_url}")
+
             scan_id = zap.ascan.scan(target_url, scanpolicyname='baseline')
 
             while int(zap.ascan.status(scan_id)) < 100:
                 time.sleep(5)
 
             alerts = zap.core.alerts()
+            self.zap_manager.save_scan_results({"alerts": alerts, "scan_id": scan_id}, target_url) # Save results here
+
             self._process_zap_results(target_url, alerts)
 
             return {"alerts": alerts, "scan_id": scan_id, "error": False}

@@ -38,7 +38,7 @@ class CodeReviewAgent:
                 except subprocess.CalledProcessError as e:
                     logger.error(f"Flake8 analysis failed with return code: {e.returncode}")
                     logger.error(f"Flake8 stderr: {e.stderr}")
-                    flake8_results = {'static_analysis': [], 'error': True, 'error_message': e.stderr}
+                    flake8_results = {'static_analysis': [], 'error': True, 'error_message': e.stderr.decode('utf-8', errors='ignore')}
                 except FileNotFoundError as e:
                     logger.error(f"Flake8 executable not found: {str(e)}")
                     flake8_results = {
@@ -106,14 +106,14 @@ class CodeReviewAgent:
         except subprocess.CalledProcessError as e:
             logger.error(f"Bandit analysis failed with return code: {e.returncode}")
             logger.error(f"Bandit stderr: {e.stderr}")
-            return {'findings': [], 'error': True, 'error_message': f"Bandit analysis failed: {e}"}
+            return {'findings': [], 'error': True, 'error_message': f"Bandit analysis failed: {e}, {e.stderr.decode('utf-8', errors='ignore')[:500]}"} # Limited stderr length
         except json.JSONDecodeError as e:
             logger.error(f"JSONDecodeError parsing Bandit output: {e}")
             logger.error(f"Bandit Output (non-JSON): {result_bandit.stdout}")  # Log raw output
             return {'findings': [], 'error': True, 'error_message': f"Error parsing Bandit JSON output: {e}"}
         except Exception as e:
             logger.error(f"Error running bandit: {str(e)}")
-            return {'findings': [], 'error': True, 'error_message': str(e)}
+            return {'findings': [], 'error': True, 'error_message': f"Error running bandit: {str(e)}"}
 
 
     def _merge_results(self, flake8_results: dict, bandit_results: dict) -> dict:

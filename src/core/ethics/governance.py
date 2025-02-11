@@ -15,9 +15,10 @@ from src.core.agents.code_review_agent import CodeReviewAgent
 
 class QuantumEthicalValidator:
     def __init__(self):
+        kg = KnowledgeGraph()  # Initialize KnowledgeGraph once
+        self.spec_analyzer = SpecificationAnalyzer(kg)
         self.test_generator = TestGenAgent()
-        self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())
-        self.code_review_agent = CodeReviewAgent()
+        self.code_review_agent = CodeReviewAgent(kg)
         self.security_agent = SecurityAgent()
         
     def validate_code(self, code_sample: str) -> Dict[str, Any]:

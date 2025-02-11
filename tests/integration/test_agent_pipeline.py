@@ -27,27 +27,35 @@ def validator():
 
         mock_zap.return_value = {'alerts': [], 'scan_id': 'test_scan'}
         mock_tests.return_value = "def test_example(): pass"
-        mock_subprocess_run.side_effect = lambda *args, **kwargs: (
-            MagicMock(returncode=0, stdout="", stderr="") if 'flake8' in args[0]
-            else MagicMock(returncode=0, stdout='{"results": []}', stderr="")
-        )
+        
+        # Allow actual subprocess execution for analysis tools
+        real_subprocess = subprocess.run
+        def mock_subprocess(*args, **kwargs):
+            if 'flake8' in args[0] or 'bandit' in args[0]:
+                return real_subprocess(*args, **kwargs)
+            else:
+                return MagicMock(returncode=0)
 
-        yield QuantumEthicalValidator()
+        mock_subprocess_run.side_effect = mock_subprocess
+
+        # Initialize KnowledgeGraph once
+        kg = KnowledgeGraph()
+        validator = QuantumEthicalValidator()
+        validator.spec_analyzer.kg = kg
+        validator.code_review_agent.kg = kg
+
+        yield validator
 
 def test_full_agent_pipeline(validator):
     # Use code that triggers findings
-    code = "def example(x):\n    return eval(x)"  # Triggers bandit security warning
+    code = "def example(x): return eval(x)"  # Triggers bandit security warning
 
-    # Remove mocks temporarily to allow real analysis
-    with patch('subprocess.run') as mock_subprocess:
-        mock_subprocess.side_effect = lambda *args, **kwargs: (
-            MagicMock(returncode=0, stdout="", stderr="") if 'flake8' in args[0]
-            else MagicMock(returncode=0, stdout='{"results": [{"test_id": "B601", "issue_severity": "HIGH", "filename": "test.py", "line_number": 1}]}', stderr="")
-        )
+    # Run the validation pipeline
+    result = validator.validate_code(code)
 
-        result = validator.validate_code(code)
-
-    agent = validator.code_review_agent
-    kg = agent.kg
+    # Access the shared KnowledgeGraph
+    kg = validator.code_review_agent.kg
     nodes = kg.search("code_review")
+
+    # Assertion to check for code_review nodes
     assert any(n.type == "code_review" for n in nodes)

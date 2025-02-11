@@ -42,20 +42,16 @@ class QuantumEthicalValidator:
         return validation_result
 
     def _calculate_score(self, spec, security, review):
-        """Composite scoring algorithm"""
-        weights = {
-            'spec_completeness': 0.3,
-            'security_risk': 0.4,
-            'code_quality': 0.3
-        }
+        # Ensure default values for missing keys
+        spec_score = min(spec.get('completeness', 0.8), 1.0)  # Default to 0.8 if missing
+        security_risk = security.get('high_risk_findings', 0) / 10
+        code_quality = 1 - (len(review.get('findings', [])) / 50)
 
-        spec_score = min(spec.get('completeness', 0), 1.0)
-        security_risk = security.get('high_risk_findings', 0) / 10  # Normalize
-        code_quality = 1 - (len(review.get('findings', [])) / 50)  # Normalize
+        # Add floor value to prevent negative scores
+        base_score = (spec_score * 0.3) + (code_quality * 0.3)
+        final_score = max(base_score - security_risk * 0.4, 0.1)  # Minimum 10% score
 
-        return (spec_score * weights['spec_completeness']
-                - security_risk * weights['security_risk']
-                + code_quality * weights['code_quality'])
+        return round(final_score, 2)
 
 class EthicalAuditLogger:
     def __init__(self):

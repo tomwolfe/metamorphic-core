@@ -36,9 +36,12 @@ class CodeReviewAgent:
                     )
                     flake8_results = self._parse_flake8_results(result_flake8.stdout)
                 except subprocess.CalledProcessError as e:
-                    logger.error(f"Flake8 analysis failed with return code: {e.returncode}")
-                    logger.error(f"Flake8 stderr: {e.stderr}")
-                    flake8_results = {'static_analysis': [], 'error': True, 'error_message': e.stderr.decode('utf-8', errors='ignore')}
+                    logger.error(f"Flake8 failed: {e.stderr}") # Modified log message
+                    flake8_results = {
+                        'error': True,
+                        'error_message': f"Flake8: {e.stderr.strip()}",  # Use stderr instead of decoding and strip
+                        'static_analysis': []
+                    }
                 except FileNotFoundError as e:
                     logger.error(f"Flake8 executable not found: {str(e)}")
                     flake8_results = {
@@ -85,15 +88,26 @@ class CodeReviewAgent:
                 os.chmod(tmp.name, 0o600)
                 tmp.write(code)
                 tmp.flush()
-                result_bandit = subprocess.run(
+                # Change from subprocess.run to Popen with proper stdout/stderr pipes
+                result_bandit = subprocess.Popen(
                     ['bandit', '-r', tmp.name, '-f', 'json'],
-                    capture_output=True,
-                    text=True,
-                    check=True
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
                 )
-                if result_bandit.stdout:  # Check if stdout is not empty before parsing
+                stdout, stderr = result_bandit.communicate(timeout=30)
+
+                if result_bandit.returncode not in [0, 1]:  # Bandit returns 1 when issues found
+                    raise subprocess.CalledProcessError(
+                        result_bandit.returncode,
+                        result_bandit.args,
+                        output=stdout,
+                        stderr=stderr
+                    )
+
+                if stdout:  # Check if stdout is not empty before parsing
                     return {
-                        'findings': json.loads(result_bandit.stdout)['results'] if result_bandit.stdout else [],
+                        'findings': json.loads(stdout)['results'] if stdout else [],
                         'error': False,
                         'error_message': None
                     }
@@ -106,10 +120,10 @@ class CodeReviewAgent:
         except subprocess.CalledProcessError as e:
             logger.error(f"Bandit analysis failed with return code: {e.returncode}")
             logger.error(f"Bandit stderr: {e.stderr}")
-            return {'findings': [], 'error': True, 'error_message': f"Bandit analysis failed: {e}, {e.stderr.decode('utf-8', errors='ignore')[:500]}"} # Limited stderr length
+            return {'findings': [], 'error': True, 'error_message': f"Bandit analysis failed: {e}, {e.stderr[:500]}"} # Limited stderr length - removed decode as it should be text=True
         except json.JSONDecodeError as e:
             logger.error(f"JSONDecodeError parsing Bandit output: {e}")
-            logger.error(f"Bandit Output (non-JSON): {result_bandit.stdout}")  # Log raw output
+            logger.error(f"Bandit Output (non-JSON): {stdout}")  # Log raw output - changed to stdout
             return {'findings': [], 'error': True, 'error_message': f"Error parsing Bandit JSON output: {e}"}
         except Exception as e:
             logger.error(f"Error running bandit: {str(e)}")

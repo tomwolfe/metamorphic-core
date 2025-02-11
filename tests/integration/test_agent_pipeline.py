@@ -18,11 +18,13 @@ def validator():
         'LLM_TIMEOUT': '30'
     }
 
-    with patch('src.core.agents.security_agent.SecurityAgent.run_zap_baseline_scan') as mock_zap, \
-         patch('src.core.agents.test_generator.TestGenAgent.generate_tests') as mock_tests, \
-         patch('subprocess.run') as mock_subprocess_run,  \
-         patch.dict(os.environ, valid_mocks),
-         patch('src.utils.config.SecureConfig.get', lambda *args, **kwargs: valid_mocks.get(args[0]) if args else None):
+    with (
+        patch('src.core.agents.security_agent.SecurityAgent.run_zap_baseline_scan') as mock_zap,
+        patch('src.core.agents.test_generator.TestGenAgent.generate_tests') as mock_tests,
+        patch('subprocess.run') as mock_subprocess_run,  # Mock subprocess.run
+        patch.dict(os.environ, valid_mocks),
+        patch('src.utils.config.SecureConfig.get', lambda *args, **kwargs: valid_mocks.get(args[0]) if args else None)
+    ):
 
         mock_zap.return_value = {'alerts': [], 'scan_id': 'test_scan'}
         mock_tests.return_value = "def test_example(): pass"

@@ -20,30 +20,32 @@ class QuantumEthicalValidator:
         self.test_generator = TestGenAgent()
         self.code_review_agent = CodeReviewAgent(kg)
         self.security_agent = SecurityAgent()
-        
+
     def validate_code(self, code_sample: str) -> Dict[str, Any]:
         # Basic pipeline integration
         spec_analysis = self.spec_analyzer.analyze_python_spec(code_sample)
         security_analysis = self.security_agent.run_zap_baseline_scan("http://localhost:5000")
         review_results = self.code_review_agent.analyze_python(code_sample)
         test_coverage = self.test_generator.generate_tests(code_sample, spec_analysis)
-        
-        return {
+
+        score = self._calculate_score(spec_analysis, security_analysis, review_results)
+
+        if score < 0.7:
+            status = "rejected"
+        else:
+            status = "approved"
+
+        validation_result = {
             "spec_analysis": spec_analysis,
             "security_scan": security_analysis,
             "code_review": review_results,
             "generated_tests": test_coverage,
-            "status": "pending",
-            "score": self._calculate_score(spec_analysis, security_analysis, review_results),
+            "status": status,
+            "score": score,
             "timestamp": str(datetime.utcnow()),
+            "code_sample_hash": hash(code_sample)
         }
 
-        if validation_result["score"] < 0.7:
-            validation_result["status"] = "rejected"
-        else:
-            validation_result["status"] = "approved"
-
-        self.audit_logger.log_decision(validation_result)
         return validation_result
 
     def _calculate_score(self, spec, security, review):
@@ -53,13 +55,13 @@ class QuantumEthicalValidator:
             'security_risk': 0.4,
             'code_quality': 0.3
         }
-        
+
         spec_score = min(spec.get('completeness', 0), 1.0)
         security_risk = security.get('high_risk_findings', 0) / 10  # Normalize
         code_quality = 1 - (len(review.get('findings', [])) / 50)  # Normalize
-        
-        return (spec_score * weights['spec_completeness'] 
-                - security_risk * weights['security_risk'] 
+
+        return (spec_score * weights['spec_completeness']
+                - security_risk * weights['security_risk']
                 + code_quality * weights['code_quality'])
 
 class EthicalAuditLogger:
@@ -114,7 +116,7 @@ class EthicalAuditLogger:
 
 class EthicalGovernanceEngine:
     """Orchestrates complete ethical oversight"""
-    
+
     def __init__(self):
         self.validator = QuantumEthicalValidator()
         self.history = []
@@ -156,7 +158,7 @@ class EthicalGovernanceEngine:
                 "score": validation_result["score"]
             })
             self.health_data["violation_stats"]["last_week"] += 1
-            
+
         # Maintain rolling average of scores
         total = self.health_data["average_score"] * len(self.history)
         total += validation_result["score"]

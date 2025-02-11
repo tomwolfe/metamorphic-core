@@ -21,7 +21,7 @@ def validator():
     with patch('src.core.agents.security_agent.SecurityAgent.run_zap_baseline_scan') as mock_zap, \
          patch('src.core.agents.test_generator.TestGenAgent.generate_tests') as mock_tests, \
          patch.dict(os.environ, valid_mocks), \
-         patch('src.utils.config.SecureConfig.get', lambda x, y: valid_mocks.get(x, y)):  # Fixed lambda to accept two arguments
+         patch('src.utils.config.SecureConfig.get', lambda *args, **kwargs: valid_mocks.get(args[0]) if args else None):
 
         mock_zap.return_value = {'alerts': [], 'scan_id': 'test_scan'}
         mock_tests.return_value = "def test_example(): pass"

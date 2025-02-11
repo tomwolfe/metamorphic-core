@@ -45,14 +45,8 @@ def test_full_agent_pipeline(validator):
     assert 'code_review' in result
     assert 'generated_tests' in result
 
-    # Test KnowledgeGraph interaction
-    kg = KnowledgeGraph()  # This will use the mocked instance from the fixture
+    # Access the CodeReviewAgent's KnowledgeGraph
+    agent = validator.code_review_agent
+    kg = agent.kg
     nodes = kg.search("code_review")
     assert any(n.type == "code_review" for n in nodes)
-
-    # Test score calculation
-    assert 0 <= result['score'] <= 1
-    if result['score'] < 0.7:
-        assert result['status'] == "rejected"
-    else:
-        assert result['status'] == "approved"

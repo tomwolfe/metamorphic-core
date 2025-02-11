@@ -18,30 +18,36 @@ def validator():
         'LLM_TIMEOUT': '30'
     }
 
-    with patch('src.core.agents.security_agent.SecurityAgent.run_zap_baseline_scan') as mock_zap, \
-         patch('src.core.agents.test_generator.TestGenAgent.generate_tests') as mock_tests, \
-         patch.dict(os.environ, valid_mocks), \
+    with patch('src.core.agents.security_agent.SecurityAgent.run_zap_baseline_scan') as mock_zap,
+         patch('src.core.agents.test_generator.TestGenAgent.generate_tests') as mock_tests,
+         patch('subprocess.run') as mock_subprocess_run, # Mock subprocess.run
+         patch.dict(os.environ, valid_mocks),
          patch('src.utils.config.SecureConfig.get', lambda *args, **kwargs: valid_mocks.get(args[0]) if args else None):
 
         mock_zap.return_value = {'alerts': [], 'scan_id': 'test_scan'}
         mock_tests.return_value = "def test_example(): pass"
+        mock_subprocess_run.side_effect = lambda *args, **kwargs: MagicMock(  # Simulate subprocess success
+            returncode=0,
+            stdout="",  # No output for flake8 and bandit success
+            stderr=""
+        )
 
         yield QuantumEthicalValidator()
-             
+
 def test_full_agent_pipeline(validator):
     code = "def example():\n  pass"
     result = validator.validate_code(code)
-    
+
     assert 'spec_analysis' in result
     assert 'security_scan' in result
     assert 'code_review' in result
     assert 'generated_tests' in result
-    
+
     # Test KnowledgeGraph interaction
     kg = KnowledgeGraph()  # This will use the mocked instance from the fixture
     nodes = kg.search("code_review")
     assert any(n.type == "code_review" for n in nodes)
-    
+
     # Test score calculation
     assert 0 <= result['score'] <= 1
     if result['score'] < 0.7:

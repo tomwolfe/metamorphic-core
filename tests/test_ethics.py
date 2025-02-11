@@ -12,10 +12,12 @@ from src.core.quantum.ethical_validation import EthicalQuantumCore
 # Original tests
 def test_ethical_validation_approved():
     validator = QuantumEthicalValidator()
-    result = validator.validate_code("print('Hello World')")
-    assert result["status"] == "approved"
-    assert "score" in result
-    assert result["score"] >= 0.7  # Safe code should have high score
+    with patch.object(validator.security_agent, 'run_zap_baseline_scan') as mock_scan:
+        mock_scan.return_value = {'alerts': [], 'high_risk': 0}
+        result = validator.validate_code("print('Hello World')")
+        assert result["status"] == "approved"
+        assert "score" in result
+        assert result["score"] >= 0.7  # Safe code should have high score
 
 def test_ethical_validation_rejected():
     validator = QuantumEthicalValidator()

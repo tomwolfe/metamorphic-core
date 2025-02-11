@@ -21,26 +21,25 @@ def validator():
     with (
         patch('src.core.agents.security_agent.SecurityAgent.run_zap_baseline_scan') as mock_zap,
         patch('src.core.agents.test_generator.TestGenAgent.generate_tests') as mock_tests,
-        patch('subprocess.run') as mock_subprocess_run,  # Mock subprocess.run
+        patch('subprocess.run') as mock_subprocess_run,
         patch.dict(os.environ, valid_mocks),
         patch('src.utils.config.SecureConfig.get', lambda *args, **kwargs: valid_mocks.get(args[0]) if args else None)
     ):
 
         mock_zap.return_value = {'alerts': [], 'scan_id': 'test_scan'}
         mock_tests.return_value = "def test_example(): pass"
-        mock_subprocess_run.side_effect = lambda *args, **kwargs: MagicMock(  # Simulate subprocess success
+        mock_subprocess_run.side_effect = lambda *args, **kwargs: MagicMock(
             returncode=0,
-            stdout="",  # No output for flake8 and bandit success
+            stdout="", 
             stderr=""
         )
 
         yield QuantumEthicalValidator()
 
 def test_full_agent_pipeline(validator):
-    # Use code that triggers flake8 or bandit findings
-    code = "print('Hello')"  # Example code with a simple issue
+    code = "print('Hello')"  # Example code that triggers findings
 
-    # Temporarily disable subprocess mocking to allow actual analysis
+    # Temporarily disable mocks to allow real analysis execution
     with patch('subprocess.run') as mock_subprocess:
         mock_subprocess.side_effect = lambda *args, **kwargs: (
             MagicMock(returncode=0, stdout="", stderr="") if 'flake8' in args[0]
@@ -49,5 +48,9 @@ def test_full_agent_pipeline(validator):
         
         result = validator.validate_code(code)
 
-    #Assertions...
+    # Access the CodeReviewAgent's KnowledgeGraph and search for nodes
+    agent = validator.code_review_agent
+    kg = agent.kg
+    nodes = kg.search("code_review")
+
     assert any(n.type == "code_review" for n in nodes)

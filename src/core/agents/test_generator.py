@@ -4,7 +4,7 @@ from src.core.llm_orchestration import LLMOrchestrator
 from src.core.knowledge_graph import KnowledgeGraph, Node
 import os
 
-class TestGenAgent:
+class TestGenerationAgent:
     def __init__(self):
         self.llm = LLMOrchestrator()
         self.kg = KnowledgeGraph()

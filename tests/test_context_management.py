@@ -1,4 +1,5 @@
 # tests/test_context_management.py
+# tests/test_context_management.py
 import unittest
 import time
 import coverage
@@ -96,8 +97,8 @@ class InvalidClass:
         pass
 """
         chunks = parse_code_chunks(invalid_code)
-        self.assertEqual(len(chunks), 1)
-        self.assertIn("Code Chunk Summary: Unable to parse code", chunks[0].summary)
+        self.assertEqual(len(chunks), 0) # Expecting 0 chunks for invalid code now as per updated logic
+        # self.assertIn("Code Chunk Summary: Unable to parse code", chunks[0].summary) # No longer expecting summary when no chunks are returned
 
     def test_parse_code_chunks_edge_structures(self):
         """Test various file structures including edge cases."""

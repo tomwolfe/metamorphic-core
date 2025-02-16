@@ -23,7 +23,11 @@ def count_tokens(code_str: str) -> int:
     return counter
 
 def parse_code_chunks(code: str) -> List[CodeChunk]:
-    tree = ast.parse(code)
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        return [CodeChunk(content=code, summary=f"Code Chunk Summary: Unable to parse code due to syntax error: {e}")]
+
     chunks = []
     current_chunk = []
     current_token_count = 0
@@ -67,7 +71,7 @@ def generate_summary(code_chunk: str) -> str:
         tree = ast.parse(code_chunk)
     except Exception:
         return "Code Chunk Summary: Unable to parse code."
-    
+
     for node in ast.iter_child_nodes(tree):
         if isinstance(node, ast.FunctionDef):
             args = ', '.join(arg.arg for arg in node.args.args)

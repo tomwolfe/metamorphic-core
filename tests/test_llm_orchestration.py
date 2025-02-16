@@ -1,3 +1,5 @@
+# Add these imports at the top of test_llm_orchestration.py
+from src.core.context_manager import parse_code_chunks, generate_summary
 import pytest
 from unittest.mock import patch, MagicMock
 from src.core.llm_orchestration import (
@@ -92,7 +94,7 @@ def test_invalid_provider():
                 'LLM_PROVIDER': 'invalid'
             }.get(var_name, default)
             LLMOrchestrator()
-            
+
 @patch('google.genai.Client')
 @patch('src.utils.config.SecureConfig.get')
 def test_retry_logic(mock_get, mock_client):
@@ -119,3 +121,45 @@ def test_gemini_client_initialization():
         assert isinstance(orchestrator.client, google.genai.Client)
         assert orchestrator.client.api_key == 'test_key'
         assert orchestrator.client.model == 'gemini-2.0-flash-exp'
+
+@patch('src.core.llm_orchestration.LLMOrchestrator._handle_large_context')
+def test_large_context_handling(mock_handle_large_context):
+    orchestrator = LLMOrchestrator()
+    large_prompt = "test " * 6000  # >4000 tokens
+    orchestrator.generate(large_prompt)
+    mock_handle_large_context.assert_called_once()
+
+def test_chunking_algorithm():
+    code = """\
+def function1():
+    print("Hello")
+
+def function2():
+    print("World")
+
+class MyClass:
+    def method(self):
+        pass"""
+    chunks = parse_code_chunks(code)
+    assert len(chunks) == 3  # Split into 3 chunks
+    assert "function1" in chunks[0].content
+    assert "function2" in chunks[1].content
+    assert "MyClass" in chunks[2].content
+
+# In tests/test_llm_orchestration.py, modify the test:
+def test_summarization():
+    code = """\
+def function1():
+    print("Hello")
+
+def function2():
+    print("World")
+
+class MyClass:
+    def method(self):
+        pass"""
+    chunks = parse_code_chunks(code)
+    assert len(chunks) == 3  # Split into 3 chunks
+    assert "function1" in chunks[0].content
+    assert "function2" in chunks[1].content
+    assert "MyClass" in chunks[2].content

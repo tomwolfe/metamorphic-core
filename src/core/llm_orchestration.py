@@ -1,3 +1,4 @@
+# llm_orchestration.py
 import os
 import re
 import logging
@@ -7,6 +8,7 @@ import google.genai as genai
 from huggingface_hub import InferenceClient
 from src.utils.config import SecureConfig, ConfigError
 from pydantic import BaseModel, ValidationError
+from src.core.context_manager import parse_code_chunks  # Import the chunking function
 
 class LLMProvider(str, Enum):
     GEMINI = "gemini"
@@ -58,6 +60,21 @@ class LLMOrchestrator:
             raise ValueError(f"Unsupported LLM provider: {self.config.provider}")
 
     def generate(self, prompt: str) -> str:
+        if len(prompt) > 4000: # Example token limit, adjust as needed
+            return self._handle_large_context(prompt)
+        return self._generate_with_retry(prompt)
+
+    def _handle_large_context(self, prompt: str) -> str:
+        """
+        Handles large context prompts by chunking and processing.
+        """
+        chunks = parse_code_chunks(prompt) # Use the chunking function
+        responses = []
+        for chunk in chunks:
+            responses.append(self._generate_with_retry(chunk.content)) # Process each chunk
+        return "".join(responses) # Combine responses - adjust logic as needed for summarization etc.
+
+    def _generate_with_retry(self, prompt: str) -> str:
         for attempt in range(self.config.max_retries):
             try:
                 if self.config.provider == LLMProvider.GEMINI:
@@ -83,6 +100,7 @@ class LLMOrchestrator:
     def _hf_generate(self, prompt: str) -> str:
         try:
             return self.client.text_generation(
+                prompt,
                 prompt,
                 max_new_tokens=2048,
                 temperature=0.6,

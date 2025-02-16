@@ -71,6 +71,7 @@ class KnowledgeGraph(BaseModel):
                 related_nodes.append(related_node)
         return related_nodes
 
+
     def search(self, query: str) -> List[Node]:
         if not query:
             return []
@@ -91,15 +92,12 @@ class KnowledgeGraph(BaseModel):
 
     def _update_search_index(self, node: Node) -> None:
         content = node.content.lower()
-        words = re.findall(r"\b[a-zA-Z0-9']+\b", content)
+        words = re.findall(r"\b\w+\b", content)
         for word in words:
-            cleaned_word = re.sub(r'^[^a-zA-Z0-9]+', '', word)
-            cleaned_word = re.sub(r'[^a-zA-Z0-9]+$', '', cleaned_word)
-            if cleaned_word:
-                if cleaned_word not in self.search_index:
-                    self.search_index[cleaned_word] = []
-                if node.id not in self.search_index[cleaned_word]:
-                    self.search_index[cleaned_word].append(node.id)
+            if word not in self.search_index:
+                self.search_index[word] = []
+            if node.id not in self.search_index[word]:
+                self.search_index[word].append(node.id)
 
 def initialize_knowledge_graph() -> KnowledgeGraph:
     kg = KnowledgeGraph()

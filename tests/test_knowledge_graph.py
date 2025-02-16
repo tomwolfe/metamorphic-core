@@ -17,6 +17,13 @@ def test_search_functionality():
     results = kg.search("Hello")
     assert len(results) > 0
     assert any("Hello" in node.content for node in results)
+    
+    # Test context chunk search
+    context_chunk = Node(type="context_chunk", content="test search")
+    chunk_id = kg.add_node(context_chunk)
+    search_results = kg.search("test")
+    # Compare the actual node IDs
+    assert any(node.id == chunk_id for node in search_results)
 
 def test_relationships():
     kg = initialize_knowledge_graph()
@@ -25,3 +32,30 @@ def test_relationships():
     related_nodes = kg.get_relationships(hello_world.id, "related_to")
     assert len(related_nodes) == 1
     assert related_nodes[0].type == "ethical_principle"
+
+def test_search_functionality():
+    kg = initialize_knowledge_graph()
+    results = kg.search("Hello")
+    assert len(results) > 0
+    assert any("Hello" in node.content for node in results)
+    
+    # Test context chunk search
+    context_chunk = kg.add_node(Node(type="context_chunk", content="test search"))
+    search_results = kg.search("test")
+    assert any(str(context_chunk.id) in str(node.id) for node in search_results)
+
+def test_context_chunk_integrity():
+    kg = initialize_knowledge_graph()
+    chunk = "print('Hello, world!')"
+    chunk_node = Node(type="context_chunk", content=chunk)
+    chunk_id = kg.add_node(chunk_node)
+    summary_node = Node(type="context_summary", content="Summary of chunk")
+    summary_id = kg.add_node(summary_node)
+    
+    # Check relationships
+    edge_id = kg.add_edge(chunk_id, summary_id, "has_summary")
+    assert edge_id is not None
+    
+    # Search for context chunk
+    search_results = kg.search("Hello")
+    assert any(str(chunk_id) in str(node.id) for node in search_results)

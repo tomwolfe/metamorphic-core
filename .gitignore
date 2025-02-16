@@ -39,3 +39,5 @@ repo_to_single_file.sh
 repo_to_single_file_original.sh
 repo_contents.txt
 .coverage*
+
+generated_tests/

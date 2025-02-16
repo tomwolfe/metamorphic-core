@@ -40,4 +40,5 @@ repo_to_single_file_original.sh
 repo_contents.txt
 .coverage*
 
+tests/large_code_sample.py
 generated_tests/

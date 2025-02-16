@@ -1,14 +1,16 @@
+# src/core/llm_orchestration.py
 # llm_orchestration.py
 import os
 import re
 import logging
 from enum import Enum
-from typing import Optional
+from typing import Optional, List # Import List for type hinting
 import google.genai as genai
 from huggingface_hub import InferenceClient
 from src.utils.config import SecureConfig, ConfigError
 from pydantic import BaseModel, ValidationError
 from src.core.context_manager import parse_code_chunks  # Import the chunking function
+# from src.core.context_manager import CodeChunk # DO NOT IMPORT CodeChunk HERE
 
 class LLMProvider(str, Enum):
     GEMINI = "gemini"
@@ -64,15 +66,17 @@ class LLMOrchestrator:
             return self._handle_large_context(prompt)
         return self._generate_with_retry(prompt)
 
-    def _handle_large_context(self, prompt: str) -> str:
+    def _handle_large_context(self, prompt: str) -> List['CodeChunk']: # Forward reference here
         """
         Handles large context prompts by chunking and processing.
+        Returns a list of CodeChunk objects.
         """
+        from src.core.context_manager import CodeChunk # Import here to resolve circular import issues
         chunks = parse_code_chunks(prompt) # Use the chunking function
         responses = []
         for chunk in chunks:
             responses.append(self._generate_with_retry(chunk.content)) # Process each chunk
-        return "".join(responses) # Combine responses - adjust logic as needed for summarization etc.
+        return chunks # Return the list of chunks instead of joined responses
 
     def _generate_with_retry(self, prompt: str) -> str:
         for attempt in range(self.config.max_retries):
@@ -123,4 +127,6 @@ Answer: """
 
 def extract_boxed_answer(text: str) -> str:
     match = re.search(r'\\boxed{([^}]+)}', text)
-    return match.group(1) if match else text
+    if match:
+        return match.group(1)
+    return text # Return original text if no boxed answer found

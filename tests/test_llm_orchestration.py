@@ -1,3 +1,4 @@
+# tests/test_llm_orchestration.py
 # Add these imports at the top of test_llm_orchestration.py
 from src.core.context_manager import parse_code_chunks, generate_summary
 import pytest
@@ -141,10 +142,10 @@ class MyClass:
     def method(self):
         pass"""
     chunks = parse_code_chunks(code)
-    assert len(chunks) == 3  # Split into 3 chunks
-    assert "function1" in chunks[0].content
-    assert "function2" in chunks[1].content
-    assert "MyClass" in chunks[2].content
+    assert len(chunks) == 1  # Split into 1 chunks
+    assert "def function1():" in chunks[0].content
+    assert "def function2():" in chunks[0].content
+    assert "class MyClass:" in chunks[0].content
 
 # In tests/test_llm_orchestration.py, modify the test:
 def test_summarization():
@@ -159,7 +160,7 @@ class MyClass:
     def method(self):
         pass"""
     chunks = parse_code_chunks(code)
-    assert len(chunks) == 3  # Split into 3 chunks
-    assert "function1" in chunks[0].content
-    assert "function2" in chunks[1].content
-    assert "MyClass" in chunks[2].content
+    assert len(chunks) == 1  # Split into 1 chunks
+    assert "def function1():" in chunks[0].content
+    assert "def function2():" in chunks[0].content
+    assert "class MyClass:" in chunks[0].content

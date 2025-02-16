@@ -31,7 +31,7 @@ def test_ethical_validation_rejected():
         result = validator.validate_code("dangerous_code")
     assert result["status"] == "rejected"
     assert result["score"] < 0.7
-    
+
 def test_audit_logging():
     validator = QuantumEthicalValidator()
     result = validator.validate_code("print('Test')")
@@ -61,14 +61,14 @@ def test_approval_with_valid_proof(mock_verifier):
         }
         validator = QuantumEthicalValidator()
         result = validator.validate_code("ethical_code = 42")
-        
+
     assert result["status"] == "approved"
     assert result["score"] >= 0.7
-    
+
 def test_rejection_due_to_violations():
     """Test code rejection when formal verification finds violations"""
     validator = QuantumEthicalValidator()
-    
+
     # Force verification failure
     with patch.object(validator.formal_verifier, 'verify_predictions') as mock_verify:
         mock_verify.return_value = {
@@ -76,21 +76,21 @@ def test_rejection_due_to_violations():
             "violations": ["BiasRisk > 0.25"],
             "proofs": []
         }
-        
+
         result = validator.validate_code("risky_code = 666")
-        
+
     assert result["status"] == "rejected"
     assert result["score"] < 0.7
 
 def test_error_handling_in_validation():
     """Test graceful handling of validation errors"""
     validator = QuantumEthicalValidator()
-    
+
     with patch.object(validator.formal_verifier, 'verify_predictions') as mock_verify:
         mock_verify.side_effect = Exception("Verification failed")
-        
+
         result = validator.validate_code("buggy_code = True")
-        
+
     assert result["status"] == "error"
     assert "error" in result
     assert result["score"] == 0.0
@@ -105,9 +105,12 @@ def test_error_handling_in_validation():
 def test_score_calculation(immediate, long_term, expected_score):
     """Test ethical score calculation boundaries"""
     validator = QuantumEthicalValidator()
-    
+
     with patch.object(validator, '_calculate_ethical_score') as mock_calculate:
-        mock_calculate.return_value = expected_score
-        result = validator.validate_code("any_code")
-        
+        with patch.object(validator, '_predict_ethical_impact') as mock_predict:
+            mock_predict.return_value = {}  # Mock predict_ethical_impact to avoid LLM calls
+
+            mock_calculate.return_value = expected_score
+            result = validator.validate_code("any_code")
+
     assert result["score"] == expected_score

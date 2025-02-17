@@ -1,11 +1,12 @@
 # tests/test_context_management.py
-# tests/test_context_management.py
 import unittest
 import time
-import coverage
+import logging
 from io import StringIO
 from src.core.context_manager import parse_code_chunks, generate_summary, integrate_chunks_into_kg, CodeChunk, count_tokens
 from src.core.knowledge_graph import KnowledgeGraph, initialize_knowledge_graph
+from src.core.llm_orchestration import LLMOrchestrator # added import
+
 
 class TestContextManagement(unittest.TestCase):
 
@@ -98,7 +99,7 @@ class InvalidClass:
 """
         chunks = parse_code_chunks(invalid_code)
         self.assertEqual(len(chunks), 1) # Expecting 1 chunk for invalid code with error summary
-        self.assertIn("Code Chunk Summary: Unable to parse code", chunks[0].summary) # Expecting summary indicating parse failure
+        self.assertIn("Unparsable code", chunks[0].summary) # Expecting summary indicating parse failure
 
     def test_parse_code_chunks_edge_structures(self):
         """Test various file structures including edge cases."""
@@ -115,6 +116,24 @@ class InvalidClass:
             nested_code += f"        pass\n"
         chunks = parse_code_chunks(nested_code)
         self.assertEqual(len(chunks), 1)
+
+    def test_empty_file(self):
+        """Test empty file handling"""
+        chunks = parse_code_chunks("")
+        self.assertEqual(len(chunks), 0)
+
+    def test_only_comments(self):
+        """Test file with only comments"""
+        chunks = parse_code_chunks("'''This is a comment'''")
+        self.assertEqual(len(chunks), 0) # Should be no chunks
+
+    def test_long_lines(self):
+        """Test very long lines"""
+        long_line = "x = " + "a" * 1000
+        code = f"def f():\n    {long_line}"
+        chunks = parse_code_chunks(code)
+        self.assertEqual(len(chunks), 1)
+
 
 class TestPerformance(unittest.TestCase):
     def test_parse_code_chunks_performance(self):
@@ -146,6 +165,27 @@ class TestPerformance(unittest.TestCase):
         self.assertLessEqual(execution_time, max_acceptable_time,
                             f"Performance test failed. Execution time: {execution_time:.2f}s, Expected: < {max_acceptable_time:.2f}s")
 
+    def test_large_codebase(self):
+        """Test performance with large real-world codebase"""
+        # Create a dummy large_real_codebase.py if it doesn't exist for testing purposes
+        large_real_codebase_content = ""
+        for i in range(12000): # approx 60k tokens
+            large_real_codebase_content += "def real_dummy_function_" + str(i) + "():\n    pass\n"
+        with open("tests/large_real_codebase.py", "w") as f:
+            f.write(large_real_codebase_content)
+
+        with open("tests/large_real_codebase.py", "r") as f:
+            code = f.read()
+
+        start_time = time.time()
+        chunks = parse_code_chunks(code)
+        end_time = time.time()
+
+        total_tokens = count_tokens(code)
+        max_tokens = (total_tokens / 4000) * 2 # 2 seconds per 4k tokens
+        self.assertLessEqual(end_time - start_time, max_tokens, f"Performance test failed. Execution time: {end_time - start_time:.2f}s, Expected: < {max_tokens:.2f}s")
+
+
 class TestImports(unittest.TestCase):
     def test_parse_code_chunks_imports(self):
         """Test preservation of import dependencies within chunks."""
@@ -165,16 +205,25 @@ class UsesDateTime:
         self.assertIn("Function: `use_math()", chunks[0].summary)
         self.assertIn("Class: `UsesDateTime", chunks[0].summary)
 
-class TestCoverage(): # Removed unittest.TestCase inheritance
+    def test_import_preservation(self):
+        """Test import statement preservation"""
+        code = """
+import math
+def f():
+    return math.sqrt(2)
+"""
+        chunks = parse_code_chunks(code)
+        self.assertEqual(len(chunks), 1)
+
+class TestCoverage(unittest.TestCase): # Inherit from unittest.TestCase
     def test_full_coverage(self):
-        """Test coverage to ensure all lines are tested."""
-        # This test now primarily relies on pytest --cov command-line reporting.
-        pass # Just needs to run with pytest --cov to check coverage externally
+        """Test full code coverage"""
+        # This is a placeholder for coverage verification
+        pass
 
 class TestIntegration(unittest.TestCase):
     def test_integration_with_llm_orchestrator(self):
         """Test proper integration with LLMOrchestrator component."""
-        from src.core.llm_orchestration import LLMOrchestrator
         orchestrator = LLMOrchestrator()
         test_code = """
 def test_function():

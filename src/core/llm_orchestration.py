@@ -11,6 +11,16 @@ from src.utils.config import SecureConfig, ConfigError
 from pydantic import BaseModel, ValidationError
 from src.core.context_manager import parse_code_chunks  # Import the chunking function
 # from src.core.context_manager import CodeChunk # DO NOT IMPORT CodeChunk HERE
+from src.core.monitoring import Telemetry
+from src.core.verification import FormalVerifier, FormalVerificationError, InvalidCodeHashError, ModelCapacityError, CriticalFailure # Import exceptions
+from collections import defaultdict # Import defaultdict
+from src.core.chunking.recursive_summarizer import RecursiveSummarizer # Import RecursiveSummarizer
+from src.core.chunking.dynamic_chunker import SemanticChunker, CodeChunk # Import CodeChunk
+from src.core.optimization.adaptive_token_allocator import TokenAllocator
+from src.core.knowledge_graph import KnowledgeGraph, Node # Import KnowledgeGraph for KG interaction
+from src.core.optimization.token_optimizer import TokenOptimizer # Import TokenOptimizer
+from src.core.verification.specification import FormalSpecification # Import FormalSpecification
+from src.core.ethics.governance import EthicalGovernanceEngine # Import EthicalGovernanceEngine
 
 class LLMProvider(str, Enum):
     GEMINI = "gemini"
@@ -62,21 +72,7 @@ class LLMOrchestrator:
             raise ValueError(f"Unsupported LLM provider: {self.config.provider}")
 
     def generate(self, prompt: str) -> str:
-        if len(prompt) > 4000: # Example token limit, adjust as needed
-            return self._handle_large_context(prompt)
         return self._generate_with_retry(prompt)
-
-    def _handle_large_context(self, prompt: str) -> List['CodeChunk']: # Forward reference here
-        """
-        Handles large context prompts by chunking and processing.
-        Returns a list of CodeChunk objects.
-        """
-        from src.core.context_manager import CodeChunk # Import here to resolve circular import issues
-        chunks = parse_code_chunks(prompt) # Use the chunking function
-        responses = []
-        for chunk in chunks:
-            responses.append(self._generate_with_retry(chunk.content)) # Process each chunk
-        return chunks # Return the list of chunks instead of joined responses
 
     def _generate_with_retry(self, prompt: str) -> str:
         for attempt in range(self.config.max_retries):
@@ -119,6 +115,113 @@ class LLMOrchestrator:
             logging.error(f"Hugging Face error: {str(e)}")
             raise RuntimeError(f"Hugging Face error: {str(e)}")
 
+class EnhancedLLMOrchestrator(LLMOrchestrator):
+    def __init__(self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: EthicalGovernanceEngine): # Add spec and ethics_engine
+        super().__init__()
+        self.verifier = FormalVerifier()
+        self.telemetry = Telemetry()
+        self.chunker = SemanticChunker()  # Instantiate SemanticChunker
+        self.allocator = TokenAllocator(total_budget=50000) # Example budget
+        self.optimizer = TokenOptimizer() # Instantiate TokenOptimizer
+        self.summarizer = RecursiveSummarizer(self, self.verifier, self.telemetry) # Instantiate RecursiveSummarizer, pass telemetry
+        self.kg = kg # Store KnowledgeGraph instance
+        self.spec = spec # Store FormalSpecification
+        self.ethics_engine = ethics_engine # Store EthicalGovernanceEngine
+        self.fallback_strategy = [
+            self._primary_processing,
+            self._secondary_model,
+            self._third_model, # Add third model
+            self._recursive_summarization_strategy # Use recursive summarization strategy
+        ]
+
+    def generate(self, prompt: str) -> str:
+        self.telemetry.start_session()
+        try:
+            if self._count_tokens(prompt) > 4000:
+                return self._handle_large_context(prompt)
+            return super().generate(prompt)
+        except FormalVerificationError as e: # Catch verification errors
+            self.telemetry.track('error', type='FormalVerificationError', message=str(e)) # Telemetry error track
+            raise # Re-raise after telemetry log
+        except Exception as e: # Catch any other exceptions
+            self.telemetry.track('error', type='GenericError', message=str(e)) # Generic error track
+            raise # Re-raise
+        finally:
+            self.telemetry.publish()
+
+    def _handle_large_context(self, prompt: str) -> str:
+        chunks = self.chunker.chunk(prompt)
+        if not self.verifier.validate_chunks(chunks): # Use FormalVerifier for chunk validation
+            self.telemetry.track('constraint_violation', constraint='InitialChunkValidation') # Telemetry - initial validation fail
+            raise FormalVerificationError("Initial chunk validation failed") # Raise verification error
+
+        allocation = self.allocator.allocate(chunks, self._get_model_costs()) # Pass model costs
+        summaries = []
+
+        for idx, chunk in enumerate(chunks):
+            with self.telemetry.span(f"chunk_{idx}"):
+                if not self.verifier.verify(chunk): # Pass CodeChunk object for Coq verification
+                    self.telemetry.track('verification_failure', chunk_id=str(chunk.id)) # Telemetry - verification fail
+                    raise InvalidCodeHashError(f"Chunk {idx} failed Coq verification") # Raise specific verification error
+                summary = self._process_chunk(chunk, allocation[idx])
+                chunk_node_id = self.kg.add_node(chunk) # Store chunk in KG and get ID
+                summary_node = Node(type="code_summary", content=summary, metadata={"source_chunk_id": str(chunk_node_id)}) # Create summary node
+                summary_node_id = self.kg.add_node(summary_node) # Add summary node to KG
+                self.kg.add_edge(chunk_node_id, summary_node_id, "has_summary") # Link in KG
+                summaries.append(summary)
+
+        return self.synthesizer.synthesize(summaries)
+
+    def _get_model_costs(self):
+        """Return current model cost and length constraints (simulated)."""
+        # In real system, these could be dynamically fetched or configured
+        return {
+            'gemini': {'effective_length': 8000, 'cost_per_token': 1},
+            'gpt-4': {'effective_length': 32000, 'cost_per_token': 10},
+            'mistral-large': {'effective_length': 32000, 'cost_per_token': 5} # Example third model
+        }
+
+    def _process_chunk(self, chunk: CodeChunk, allocation: tuple) -> str:
+        tokens, model = allocation
+        for strategy in self.fallback_strategy:
+            with self.telemetry.span(f"strategy_{strategy.__name__}"): # Track each strategy
+                try:
+                    result = strategy(chunk, tokens, model)
+                    self.telemetry.track('model_success', model=model, strategy=strategy.__name__) # Track success
+                    return result
+                except OrchestrationError as e:
+                    self.telemetry.track('model_fallback', model=model, strategy=strategy.__name__, error=str(e)) # Track fallback
+        raise CriticalFailure("All processing strategies failed")
+
+    @formal_proof("""
+    Lemma fallback_termination:
+      forall chunk, exists n, strategy_n(chunk) terminates
+    """)
+    def _primary_processing(self, chunk: CodeChunk, tokens: int, model: str) -> str:
+        optimized = self.optimizer.optimize(chunk.content, tokens)
+        return self._call_llm_api(optimized, model)
+
+    def _secondary_model(self, chunk: CodeChunk, tokens: int, model: str) -> str:
+        """Use secondary LLM with reduced token budget if primary fails"""
+        if tokens < 500: raise ModelCapacityError("Insufficient tokens for secondary model")
+        reduced_tokens = int(tokens * 0.75) # Reduce tokens by 25%
+        optimized = self.optimizer.optimize(chunk.content, reduced_tokens)
+        return self._call_llm_api(optimized, model)
+
+    def _third_model(self, chunk: CodeChunk, tokens: int, model: str) -> str:
+        """Use third LLM with aggressive optimization if secondary also fails"""
+        optimized = self.optimizer.aggressive_optimize(chunk.content, int(tokens * 0.5)) # Reduce tokens by 50%
+        return self._call_llm_api(optimized, model)
+
+    def _recursive_summarization_strategy(self, chunk: CodeChunk, tokens: int, model: str) -> str:
+        """Apply recursive summarization if other strategies fail."""
+        if tokens < 1000: raise ModelCapacityError("Insufficient tokens for summarization")
+        return self.summarizer.summarize_code_recursively(chunk.content) # Use RecursiveSummarizer
+
+    def _count_tokens(self, text: str) -> int:
+        """Token counting (placeholder - replace with actual tokenizer)."""
+        return len(text.split()) # Simple word count as token estimate
+
 def format_math_prompt(question: str) -> str:
     return f"""Please reason step by step and put your final answer within \\boxed{{}}.
 
@@ -129,4 +232,3 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r'\\boxed{([^}]+)}', text)
     if match:
         return match.group(1)
-    return text # Return original text if no boxed answer found

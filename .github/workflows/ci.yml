@@ -37,7 +37,7 @@ jobs:
           key: pip-${{ runner.os }}-${{ hashFiles('requirements/**') }}
           restore-keys: pip-${{ runner.os }}-
 
-      - name: Install dependencies
+      - name: Install dependencies & Coq/Z3
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements/base.txt
@@ -45,6 +45,14 @@ jobs:
           pip install pytest pytest-cov
           pip install bandit
           pip install -e .  # Install the package in development mode
+          sudo apt-get update
+          sudo apt-get install -y coq z3 # Install Coq and Z3
+
+      - name: Compile Coq Proofs
+        run: |
+          mkdir -p proofs
+          mv src/core/verification/boundary_detection.v proofs/
+          coqc -Q proofs Metamorphic proofs/boundary_detection.v # Compile Coq proofs
 
       - name: Build Flask app Docker image
         run: docker build -t flask-app-test .
@@ -103,7 +111,16 @@ jobs:
           bandit -r src -f txt -q || true # Run bandit and allow workflow to continue
 
       - name: Run tests with coverage
-        run: pytest --cov=src --cov-report=term --cov-report=html tests/
+        run: pytest tests --cov=src --cov-report=term --cov-report=html tests/test_*.py
+
+      - name: Run Unit Component Tests
+        run: pytest tests/test_unit_components.py
+
+      - name: Run Adversarial Tests
+        run: pytest tests/test_adversarial.py
+
+      - name: Run Full Pipeline Tests
+        run: pytest tests/test_full_pipeline.py
 
       - name: Run Generated Tests
         run: |
@@ -122,31 +139,3 @@ jobs:
         with:
           name: coverage-report
           path: htmlcov/
-
-  docker-build:
-    runs-on: ubuntu-latest
-    needs: integration-test
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:master
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/metamorphic-core:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

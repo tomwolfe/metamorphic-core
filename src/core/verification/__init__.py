@@ -1,9 +1,9 @@
 # src/core/verification/__init__.py
-from .formal_verifier import FormalVerifier
+from .specification import FormalSpecification
 from .exceptions import FormalVerificationError, InvalidCodeHashError, MaxSummaryRetriesError, ModelCapacityError, OrchestrationError, CriticalFailure # Import exceptions
 
 __all__ = [
-    'FormalVerifier',
+    'FormalSpecification', # Changed export - was FormalVerifier
     'FormalVerificationError',
     'InvalidCodeHashError',
     'MaxSummaryRetriesError', # Export exceptions

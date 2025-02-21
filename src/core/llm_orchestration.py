@@ -12,7 +12,7 @@ from pydantic import BaseModel, ValidationError
 from src.core.context_manager import parse_code_chunks  # Import the chunking function
 # from src.core.context_manager import CodeChunk # DO NOT IMPORT CodeChunk HERE
 from src.core.monitoring import Telemetry
-from src.core.verification import FormalVerifier, FormalVerificationError, InvalidCodeHashError, ModelCapacityError, CriticalFailure # Import exceptions
+from src.core.verification import FormalVerificationError, InvalidCodeHashError, MaxSummaryRetriesError, ModelCapacityError, CriticalFailure # Import exceptions
 from collections import defaultdict # Import defaultdict
 from src.core.chunking.recursive_summarizer import RecursiveSummarizer # Import RecursiveSummarizer
 from src.core.chunking.dynamic_chunker import SemanticChunker, CodeChunk # Import CodeChunk
@@ -117,8 +117,8 @@ class LLMOrchestrator:
 
 class EnhancedLLMOrchestrator(LLMOrchestrator):
     def __init__(self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: EthicalGovernanceEngine): # Add spec and ethics_engine
-        super().__init__()
-        self.verifier = FormalVerifier()
+        super().__init__() # Corrected super() call
+        self.verifier = FormalSpecification()
         self.telemetry = Telemetry()
         self.chunker = SemanticChunker()  # Instantiate SemanticChunker
         self.allocator = TokenAllocator(total_budget=50000) # Example budget
@@ -217,6 +217,11 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         """Apply recursive summarization if other strategies fail."""
         if tokens < 1000: raise ModelCapacityError("Insufficient tokens for summarization")
         return self.summarizer.summarize_code_recursively(chunk.content) # Use RecursiveSummarizer
+
+    def _call_llm_api(self, text: str, model: str) -> str: # Corrected parameter name to 'text' for clarity
+        """Internal method to call LLM API (placeholder)."""
+        # Placeholder: Replace with actual LLM API call using 'text' and 'model'
+        return f"Response from {model} for: '{text[:20]}...'" # Simple placeholder response
 
     def _count_tokens(self, text: str) -> int:
         """Token counting (placeholder - replace with actual tokenizer)."""

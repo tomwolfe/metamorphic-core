@@ -4,7 +4,7 @@ import os
 import re
 import logging
 from enum import Enum
-from typing import Optional, List # Import List for type hinting
+from typing import Optional, List, TYPE_CHECKING  # Import List for type hinting and TYPE_CHECKING
 import google.genai as genai
 from huggingface_hub import InferenceClient
 from src.utils.config import SecureConfig, ConfigError
@@ -20,7 +20,11 @@ from src.core.optimization.adaptive_token_allocator import TokenAllocator
 from src.core.knowledge_graph import KnowledgeGraph, Node # Import KnowledgeGraph for KG interaction
 from src.core.optimization.token_optimizer import TokenOptimizer # Import TokenOptimizer
 from src.core.verification.specification import FormalSpecification # Import FormalSpecification
-from src.core.ethics.governance import EthicalGovernanceEngine # Import EthicalGovernanceEngine
+from src.core.verification.decorators import formal_proof
+
+if TYPE_CHECKING:
+    from src.core.ethics.governance import EthicalGovernanceEngine # Import EthicalGovernanceEngine only for type checking
+
 
 class LLMProvider(str, Enum):
     GEMINI = "gemini"
@@ -116,7 +120,7 @@ class LLMOrchestrator:
             raise RuntimeError(f"Hugging Face error: {str(e)}")
 
 class EnhancedLLMOrchestrator(LLMOrchestrator):
-    def __init__(self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: EthicalGovernanceEngine): # Add spec and ethics_engine
+    def __init__(self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: 'EthicalGovernanceEngine'): # Add spec and ethics_engine, use forward ref
         super().__init__() # Corrected super() call
         self.verifier = FormalSpecification()
         self.telemetry = Telemetry()

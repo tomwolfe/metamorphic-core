@@ -1,5 +1,5 @@
 # src/core/verification/__init__.py
-from .specification import FormalSpecification
+from .specification import FormalSpecification # Changed import - was FormalVerifier
 from .exceptions import FormalVerificationError, InvalidCodeHashError, MaxSummaryRetriesError, ModelCapacityError, OrchestrationError, CriticalFailure # Import exceptions
 
 __all__ = [

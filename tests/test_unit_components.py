@@ -1,4 +1,6 @@
 # tests/test_unit_components.py
+import sys
+print(f"SYS PATH: {sys.path}")
 import unittest
 from hypothesis import given, strategies as st
 from src.core.chunking.semantic_boundary_detector import SemanticBoundaryDetector
@@ -7,7 +9,7 @@ from src.core.ethics.constraints import EthicalAllocationPolicy # Import policy
 from src.core.chunking.dynamic_chunker import CodeChunk # Import CodeChunk for test setup
 from src.core.chunking.recursive_summarizer import RecursiveSummarizer # Import RecursiveSummarizer
 from unittest.mock import MagicMock, patch
-from src.core.verification import FormalVerifier, FormalVerificationError # Import FormalVerificationError
+from src.core.verification import FormalSpecification, FormalVerificationError # Import FormalSpecification, FormalVerificationError
 import pytest
 
 class TestSemanticBoundaryDetector(unittest.TestCase):

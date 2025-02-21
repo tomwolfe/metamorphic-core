@@ -16,5 +16,8 @@ class TokenOptimizer:
         logger.warning(f"Aggressively optimizing code to fit token limit: {token_limit} (highly simplified)")
         # Extremely aggressive and simplistic truncation
         lines = code.splitlines()
-        compressed_code = "\n".join(line[:int(token_limit/len(lines)) if lines else 0 for line in lines]) # Very rough
+        compressed_code_lines = []
+        if lines:  # Check if lines is not empty
+            compressed_code_lines = [line[:int(token_limit / len(lines))] for line in lines]
+        compressed_code = "\n".join(compressed_code_lines)
         return compressed_code + "\n# ...[aggressively compressed for token limit]..."

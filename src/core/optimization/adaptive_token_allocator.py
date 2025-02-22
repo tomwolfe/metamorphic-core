@@ -31,14 +31,16 @@ class TokenAllocator:
         self.policy.apply(self.solver, allocations, model_vars)
 
         # Optimization objectives
-        cost = Sum([self._model_cost(model_vars[i], allocations[i], model) # Pass solver model to _model_cost
-                   for i in range(len(chunks))])
-        self.solver.minimize(cost)
-
         if self.solver.check() == sat:
-            model = self.solver.model()
+            model = self.solver.model() # Assign model BEFORE list comprehension - Moved this line UP
 
-            return {
+            # Optimization objectives - 'model' is now defined before this line
+            cost = Sum([self._model_cost(model_vars[i], allocations[i], model) # Pass solver model to _model_cost
+                       for i in range(len(chunks))])
+            self.solver.minimize(cost)
+
+
+            return { # ... rest of the return logic remains the same
                 i: (model.eval(allocations[i]).as_long(),
                     self.models[model[model_vars[i]].as_long()]['name'])
                 for i in range(len(chunks))
@@ -52,3 +54,4 @@ class TokenAllocator:
         base_cost = tokens * model['cost_per_token']
         complexity_penalty = (tokens ** 1.2) / 1000  # Example non-linear penalty
         return base_cost + complexity_penalty
+

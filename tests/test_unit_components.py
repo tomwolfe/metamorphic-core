@@ -85,9 +85,9 @@ class TestRecursiveSummarizer(unittest.TestCase):
     @patch('src.core.chunking.recursive_summarizer.RecursiveSummarizer._generate_verified_summary')
     def test_summary_retry_mechanism_unit(self, mock_verified_summary):
         """Unit test for retry mechanism in verified summary generation."""
-        self.mock_llm.generate = MagicMock(side_effect=self._mock_llm_generate_string) # Mock LLM generate to return string
-        self.mock_verifier.verify.side_effect = [False, True, True, True] # First fail, then pass # Added more True values to side_effect
-        mock_verified_summary.side_effect = ["summary1", "summary2"] # Mock successful summaries after retries
+        self.mock_llm.generate = MagicMock(side_effect=self._mock_llm_generate_string) # Re-add mock for self.llm.generate to return string
+        mock_verified_summary.side_effect = ["summary1", "summary2"] # Mock _generate_verified_summary to return summaries
+        self.mock_verifier.verify.side_effect = [False, True, True, True] # Mock verify to fail then pass # Added more True values to side_effect
         code = "def retry_func(): pass"
         summary = self.summarizer.summarize_code_recursively(code)
         self.mock_llm.generate.assert_called()

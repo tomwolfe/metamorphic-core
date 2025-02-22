@@ -31,21 +31,24 @@ class TokenAllocator:
         self.policy.apply(self.solver, allocations, model_vars)
 
         # Optimization objectives
-        cost = Sum([self._model_cost(model_vars[i], allocations[i])
+        cost = Sum([self._model_cost(model_vars[i], allocations[i], model) # Pass solver model to _model_cost
                    for i in range(len(chunks))])
         self.solver.minimize(cost)
 
         if self.solver.check() == sat:
             model = self.solver.model()
+
             return {
-                i: (model[allocations[i]].as_long(),
+                i: (model.eval(allocations[i]).as_long(),
                     self.models[model[model_vars[i]].as_long()]['name'])
                 for i in range(len(chunks))
             }
         raise AllocationError("No ethical allocation possible")
 
-    def _model_cost(self, model_idx: int, tokens: int) -> float:
-        model = self.models[model_idx]
+    def _model_cost(self, model_idx: int, tokens: int, model: ModelRef) -> float: # Added model: ModelRef parameter
+        # Ensure model_idx is an integer by evaluating the Z3 expression # Added model.eval() to convert to integer
+        evaluated_model_idx = model.eval(model_idx).as_long() # Convert model_idx to integer # Added model.eval()
+        model = self.models[evaluated_model_idx] # Use the integer index
         base_cost = tokens * model['cost_per_token']
         complexity_penalty = (tokens ** 1.2) / 1000  # Example non-linear penalty
         return base_cost + complexity_penalty

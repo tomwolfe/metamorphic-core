@@ -1,4 +1,3 @@
-# src/core/chunking/semantic_boundary_detector.py
 import ast
 import logging
 from typing import List
@@ -30,11 +29,8 @@ class SemanticBoundaryDetector:
                     boundaries.append(node.lineno)
         except SyntaxError as e:
             logger.warning(f"Syntax error in code, boundary detection may be incomplete: {e}")
-            # Even with syntax errors, try to identify boundaries based on structure
-            # Fallback strategy: look for newline characters as basic boundaries
-            for i, line in enumerate(code.splitlines()):
-                if line.strip() == "":  # Empty lines as boundaries
-                    boundaries.append(i + 1) # Line number is 1-indexed, using line number as boundary
+            # Fallback strategy: Split code into boundaries at each line break # Modified Fallback Strategy
+            return list(range(1, len(code.splitlines()) + 1)) # Modified Fallback Strategy
 
         # Remove duplicate line numbers, sort them and ensure they are integers
         return sorted(list(set(boundaries)))

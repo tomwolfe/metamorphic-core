@@ -28,7 +28,7 @@ class TokenAllocator:
 
 
         # Ethical constraints
-        self.policy.apply(self.solver, allocations, model_vars, self.models)
+        self.policy.apply(self.solver, allocations, model_vars)
 
         # Optimization objectives
         cost = Sum([self._model_cost(model_vars[i], allocations[i])
@@ -49,4 +49,3 @@ class TokenAllocator:
         base_cost = tokens * model['cost_per_token']
         complexity_penalty = (tokens ** 1.2) / 1000  # Example non-linear penalty
         return base_cost + complexity_penalty
-

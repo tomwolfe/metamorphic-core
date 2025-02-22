@@ -12,7 +12,7 @@ class SemanticBoundaryDetector:
 
     def detect_boundaries(self, code: str) -> List[int]:
         """
-        Analyzes Python code and identifies semantic boundaries for chunking.
+        Analyzes Python code and semantic boundaries for chunking.
         Returns a list of line numbers where boundaries are detected.
         """
         boundaries = []
@@ -34,7 +34,7 @@ class SemanticBoundaryDetector:
             # Fallback strategy: look for newline characters as basic boundaries
             for i, line in enumerate(code.splitlines()):
                 if line.strip() == "":  # Empty lines as boundaries
-                    boundaries.append(i + 1) # Line number is 1-indexed
+                    boundaries.append(i + 1) # Line number is 1-indexed, using line number as boundary
 
-        # Remove duplicate line numbers and sort them
+        # Remove duplicate line numbers, sort them and ensure they are integers
         return sorted(list(set(boundaries)))

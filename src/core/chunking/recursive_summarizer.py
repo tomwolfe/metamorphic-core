@@ -1,16 +1,20 @@
+# src/core/chunking/recursive_summarizer.py
 import logging
-from typing import List
-from src.core.llm_orchestration import EnhancedLLMOrchestrator
+from typing import List, TYPE_CHECKING
 from src.core.chunking import CodeChunk
-from src.core.verification import FormalVerifier, FormalVerificationError # Import FormalVerificationError
+from src.core.verification import FormalVerificationError # Import FormalVerificationError
+from src.core.verification import FormalSpecification
 from src.core.monitoring import Telemetry # Import Telemetry
+
+if TYPE_CHECKING:
+    from src.core.llm_orchestration import EnhancedLLMOrchestrator
 
 logger = logging.getLogger(__name__)
 
 class RecursiveSummarizer:
-    def __init__(self, llm_orchestrator: EnhancedLLMOrchestrator, formal_verifier: FormalVerifier, telemetry: Telemetry): # Add Telemetry
+    def __init__(self, llm_orchestrator: 'EnhancedLLMOrchestrator', formal_verifier: FormalSpecification, telemetry: Telemetry): # Add Telemetry
         self.llm = llm_orchestrator
-        self.verifier = formal_verifier
+        self.verifier: FormalSpecification = formal_verifier
         self.telemetry = telemetry # Store Telemetry
 
     def summarize_code_recursively(self, code: str, depth: int = 3, window_size: int = 3) -> str:
@@ -100,4 +104,3 @@ class RecursiveSummarizer:
             # Placeholder for more aggressive summarization or token trimming
             return summary[:int(len(summary) * 0.8)] # Aggressively trim summary - replace with better method
         return summary
-

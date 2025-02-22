@@ -1,4 +1,5 @@
 # tests/test_unit_components.py
+# tests/test_unit_components.py
 import unittest
 from hypothesis import given, strategies as st
 from src.core.chunking.semantic_boundary_detector import SemanticBoundaryDetector
@@ -58,17 +59,21 @@ class TestRecursiveSummarizer(unittest.TestCase):
     def setUp(self):
         self.mock_llm = MagicMock()
         self.mock_verifier = MagicMock()
-        self.mock_telemetry = MagicMock() # Mock Telemetry
+        self.mock_telemetry = MagicMock()  # Mock Telemetry
         self.summarizer = RecursiveSummarizer(self.mock_llm, self.mock_verifier, self.mock_telemetry) # Pass telemetry
+
+    def _mock_llm_generate_string(self, prompt):
+        return "Mock summary string"
 
     def test_recursive_summarization_depth_unit(self):
         """Unit test for recursive summarization depth control."""
+        self.mock_llm.generate = MagicMock(side_effect=self._mock_llm_generate_string)
         code = "def func1(): pass\n\ndef func2(): pass\n\ndef func3(): pass" # Example code
         summary = self.summarizer.summarize_code_recursively(code, depth=2) # Test with depth 2
         self.mock_llm.generate.assert_called() # Check if LLM generate was called
         self.assertIsInstance(summary, str, "Summary should be a string")
 
-    def test_summary_verification_failure_unit(self):
+    def test_summary_pre_verification_failure_unit(self): # Changed test name to reflect pre-verification failure
         """Unit test for handling summary verification failure."""
         self.mock_verifier.verify.return_value = False # Make verification fail
         code = "def failing_func(): pass"
@@ -78,9 +83,11 @@ class TestRecursiveSummarizer(unittest.TestCase):
     @patch('src.core.chunking.recursive_summarizer.RecursiveSummarizer._generate_verified_summary')
     def test_summary_retry_mechanism_unit(self, mock_verified_summary):
         """Unit test for retry mechanism in verified summary generation."""
+        self.mock_llm.generate = MagicMock(side_effect=self._mock_llm_generate_string)
         mock_verified_summary.side_effect = ["summary1", "summary2"] # Mock successful summaries after retries
         code = "def retry_func(): pass"
         summary = self.summarizer.summarize_code_recursively(code)
+        self.mock_llm.generate.assert_called()
         self.assertEqual(mock_verified_summary.call_count, 2, "Verified summary should be called for retry") # Corrected assertion
         self.assertEqual(summary, "summary2", "Should return the verified summary") # Corrected assertion
 

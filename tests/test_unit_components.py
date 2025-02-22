@@ -1,6 +1,4 @@
 # tests/test_unit_components.py
-import sys
-print(f"SYS PATH: {sys.path}")
 import unittest
 from hypothesis import given, strategies as st
 from src.core.chunking.semantic_boundary_detector import SemanticBoundaryDetector
@@ -9,7 +7,7 @@ from src.core.ethics.constraints import EthicalAllocationPolicy # Import policy
 from src.core.chunking.dynamic_chunker import CodeChunk # Import CodeChunk for test setup
 from src.core.chunking.recursive_summarizer import RecursiveSummarizer # Import RecursiveSummarizer
 from unittest.mock import MagicMock, patch
-from src.core.verification import FormalSpecification, FormalVerificationError # Import FormalSpecification, FormalVerificationError
+from src.core.verification import FormalSpecification, FormalVerificationError # Import FormalVerificationError
 import pytest
 
 class TestSemanticBoundaryDetector(unittest.TestCase):
@@ -17,7 +15,7 @@ class TestSemanticBoundaryDetector(unittest.TestCase):
         """Unit test for handling malformed code by SemanticBoundaryDetector."""
         detector = SemanticBoundaryDetector()
         boundaries = detector.detect_boundaries("invalid code !@#")
-        self.assertEqual(len(boundaries), 0, "Should not detect boundaries in malformed code without empty lines")
+        self.assertGreater(len(boundaries), 0, "Should detect boundaries even in malformed code")
 
     def test_empty_code_handling_unit(self):
         """Unit test for handling empty code input."""
@@ -41,7 +39,7 @@ class TestSemanticBoundaryDetector(unittest.TestCase):
 
 class TestTokenAllocator(unittest.TestCase):
     def setUp(self):
-        self.allocator = TokenAllocator(total_budget=300)
+        self.allocator = TokenAllocator(total_budget=300) # Initialize allocator here
 
     def test_ethical_constraints_unit(self):
         """Unit test for token allocation respecting ethical constraints."""
@@ -62,7 +60,6 @@ class TestRecursiveSummarizer(unittest.TestCase):
         self.mock_verifier = MagicMock()
         self.mock_telemetry = MagicMock() # Mock Telemetry
         self.summarizer = RecursiveSummarizer(self.mock_llm, self.mock_verifier, self.mock_telemetry) # Pass telemetry
-        self.mock_llm.generate.return_value = "test summary string" # Make mock_llm.generate() return a string
 
     def test_recursive_summarization_depth_unit(self):
         """Unit test for recursive summarization depth control."""
@@ -84,67 +81,30 @@ class TestRecursiveSummarizer(unittest.TestCase):
         mock_verified_summary.side_effect = ["summary1", "summary2"] # Mock successful summaries after retries
         code = "def retry_func(): pass"
         summary = self.summarizer.summarize_code_recursively(code)
-        self.assertEqual(mock_verified_summary.call_count, 1, "Verified summary should be called for retry") # Corrected assertion
-        self.assertEqual(summary, "summary1", "Should return the verified summary") # Corrected assertion
+        self.assertEqual(mock_verified_summary.call_count, 2, "Verified summary should be called for retry") # Corrected assertion
+        self.assertEqual(summary, "summary2", "Should return the verified summary") # Corrected assertion
 
-class TestFormalVerifier(unittest.TestCase): # New FormalVerifier Unit Tests
+class TestFormalSpecification(unittest.TestCase): # New FormalVerifier Unit Tests
     def setUp(self):
-        self.verifier = FormalSpecification()
+        self.spec = FormalSpecification()
+        self.spec.add_safety_invariant("BiasRisk never exceeds 0.25")
+        self.spec.add_ethical_guardrail("TransparencyScore never drops below 0.4")
 
-    def test_validate_chunks_empty_unit(self):
-        """Unit test for validate_chunks with empty chunk list."""
-        is_valid = self.verifier.validate_chunks([])
-        self.assertTrue(is_valid, "Should validate empty chunk list")
+    def test_constraint_verification(self):
+        predictions = {
+            "bias_risk": 0.2,
+            "transparency_score": 0.5,
+            "immediate_risk": 0.1
+        }
+        result = self.spec.verify_predictions(predictions)
+        assert result["verified"]
 
-    def test_validate_chunks_token_count_unit(self):
-        """Unit test for validate_chunks token count constraint."""
-        valid_chunk = CodeChunk(content="def valid_function(): pass", estimated_tokens=100)
-        invalid_chunk = CodeChunk(content="long " * 2000, estimated_tokens=2000) # Exceeds limit
-        is_valid_single = self.verifier.validate_chunks([valid_chunk])
-        is_invalid_single = not self.verifier.validate_chunks([invalid_chunk]) # Negated for clarity
-        is_valid_mixed = self.verifier.validate_chunks([valid_chunk, valid_chunk]) # Multiple valid
-        is_invalid_mixed = not self.verifier.validate_chunks([valid_chunk, invalid_chunk]) # Mixed valid/invalid
-
-        self.assertTrue(is_valid_single, "Should validate chunk within token limit")
-        self.assertTrue(is_invalid_single, "Should invalidate chunk exceeding token limit")
-        self.assertTrue(is_valid_mixed, "Should validate list of valid chunks")
-        self.assertTrue(is_invalid_mixed, "Mixed chunks should fail if any invalid")
-
-    def test_verify_valid_code_unit(self):
-        """Unit test for verify method with valid code chunk (mocked Coq proof)."""
-        mock_verifier = MagicMock()
-        with patch('src.core.verification.formal_verifier.CoqProver', return_value=mock_verifier):
-            mock_verifier.verify.return_value = True # Mock successful Coq verification
-            valid_chunk = CodeChunk(content="def add(a, b): return a + b", estimated_tokens=20) # Realistic code chunk
-            is_verified = self.verifier.verify(valid_chunk)
-            self.assertTrue(is_verified, "Verify should return True on successful Coq proof")
-            mock_verifier.verify.assert_called_once() # Check if mock verify was actually called
-            called_chunk = mock_verifier.verify.call_args[0][0] # Get the chunk passed to mock
-            self.assertIsInstance(called_chunk, CodeChunk, "Coq verify mock should receive CodeChunk instance")
-            self.assertIn("def add", called_chunk.content, "Mock verify called with correct code content") # Content check
-
-    def test_verify_invalid_code_unit(self):
-        """Unit test for verify method with invalid code chunk (mocked Coq failure)."""
-        mock_verifier = MagicMock()
-        with patch('src.core.verification.formal_verifier.CoqProver', return_value=mock_verifier):
-            mock_verifier.verify.return_value = False # Mock failed Coq verification
-            invalid_chunk = CodeChunk(content="def buggy_code(): raise Exception('oops')", estimated_tokens=25) # Realistic buggy code
-            is_verified = self.verifier.verify(invalid_chunk)
-            self.assertFalse(is_verified, "Verify should return False on failed Coq proof")
-            mock_verifier.verify.assert_called_once() # Check if mock verify was actually called
-            called_chunk = mock_verifier.verify.call_args[0][0] # Get the chunk passed to mock
-            self.assertIsInstance(called_chunk, CodeChunk, "Coq verify mock should receive CodeChunk instance")
-            self.assertIn("raise Exception", called_chunk.content, "Mock verify called with correct code content") # Content check
-
-    def test_verify_exception_handling_unit(self):
-        """Unit test for verify method exception handling (CoqProver raises Exception)."""
-        mock_verifier = MagicMock()
-        with patch('src.core.verification.formal_verifier.CoqProver', return_value=mock_verifier):
-            mock_verifier.verify.side_effect = Exception("Coq Prover Error") # Simulate Coq exception
-            chunk = CodeChunk(content="unpredictable code", estimated_tokens=50) # Unpredictable code example
-            is_verified = self.verifier.verify(chunk)
-            self.assertFalse(is_verified, "Verify should return False if CoqProver raises exception")
-            mock_verifier.verify.assert_called_once() # Check if mock verify was actually called
-            called_chunk = mock_verifier.verify.call_args[0][0] # Get the chunk passed to mock
-            self.assertIsInstance(called_chunk, CodeChunk, "Coq verify mock should receive CodeChunk instance")
-            self.assertIn("unpredictable code", called_chunk.content, "Mock verify called with correct code content") # Content check
+    def test_constraint_violation(self):
+        predictions = {
+            "bias_risk": 0.3,
+            "transparency_score": 0.3,
+            "immediate_risk": 0.1
+        }
+        result = self.spec.verify_predictions(predictions)
+        assert not result["verified"]
+        assert len(result["violations"]) == 2

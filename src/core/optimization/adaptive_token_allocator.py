@@ -1,3 +1,4 @@
+# src/core/optimization/adaptive_token_allocator.py
 from z3 import *
 from src.core.ethics.constraints import EthicalAllocationPolicy
 from typing import List
@@ -6,6 +7,7 @@ from src.core.exceptions import AllocationError
 
 class TokenAllocator:
     def __init__(self, total_budget: int = 32000):
+        self.total_budget = total_budget
         self.solver = Optimize()
         self.policy = EthicalAllocationPolicy()
         self.models = [
@@ -47,3 +49,4 @@ class TokenAllocator:
         base_cost = tokens * model['cost_per_token']
         complexity_penalty = (tokens ** 1.2) / 1000  # Example non-linear penalty
         return base_cost + complexity_penalty
+

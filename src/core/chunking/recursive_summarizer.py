@@ -1,26 +1,17 @@
 import logging
-from typing import List, TYPE_CHECKING  # Import TYPE_CHECKING
+from typing import List
+from src.core.llm_orchestration import EnhancedLLMOrchestrator
 from src.core.chunking import CodeChunk
-from src.core.verification import FormalSpecification, FormalVerificationError  # Import FormalSpecification, FormalVerificationError
-from src.core.monitoring import Telemetry  # Import Telemetry
-
-if TYPE_CHECKING:  # Import only during type checking
-    from src.core.llm_orchestration import EnhancedLLMOrchestrator
-
+from src.core.verification import FormalVerifier, FormalVerificationError # Import FormalVerificationError
+from src.core.monitoring import Telemetry # Import Telemetry
 
 logger = logging.getLogger(__name__)
 
-
 class RecursiveSummarizer:
-    def __init__(
-        self,
-        llm_orchestrator: 'EnhancedLLMOrchestrator',  # Use forward reference string for type hint
-        formal_verifier: FormalSpecification,  # Corrected type hint to FormalSpecification
-        telemetry: Telemetry
-    ):
+    def __init__(self, llm_orchestrator: EnhancedLLMOrchestrator, formal_verifier: FormalVerifier, telemetry: Telemetry): # Add Telemetry
         self.llm = llm_orchestrator
         self.verifier = formal_verifier
-        self.telemetry = telemetry  # Store Telemetry
+        self.telemetry = telemetry # Store Telemetry
 
     def summarize_code_recursively(self, code: str, depth: int = 3, window_size: int = 3) -> str:
         """
@@ -35,24 +26,24 @@ class RecursiveSummarizer:
         for chunk in chunks:
             with self.telemetry.span("summarization_pass"):
                 # Verify chunk BEFORE summarization attempt
-                if not self.verifier.validate_chunks([chunk]):  # Pass chunk list
-                    self.telemetry.track('constraint_violation', constraint='ChunkPreSummarizationValidation')  # Telemetry
+                if not self.verifier.validate_chunks([chunk]): # Pass chunk list
+                    self.telemetry.track('constraint_violation', constraint='ChunkPreSummarizationValidation') # Telemetry
                     logger.warning(f"Chunk failed pre-summarization validation: {chunk.content[:50]}...")
-                    raise FormalVerificationError("Chunk failed pre-summarization validation")  # Raise exception
+                    raise FormalVerificationError("Chunk failed pre-summarization validation") # Raise exception
 
                 summary = self._generate_summary(chunk.content)
 
                 # Verify summary AFTER generation
-                if not self.verifier.verify(CodeChunk(content=summary)):  # Verify summary as CodeChunk
-                    self.telemetry.track('constraint_violation', constraint='SummaryPostGenerationVerification')  # Telemetry
+                if not self.verifier.verify(CodeChunk(content=summary)): # Verify summary as CodeChunk
+                    self.telemetry.track('constraint_violation', constraint='SummaryPostGenerationVerification') # Telemetry
                     logger.warning(f"Summary failed post-generation verification, retrying for chunk: {chunk.content[:50]}...")
-                    summary = self._generate_verified_summary(chunk.content, retry=True)  # Retry with verification
+                    summary = self._generate_verified_summary(chunk.content) # Retry with verification
 
                 summaries.append(summary)
 
         combined_summary = "\n".join(summaries)
         if depth > 1:
-            return self.summarize_code_recursively(combined_summary, depth=depth - 1, window_size=window_size)  # Recursive call
+            return self.summarize_code_recursively(combined_summary, depth=depth - 1, window_size=window_size) # Recursive call
         return combined_summary
 
     def _chunk_code(self, code: str, window_size: int) -> List[CodeChunk]:
@@ -62,7 +53,7 @@ class RecursiveSummarizer:
         for i in range(0, len(lines), window_size):
             window = lines[i:i + window_size]
             chunk_content = "\n".join(window)
-            chunks.append(CodeChunk(content=chunk_content, estimated_tokens=self.llm._count_tokens(chunk_content)))  # Estimate tokens
+            chunks.append(CodeChunk(content=chunk_content, estimated_tokens=self.llm._count_tokens(chunk_content))) # Estimate tokens
         return chunks
 
     def _generate_summary(self, chunk_content: str, retry=False) -> str:
@@ -77,18 +68,18 @@ class RecursiveSummarizer:
             logger.warning(f"Initial summarization failed, retrying once: {e}")
             return self._generate_summary(chunk_content, retry=True)  # Recursive retry call
 
-    def _generate_verified_summary(self, chunk_content: str, max_attempts=3, attempt_count=0) -> str:  # Verified summary generation
+    def _generate_verified_summary(self, chunk_content: str, max_attempts=3, attempt_count=0) -> str: # Verified summary generation
         """Attempts to generate a verified summary, with retries and fallback."""
         if attempt_count >= max_attempts:
             logger.error(f"Max attempts reached for verified summary generation after {max_attempts} retries.")
             raise MaxSummaryRetriesError("Max retries for verified summary generation reached.")
 
         summary = self._generate_summary(chunk_content)
-        if self.verifier.verify(CodeChunk(content=summary)):  # Verify generated summary
+        if self.verifier.verify(CodeChunk(content=summary)): # Verify generated summary
             return summary
         else:
             logger.warning(f"Generated summary failed verification, retrying attempt {attempt_count + 1}/{max_attempts}...")
-            return self._generate_verified_summary(chunk_content, max_attempts, attempt_count + 1)  # Recursive retry
+            return self._generate_verified_summary(chunk_content, max_attempts, attempt_count + 1) # Recursive retry
 
     def _is_summary_valid(self, summary: str, original_chunk: CodeChunk) -> bool:
         """Placeholder for formal summary validation (e.g., semantic similarity, keyword retention)."""
@@ -102,10 +93,11 @@ class RecursiveSummarizer:
     def _enforce_token_reduction(self, summary: str, original_chunk: CodeChunk) -> str:
         """Placeholder for enforcing token reduction in summaries."""
         # In a real system, you might have more advanced token counting and reduction strategies
-        original_tokens = self.llm._count_tokens(original_chunk.content)  # Assuming token counting in orchestrator
+        original_tokens = self.llm._count_tokens(original_chunk.content) # Assuming token counting in orchestrator
         summary_tokens = self.llm._count_tokens(summary)
         if summary_tokens > original_tokens * 0.8:  # Example: enforce 20% reduction
             logger.warning("Summary exceeds token reduction target, further optimizing.")
             # Placeholder for more aggressive summarization or token trimming
-            return summary[:int(len(summary) * 0.8)]  # Aggressively trim summary - replace with better method
+            return summary[:int(len(summary) * 0.8)] # Aggressively trim summary - replace with better method
         return summary
+

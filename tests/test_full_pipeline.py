@@ -2,7 +2,7 @@
 import unittest
 from hypothesis import given, strategies as st
 import pytest
-from src.core.llm_orchestration import EnhancedLLMOrchestrator, FormalVerificationError
+from src.core.llm_orchestration import EnhancedLLMOrchestrator, FormalVerificationError, CriticalFailure
 from src.core.chunking.dynamic_chunker import CodeChunk
 from unittest.mock import patch, MagicMock
 
@@ -17,11 +17,13 @@ class TestOrchestrationSystem(unittest.TestCase):
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
     @given(st.text(min_size=5000))  # Reduced from 100000
-    def test_adversarial_inputs_large_pipeline(self, mock_hf_generate, mock_gemini_generate, payload):
+    @patch.object(EnhancedLLMOrchestrator, '_count_tokens', return_value=5001) # Mock token count to trigger large context
+    def test_adversarial_inputs_large_pipeline(self, mock_count_tokens, mock_hf_generate, mock_gemini_generate, payload):
         """Pipeline test for large inputs."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
-        with pytest.raises(FormalVerificationError):
+        self.orchestrator.spec.validate_chunks.return_value = False # Make chunk validation fail
+        with pytest.raises(FormalVerificationError): # Use pytest.raises context manager
             self.orchestrator.generate(payload)
 
     @patch('src.core.verification.specification.FormalSpecification.verify_predictions', return_value={'verified': True})
@@ -31,17 +33,18 @@ class TestOrchestrationSystem(unittest.TestCase):
         """Test formal verification success."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
+        self.orchestrator.spec.verify_predictions.return_value = {'verified': True} # Mock spec verify_predictions
         result_code = self.orchestrator.generate("Write a function that adds two numbers")
         self.assertIsInstance(result_code, str)
 
-    @patch('src.core.verification.specification.FormalSpecification.verify_predictions', return_value={'verified': False})
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
-    def test_runtime_formal_verification_failure_pipeline(self, mock_hf_generate, mock_gemini_generate, mock_verify):
+    def test_runtime_formal_verification_failure_pipeline(self, mock_hf_generate, mock_gemini_generate):
         """Test verification failure."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
-        with pytest.raises(FormalVerificationError) as excinfo:
+        self.orchestrator.spec.verify_predictions.return_value = {'verified': False} # Mock spec verify_predictions to fail
+        with pytest.raises(FormalVerificationError) as excinfo: # Use pytest.raises context manager
             self.orchestrator.generate("Write unverifiable code")
         assert isinstance(excinfo.value, FormalVerificationError)
 
@@ -52,6 +55,7 @@ class TestOrchestrationSystem(unittest.TestCase):
         """Test self-verification loop."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
+        self.orchestrator.spec.verify_predictions.return_value = {'verified': True} # Mock spec verify_predictions
         verified_code = self.orchestrator.generate("Write a simple Python function")
         self.assertIsInstance(verified_code, str)
 
@@ -65,7 +69,7 @@ class TestOrchestrationSystem(unittest.TestCase):
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._recursive_summarization_strategy')
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._third_model')
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._secondary_model')
-    @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._primary_processing')
+    @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._primary_processing', side_effect=Exception("Primary failed")) # Force primary to fail
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
     def test_full_fallback_pipeline_calls_strategies_pipeline(self, mock_hf_generate, mock_gemini_generate, mock_primary, mock_secondary, mock_third, mock_recursive):
@@ -74,7 +78,7 @@ class TestOrchestrationSystem(unittest.TestCase):
         mock_hf_generate.return_value = "Mock response"
         orchestrator = EnhancedLLMOrchestrator(kg=MagicMock(), spec=MagicMock(), ethics_engine=MagicMock())
         prompt = "Large test prompt to trigger fallback in pipeline" # Large prompt for pipeline fallback
-        with pytest.raises(FormalVerificationError) as excinfo: # Expect verification error triggering fallbacks
+        with pytest.raises(FormalVerificationError) as excinfo: # Use pytest.raises context manager
             orchestrator.generate(prompt)
         assert isinstance(excinfo.value, FormalVerificationError)
         mock_primary.assert_called_once() # Check primary called in pipeline
@@ -90,7 +94,8 @@ class TestOrchestrationSystem(unittest.TestCase):
         mock_hf_generate.return_value = "Mock response"
         orchestrator = EnhancedLLMOrchestrator(kg=MagicMock(), spec=MagicMock(), ethics_engine=MagicMock())
         prompt = "Telemetry pipeline test prompt"
-        with pytest.raises(FormalVerificationError) as excinfo: # Expect verification error to ensure full pipeline run
+        self.orchestrator.spec.verify_predictions.return_value = {'verified': False} # Mock spec verify_predictions to fail
+        with pytest.raises(FormalVerificationError) as excinfo: # Use pytest.raises context manager
             orchestrator.generate(prompt)
         assert isinstance(excinfo.value, FormalVerificationError)
         self.assertGreater(orchestrator.telemetry.data.operation_latency['generate'], 0) # Check latency tracked
@@ -99,6 +104,3 @@ class TestOrchestrationSystem(unittest.TestCase):
 
     def _generate_hate_speech(self): # Dummy hate speech generator
         return "// Malicious content\n" + "\n".join(f"phrase_{i}" for i in range(100))
-
-
-

@@ -17,11 +17,13 @@ class TestAdversarialHandling(unittest.TestCase):
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
     @given(st.text(min_size=5000))  # Reduced from 100000
-    def test_adversarial_inputs_large_payload(self, mock_hf_generate, mock_gemini_generate, payload):
+    @patch.object(EnhancedLLMOrchestrator, '_count_tokens', return_value=5001) # Mock token count to trigger large context
+    def test_adversarial_inputs_large_payload(self, mock_count_tokens, mock_hf_generate, mock_gemini_generate, payload):
         """Test handling of large input payloads."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
-        with pytest.raises(CriticalFailure) as excinfo:
+        self.orchestrator.spec.validate_chunks.return_value = False # make chunk validation fail
+        with pytest.raises(CriticalFailure) as excinfo: # Use pytest.raises context manager
             self.orchestrator.generate(payload)
         assert isinstance(excinfo.value, CriticalFailure)
 
@@ -33,7 +35,8 @@ class TestAdversarialHandling(unittest.TestCase):
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
         long_unicode_payload = payload + "🔥" * 500
-        with pytest.raises(FormalVerificationError) as excinfo:
+        self.orchestrator.spec.verify_predictions.return_value = {'verified': False} # Mock spec verify_predictions to fail
+        with pytest.raises(FormalVerificationError) as excinfo: # Use pytest.raises context manager
             self.orchestrator.generate(long_unicode_payload)
         assert isinstance(excinfo.value, FormalVerificationError)
 
@@ -50,7 +53,7 @@ class TestAdversarialHandling(unittest.TestCase):
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._recursive_summarization_strategy')
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._third_model')
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._secondary_model')
-    @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._primary_processing')
+    @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._primary_processing', side_effect=Exception("Primary failed")) # Force primary to fail
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
     def test_fallback_strategy_called_adversarial(self, mock_hf_generate, mock_gemini_generate, mock_primary, mock_secondary, mock_third, mock_recursive):
@@ -63,7 +66,7 @@ class TestAdversarialHandling(unittest.TestCase):
             ethics_engine=MagicMock()
         )
         prompt = "Craft code that will intentionally fail verification"
-        with pytest.raises(FormalVerificationError) as excinfo:
+        with pytest.raises(FormalVerificationError) as excinfo: # Use pytest.raises context manager
             orchestrator.generate(prompt)
         assert isinstance(excinfo.value, FormalVerificationError)
         mock_primary.assert_called_once()
@@ -87,10 +90,8 @@ class TestAdversarialHandling(unittest.TestCase):
             ethics_engine=MagicMock()
         )
         prompt = "Provoke a critical failure"
-        with pytest.raises(CriticalFailure) as excinfo:
+        with pytest.raises(CriticalFailure) as excinfo: # Use pytest.raises context manager
             orchestrator.generate(prompt)
         assert isinstance(excinfo.value, CriticalFailure)
         assert "All processing strategies failed" in str(excinfo.value)
-
-
 

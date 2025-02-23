@@ -91,12 +91,11 @@ class LLMOrchestrator:
 
     def _gemini_generate(self, prompt: str) -> str:
         try:
-            response = self.client.models.generate_content(
-                model=self.client.model,
+            response = self.client.generate_content(
                 contents=prompt,
-                config=genai.types.GenerateContentConfig(temperature=0.6, top_p=0.95)
+                generation_config=genai.types.GenerationConfig(temperature=0.6, top_p=0.95)
             )
-            return ''.join(part.text for part in response.candidates[0].content.parts)
+            return ''.join([part.text for part in response.parts if hasattr(part, 'text')])
         except Exception as e:
             logging.error(f"Gemini error: {str(e)}")
             raise RuntimeError(f"Gemini error: {str(e)}")
@@ -122,12 +121,11 @@ class LLMOrchestrator:
 class EnhancedLLMOrchestrator(LLMOrchestrator):
     def __init__(self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: 'EthicalGovernanceEngine'): # Add spec and ethics_engine, use forward ref
         super().__init__() # Corrected super() call
-        self.verifier = FormalSpecification()
         self.telemetry = Telemetry()
         self.chunker = SemanticChunker()  # Instantiate SemanticChunker
         self.allocator = TokenAllocator(total_budget=50000) # Example budget
         self.optimizer = TokenOptimizer() # Instantiate TokenOptimizer
-        self.summarizer = RecursiveSummarizer(self, self.verifier, self.telemetry) # Instantiate RecursiveSummarizer, pass telemetry
+        self.summarizer = RecursiveSummarizer(self, spec, self.telemetry) # Instantiate RecursiveSummarizer, pass telemetry and spec
         self.kg = kg # Store KnowledgeGraph instance
         self.spec = spec # Store FormalSpecification
         self.ethics_engine = ethics_engine # Store EthicalGovernanceEngine
@@ -142,8 +140,16 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         self.telemetry.start_session()
         try:
             if self._count_tokens(prompt) > 4000:
-                return self._handle_large_context(prompt)
-            return super().generate(prompt)
+                code = self._handle_large_context(prompt)
+            else:
+                code = super().generate(prompt)
+
+            # Verify the generated code
+            verification_result = self.spec.verify_predictions(code)
+            if not verification_result.get('verified', False):
+                raise FormalVerificationError("Formal verification failed for generated code")
+
+            return code
         except FormalVerificationError as e: # Catch verification errors
             self.telemetry.track('error', tags={'type': 'FormalVerificationError', 'message': str(e)}) # Telemetry error track
             raise # Re-raise after telemetry log
@@ -155,7 +161,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
 
     def _handle_large_context(self, prompt: str) -> str:
         chunks = self.chunker.chunk(prompt)
-        if not self.verifier.validate_chunks(chunks): # Use FormalVerifier for chunk validation
+        if not self.spec.validate_chunks(chunks):  # Use self.spec for chunk validation
             self.telemetry.track('constraint_violation', constraint='InitialChunkValidation') # Telemetry - initial validation fail
             raise FormalVerificationError("Initial chunk validation failed") # Raise verification error
 
@@ -164,7 +170,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
 
         for idx, chunk in enumerate(chunks):
             with self.telemetry.span(f"chunk_{idx}"):
-                if not self.verifier.verify(chunk): # Pass CodeChunk object for Coq verification
+                if not self.spec.verify(chunk):  # Use self.spec for Coq verification
                     self.telemetry.track('verification_failure', chunk_id=str(chunk.id)) # Telemetry - verification fail
                     raise InvalidCodeHashError(f"Chunk {idx} failed Coq verification") # Raise specific verification error
                 summary = self._process_chunk(chunk, allocation[idx])
@@ -174,7 +180,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
                 self.kg.add_edge(chunk_node_id, summary_node_id, "has_summary") # Link in KG
                 summaries.append(summary)
 
-        return self.synthesizer.synthesize(summaries)
+        return self.summarizer.synthesize(summaries)
 
     def _get_model_costs(self):
         """Return current model cost and length constraints (simulated)."""
@@ -187,15 +193,23 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
 
     def _process_chunk(self, chunk: CodeChunk, allocation: tuple) -> str:
         tokens, model = allocation
+        last_exception = None # Store the last exception encountered
         for strategy in self.fallback_strategy:
             with self.telemetry.span(f"strategy_{strategy.__name__}"): # Track each strategy
                 try:
                     result = strategy(chunk, tokens, model)
                     self.telemetry.track('model_success', model=model, strategy=strategy.__name__) # Track success
                     return result
-                except OrchestrationError as e:
+                except Exception as e: # Catch ALL exceptions now
                     self.telemetry.track('model_fallback', model=model, strategy=strategy.__name__, error=str(e)) # Track fallback
-        raise CriticalFailure("All processing strategies failed")
+                    last_exception = e # Store the exception
+                    logging.warning(f"Fallback strategy {strategy.__name__} failed: {e}") # Log fallback failure
+
+        if last_exception: # Check if any fallback failed
+            raise CriticalFailure(f"All processing strategies failed. Last exception: {last_exception}") # Include last exception in CriticalFailure
+        else: # Should not reach here, but as a safety net
+            raise CriticalFailure("All processing strategies failed, reason unknown.")
+
 
     @formal_proof("""
     Lemma fallback_termination:
@@ -241,6 +255,4 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r'\\boxed{([^}]+)}', text)
     if match:
         return match.group(1)
-
-
 

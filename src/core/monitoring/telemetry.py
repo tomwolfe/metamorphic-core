@@ -1,3 +1,4 @@
+# src/core/monitoring/telemetry.py
 from dataclasses import dataclass
 from typing import Dict, ContextManager
 from contextlib import contextmanager
@@ -10,17 +11,29 @@ class TelemetryData:
     model_usage: Dict[str, int]
     ethical_checks: int
     operation_latency: Dict[str, float]
-    constraint_violations: Dict[str, int] # Track constraint violations
+    constraint_violations: Dict[str, int]
 
 class Telemetry:
     def __init__(self):
+        self.start_session() # Initialize with empty data
         self.data = TelemetryData(
             token_usage=defaultdict(int),
             model_usage=defaultdict(int),
             ethical_checks=0,
             operation_latency=defaultdict(float),
-            constraint_violations=defaultdict(int) # Initialize constraint_violations
+            constraint_violations=defaultdict(int)
         )
+
+    def start_session(self):
+        """Reset metrics for new session"""
+        self.data = TelemetryData(
+            token_usage=defaultdict(int),
+            model_usage=defaultdict(int),
+            ethical_checks=0,
+            operation_latency=defaultdict(float),
+            constraint_violations=defaultdict(int)
+        )
+
 
     def track(self, metric: str, value: int=1, tags: dict = None):
         if tags is None:
@@ -49,3 +62,4 @@ class Telemetry:
     def publish(self):
         # Integration with monitoring backend
         print(f"[Telemetry Report] {self.data}")
+

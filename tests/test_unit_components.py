@@ -62,45 +62,48 @@ class TestRecursiveSummarizer(unittest.TestCase):
         self.mock_telemetry = MagicMock()  # Mock Telemetry
         self.summarizer = RecursiveSummarizer(self.mock_llm, self.mock_verifier, self.mock_telemetry) # Pass telemetry
 
-    def test_recursive_summarization_depth_unit(self):
+    @patch.object(RecursiveSummarizer, '_generate_summary') # Mock _generate_summary
+    def test_recursive_summarization_depth_unit(self, mock_generate_summary):
         """Unit test for recursive summarization depth control."""
-        self.mock_llm.generate = MagicMock(return_value="Mock summary string")
+        mock_generate_summary.return_value = "Mock summary string"
         self.mock_verifier.verify.return_value = True # Mock verifier to always pass
         code = "def func1(): pass\n\ndef func2(): pass\n\ndef func3(): pass" # Example code
         summary = self.summarizer.summarize_code_recursively(code, depth=2) # Test with depth 2
-        self.mock_llm.generate.assert_called() # Check if LLM generate was called
-        assert self.mock_llm.generate.call_count >= 1
+        mock_generate_summary.assert_called() # Check if LLM generate was called
+        assert mock_generate_summary.call_count >= 1
 
-    def test_recursive_summarization_depth_unit_called_once(self):
+    @patch.object(RecursiveSummarizer, '_generate_summary') # Mock _generate_summary
+    def test_recursive_summarization_depth_unit_called_once(self, mock_generate_summary):
         """Unit test for recursive summarization depth control."""
-        self.mock_llm.generate = MagicMock(return_value="Mock summary string")
+        mock_generate_summary.return_value = "Mock summary string"
         code = "def short_func(): pass" # Short code for single chunk
         summary = self.summarizer.summarize_code_recursively(code, depth=1) # Test with depth 1
         self.assertIsInstance(summary, str, "Summary should be a string")
-        self.mock_llm.generate.assert_called_once()
+        mock_generate_summary.assert_called_once()
 
 
-    def test_summary_pre_verification_failure_unit(self): # Changed test name to reflect pre-verification failure
+    @patch.object(RecursiveSummarizer, '_generate_summary') # Mock _generate_summary
+    def test_summary_pre_verification_failure_unit(self, mock_generate_summary): # Changed test name to reflect pre-verification failure
         """Unit test for handling summary verification failure."""
-        self.mock_llm.generate = MagicMock(return_value="mock summary" # Return string for summary # Corrected mock to return string
-        )
+        mock_generate_summary.return_value = "mock summary" # Return string for summary # Corrected mock to return string
         self.mock_verifier.validate_chunks.return_value = False # Mock chunk validation to fail # Changed to False
         code = "def failing_func(): pass"
         with pytest.raises(FormalVerificationError, match="Chunk failed pre-summarization validation"): # Expect FormalVerificationError
             self.summarizer.summarize_code_recursively(code)
 
     @patch('src.core.chunking.recursive_summarizer.RecursiveSummarizer._generate_verified_summary')
-    def test_summary_retry_mechanism_unit(self, mock_verified_summary):
+    @patch.object(RecursiveSummarizer, '_generate_summary') # Mock _generate_summary
+    def test_summary_retry_mechanism_unit(self, mock_generate_summary, mock_verified_summary):
         """Unit test for retry mechanism in verified summary generation."""
-        self.mock_llm.generate = MagicMock(return_value="Mock summary string") # Re-add mock for self.llm.generate to return string
+        mock_generate_summary.return_value = "Mock summary string" # Re-add mock for self.llm.generate to return string
         mock_verified_summary.side_effect = ["summary1", "summary2"] # Mock _generate_verified_summary to return summaries
         self.mock_verifier.verify.side_effect = [False, True, True, True] # Mock verify to fail then pass (increased side_effect length)
         code = "def retry_func(): pass"
         summary = self.summarizer.summarize_code_recursively(code)
-        print(f"LLM generate call count: {self.mock_llm.generate.call_count}") # Debug print
+        print(f"LLM generate call count: {mock_generate_summary.call_count}") # Debug print
         print(f"Verifier verify call count: {self.mock_verifier.verify.call_count}") # Debug print
-        self.mock_llm.generate.assert_called()
-        self.assertEqual(self.mock_llm.generate.call_count, 3, "LLM generate should be called 3 times due to retry and recursion") # Corrected assertion to check LLM generate calls
+        mock_generate_summary.assert_called()
+        self.assertEqual(mock_generate_summary.call_count, 3, "LLM generate should be called 3 times due to retry and recursion") # Corrected assertion to check LLM generate calls
         self.assertEqual(summary, "Mock summary string", "Should return the original mock summary after successful retry") # Corrected assertion - EXPECT ORIGINAL SUMMARY
 
 class TestFormalSpecification(unittest.TestCase): # New FormalVerifier Unit Tests

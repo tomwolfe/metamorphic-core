@@ -5,7 +5,7 @@ import logging
 from io import StringIO
 from src.core.context_manager import parse_code_chunks, generate_summary, integrate_chunks_into_kg, CodeChunk, count_tokens
 from src.core.knowledge_graph import KnowledgeGraph, initialize_knowledge_graph
-from src.core.llm_orchestration import LLMOrchestrator # added import
+from src.core.llm_orchestration import LLMOrchestrator, EnhancedLLMOrchestrator # added import
 from unittest.mock import patch, MagicMock
 
 
@@ -233,11 +233,13 @@ class TestIntegration(unittest.TestCase):
         test_code = "def test_function(): pass"
 
         with patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._handle_large_context') as mock_chunking:
-            mock_chunking.return_value = [CodeChunk(content=test_code)]
+            mock_chunking.return_value = [CodeChunk(content=test_code, summary="Mock Summary")]
             chunks = orchestrator._handle_large_context(test_code)
             self.assertIsInstance(chunks[0], CodeChunk)
 
 
 if __name__ == '__main__':
     unittest.main()
+
+
 

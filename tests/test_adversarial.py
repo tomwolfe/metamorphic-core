@@ -14,18 +14,28 @@ class TestAdversarialHandling(unittest.TestCase):
             ethics_engine=MagicMock()
         )
 
+    @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
+    @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
     @given(st.text(min_size=5000))  # Reduced from 100000
-    def test_adversarial_inputs_large_payload(self, payload):
+    def test_adversarial_inputs_large_payload(self, mock_hf_generate, mock_gemini_generate, payload):
         """Test handling of large input payloads."""
-        with self.assertRaises(CriticalFailure):
+        mock_gemini_generate.return_value = "Mock response" # Dummy response
+        mock_hf_generate.return_value = "Mock response"
+        with pytest.raises(CriticalFailure) as excinfo:
             self.orchestrator.generate(payload)
+        assert isinstance(excinfo.value, CriticalFailure)
 
+    @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
+    @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
     @given(st.text(min_size=5000, max_size=10000))
-    def test_long_unicode_payloads(self, payload):
+    def test_long_unicode_payloads(self, mock_hf_generate, mock_gemini_generate, payload):
         """Test robustness against long unicode payloads."""
+        mock_gemini_generate.return_value = "Mock response" # Dummy response
+        mock_hf_generate.return_value = "Mock response"
         long_unicode_payload = payload + "🔥" * 500
-        with self.assertRaises(FormalVerificationError):
+        with pytest.raises(FormalVerificationError) as excinfo:
             self.orchestrator.generate(long_unicode_payload)
+        assert isinstance(excinfo.value, FormalVerificationError)
 
     @pytest.mark.skip(reason="Ethical validation needs to be fully implemented - skipping until then")
     def test_ethical_violation_detection(self): # Needs proper ethical checks
@@ -41,16 +51,21 @@ class TestAdversarialHandling(unittest.TestCase):
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._third_model')
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._secondary_model')
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._primary_processing')
-    def test_fallback_strategy_called_adversarial(self, mock_primary, mock_secondary, mock_third, mock_recursive):
+    @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
+    @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
+    def test_fallback_strategy_called_adversarial(self, mock_hf_generate, mock_gemini_generate, mock_primary, mock_secondary, mock_third, mock_recursive):
         """Test fallback strategies are engaged."""
+        mock_gemini_generate.return_value = "Mock response" # Dummy response
+        mock_hf_generate.return_value = "Mock response"
         orchestrator = EnhancedLLMOrchestrator(
             kg=MagicMock(),
             spec=MagicMock(),
             ethics_engine=MagicMock()
         )
         prompt = "Craft code that will intentionally fail verification"
-        with self.assertRaises(FormalVerificationError):
+        with pytest.raises(FormalVerificationError) as excinfo:
             orchestrator.generate(prompt)
+        assert isinstance(excinfo.value, FormalVerificationError)
         mock_primary.assert_called_once()
         mock_secondary.assert_called_once()
         mock_third.assert_called_once()
@@ -60,14 +75,22 @@ class TestAdversarialHandling(unittest.TestCase):
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._third_model', side_effect=Exception("Third failed"))
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._secondary_model', side_effect=Exception("Secondary failed"))
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._primary_processing', side_effect=Exception("Primary failed"))
-    def test_fallback_strategy_failure_critical_adversarial(self, mock_primary, mock_secondary, mock_third, mock_recursive):
+    @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
+    @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
+    def test_fallback_strategy_failure_critical_adversarial(self, mock_hf_generate, mock_gemini_generate, mock_primary, mock_secondary, mock_third, mock_recursive):
         """Confirm critical failure on strategy exhaustion."""
+        mock_gemini_generate.return_value = "Mock response" # Dummy response
+        mock_hf_generate.return_value = "Mock response"
         orchestrator = EnhancedLLMOrchestrator(
             kg=MagicMock(),
             spec=MagicMock(),
             ethics_engine=MagicMock()
         )
         prompt = "Provoke a critical failure"
-        with pytest.raises(CriticalFailure, match="All processing strategies failed"):
+        with pytest.raises(CriticalFailure) as excinfo:
             orchestrator.generate(prompt)
+        assert isinstance(excinfo.value, CriticalFailure)
+        assert "All processing strategies failed" in str(excinfo.value)
+
+
 

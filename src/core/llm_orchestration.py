@@ -145,10 +145,10 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
                 return self._handle_large_context(prompt)
             return super().generate(prompt)
         except FormalVerificationError as e: # Catch verification errors
-            self.telemetry.track('error', type='FormalVerificationError', message=str(e)) # Telemetry error track
+            self.telemetry.track('error', tags={'type': 'FormalVerificationError', 'message': str(e)}) # Telemetry error track
             raise # Re-raise after telemetry log
         except Exception as e: # Catch any other exceptions
-            self.telemetry.track('error', type='GenericError', message=str(e)) # Generic error track
+            self.telemetry.track('error', tags={'type': 'GenericError', 'message': str(e)}) # Generic error track
             raise # Re-raise
         finally:
             self.telemetry.publish()
@@ -241,3 +241,6 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r'\\boxed{([^}]+)}', text)
     if match:
         return match.group(1)
+
+
+

@@ -2,7 +2,7 @@
 
 import functools
 
-def formal_proof(proof_string: str):
+def formal_proof(proof_string: str, **kwargs):
     """
     Placeholder decorator for formal proofs.
     In a real implementation, this would handle proof verification.

@@ -215,7 +215,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
     @formal_proof("""
     Lemma fallback_termination:
       forall chunk, exists n, strategy_n(chunk) terminates
-    """)
+    """, autospec=True)
     def _primary_processing(self, chunk: CodeChunk, tokens: int, model: str) -> str:
         optimized = self.optimizer.optimize(chunk.content, tokens)
         return self._call_llm_api(optimized, model)
@@ -237,10 +237,14 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         if tokens < 1000: raise ModelCapacityError("Insufficient tokens for summarization")
         return self.summarizer.summarize_code_recursively(chunk.content) # Use RecursiveSummarizer
 
-    def _call_llm_api(self, text: str, model: str) -> str: # Corrected parameter name to 'text' for clarity
-        """Internal method to call LLM API (placeholder)."""
-        # Placeholder: Replace with actual LLM API call using 'text' and 'model'
-        return f"Response from {model} for: '{text[:50]}...'" # Simple placeholder response
+    def _call_llm_api(self, text: str, model: str) -> str:
+        """Call the appropriate LLM API based on model selection"""
+        if model == 'gemini':
+            return self._gemini_generate(text)
+        elif model in ['huggingface', 'hf']:  # Add other model aliases as needed
+            return self._hf_generate(text)
+        else:
+            raise ValueError(f"Unsupported model: {model}")
 
     def _count_tokens(self, text: str) -> int:
         """Token counting (placeholder - replace with actual tokenizer)."""

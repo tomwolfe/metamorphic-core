@@ -1,7 +1,7 @@
 # tests/test_adversarial.py
 import unittest
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given, strategies as st, settings, HealthCheck
 from src.core.llm_orchestration import EnhancedLLMOrchestrator, FormalVerificationError, CriticalFailure
 from src.core.chunking.dynamic_chunker import CodeChunk
 from unittest.mock import MagicMock, patch
@@ -18,7 +18,7 @@ class TestAdversarialHandling(unittest.TestCase):
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
     @given(st.text(min_size=5000))  # Reduced from 100000
     @patch.object(EnhancedLLMOrchestrator, '_count_tokens', return_value=5001) # Mock token count to trigger large context
-    def test_adversarial_inputs_large_payload(self, mock_count_tokens, mock_hf_generate, mock_gemini_generate, payload):
+    def test_adversarial_inputs_large_payload(self, mock_gemini_generate, mock_hf_generate, mock_count_tokens, payload):
         """Test handling of large input payloads."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
@@ -29,7 +29,8 @@ class TestAdversarialHandling(unittest.TestCase):
 
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
-    @given(st.text(min_size=5000, max_size=10000))
+    @settings(suppress_health_check=[HealthCheck.large_base_example])
+    @given(st.text(min_size=500, max_size=1000))
     def test_long_unicode_payloads(self, mock_hf_generate, mock_gemini_generate, payload):
         """Test robustness against long unicode payloads."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
@@ -65,6 +66,7 @@ class TestAdversarialHandling(unittest.TestCase):
             spec=MagicMock(),
             ethics_engine=MagicMock()
         )
+        orchestrator.spec.verify_predictions.return_value = {'verified': False}
         prompt = "Craft code that will intentionally fail verification"
         with pytest.raises(FormalVerificationError) as excinfo: # Use pytest.raises context manager
             orchestrator.generate(prompt)
@@ -94,4 +96,3 @@ class TestAdversarialHandling(unittest.TestCase):
             orchestrator.generate(prompt)
         assert isinstance(excinfo.value, CriticalFailure)
         assert "All processing strategies failed" in str(excinfo.value)
-

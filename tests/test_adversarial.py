@@ -1,10 +1,11 @@
 # tests/test_adversarial.py
 import unittest
 import pytest
-from hypothesis import given, strategies as st, settings, HealthCheck
+from hypothesis import given, strategies as st
 from src.core.llm_orchestration import EnhancedLLMOrchestrator, FormalVerificationError, CriticalFailure
 from src.core.chunking.dynamic_chunker import CodeChunk
 from unittest.mock import MagicMock, patch
+from hypothesis import settings, HealthCheck
 
 class TestAdversarialHandling(unittest.TestCase):
     def setUp(self):
@@ -22,8 +23,8 @@ class TestAdversarialHandling(unittest.TestCase):
         """Test handling of large input payloads."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
-        self.orchestrator.spec.validate_chunks.return_value = False # make chunk validation fail
-        with pytest.raises(CriticalFailure) as excinfo: # Use pytest.raises context manager
+        self.orchestrator.spec.validate_chunks.return_value = False
+        with pytest.raises(CriticalFailure) as excinfo:
             self.orchestrator.generate(payload)
         assert isinstance(excinfo.value, CriticalFailure)
 
@@ -36,8 +37,8 @@ class TestAdversarialHandling(unittest.TestCase):
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
         long_unicode_payload = payload + "🔥" * 500
-        self.orchestrator.spec.verify_predictions.return_value = {'verified': False} # Mock spec verify_predictions to fail
-        with pytest.raises(FormalVerificationError) as excinfo: # Use pytest.raises context manager
+        self.orchestrator.spec.verify_predictions.return_value = {'verified': False}
+        with pytest.raises(FormalVerificationError) as excinfo:
             self.orchestrator.generate(long_unicode_payload)
         assert isinstance(excinfo.value, FormalVerificationError)
 
@@ -79,6 +80,7 @@ class TestAdversarialHandling(unittest.TestCase):
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._recursive_summarization_strategy', side_effect=Exception("Recursive failed"))
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._third_model', side_effect=Exception("Third failed"))
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._secondary_model', side_effect=Exception("Secondary failed"))
+     # Force primary to fail
     @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._primary_processing', side_effect=Exception("Primary failed"))
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
@@ -91,8 +93,10 @@ class TestAdversarialHandling(unittest.TestCase):
             spec=MagicMock(),
             ethics_engine=MagicMock()
         )
+        orchestrator.spec.verify_predictions.return_value = {'verified': False}
         prompt = "Provoke a critical failure"
         with pytest.raises(CriticalFailure) as excinfo: # Use pytest.raises context manager
             orchestrator.generate(prompt)
         assert isinstance(excinfo.value, CriticalFailure)
         assert "All processing strategies failed" in str(excinfo.value)
+

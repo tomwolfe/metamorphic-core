@@ -50,7 +50,7 @@ class SemanticChunker:
                 current_token_count += line_tokens
 
         # Add any remaining lines as the last chunk
-        if current_chunk_lines:
+        if current_chunk_lines or not chunks: # Ensure at least one chunk even if input is empty
             chunk_content = "\n".join(current_chunk_lines)
             chunks.append(CodeChunk(
                 content=chunk_content,
@@ -100,3 +100,4 @@ print(f"Result: {y}")
         print("--- Chunk Content ---")
         print(chunk.content)
         print("\n" + "="*50 + "\n")
+

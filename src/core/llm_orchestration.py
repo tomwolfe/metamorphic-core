@@ -196,6 +196,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         last_exception = None # Store the last exception encountered
         for strategy in self.fallback_strategy:
             with self.telemetry.span(f"strategy_{strategy.__name__}"): # Track each strategy
+                 # Track each strategy
                 try:
                     result = strategy(chunk, tokens, model)
                     self.telemetry.track('model_success', model=model, strategy=strategy.__name__) # Track success
@@ -239,7 +240,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
     def _call_llm_api(self, text: str, model: str) -> str: # Corrected parameter name to 'text' for clarity
         """Internal method to call LLM API (placeholder)."""
         # Placeholder: Replace with actual LLM API call using 'text' and 'model'
-        return f"Response from {model} for: '{text[:20]}...'" # Simple placeholder response
+        return f"Response from {model} for: '{text[:50]}...'" # Simple placeholder response
 
     def _count_tokens(self, text: str) -> int:
         """Token counting (placeholder - replace with actual tokenizer)."""
@@ -255,4 +256,3 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r'\\boxed{([^}]+)}', text)
     if match:
         return match.group(1)
-

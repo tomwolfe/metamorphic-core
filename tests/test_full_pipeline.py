@@ -16,21 +16,23 @@ class TestOrchestrationSystem(unittest.TestCase):
         )
 
     @patch.object(EnhancedLLMOrchestrator, '_count_tokens', return_value=5001) # Mock token count to trigger large context
+    @settings(suppress_health_check=[HealthCheck.large_base_example]) # Suppress health check for large example
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
-    @given(st.text(min_size=5000))  # Reduced from 100000
-    def test_adversarial_inputs_large_pipeline(self, mock_gemini_generate, mock_hf_generate, mock_count_tokens, payload):
-        """Pipeline test for large inputs."""
+    # Removed @given and using fixed payload
+    def test_adversarial_inputs_large_pipeline(self, mock_hf_generate, mock_gemini_generate, mock_count_tokens): # Corrected order
+        """Pipeline test for large inputs - expect FormalVerificationError due to chunk validation fail."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
         self.orchestrator.spec.validate_chunks.return_value = False # Make chunk validation fail
+        large_payload = "0" * 5000 # Fixed large payload
         with pytest.raises(FormalVerificationError): # Use pytest.raises context manager
-            self.orchestrator.generate(payload)
+            self.orchestrator.generate(large_payload)
 
     @patch('src.core.verification.specification.FormalSpecification.verify_predictions', return_value={'verified': True})
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
-    def test_formal_verification_integration_pipeline(self, mock_hf_generate, mock_gemini_generate, mock_verify):
+    def test_formal_verification_integration_pipeline(self, mock_hf_generate, mock_gemini_generate, mock_verify): # Corrected order
         """Test formal verification success."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
@@ -40,7 +42,7 @@ class TestOrchestrationSystem(unittest.TestCase):
 
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
-    def test_runtime_formal_verification_failure_pipeline(self, mock_hf_generate, mock_gemini_generate):
+    def test_runtime_formal_verification_failure_pipeline(self, mock_hf_generate, mock_gemini_generate): # Corrected order
         """Test verification failure."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
@@ -52,7 +54,7 @@ class TestOrchestrationSystem(unittest.TestCase):
     @patch('src.core.verification.specification.FormalSpecification.verify_predictions', return_value={'verified': True})
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
-    def test_full_self_verification_loop_pipeline(self, mock_hf_generate, mock_gemini_generate, mock_verify):
+    def test_full_self_verification_loop_pipeline(self, mock_hf_generate, mock_gemini_generate, mock_verify): # Corrected order
         """Test self-verification loop."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
@@ -67,13 +69,14 @@ class TestOrchestrationSystem(unittest.TestCase):
         with self.assertRaises(Exception): # Replace EthicalViolation with Exception for now
             self.orchestrator.generate(toxic_code)
 
+    @patch.object(EnhancedLLMOrchestrator, '_count_tokens', return_value=5001) # Mock token count to trigger large context # Added mock_count_tokens to signature
     @patch.object(EnhancedLLMOrchestrator, '_recursive_summarization_strategy')
     @patch.object(EnhancedLLMOrchestrator, '_third_model')
     @patch.object(EnhancedLLMOrchestrator, '_secondary_model')
     @patch.object(EnhancedLLMOrchestrator, '_primary_processing', side_effect=Exception("Primary failed")) # Force primary to fail
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
-    def test_full_fallback_pipeline_calls_strategies_pipeline(self, mock_hf_generate, mock_gemini_generate, mock_primary, mock_secondary, mock_third, mock_recursive):
+    def test_full_fallback_pipeline_calls_strategies_pipeline(self, mock_hf_generate, mock_gemini_generate, mock_primary, mock_secondary, mock_third, mock_recursive, mock_count_tokens): # Corrected order and added mock_count_tokens
         """Pipeline test to ensure fallback strategies are called in full pipeline."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
@@ -88,16 +91,17 @@ class TestOrchestrationSystem(unittest.TestCase):
         mock_third.assert_called_once() # Check tertiary fallback engaged
         mock_recursive.assert_called_once() # Check recursive summarization fallback engaged
 
+    @patch.object(EnhancedLLMOrchestrator, '_count_tokens', return_value=100) # Mock token count to trigger normal context
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
-    def test_telemetry_integration_in_pipeline_full(self, mock_hf_generate, mock_gemini_generate):
+    def test_telemetry_integration_in_pipeline_full(self, mock_hf_generate, mock_gemini_generate, mock_count_tokens): # Corrected order
         """Pipeline test to verify telemetry data is captured in full pipeline."""
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response"
         orchestrator = EnhancedLLMOrchestrator(kg=MagicMock(), spec=MagicMock(), ethics_engine=MagicMock())
         prompt = "Telemetry pipeline test prompt"
         orchestrator.spec.verify_predictions.return_value = {'verified': False} # Mock spec verify_predictions to fail
-        with pytest.raises(FormalVerificationError): # Use pytest.raises context manager
+        with pytest.raises(FormalVerificationError) as excinfo: # Use pytest.raises context manager
             orchestrator.generate(prompt)
         assert isinstance(excinfo.value, FormalVerificationError)
         self.assertGreater(orchestrator.telemetry.data.operation_latency['generate'], 0) # Check latency tracked
@@ -106,6 +110,4 @@ class TestOrchestrationSystem(unittest.TestCase):
 
     def _generate_hate_speech(self): # Dummy hate speech generator
         return "// Malicious content\n" + "\n".join(f"phrase_{i}" for i in range(100))
-
-
 

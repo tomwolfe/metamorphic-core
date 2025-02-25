@@ -139,10 +139,11 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
     def generate(self, prompt: str) -> str:
         self.telemetry.start_session()
         try:
-            if self._count_tokens(prompt) > 4000:
-                code = self._handle_large_context(prompt)
-            else:
-                code = super().generate(prompt)
+            with self.telemetry.span('generate_logic'): # Telemetry span for generate function
+                if self._count_tokens(prompt) > 4000:
+                    code = self._handle_large_context(prompt)
+                else:
+                    code = super().generate(prompt)
 
             # Verify the generated code
             verification_result = self.spec.verify_predictions(code)
@@ -162,7 +163,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
     def _handle_large_context(self, prompt: str) -> str:
         chunks = self.chunker.chunk(prompt)
         if not self.spec.validate_chunks(chunks):  # Use self.spec for chunk validation
-            self.telemetry.track('constraint_violation', constraint='InitialChunkValidation') # Telemetry - initial validation fail
+            self.telemetry.track('constraint_violation', tags={'constraint': 'InitialChunkValidation'}) # Telemetry - initial validation fail
             raise FormalVerificationError("Initial chunk validation failed") # Raise verification error
 
         allocation = self.allocator.allocate(chunks, self._get_model_costs()) # Pass model costs
@@ -171,7 +172,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         for idx, chunk in enumerate(chunks):
             with self.telemetry.span(f"chunk_{idx}"):
                 if not self.spec.verify(chunk):  # Use self.spec for Coq verification
-                    self.telemetry.track('verification_failure', chunk_id=str(chunk.id)) # Telemetry - verification fail
+                    self.telemetry.track('verification_failure', tags={'chunk_id': str(chunk.id)}) # Telemetry - verification fail
                     raise InvalidCodeHashError(f"Chunk {idx} failed Coq verification") # Raise specific verification error
                 summary = self._process_chunk(chunk, allocation[idx])
                 chunk_node_id = self.kg.add_node(chunk) # Store chunk in KG and get ID
@@ -199,10 +200,10 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
                  # Track each strategy
                 try:
                     result = strategy(chunk, tokens, model)
-                    self.telemetry.track('model_success', model=model, strategy=strategy.__name__) # Track success
+                    self.telemetry.track('model_success', tags={'model': model, 'strategy': strategy.__name__}) # Track success
                     return result
                 except Exception as e: # Catch ALL exceptions now
-                    self.telemetry.track('model_fallback', model=model, strategy=strategy.__name__, error=str(e)) # Track fallback
+                    self.telemetry.track('model_fallback', tags={'model': model, 'strategy': strategy.__name__, 'error': str(e)}) # Track fallback
                     last_exception = e # Store the exception
                     logging.warning(f"Fallback strategy {strategy.__name__} failed: {e}") # Log fallback failure
 
@@ -260,3 +261,4 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r'\\boxed{([^}]+)}', text)
     if match:
         return match.group(1)
+

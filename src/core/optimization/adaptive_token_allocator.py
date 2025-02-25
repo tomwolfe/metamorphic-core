@@ -25,6 +25,12 @@ class TokenAllocator:
         self.solver.add([model_vars[i] >= 0 for i in range(len(chunks))])
         self.solver.add([model_vars[i] < len(models) for i in range(len(chunks))])
 
+        # Model capacity constraints - Ensure allocated tokens are within model's effective length
+        for i in range(len(chunks)):
+            self.solver.add(Or([
+                And(model_vars[i] == j, allocations[i] <= models[j]['effective_length'])
+                for j in range(len(models))
+            ]))
 
         # Ethical constraints
         self.policy.apply(self.solver, allocations, model_vars)
@@ -53,4 +59,3 @@ class TokenAllocator:
         base_cost = tokens * selected_model['cost_per_token']
         complexity_penalty = (tokens ** 1.2) / 1000  # Example non-linear penalty
         return base_cost + complexity_penalty
-

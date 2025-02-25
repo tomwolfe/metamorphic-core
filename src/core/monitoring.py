@@ -2,6 +2,7 @@
 import time
 from collections import defaultdict
 from typing import Dict, Any
+import os # Import os for environment variable check
 
 class TelemetryData:
     def __init__(self):

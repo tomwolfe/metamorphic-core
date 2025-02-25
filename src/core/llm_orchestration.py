@@ -261,4 +261,3 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r'\\boxed{([^}]+)}', text)
     if match:
         return match.group(1)
-

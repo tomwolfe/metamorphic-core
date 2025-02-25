@@ -16,4 +16,3 @@ def formal_proof(proof_string: str, **kwargs):
             return func(*args, **kwargs)
         return wrapper
     return decorator
-

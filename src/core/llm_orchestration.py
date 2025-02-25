@@ -187,9 +187,9 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         """Return current model cost and length constraints (simulated)."""
         # In real system, these could be dynamically fetched or configured
         return {
-            'gemini': {'effective_length': 8000, 'cost_per_token': 1},
-            'gpt-4': {'effective_length': 32000, 'cost_per_token': 10},
-            'mistral-large': {'effective_length': 32000, 'cost_per_token': 5} # Example third model
+            'gemini': {'effective_length': 8000, 'cost_per_token': 0.000001},
+            'gpt-4': {'effective_length': 8000, 'cost_per_token': 0.00003},
+            'mistral-large': {'effective_length': 32000, 'cost_per_token': 0.000002} # Example third model
         }
 
     def _process_chunk(self, chunk: CodeChunk, allocation: tuple) -> str:
@@ -239,7 +239,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         return self.summarizer.summarize_code_recursively(chunk.content) # Use RecursiveSummarizer
 
     def _call_llm_api(self, text: str, model: str) -> str:
-        """Call the appropriate LLM API based on model selection"""
+        self.telemetry.track('model_usage', tags={'model': model}) # Track model usage
         if model == 'gemini':
             return self._gemini_generate(text)
         elif model in ['huggingface', 'hf']:  # Add other model aliases as needed

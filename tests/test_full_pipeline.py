@@ -16,7 +16,7 @@ class TestOrchestrationSystem(unittest.TestCase):
         )
 
     @patch.object(EnhancedLLMOrchestrator, '_count_tokens', return_value=5001) # Mock token count to trigger large context
-    @settings(suppress_health_check=[HealthCheck.large_base_example]) # Suppress health check for large example
+    # @settings(suppress_health_check=[HealthCheck.large_base_example]) # Removed @settings
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call
     @patch.object(EnhancedLLMOrchestrator, '_hf_generate') # Mock HF API call
     # Removed @given and using fixed payload
@@ -104,7 +104,7 @@ class TestOrchestrationSystem(unittest.TestCase):
         with pytest.raises(FormalVerificationError) as excinfo: # Use pytest.raises context manager
             orchestrator.generate(prompt)
         assert isinstance(excinfo.value, FormalVerificationError)
-        self.assertGreater(orchestrator.telemetry.data.operation_latency['generate'], 0) # Check latency tracked
+        self.assertGreater(orchestrator.telemetry.data.operation_latency['generate_logic'], 0) # Check latency tracked - corrected key
         self.assertGreater(sum(orchestrator.telemetry.data.model_usage.values()), 0) # Check model usage tracked
         self.assertGreater(sum(orchestrator.telemetry.data.constraint_violations.values()), 0) # Check constraint violations tracked
 

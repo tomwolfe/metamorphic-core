@@ -143,6 +143,9 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
                 if self._count_tokens(prompt) > 4000:
                     code = self._handle_large_context(prompt)
                 else:
+                    # Track model usage for base generate
+                    model = self.config.provider.value
+                    self.telemetry.track('model_usage', tags={'model': model})
                     code = super().generate(prompt)
 
             # Verify the generated code

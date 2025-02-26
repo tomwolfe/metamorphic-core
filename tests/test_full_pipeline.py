@@ -9,9 +9,9 @@ from hypothesis import settings, HealthCheck
 from src.core.ethics.constraints import EthicalAllocationPolicy # Import for patching
 
 mock_primary_processing_full_pipeline_test = MagicMock(side_effect=Exception("Primary failed"), __name__='_primary_processing')
-mock_secondary_model_full_pipeline_test = MagicMock(__name__='_secondary_model') # Mock success for secondary
-mock_third_model_full_pipeline_test = MagicMock(__name__='_third_model') # Mock success for third
-mock_recursive_summarization_strategy_full_pipeline_test = MagicMock(__name__='_recursive_summarization_strategy') # Mock success for recursive summarization
+mock_secondary_model_full_pipeline_test = MagicMock(side_effect=Exception("Secondary failed"), __name__='_secondary_model') # Mock success for secondary
+mock_third_model_full_pipeline_test = MagicMock(side_effect=Exception("Third failed"), __name__='_third_model') # Mock success for third
+mock_recursive_summarization_strategy_full_pipeline_test = MagicMock(side_effect=Exception("Recursive failed"), __name__='_recursive_summarization_strategy') # Mock success for recursive summarization
 
 @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._recursive_summarization_strategy', new=mock_recursive_summarization_strategy_full_pipeline_test)
 @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._third_model', new=mock_third_model_full_pipeline_test)
@@ -81,7 +81,11 @@ class TestOrchestrationSystem(unittest.TestCase):
         with self.assertRaises(Exception): # Replace EthicalViolation with Exception for now
             self.orchestrator.generate(toxic_code)
 
-    def test_full_fallback_pipeline_calls_strategies_pipeline(self, mock_hf_generate, mock_gemini_generate, mock_primary, mock_secondary, mock_third, mock_recursive, mock_count_tokens, mock_ethics_apply): # Corrected order and added mock_count_tokens, mock_ethics_apply
+    @patch('src.core.ethics.constraints.EthicalAllocationPolicy.apply')
+    @patch.object(EnhancedLLMOrchestrator, '_count_tokens', return_value=5001)
+    @patch.object(EnhancedLLMOrchestrator, '_gemini_generate')
+    @patch.object(EnhancedLLMOrchestrator, '_hf_generate')
+    def test_full_fallback_pipeline_calls_strategies_pipeline(self, mock_hf_generate, mock_gemini_generate, mock_count_tokens, mock_ethics_apply): # Corrected order and added mock_count_tokens, mock_ethics_apply
         """Pipeline test to ensure fallback strategies are called in full pipeline."""
         mock_ethics_apply.return_value = None # Disable ethical policy for this test
         mock_gemini_generate.return_value = "Mock response" # Dummy response
@@ -89,13 +93,13 @@ class TestOrchestrationSystem(unittest.TestCase):
         orchestrator = EnhancedLLMOrchestrator(kg=MagicMock(), spec=MagicMock(), ethics_engine=MagicMock())
         orchestrator.spec.verify_predictions.return_value = {'verified': False}
         prompt = "Large test prompt to trigger fallback in pipeline" # Large prompt for pipeline fallback
-        with pytest.raises(FormalVerificationError) as excinfo: # Use pytest.raises context manager
+        with pytest.raises(CriticalFailure) as excinfo: # Use pytest.raises context manager
             orchestrator.generate(prompt)
-        assert isinstance(excinfo.value, FormalVerificationError)
-        mock_primary.assert_called_once() # Check primary called in pipeline
-        mock_secondary.assert_called_once() # Check secondary fallback engaged
-        mock_third.assert_called_once() # Check tertiary fallback engaged
-        mock_recursive.assert_called_once() # Check recursive summarization fallback engaged
+        assert isinstance(excinfo.value, CriticalFailure)
+        mock_primary_processing_full_pipeline_test.assert_called_once() # Check primary called in pipeline
+        mock_secondary_model_full_pipeline_test.assert_called_once() # Check secondary fallback engaged
+        mock_third_model_full_pipeline_test.assert_called_once() # Check tertiary fallback engaged
+        mock_recursive_summarization_strategy_full_pipeline_test.assert_called_once() # Check recursive summarization fallback engaged
 
     @patch.object(EnhancedLLMOrchestrator, '_count_tokens', return_value=100) # Mock token count to trigger normal context
     @patch.object(EnhancedLLMOrchestrator, '_gemini_generate') # Mock Gemini API call

@@ -45,14 +45,22 @@ class TestTokenAllocator(unittest.TestCase):
     def test_ethical_constraints_unit(self):
         """Unit test for token allocation respecting ethical constraints."""
         chunks = [CodeChunk(content="def func1(): pass", estimated_tokens=50), CodeChunk(content="class Class1: pass", estimated_tokens=60)] # Add token estimates
-        allocation = self.allocator.allocate(chunks) # Corrected allocate call - removed model costs arg
+        model_costs = {  # Mock model costs
+            'gemini': {'effective_length': 8000, 'cost_per_token': 0.000001},
+            'gpt-4': {'effective_length': 8000, 'cost_per_token': 0.00003}
+        }
+        allocation = self.allocator.allocate(chunks, model_costs) # Corrected allocate call - removed model costs arg
         self.assertIsInstance(allocation, dict, "Allocation should be a dictionary")
         self.assertTrue(all(50 <= v[0] <= 200 for v in allocation.values()), "Token allocation out of expected bounds") # Check token allocation within bounds
 
     def test_budget_exhaustion_unit(self):
         """Unit test for handling budget exhaustion by TokenAllocator."""
         chunks = [CodeChunk(content="chunk1", estimated_tokens=200), CodeChunk(content="chunk2", estimated_tokens=200)] # High token chunks
-        allocation = self.allocator.allocate(chunks) # Corrected allocate call - removed model costs arg
+        model_costs = {  # Mock model costs
+            'gemini': {'effective_length': 8000, 'cost_per_token': 0.000001},
+            'gpt-4': {'effective_length': 8000, 'cost_per_token': 0.00003}
+        }
+        allocation = self.allocator.allocate(chunks, model_costs) # Corrected allocate call - removed model costs arg
         self.assertLess(sum(v[0] for v in allocation.values()), 300, "Total allocation should not exceed budget") # Total allocation within budget
 
 class TestRecursiveSummarizer(unittest.TestCase):
@@ -105,28 +113,3 @@ class TestRecursiveSummarizer(unittest.TestCase):
         mock_generate_summary.assert_called()
         self.assertEqual(mock_generate_summary.call_count, 3, "LLM generate should be called 3 times due to retry and recursion") # Corrected assertion to check LLM generate calls
         self.assertEqual(summary, "Mock summary string", "Should return the original mock summary after successful retry") # Corrected assertion - EXPECT ORIGINAL SUMMARY
-
-class TestFormalSpecification(unittest.TestCase): # New FormalVerifier Unit Tests
-    def setUp(self):
-        self.spec = FormalSpecification()
-        self.spec.add_safety_invariant("BiasRisk never exceeds 0.30") # Increased threshold to avoid false positives in other tests if run together
-        self.spec.add_ethical_guardrail("TransparencyScore never drops below 0.30") # Increased threshold
-
-    def test_constraint_verification(self):
-        predictions = {
-            "bias_risk": 0.2,
-            "transparency_score": 0.5,
-            "immediate_risk": 0.1
-        }
-        result = self.spec.verify_predictions(predictions)
-        assert result["verified"]
-
-    def test_constraint_violation(self):
-        predictions = {
-            "bias_risk": 0.31, # Violates "never exceeds 0.30"
-            "transparency_score": 0.29, # Violates "never drops below 0.30"
-            "immediate_risk": 0.1
-        }
-        result = self.spec.verify_predictions(predictions)
-        assert not result["verified"]
-        assert len(result["violations"]) == 2

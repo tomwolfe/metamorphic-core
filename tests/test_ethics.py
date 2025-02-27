@@ -11,7 +11,8 @@ from src.core.quantum.ethical_validation import EthicalQuantumCore
 
 # Original tests
 @patch.object(QuantumEthicalValidator, '_predict_ethical_impact') # Mock predict_ethical_impact to prevent LLM calls
-def test_ethical_validation_approved(mock_predict):
+@patch('src.core.agents.test_generator.TestGenAgent.generate_tests') # Mock TestGenAgent.generate_tests to prevent LLM calls
+def test_ethical_validation_approved(mock_generate_tests, mock_predict):
     mock_predict.return_value = { # Mock a safe prediction
         "bias_risk": 0.15,
         "transparency_score": 0.8,
@@ -19,6 +20,7 @@ def test_ethical_validation_approved(mock_predict):
         "long_term_risk": 0.2,
         "privacy_risk": 0.1
     }
+    mock_generate_tests.return_value = [] # Mock empty tests to avoid LLM calls in test generation
     validator = QuantumEthicalValidator()
     result = validator.validate_code("print('Hello World')")
     assert result["status"] == "approved"
@@ -26,7 +28,8 @@ def test_ethical_validation_approved(mock_predict):
     assert result["score"] >= 0.8  # Safe code should have high score
 
 @patch.object(QuantumEthicalValidator, '_predict_ethical_impact') # Mock predict_ethical_impact to prevent LLM calls
-def test_ethical_validation_rejected(mock_predict):
+@patch('src.core.agents.test_generator.TestGenAgent.generate_tests') # Mock TestGenAgent.generate_tests to prevent LLM calls
+def test_ethical_validation_rejected(mock_generate_tests, mock_predict):
     mock_predict.return_value = {
         "bias_risk": 0.30,  # Exceeds 0.25 threshold
         "transparency_score": 0.7,
@@ -34,6 +37,7 @@ def test_ethical_validation_rejected(mock_predict):
         "long_term_risk": 0.2,
         "privacy_risk": 0.1
     }
+    mock_generate_tests.return_value = [] # Mock empty tests
     validator = QuantumEthicalValidator()
     result = validator.validate_code("dangerous_code")
     assert result["status"] == "rejected"
@@ -56,8 +60,8 @@ def mock_verifier():
     }
     return mock
 
-
-def test_approval_with_valid_proof(mock_verifier):
+@patch('src.core.agents.test_generator.TestGenAgent.generate_tests') # Mock TestGenAgent.generate_tests
+def test_approval_with_valid_proof(mock_generate_tests, mock_verifier):
     """Test code approval when formal proofs verify all constraints"""
     with patch('src.core.ethics.governance.FormalSpecification') as mock_spec:
         mock_spec_instance = mock_spec.return_value
@@ -65,6 +69,7 @@ def test_approval_with_valid_proof(mock_verifier):
             "verified": True,
             "violations": []
         }
+        mock_generate_tests.return_value = [] # Mock empty tests
         validator = QuantumEthicalValidator()
         result = validator.validate_code("ethical_code = 42")
 
@@ -72,7 +77,8 @@ def test_approval_with_valid_proof(mock_verifier):
     assert result["score"] >= 0.7
 
 @patch.object(QuantumEthicalValidator, '_predict_ethical_impact') # Mock predict_ethical_impact to prevent LLM calls
-def test_rejection_due_to_violations(mock_predict):
+@patch('src.core.agents.test_generator.TestGenAgent.generate_tests') # Mock TestGenAgent.generate_tests
+def test_rejection_due_to_violations(mock_generate_tests, mock_predict):
     """Test code rejection when formal verification finds violations"""
     mock_predict.return_value = {
         "bias_risk": 0.30,  # Exceeds 0.25 threshold
@@ -81,6 +87,7 @@ def test_rejection_due_to_violations(mock_predict):
         "long_term_risk": 0.2,
         "privacy_risk": 0.1
     }
+    mock_generate_tests.return_value = [] # Mock empty tests
     validator = QuantumEthicalValidator()
 
     # Force verification failure
@@ -96,8 +103,10 @@ def test_rejection_due_to_violations(mock_predict):
     assert result["status"] == "rejected"
     assert result["score"] < 0.7
 
-def test_error_handling_in_validation():
+@patch('src.core.agents.test_generator.TestGenAgent.generate_tests') # Mock TestGenAgent.generate_tests
+def test_error_handling_in_validation(mock_generate_tests):
     """Test graceful handling of validation errors"""
+    mock_generate_tests.return_value = [] # Mock empty tests
     validator = QuantumEthicalValidator()
 
     with patch.object(validator.formal_verifier, 'verify_predictions') as mock_verify:
@@ -117,7 +126,8 @@ def test_error_handling_in_validation():
     (False, False, 0.5)   # Base score only
 ])
 @patch.object(QuantumEthicalValidator, '_predict_ethical_impact') # Mock predict_ethical_impact to prevent LLM calls
-def test_score_calculation(mock_predict, immediate, long_term, expected_score):
+@patch('src.core.agents.test_generator.TestGenAgent.generate_tests') # Mock TestGenAgent.generate_tests
+def test_score_calculation(mock_generate_tests, mock_predict, immediate, long_term, expected_score):
     """Test ethical score calculation boundaries"""
     mock_predict.return_value = { # Mock predictions to avoid LLM calls
         "bias_risk": 0.15,
@@ -126,6 +136,7 @@ def test_score_calculation(mock_predict, immediate, long_term, expected_score):
         "long_term_risk": 0.2,
         "privacy_risk": 0.1
     }
+    mock_generate_tests.return_value = [] # Mock empty tests
     validator = QuantumEthicalValidator()
 
     with patch.object(validator, '_calculate_ethical_score') as mock_calculate:
@@ -133,6 +144,3 @@ def test_score_calculation(mock_predict, immediate, long_term, expected_score):
         result = validator.validate_code("any_code")
 
         assert result["score"] == expected_score
-
-
-

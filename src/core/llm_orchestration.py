@@ -95,7 +95,10 @@ class LLMOrchestrator:
                 contents=prompt,
                 generation_config=genai.types.GenerationConfig(temperature=0.6, top_p=0.95)
             )
-            return ''.join([part.text for part in response.parts if hasattr(part, 'text')])
+            if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
+                parts = response.candidates[0].content.parts
+                return ''.join(part.text for part in parts if hasattr(part, 'text'))
+            return ""
         except Exception as e:
             logging.error(f"Gemini error: {str(e)}")
             raise RuntimeError(f"Gemini error: {str(e)}")

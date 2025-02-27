@@ -100,7 +100,7 @@ class FormalSpecification:
                 "long_term_risk": "LongTermRisk",
                 "privacy_risk": "PrivacyRisk"
             }
-            
+
             # Add prediction equalities to solver
             for pred_key, pred_value in predictions.items():
                 z3_var = canonical_map.get(pred_key)
@@ -115,10 +115,10 @@ class FormalSpecification:
             elif check_result == unsat:
                 # Check all constraints against predictions directly
                 violations = []
-                pred_values = {canonical_map[k]: v 
-                             for k, v in predictions.items() 
+                pred_values = {canonical_map[k]: v
+                             for k, v in predictions.items()
                              if k in canonical_map}
-                
+
                 for pc in self.parsed_constraints:
                     current_value = pred_values.get(pc['variable'])
                     if current_value is None:
@@ -126,7 +126,7 @@ class FormalSpecification:
                     if (pc['operator'] == '<=' and current_value > pc['threshold']) or \
                        (pc['operator'] == '>=' and current_value < pc['threshold']):
                         violations.append(pc['name'])
-                
+
                 results["verified"] = False
                 results["violations"] = violations
                 self.valid_constraints = set(self.constraints.keys()) - set(violations)
@@ -139,15 +139,3 @@ class FormalSpecification:
 
         results["proofs"] = self.proofs
         return results
-
-    def get_constraint_names(self) -> List[str]:
-        """Get list of registered constraints"""
-        return list(self.constraints.keys())
-
-    def get_valid_constraints(self) -> List[str]:
-        """Get list of currently satisfied constraints"""
-        return list(self.valid_constraints)
-
-    def get_violated_constraints(self) -> List[str]:
-        """Get list of violated constraints from last verification"""
-        return self.last_violations

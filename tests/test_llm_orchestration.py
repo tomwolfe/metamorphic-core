@@ -67,7 +67,7 @@ def test_gemini_generation(mock_get, mock_client):
         'GEMINI_API_KEY': 'test_key'
     }.get(var_name, default)
     mock_instance = mock_client.return_value
-    mock_instance.models.generate_content.return_value = MagicMock(
+    mock_instance.generate_content.return_value = MagicMock(
         candidates=[MagicMock(
             content=MagicMock(
                 parts=[MagicMock(text="Test response")]
@@ -105,7 +105,8 @@ def test_retry_logic(mock_get, mock_client):
     mock_get.side_effect = lambda var_name, default=None: {
         'GEMINI_API_KEY': 'test_key', 'LLM_PROVIDER': 'gemini'
     }.get(var_name, default)
-    mock_instance.models.generate_content.side_effect = [
+    # Mock Client.generate_content directly
+    mock_instance.generate_content.side_effect = [
         Exception("API error"),
         Exception("API error"),
         Exception("API error")
@@ -113,7 +114,7 @@ def test_retry_logic(mock_get, mock_client):
     with pytest.raises(RuntimeError):
         orchestrator = LLMOrchestrator()
         orchestrator.generate("test")
-    assert mock_instance.models.generate_content.call_count == 3
+    assert mock_instance.generate_content.call_count == 3
 
 def test_gemini_client_initialization():
     with patch('src.utils.config.SecureConfig.get') as mock_get:

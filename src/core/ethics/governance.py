@@ -19,7 +19,7 @@ class QuantumEthicalValidator:
         self.state_preserver = QuantumStatePreserver()
         self._load_ethical_framework()
         self.spec_analyzer = SpecificationAnalyzer(KnowledgeGraph())
-        
+
     def validate_code(self, code_sample: str) -> Dict[str, Any]:
         """Updated validation with spec analysis"""
         state_id = self.state_preserver.preserve_state(code_sample)
@@ -43,10 +43,10 @@ class QuantumEthicalValidator:
                 validation_result["formal_proof"]
             )
             validation_result["status"] = "approved" if validation_result["score"] >= 0.7 else "rejected"
-            
+
             # Generate tests based on code and specification analysis
             validation_result["generated_tests"] = self.test_generator.generate_tests(
-                code_sample, 
+                code_sample,
                 validation_result["spec_analysis"]
             )
 
@@ -66,7 +66,7 @@ class QuantumEthicalValidator:
         # Use normalized constraint names
         self.formal_verifier.add_safety_invariant("BiasRisk never exceeds 0.25")
         self.formal_verifier.add_ethical_guardrail("TransparencyScore never drops below 0.4")
-        
+
     def _predict_ethical_impact(self, code: str) -> Dict[str, float]:
         """Predict ethical impact with all required metrics"""
         return {
@@ -126,7 +126,7 @@ class EthicalAuditLogger:
 
 class EthicalGovernanceEngine:
     """Orchestrates complete ethical oversight"""
-    
+
     def __init__(self):
         self.validator = QuantumEthicalValidator()
         self.history = []
@@ -168,7 +168,7 @@ class EthicalGovernanceEngine:
                 "score": validation_result["score"]
             })
             self.health_data["violation_stats"]["last_week"] += 1
-            
+
         # Maintain rolling average of scores
         total = self.health_data["average_score"] * len(self.history)
         total += validation_result["score"]

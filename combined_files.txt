@@ -1,0 +1,460 @@
+=== tests/test_self_healing.py ===
+# tests/test_self_healing.py
+from unittest.mock import patch
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import unittest
+from src.core.self_healing.orchestrator import HealingOrchestrator
+from unittest.mock import patch, MagicMock
+
+class TestSelfHealing(unittest.TestCase):
+    @patch('src.core.self_healing.orchestrator.HealingOrchestrator._needs_intervention', return_value=True)
+    @patch('src.core.self_healing.core.docker.from_env')
+    @patch('src.core.ethics.governance.EthicalGovernanceEngine')
+    @patch('time.sleep', side_effect=KeyboardInterrupt)  # Force loop exit
+    def test_healing_loop(self, mock_sleep, mock_ethics, mock_docker, mock_needs):
+        mock_client = MagicMock()
+        mock_docker.return_value = mock_client
+        
+        orchestrator = HealingOrchestrator()
+        orchestrator.start_healing_loop(interval=1)
+        
+        # Verify at least one monitoring cycle occurred
+        self.assertTrue(mock_needs.called)
+        
+if __name__ == "__main__":
+    unittest.main()
+
+
+=== tests/test_verification.py ===
+import sys
+import os
+import json
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from src.core.verification.specification import FormalSpecification
+from src.core.verification.z3_serializer import Z3JSONEncoder
+
+def test_constraint_lifecycle():
+    """Test constraint validation lifecycle"""
+    spec = FormalSpecification()
+    
+    # Add sample constraints
+    spec.add_safety_invariant("BiasRisk never exceeds 0.25")
+    spec.add_ethical_guardrail("TransparencyScore never drops below 0.4")
+    
+    # Initial state - no validated constraints
+    assert len(spec.get_valid_constraints()) == 0
+    
+    # Test valid predictions
+    valid_preds = {
+        "bias_risk": 0.2,
+        "transparency_score": 0.6
+    }
+    result = spec.verify_predictions(valid_preds)
+    assert result["verified"]
+    assert len(spec.get_valid_constraints()) == 2
+    assert "BiasRisk never exceeds 0.25" in spec.get_valid_constraints()
+    
+    # Test invalid predictions
+    invalid_preds = {
+        "bias_risk": 0.3,
+        "transparency_score": 0.3
+    }
+    result = spec.verify_predictions(invalid_preds)
+    assert not result["verified"]
+    assert len(result["violations"]) == 2
+    assert len(spec.get_valid_constraints()) == 0
+    
+    # Test partial violation
+    mixed_preds = {
+        "bias_risk": 0.2,
+        "transparency_score": 0.3
+    }
+    result = spec.verify_predictions(mixed_preds)
+    assert not result["verified"]
+    assert len(result["violations"]) == 1
+    assert "TransparencyScore never drops below 0.4" in result["violations"]
+    assert len(spec.get_valid_constraints()) == 1
+
+def main():
+    try:
+        test_constraint_lifecycle()
+        print("\nAll constraint validation tests passed!")
+    except AssertionError as e:
+        print(f"\nTest failed: {str(e)}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+
+
+=== src/core/self_healing/core.py ===
+# src/core/self_healing/core.py
+import json
+import docker
+from datetime import datetime
+from typing import Dict, Optional
+from z3 import ModelRef
+from ..verification.specification import FormalSpecification
+from ..ethics.governance import EthicalGovernanceEngine
+from ..verification.z3_serializer import Z3JSONEncoder
+import os
+import ast
+
+class SelfHealingCore:
+    """Autonomous error correction subsystem"""
+
+    def __init__(self, spec: FormalSpecification, ethics_engine: EthicalGovernanceEngine):
+        self.spec = spec
+        self.ethics = ethics_engine
+        self.docker = docker.from_env()
+        self.last_healthy_state = None
+        self._setup_initial_state()
+
+    def _setup_initial_state(self):
+        """Capture initial system state as recovery point"""
+        self.last_healthy_state = {
+            "timestamp": datetime.utcnow(),
+            "spec_constraints": self.spec.get_constraint_names(),
+            "valid_constraints": self.spec.get_valid_constraints(),
+            "ethical_model": self.ethics.get_ethical_model_version()
+        }
+
+    def monitor_system_health(self) -> Dict:
+        """Check key health metrics"""
+        return {
+            "ethical_health": self.ethics.get_ethical_health_report(),
+            "constraint_violations": [
+                c for c in self.spec.get_constraint_names()
+                if c not in self.spec.get_valid_constraints()
+            ],
+            "violation_severity": self._calculate_violation_severity(),
+            "system_stability": self._calculate_stability_score()
+        }
+
+    def _calculate_violation_severity(self) -> float:
+        """Calculate weighted severity score based on violated constraints"""
+        severity = 0.0
+        for constraint in self.spec.get_constraint_names():
+            if constraint not in self.spec.get_valid_constraints():
+                severity += self._get_constraint_severity(constraint)
+        return min(severity, 1.0)  # Cap at 1.0 (100%)
+
+    def _get_constraint_severity(self, constraint: str) -> float:
+        """Get normalized severity score for a constraint"""
+        # Implementation would map constraint types to severity weights
+        if "BiasRisk" in constraint:
+            return 0.6
+        elif "TransparencyScore" in constraint:
+            return 0.4
+        elif "ImmediateRisk" in constraint:
+            return 0.8
+        return 0.3
+
+    def generate_healing_patch(self, violation_details: Dict) -> str:
+        """Generate repair code using formal proofs"""
+        prompt = self._build_healing_prompt(violation_details)
+        return self._call_llm_for_patch(prompt)
+
+    def _build_healing_prompt(self, violation: Dict) -> str:
+        """Construct LLM prompt with verification context"""
+        return f"""
+        Generate Python code to resolve these constraint violations:
+        {json.dumps(violation, indent=2, cls=Z3JSONEncoder)}
+
+        Constraints to maintain:
+        {self.spec.get_constraint_names()}
+
+        Requirements:
+        - Preserve all existing functionality
+        - Address root cause of violations
+        - Include automated tests
+        - Follow PEP8 standards
+        - Add documentation
+
+        Return ONLY the Python code without commentary.
+        """
+
+    def _call_llm_for_patch(self, prompt: str) -> str:
+        """Execute LLM call with error handling"""
+        # Implementation using Gemini/OpenAI API
+        # Placeholder for actual LLM integration
+        return f"# Generated patch\nprint('Healing implementation for {prompt[:20]}...')"
+
+    def validate_patch(self, patch_code: str) -> bool:
+        """Formally verify patch safety"""
+        # Step 1: Syntax validation
+        try:
+            ast.parse(patch_code)
+        except SyntaxError:
+            return False
+
+        # Step 2: Formal verification
+        verification_result = self.spec.verify_predictions(
+            self._extract_patch_metrics(patch_code)
+        )
+        return verification_result["verified"]
+
+    def _extract_patch_metrics(self, code: str) -> Dict[str, float]:
+        """Simulate metric extraction from patch"""
+        # Placeholder for actual metric extraction
+        return {
+            "bias_risk": 0.15,
+            "transparency_score": 0.8,
+            "immediate_risk": 0.1
+        }
+
+    def deploy_patch(self, patch_code: str) -> bool:
+        """Safely deploy validated patch"""
+        try:
+            # 1. Create backup
+            self._create_system_backup()
+
+            # 2. Apply patch
+            with open("self_healing_patch.py", "w") as f:
+                f.write(patch_code)
+
+            # 3. Run in isolated container
+            container = self.docker.containers.run(
+                "python:3.11-slim",
+                command="python self_healing_patch.py",
+                volumes={os.getcwd(): {'bind': '/app', 'mode': 'rw'}},
+                working_dir="/app",
+                detach=True
+            )
+
+            # 4. Verify execution
+            logs = container.logs().decode()
+            if "ERROR" in logs:
+                raise RuntimeError(f"Patch failed: {logs}")
+
+            return True
+
+        except Exception as e:
+            self._rollback_system()
+            raise
+
+    def _create_system_backup(self):
+        """Create Z3-proof-validated backup"""
+        backup_data = {
+            "state": self.last_healthy_state,
+            "constraints": self.spec.constraints,
+            "ethical_rules": self.ethics.get_ruleset()
+        }
+        with open("backup_state.json", "w") as f:
+            json.dump(backup_data, f, cls=Z3JSONEncoder)
+
+    def _rollback_system(self):
+        """Restore from formally verified backup"""
+        # Implementation would restore from backup_state.json
+        print("Rolling back to last verified state")
+
+    def _calculate_stability_score(self) -> float:
+        """Quantum-inspired stability metric"""
+        # Placeholder for actual calculation
+        return 0.95
+
+
+=== src/core/self_healing/orchestrator.py ===
+# src/core/self_healing/orchestrator.py
+import time
+from typing import Optional
+from .core import SelfHealingCore
+from ..verification.specification import FormalSpecification
+from ..ethics.governance import EthicalGovernanceEngine
+
+class HealingOrchestrator:
+    """Central controller for autonomous healing"""
+    
+    def __init__(self):
+        self.spec = FormalSpecification()
+        self.ethics = EthicalGovernanceEngine()
+        self.healing_core = SelfHealingCore(self.spec, self.ethics)
+        self.running = False
+
+
+    def start_healing_loop(self, interval: int = 60):
+        """Main autonomous healing loop"""
+        self.running = True
+        try:
+            while self.running:
+                health_status = self.healing_core.monitor_system_health()
+                if self._needs_intervention(health_status):
+                    violations = self._analyze_violations(health_status)
+                    patch = self.healing_core.generate_healing_patch(violations)
+                    if self.healing_core.validate_patch(patch):
+                        self.healing_core.deploy_patch(patch)
+                time.sleep(interval)
+        except KeyboardInterrupt:
+            self.stop()
+        finally:
+            self.running = False
+            
+    def _needs_intervention(self, health: dict) -> bool:
+        """Quantum decision-making for healing activation"""
+        return (
+            health["ethical_health"]["average_score"] < 0.7 or
+            health["constraint_violations"] > 0 or
+            health["system_stability"] < 0.9
+        )
+
+    def _analyze_violations(self, health: dict) -> dict:
+        """Process monitoring data into healable format"""
+        return {
+            "ethical_violations": health["ethical_health"]["recent_issues"],
+            "constraint_violations": self.spec.get_violated_constraints(),
+            "stability_metrics": health["system_stability"]
+        }
+
+    def stop(self):
+        """Graceful shutdown"""
+        self.running = False
+        print("Healing system shutdown")
+
+
+=== src/core/verification/specification.py ===
+from z3 import *
+from datetime import datetime
+import json
+from typing import Dict, List
+from .z3_serializer import Z3JSONEncoder
+
+class FormalSpecification:
+    def __init__(self):
+        self.solver = Solver()
+        self.solver.set(unsat_core=True)
+        self.constraints = {}
+        self.parsed_constraints = []  # Track parsed constraint details
+        self.proofs = []
+        self.last_violations = []
+        self.valid_constraints = set()
+        self._init_z3_vars()
+
+    def _init_z3_vars(self):
+        """Initialize all Z3 variables used in constraints"""
+        self.z3_vars = {
+            'BiasRisk': Real('BiasRisk'),
+            'TransparencyScore': Real('TransparencyScore'),
+            'ImmediateRisk': Real('ImmediateRisk'),
+            'LongTermRisk': Real('LongTermRisk'),
+            'PrivacyRisk': Real('PrivacyRisk')
+        }
+
+    def _parse_constraint(self, constraint: str) -> dict:
+        """Parse natural language constraint into structured format"""
+        if "never exceeds" in constraint:
+            parts = constraint.split("never exceeds")
+            var_name = parts[0].strip().replace(" ", "")
+            value = float(parts[1].strip())
+            return {
+                'z3_expr': self.z3_vars[var_name] <= value,
+                'variable': var_name,
+                'operator': '<=',
+                'threshold': value
+            }
+        elif "never drops below" in constraint:
+            parts = constraint.split("never drops below")
+            var_name = parts[0].strip().replace(" ", "")
+            value = float(parts[1].strip())
+            return {
+                'z3_expr': self.z3_vars[var_name] >= value,
+                'variable': var_name,
+                'operator': '>=',
+                'threshold': value
+            }
+        else:
+            raise ValueError(f"Unsupported constraint format: {constraint}")
+
+    def _add_constraint(self, constraint: str, constraint_type: str):
+        """Internal method to add constraints with structured parsing"""
+        try:
+            parsed = self._parse_constraint(constraint)
+            self.constraints[constraint] = parsed['z3_expr']
+            self.parsed_constraints.append({
+                'name': constraint,
+                'variable': parsed['variable'],
+                'operator': parsed['operator'],
+                'threshold': parsed['threshold']
+            })
+            self.proofs.append({
+                'type': constraint_type,
+                'constraint': constraint,
+                'z3_expression': str(parsed['z3_expr']),
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            raise ValueError(f"{constraint_type} parsing failed: {str(e)}")
+
+    def add_safety_invariant(self, constraint: str):
+        """Register safety constraint with automatic variable binding"""
+        self._add_constraint(constraint, 'invariant')
+
+    def add_ethical_guardrail(self, constraint: str):
+        """Register ethical constraint with automatic binding"""
+        self._add_constraint(constraint, 'guardrail')
+
+    def verify_predictions(self, predictions: Dict[str, float]) -> Dict:
+        """Verify predictions against all registered constraints"""
+        results = {
+            "verified": True,
+            "violations": [],
+            "proofs": []
+        }
+
+        self.solver.push()
+        try:
+            # Add all constraints to solver
+            for constraint_str, constr in self.constraints.items():
+                self.solver.assert_and_track(constr, constraint_str)
+
+            # Map predictions to Z3 variables
+            canonical_map = {
+                "bias_risk": "BiasRisk",
+                "transparency_score": "TransparencyScore",
+                "immediate_risk": "ImmediateRisk",
+                "long_term_risk": "LongTermRisk",
+                "privacy_risk": "PrivacyRisk"
+            }
+
+            # Add prediction equalities to solver
+            for pred_key, pred_value in predictions.items():
+                z3_var = canonical_map.get(pred_key)
+                if z3_var and z3_var in self.z3_vars:
+                    self.solver.add(self.z3_vars[z3_var] == pred_value)
+
+            check_result = self.solver.check()
+
+            if check_result == sat:
+                results["verified"] = True
+                self.valid_constraints = set(self.constraints.keys())
+            elif check_result == unsat:
+                # Check all constraints against predictions directly
+                violations = []
+                pred_values = {canonical_map[k]: v
+                             for k, v in predictions.items()
+                             if k in canonical_map}
+
+                for pc in self.parsed_constraints:
+                    current_value = pred_values.get(pc['variable'])
+                    if current_value is None:
+                        continue
+                    if (pc['operator'] == '<=' and current_value > pc['threshold']) or \
+                       (pc['operator'] == '>=' and current_value < pc['threshold']):
+                        violations.append(pc['name'])
+
+                results["verified"] = False
+                results["violations"] = violations
+                self.valid_constraints = set(self.constraints.keys()) - set(violations)
+                self.last_violations = violations
+            else:
+                results["verified"] = "unknown"
+
+        finally:
+            self.solver.pop()
+
+        results["proofs"] = self.proofs
+        return results
+
+

@@ -78,6 +78,18 @@ class FormalSpecification:
         """Register ethical constraint with automatic binding"""
         self._add_constraint(constraint, 'guardrail')
 
+    def get_constraint_names(self) -> List[str]:
+        """Get list of registered constraints"""
+        return list(self.constraints.keys())
+
+    def get_valid_constraints(self) -> set: # Changed return type to set to match previous fix and current usage
+        """Get set of currently satisfied constraints""" # Corrected docstring to reflect set return
+        return self.valid_constraints
+
+    def get_violated_constraints(self) -> List[str]:
+        """Get list of violated constraints from last verification"""
+        return self.last_violations
+
     def verify_predictions(self, predictions: Dict[str, float]) -> Dict:
         """Verify predictions against all registered constraints"""
         results = {

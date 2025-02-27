@@ -44,3 +44,5 @@ place_code.sh
 code_blocks.txt
 generated_tests/
 .hypothesis/
+combine_files.py
+combined_files.txt

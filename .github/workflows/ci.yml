@@ -37,7 +37,7 @@ jobs:
           key: pip-${{ runner.os }}-${{ hashFiles('requirements/**') }}
           restore-keys: pip-${{ runner.os }}-
 
-      - name: Install dependencies & Coq/Z3 via OPAM
+      - name: Install dependencies & Coq/Z3 via apt-get
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements/base.txt
@@ -46,22 +46,12 @@ jobs:
           pip install bandit
           pip install -e .  # Install the package in development mode
 
-          # Install OPAM
+          # Install Coq and Z3 via apt-get
           sudo apt-get update
-          sudo apt-get install -y opam z3
-
-          # Initialize OPAM and install OCaml dependencies
-          opam init --disable-sandboxing -y
-          eval $(opam env)
-          opam update
-
-          # Install Coq 8.20
-          opam pin add -y coq 8.20.1
-          eval $(opam env)
+          sudo apt-get install -y coq z3
 
       - name: Compile Coq Proofs
         run: |
-          eval $(opam env)  # Add this line to activate OPAM environment in this step
           mkdir -p proofs
           mv src/core/verification/boundary_detection.v proofs/
           coqc -Q proofs Metamorphic proofs/boundary_detection.v # Compile Coq proofs

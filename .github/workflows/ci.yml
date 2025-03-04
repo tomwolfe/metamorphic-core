@@ -37,7 +37,7 @@ jobs:
           key: pip-${{ runner.os }}-${{ hashFiles('requirements/**') }}
           restore-keys: pip-${{ runner.os }}-
 
-      - name: Install dependencies & Coq/Z3
+      - name: Install dependencies & Coq/Z3 via OPAM
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements/base.txt
@@ -45,10 +45,19 @@ jobs:
           pip install pytest pytest-cov
           pip install bandit
           pip install -e .  # Install the package in development mode
+      
+          # Install OPAM
           sudo apt-get update
-          sudo apt-get install -y z3  # Install Z3 separately
-          wget http://launchpadlibrarian.net/777307342/coq_8.20.1+dfsg-1_amd64.deb
-          sudo dpkg -i coq_8.20.1+dfsg-1_amd64.deb || sudo apt-get install -f -y
+          sudo apt-get install -y opam z3
+      
+          # Initialize OPAM and install OCaml dependencies
+          opam init --disable-sandboxing -y
+          eval $(opam env)
+          opam update
+      
+          # Install Coq 8.20
+          opam pin add -y coq 8.20.1
+          eval $(opam env)
 
       - name: Compile Coq Proofs
         run: |

@@ -46,7 +46,7 @@ generated_tests/
 .hypothesis/
 combine_files.py
 combined_files.txt
-proofs/*.aux
-proofs/*.glob
+*.aux
+*.glob
 *.vok
 *.vos

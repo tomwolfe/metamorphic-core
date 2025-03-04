@@ -45,22 +45,23 @@ jobs:
           pip install pytest pytest-cov
           pip install bandit
           pip install -e .  # Install the package in development mode
-      
+
           # Install OPAM
           sudo apt-get update
           sudo apt-get install -y opam z3
-      
+
           # Initialize OPAM and install OCaml dependencies
           opam init --disable-sandboxing -y
           eval $(opam env)
           opam update
-      
+
           # Install Coq 8.20
           opam pin add -y coq 8.20.1
           eval $(opam env)
 
       - name: Compile Coq Proofs
         run: |
+          eval $(opam env)  # Add this line to activate OPAM environment in this step
           mkdir -p proofs
           mv src/core/verification/boundary_detection.v proofs/
           coqc -Q proofs Metamorphic proofs/boundary_detection.v # Compile Coq proofs

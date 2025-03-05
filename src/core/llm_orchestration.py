@@ -12,18 +12,18 @@ from pydantic import BaseModel, ValidationError
 from src.core.context_manager import parse_code_chunks  # Import the chunking function
 # from src.core.context_manager import CodeChunk # DO NOT IMPORT CodeChunk HERE
 from src.core.monitoring import Telemetry
-from src.core.verification import FormalVerificationError, InvalidCodeHashError, MaxSummaryRetriesError, ModelCapacityError, CriticalFailure # Import exceptions
-from collections import defaultdict # Import defaultdict
-from src.core.chunking.recursive_summarizer import RecursiveSummarizer # Import RecursiveSummarizer
-from src.core.chunking.dynamic_chunker import SemanticChunker, CodeChunk # Import CodeChunk
+from src.core.verification import FormalVerificationError, InvalidCodeHashError, MaxSummaryRetriesError, ModelCapacityError, CriticalFailure  # Import exceptions
+from collections import defaultdict  # Import defaultdict
+from src.core.chunking.recursive_summarizer import RecursiveSummarizer  # Import RecursiveSummarizer
+from src.core.chunking.dynamic_chunker import SemanticChunker, CodeChunk  # Import CodeChunk
 from src.core.optimization.adaptive_token_allocator import TokenAllocator
-from src.core.knowledge_graph import KnowledgeGraph, Node # Import KnowledgeGraph for KG interaction
-from src.core.optimization.token_optimizer import TokenOptimizer # Import TokenOptimizer
-from src.core.verification.specification import FormalSpecification # Import FormalSpecification
+from src.core.knowledge_graph import KnowledgeGraph, Node  # Import KnowledgeGraph for KG interaction
+from src.core.optimization.token_optimizer import TokenOptimizer  # Import TokenOptimizer
+from src.core.verification.specification import FormalSpecification  # Import FormalSpecification
 from src.core.verification.decorators import formal_proof
 
 if TYPE_CHECKING:
-    from src.core.ethics.governance import EthicalGovernanceEngine # Import EthicalGovernanceEngine only for type checking
+    from src.core.ethics.governance import EthicalGovernanceEngine  # Import EthicalGovernanceEngine only for type checking
 
 
 class LLMProvider(str, Enum):
@@ -63,7 +63,7 @@ class LLMOrchestrator:
             if not self.config.gemini_api_key:
                 raise RuntimeError("GEMINI_API_KEY is required for Gemini provider")
             self.client = genai.Client(api_key=self.config.gemini_api_key)
-            self.client.model = 'gemini-2.0-flash-exp'
+            self.client.model = 'gemini-2.0-flash-thinking-exp'
             self.client.api_key = self.config.gemini_api_key
         elif self.config.provider == LLMProvider.HUGGING_FACE:
             if not self.config.hf_api_key:
@@ -91,7 +91,8 @@ class LLMOrchestrator:
 
     def _gemini_generate(self, prompt: str) -> str:
         try:
-            response = self.client.generate_content(
+            response = self.client.models.generate_content( # Corrected line: use client.models.generate_content
+                model="gemini-2.0-flash-thinking-exp", # Explicitly specify the model
                 contents=prompt,
                 generation_config=genai.types.GenerationConfig(temperature=0.6, top_p=0.95)
             )
@@ -122,27 +123,27 @@ class LLMOrchestrator:
             raise RuntimeError(f"Hugging Face error: {str(e)}")
 
 class EnhancedLLMOrchestrator(LLMOrchestrator):
-    def __init__(self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: 'EthicalGovernanceEngine'): # Add spec and ethics_engine, use forward ref
-        super().__init__() # Corrected super() call
+    def __init__(self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: 'EthicalGovernanceEngine'):  # Add spec and ethics_engine, use forward ref
+        super().__init__()  # Corrected super() call
         self.telemetry = Telemetry()
         self.chunker = SemanticChunker()  # Instantiate SemanticChunker
-        self.allocator = TokenAllocator(total_budget=50000) # Example budget
-        self.optimizer = TokenOptimizer() # Instantiate TokenOptimizer
-        self.summarizer = RecursiveSummarizer(self, spec, self.telemetry) # Instantiate RecursiveSummarizer, pass telemetry and spec
-        self.kg = kg # Store KnowledgeGraph instance
-        self.spec = spec # Store FormalSpecification
-        self.ethics_engine = ethics_engine # Store EthicalGovernanceEngine
+        self.allocator = TokenAllocator(total_budget=50000)  # Example budget
+        self.optimizer = TokenOptimizer()  # Instantiate TokenOptimizer
+        self.summarizer = RecursiveSummarizer(self, spec, self.telemetry)  # Instantiate RecursiveSummarizer, pass telemetry and spec
+        self.kg = kg  # Store KnowledgeGraph instance
+        self.spec = spec  # Store FormalSpecification
+        self.ethics_engine = ethics_engine  # Store EthicalGovernanceEngine
         self.fallback_strategy = [
             self._primary_processing,
             self._secondary_model,
-            self._third_model, # Add third model
-            self._recursive_summarization_strategy # Use recursive summarization strategy
+            self._third_model,  # Add third model
+            self._recursive_summarization_strategy  # Use recursive summarization strategy
         ]
 
     def generate(self, prompt: str) -> str:
         self.telemetry.start_session()
         try:
-            with self.telemetry.span('generate_logic'): # Telemetry span for generate function
+            with self.telemetry.span('generate_logic'):  # Telemetry span for generate function
                 if self._count_tokens(prompt) > 4000:
                     code = self._handle_large_context(prompt)
                 else:
@@ -157,34 +158,34 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
                 raise FormalVerificationError("Formal verification failed for generated code")
 
             return code
-        except FormalVerificationError as e: # Catch verification errors
-            self.telemetry.track('error', tags={'type': 'FormalVerificationError', 'message': str(e)}) # Telemetry error track
-            raise # Re-raise after telemetry log
-        except Exception as e: # Catch any other exceptions
-            self.telemetry.track('error', tags={'type': 'GenericError', 'message': str(e)}) # Generic error track
-            raise # Re-raise
+        except FormalVerificationError as e:  # Catch verification errors
+            self.telemetry.track('error', tags={'type': 'FormalVerificationError', 'message': str(e)})  # Telemetry error track
+            raise  # Re-raise after telemetry log
+        except Exception as e:  # Catch any other exceptions
+            self.telemetry.track('error', tags={'type': 'GenericError', 'message': str(e)})  # Generic error track
+            raise  # Re-raise
         finally:
             self.telemetry.publish()
 
     def _handle_large_context(self, prompt: str) -> str:
         chunks = self.chunker.chunk(prompt)
         if not self.spec.validate_chunks(chunks):  # Use self.spec for chunk validation
-            self.telemetry.track('constraint_violation', tags={'constraint': 'InitialChunkValidation'}) # Telemetry - initial validation fail
-            raise FormalVerificationError("Initial chunk validation failed") # Raise verification error
+            self.telemetry.track('constraint_violation', tags={'constraint': 'InitialChunkValidation'})  # Telemetry - initial validation fail
+            raise FormalVerificationError("Initial chunk validation failed")  # Raise verification error
 
-        allocation = self.allocator.allocate(chunks, self._get_model_costs()) # Pass model costs
+        allocation = self.allocator.allocate(chunks, self._get_model_costs())  # Pass model costs
         summaries = []
 
         for idx, chunk in enumerate(chunks):
             with self.telemetry.span(f"chunk_{idx}"):
                 if not self.spec.verify(chunk):  # Use self.spec for Coq verification
-                    self.telemetry.track('verification_failure', tags={'chunk_id': str(chunk.id)}) # Telemetry - verification fail
-                    raise InvalidCodeHashError(f"Chunk {idx} failed Coq verification") # Raise specific verification error
+                    self.telemetry.track('verification_failure', tags={'chunk_id': str(chunk.id)})  # Telemetry - verification fail
+                    raise InvalidCodeHashError(f"Chunk {idx} failed Coq verification")  # Raise specific verification error
                 summary = self._process_chunk(chunk, allocation[idx])
-                chunk_node_id = self.kg.add_node(chunk) # Store chunk in KG and get ID
-                summary_node = Node(type="code_summary", content=summary, metadata={"source_chunk_id": str(chunk_node_id)}) # Create summary node
-                summary_node_id = self.kg.add_node(summary_node) # Add summary node to KG
-                self.kg.add_edge(chunk_node_id, summary_node_id, "has_summary") # Link in KG
+                chunk_node_id = self.kg.add_node(chunk)  # Store chunk in KG and get ID
+                summary_node = Node(type="code_summary", content=summary, metadata={"source_chunk_id": str(chunk_node_id)})  # Create summary node
+                summary_node_id = self.kg.add_node(summary_node)  # Add summary node to KG
+                self.kg.add_edge(chunk_node_id, summary_node_id, "has_summary")  # Link in KG
                 summaries.append(summary)
 
         return self.summarizer.synthesize(summaries)
@@ -195,27 +196,27 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         return {
             'gemini': {'effective_length': 8000, 'cost_per_token': 0.000001},
             'gpt-4': {'effective_length': 8000, 'cost_per_token': 0.00003},
-            'mistral-large': {'effective_length': 32000, 'cost_per_token': 0.000002} # Example third model
+            'mistral-large': {'effective_length': 32000, 'cost_per_token': 0.000002}  # Example third model
         }
 
     def _process_chunk(self, chunk: CodeChunk, allocation: tuple) -> str:
         tokens, model = allocation
-        last_exception = None # Store the last exception encountered
+        last_exception = None  # Store the last exception encountered
         for strategy in self.fallback_strategy:
-            with self.telemetry.span(f"strategy_{strategy.__name__}"): # Track each strategy
-                 # Track each strategy
+            with self.telemetry.span(f"strategy_{strategy.__name__}"):  # Track each strategy
+                # Track each strategy
                 try:
                     result = strategy(chunk, tokens, model)
-                    self.telemetry.track('model_success', tags={'model': model, 'strategy': strategy.__name__}) # Track success
+                    self.telemetry.track('model_success', tags={'model': model, 'strategy': strategy.__name__})  # Track success
                     return result
-                except Exception as e: # Catch ALL exceptions now
-                    self.telemetry.track('model_fallback', tags={'model': model, 'strategy': strategy.__name__, 'error': str(e)}) # Track fallback
-                    last_exception = e # Store the exception
-                    logging.warning(f"Fallback strategy {strategy.__name__} failed: {e}") # Log fallback failure
+                except Exception as e:  # Catch ALL exceptions now
+                    self.telemetry.track('model_fallback', tags={'model': model, 'strategy': strategy.__name__, 'error': str(e)})  # Track fallback
+                    last_exception = e  # Store the exception
+                    logging.warning(f"Fallback strategy {strategy.__name__} failed: {e}")  # Log fallback failure
 
-        if last_exception: # Check if any fallback failed
-            raise CriticalFailure(f"All processing strategies failed. Last exception: {last_exception}") # Include last exception in CriticalFailure
-        else: # Should not reach here, but as a safety net
+        if last_exception:  # Check if any fallback failed
+            raise CriticalFailure(f"All processing strategies failed. Last exception: {last_exception}")  # Include last exception in CriticalFailure
+        else:  # Should not reach here, but as a safety net
             raise CriticalFailure("All processing strategies failed, reason unknown.")
 
 
@@ -230,22 +231,22 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
     def _secondary_model(self, chunk: CodeChunk, tokens: int, model: str) -> str:
         """Use secondary LLM with reduced token budget if primary fails"""
         if tokens < 500: raise ModelCapacityError("Insufficient tokens for secondary model")
-        reduced_tokens = int(tokens * 0.75) # Reduce tokens by 25%
+        reduced_tokens = int(tokens * 0.75)  # Reduce tokens by 25%
         optimized = self.optimizer.optimize(chunk.content, reduced_tokens)
         return self._call_llm_api(optimized, model)
 
     def _third_model(self, chunk: CodeChunk, tokens: int, model: str) -> str:
         """Use third LLM with aggressive optimization if secondary also fails"""
-        optimized = self.optimizer.aggressive_optimize(chunk.content, int(tokens * 0.5)) # Reduce tokens by 50%
+        optimized = self.optimizer.aggressive_optimize(chunk.content, int(tokens * 0.5))  # Reduce tokens by 50%
         return self._call_llm_api(optimized, model)
 
     def _recursive_summarization_strategy(self, chunk: CodeChunk, tokens: int, model: str) -> str:
         """Apply recursive summarization if other strategies fail."""
         if tokens < 1000: raise ModelCapacityError("Insufficient tokens for summarization")
-        return self.summarizer.summarize_code_recursively(chunk.content) # Use RecursiveSummarizer
+        return self.summarizer.summarize_code_recursively(chunk.content)  # Use RecursiveSummarizer
 
     def _call_llm_api(self, text: str, model: str) -> str:
-        self.telemetry.track('model_usage', tags={'model': model}) # Track model usage
+        self.telemetry.track('model_usage', tags={'model': model})  # Track model usage
         if model == 'gemini':
             return self._gemini_generate(text)
         elif model in ['huggingface', 'hf']:  # Add other model aliases as needed
@@ -255,7 +256,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
 
     def _count_tokens(self, text: str) -> int:
         """Token counting (placeholder - replace with actual tokenizer)."""
-        return len(text.split()) # Simple word count as token estimate
+        return len(text.split())  # Simple word count as token estimate
 
 def format_math_prompt(question: str) -> str:
     return f"""Please reason step by step and put your final answer within \\boxed{{}}.

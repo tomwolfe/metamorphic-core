@@ -21,7 +21,7 @@ def test_math_prompt_formatting():
 
 def test_answer_extraction():
     assert extract_boxed_answer(r"Answer: \boxed{4}") == "4"
-    assert extract_boxed_answer("No box here") is None # Corrected assertion for None return
+    assert extract_boxed_answer("No box here") is None  # Corrected assertion for None return
 
 @patch('src.utils.config.SecureConfig.get')
 def test_gemini_configuration(mock_get):
@@ -33,7 +33,7 @@ def test_gemini_configuration(mock_get):
     assert orchestrator.config.provider == LLMProvider.GEMINI
     assert orchestrator.config.gemini_api_key == 'test_key'
     assert isinstance(orchestrator.client, google.genai.Client)
-    assert orchestrator.client.model == 'gemini-2.0-flash-exp'
+    assert orchestrator.client.model == 'gemini-2.0-flash-thinking-exp'
 
 @patch('src.utils.config.SecureConfig.get')
 def test_hf_configuration(mock_get):
@@ -67,7 +67,7 @@ def test_gemini_generation(mock_get, mock_client):
         'GEMINI_API_KEY': 'test_key'
     }.get(var_name, default)
     mock_instance = mock_client.return_value
-    mock_instance.generate_content.return_value = MagicMock(
+    mock_instance.models.generate_content.return_value = MagicMock( # Mock client.models.generate_content
         candidates=[MagicMock(
             content=MagicMock(
                 parts=[MagicMock(text="Test response")]
@@ -105,8 +105,8 @@ def test_retry_logic(mock_get, mock_client):
     mock_get.side_effect = lambda var_name, default=None: {
         'GEMINI_API_KEY': 'test_key', 'LLM_PROVIDER': 'gemini'
     }.get(var_name, default)
-    # Mock Client.generate_content directly
-    mock_instance.generate_content.side_effect = [
+    # Mock Client.models.generate_content directly
+    mock_instance.models.generate_content.side_effect = [ # Mock client.models.generate_content
         Exception("API error"),
         Exception("API error"),
         Exception("API error")
@@ -114,7 +114,7 @@ def test_retry_logic(mock_get, mock_client):
     with pytest.raises(RuntimeError):
         orchestrator = LLMOrchestrator()
         orchestrator.generate("test")
-    assert mock_instance.generate_content.call_count == 3
+    assert mock_instance.models.generate_content.call_count == 3 # Assert call count on client.models.generate_content
 
 def test_gemini_client_initialization():
     with patch('src.utils.config.SecureConfig.get') as mock_get:
@@ -124,7 +124,7 @@ def test_gemini_client_initialization():
         orchestrator = LLMOrchestrator()
         assert isinstance(orchestrator.client, google.genai.Client)
         assert orchestrator.client.api_key == 'test_key'
-        assert orchestrator.client.model == 'gemini-2.0-flash-exp'
+        assert orchestrator.client.model == 'gemini-2.0-flash-thinking-exp'
 
 @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._handle_large_context')
 def test_large_context_handling(mock_handle_large_context):

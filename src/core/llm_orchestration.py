@@ -94,7 +94,10 @@ class LLMOrchestrator:
             response = self.client.models.generate_content( # Corrected line: use client.models.generate_content
                 model="gemini-2.0-flash-thinking-exp", # Explicitly specify the model
                 contents=prompt,
-                generation_config=genai.types.GenerationConfig(temperature=0.6, top_p=0.95)
+                config=genai.types.GenerateContentConfig(  # Use 'config' instead of 'generation_config'
+                  temperature=0.6,
+                  top_p=0.95
+              )
             )
             if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
                 parts = response.candidates[0].content.parts

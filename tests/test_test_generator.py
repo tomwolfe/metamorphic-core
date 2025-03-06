@@ -1,29 +1,67 @@
-# File: tests/test_test_generator.py
+import pytest
+import os
 from src.core.agents.test_generator import TestGenAgent
-from unittest.mock import patch
 
-@patch('src.core.llm_orchestration.LLMOrchestrator.generate')
-def test_test_generation(mock_generate):
-    mock_response = """import pytest
+class TestTestGenAgent:
+    def setup_method(self):
+        self.agent = TestGenAgent()
 
-    def test_add_positive_numbers():
-        assert add(1, 2) == 3
+    def test_generate_tests_valid_code(self, mocker):
+        mock_llm_generate = mocker.patch.object(self.agent.llm, 'generate')
+        mock_llm_generate.return_value = """```python
+def test_positive_number():
+    assert placeholder_code(5) == 5
 
-    def test_add_negative_numbers():
-        assert add(-1, -2) == -3
+def test_negative_number():
+    assert placeholder_code(-5) == -5
+```"""
 
-    def test_add_zero_values():
-        assert add(0, 0) == 0
+        test_dir = "generated_tests"
+        os.makedirs(test_dir, exist_ok=True)
+        with open(f"{test_dir}/generated_tests.py", 'w'):
+            pass  # Create empty file
 
-    def test_add_large_numbers():
-        assert add(1000000, 2000000) == 3000000
-    """
-    mock_generate.return_value = mock_response
+        code = "placeholder_code"
+        spec_analysis = {}
+        generated_tests = self.agent.generate_tests(code, spec_analysis)
 
-    agent = TestGenAgent()
-    test_code = agent.generate_tests("def add(a,b): return a+b", {"functions": ["add"]})
+        # Check returned value (includes placeholder)
+        assert "def placeholder_code(n):" in generated_tests
+        assert "def test_positive_number():" in generated_tests
+        assert "def test_negative_number():" in generated_tests
 
-    assert "def test_add_positive_numbers():" in test_code
-    assert "def test_add_negative_numbers():" in test_code
-    assert "def test_add_zero_values():" in test_code
-    assert "def test_add_large_numbers():" in test_code
+        # Check file content
+        with open("generated_tests/generated_tests.py", "r") as f:
+            file_content = f.read()
+        assert "def placeholder_code(n):" in file_content
+        assert "def test_positive_number():" in file_content
+        assert "def test_negative_number():" in file_content
+
+    def test_generate_tests_empty_llm_response(self, mocker):
+        mock_llm_generate = mocker.patch.object(self.agent.llm, 'generate')
+        mock_llm_generate.return_value = ""  # Empty response
+
+        code = "placeholder_code"
+        spec_analysis = {}
+        generated_tests = self.agent.generate_tests(code, spec_analysis)
+
+        # Check returned value (placeholder exists)
+        assert "def placeholder_code(n):" in generated_tests
+        assert "def test_positive_number():" not in generated_tests
+        assert "def test_negative_number():" not in generated_tests
+
+        # Verify file content
+        with open("generated_tests/generated_tests.py", "r") as f:
+            file_content = f.read()
+        assert "def placeholder_code(n):" in file_content
+        assert "def test_positive_number():" not in file_content
+        assert "def test_negative_number():" not in file_content
+
+    def test_generate_tests_markdown_cleanup(self, mocker):
+        mock_llm_generate = mocker.patch.object(self.agent.llm, 'generate')
+        mock_llm_generate.return_value = "\n```python\n`\n`python\ndef test_example():\n    assert 1 == 1\n```\n```"
+
+        generated_tests = self.agent.generate_tests("test_code", {})
+
+        assert "def placeholder_code(n):" in generated_tests  # Placeholder is always present
+        assert "def test_example():" in generated_tests

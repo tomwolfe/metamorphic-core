@@ -1,0 +1,6 @@
+
+
+-Q . Metamorphic
+-R src/core/verification/proofs proofs
+-arg -indices-matter # Recommended for performance
+-arg -w +A # Enable all warnings

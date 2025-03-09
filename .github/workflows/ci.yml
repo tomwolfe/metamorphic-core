@@ -1,3 +1,4 @@
+
 name: CI
 
 on: [push, pull_request]
@@ -24,6 +25,7 @@ jobs:
           echo "COMPOSE_PROJECT_NAME=metamorphic-core" >> $GITHUB_ENV
           echo "GITHUB_ACTIONS=true" >> $GITHUB_ENV
           echo "PYTHONPATH=src:." >> $GITHUB_ENV
+          echo "COQC_OPTIMIZATION=-native-compiler yes" >> $GITHUB_ENV # Set COQC optimization flag
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -50,11 +52,30 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y coq z3
 
-      - name: Compile Coq Proofs
+      - name: Create Proofs Directory
+        run: mkdir -p proofs
+
+      - name: Move Proof Files
+        run: mv src/core/verification/*.v proofs/
+
+      - name: Verify All Coq Proofs
         run: |
-          mkdir -p proofs
-          mv src/core/verification/boundary_detection.v proofs/
-          coqc -Q proofs Metamorphic proofs/boundary_detection.v # Compile Coq proofs
+          # Set up Coq Proof Environment (Initialize dependencies)
+          make coq-inits
+          make clean # Optional cleanup - can be helpful for clean builds
+
+          # Execute Coq Proofs Verification
+          FAILURES=0
+          for file in proofs/*.v; do
+            echo "-== Verifying $file... =="
+            make verify FILE="$file" || FAILURES=$((FAILURES+1)) # Use make verify with specific FILE for better error reporting
+          done
+          if [ $FAILURES -gt 0 ]; then
+            echo "::error::Coq Proof Verification Failed! ($FAILURES failures)"
+            exit 1
+          else
+            echo "-== Coq Proof Verification Passed Successfully! =="
+          fi
 
       - name: Build Flask app Docker image
         run: docker build -t flask-app-test .
@@ -122,7 +143,7 @@ jobs:
 
           # Generate tests and store them in KG (and write to file)
           python -c "from src.core.agents.test_generator import TestGenAgent; \
-          TestGenAgent().generate_tests('placeholder_code', {})"
+          TestGenAgent().generate_tests('def square(n):\n    return n * n', {})"
 
           # Run pytest on the generated tests
           pytest generated_tests/generated_tests.py --cov=src --cov-append

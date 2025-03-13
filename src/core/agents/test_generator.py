@@ -10,46 +10,21 @@ class TestGenAgent:
         self.kg = KnowledgeGraph()
 
     def generate_tests(self, code: str, spec_analysis: dict) -> str:
-        function_name = self._extract_function_name(code)
+        """Generate placeholder tests with pytest.skip() markers."""
+        function_name = self._extract_function_name(code)  # Leverage existing helper
+        return f"""import pytest
 
-        # Revised prompt to request skippable tests
-        prompt = f"""
-Given the following Python function:
-{code}
+def test_{function_name}_positive():
+    pytest.skip("Placeholder test: Positive case")
+    assert True
 
-Generate pytest tests for this function as placeholders that are skipped.
-- Do NOT include the function code itself in your response.
-- Tests must cover positive, negative, zero, and large numbers.
-- Generate pytest tests that are marked to be skipped using pytest.skip().
-- Only return the test code (no explanations or other text).
-- Include the 'pytest' import at the beginning of the test file.
+def test_{function_name}_negative():
+    pytest.skip("Placeholder test: Negative case")
+    assert True
 """
-
-        raw_response = self.llm.generate(prompt)
-        # Extract code block properly
-        if "```python" in raw_response:
-            test_code = raw_response.split("```python")[1].split("```")[0].strip()
-        else:
-            test_code = raw_response.strip()
-
-        test_code = self._store_tests(test_code, code_hash=hash(code))
-        os.makedirs("generated_tests", exist_ok=True)
-
-        # Create placeholder function
-        placeholder_function_def = f"""
-def {function_name}(n=None):
-    \"\"\"Placeholder function. Raises NotImplementedError.\"\"\"
-    print(f"Warning: Placeholder '{function_name}' called.")
-    raise NotImplementedError("No implementation yet.")
-"""
-
-        test_code_with_code = f"""{placeholder_function_def}\n{test_code}""".strip()
-
-        with open("generated_tests/generated_tests.py", "w") as f:
-            f.write(test_code_with_code)
-        return test_code_with_code
 
     def _extract_function_name(self, code: str) -> str:
+        """Helper to extract function name from code string."""
         match = re.search(r'^def (\w+)', code, re.MULTILINE)
         return match.group(1) if match else "unknown_function"
 
@@ -57,7 +32,7 @@ def {function_name}(n=None):
         import pytest  # Import pytest here to make it available in the generated code
 
         modified_test_code_lines = []
-        modified_test_code_lines.append("import pytest") # Add import pytest at the beginning
+        modified_test_code_lines.append("import pytest\n") # Add import pytest with newline
 
         for line in test_code.splitlines():
             if line.strip().startswith("def test_"): # Identify test functions

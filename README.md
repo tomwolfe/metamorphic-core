@@ -58,15 +58,15 @@ The ecosystem is actively under development and demonstrating core functionaliti
 
 ## Roadmap Update (v1.1)
 
-**Roadmap for Completion (Optimized for ASAP Fruition - Lean & Self-Bootstrapping - Revision 4: Ultra-Polished MVP Roadmap)**
+**Roadmap for Completion (Optimized for Existing Codebase - Iterative MVP Approach)**
 
-#### **Phase 1: MVP - Functional Core (Next ~3 Months) - *Action-Oriented & Dependency-Driven***
+#### **Phase 1: MVP - Refine Existing Core (Next ~3 Months) - *Leverage & Focus***
 
-**Key Clarification:** *Month 1 is dedicated to establishing Agent Prerequisites:  "Barebones" implementations of `TestGenAgent` and `CodeReviewAgent` are **mandatory deliverables for Month 1** to enable effective self-bootstrapping in subsequent phases.*
+**Key Principle:** *Phase 1 is about *refining and focusing your existing codebase* to meet the MVP definition, not starting from scratch. We use your current agents as a *starting point* for the "barebones" implementations.*
 
 ---
 
-**Phase 1 MVP Definition:** A functional API endpoint (`/genesis/analyze-ethical`) capable of:
+**Phase 1 MVP Definition:**  A functional API endpoint (`/genesis/analyze-ethical`) capable of:
 
 1.  **Analyzing Python Code for Ethical Concerns:** Using a configurable policy engine (enforcing BiasRisk, TransparencyScore, and Safety Boundary constraints, configurable via JSON).
 2.  **Providing Basic Code Quality Assessment:**  Leveraging `CodeReviewAgent` (Flake8 output reporting via API).
@@ -79,44 +79,53 @@ The ecosystem is actively under development and demonstrating core functionaliti
 1. Functional API endpoint (`/genesis/analyze-ethical`) for ethical code analysis.
 2. Basic Ethical Policy Engine enforcing BiasRisk, TransparencyScore, and Safety Boundary constraints, with policies configurable via JSON.
 
-**Phase 1 Actionable Steps (Ordered for Logical Flow - Now Even More Verb-Driven):**
+**Phase 1 Actionable Steps (Revised & Iterative - *Build on Existing*):**
 
-* **Month 1: Agent Prerequisites & Ethical Engine Foundation - *Agent Readiness & Ethical Core (Mandatory)* - (**Self-Bootstrapping Focus**)**
+* **Month 1: Refine Existing Agents & Ethical Engine Foundation - *MVP Agent Focus & Ethical Core (Iterative)* - (**Existing Codebase Leverage**)**
 
-    *1. **Agent Readiness - **Mandatory Deliverable for Month 1**:**
-        *   **TestGenAgent - "Barebones" Implementation:** **Action:** *Build* a minimal, functional `TestGenAgent` capable of generating *basic pytest placeholder tests* (even if very simple).  *Specific Action:* Implement core `generate_tests()` function in `TestGenAgent` that can output a string containing placeholder pytest code (even if it's just a template).  (**Self-Bootstrapping Enabler #1: Essential for generating tests for other modules from Month 1 onwards.**)
-        *   **CodeReviewAgent - "Barebones" Implementation:** **Action:** *Build* a minimal, functional `CodeReviewAgent` capable of running *Flake8* and reporting basic output.  *Specific Action:* Implement core `analyze_python()` function in `CodeReviewAgent` to execute Flake8 via subprocess and parse basic text output (even if error parsing is minimal initially). (**Self-Bootstrapping Enabler #2: Essential for basic code quality checks from Month 1 onwards.**)
-        *   **(Dependency Check Task):**  **Action:** Write and pass basic unit tests to *verify* that these "barebones" agent implementations are **operational** - *Verify* `TestGenAgent` can output *any* pytest code string, and `CodeReviewAgent` can execute Flake8 and parse *basic* output - *before proceeding to other Month 1 tasks*.
+    *1. **Agent Refinement - *Leverage Existing Agents for MVP* - (**Iterative & Adaptive**):**
+        *   **TestGenAgent - MVP Refinement:** **Action:** *Adapt your existing `TestGenAgent`*. *Specific Action:*
+            * **Start with your current `TestGenAgent` code.**
+            * **Simplify `generate_tests()`**:  Refocus it to generate *basic pytest placeholder tests* as per MVP.  *Initially, prioritize functionality over sophistication*.  You likely already have a `TestGenAgent` - refine it to meet the *minimum MVP requirement* of generating *any* placeholder tests.
+            * **Verify Functionality (Unit Tests):** Write unit tests to ensure the *refined* `TestGenAgent` can generate *basic* pytest code.
+        *   **CodeReviewAgent - MVP Refinement:** **Action:** *Adapt your existing `CodeReviewAgent`*. *Specific Action:*
+            * **Start with your current `CodeReviewAgent` code.**
+            * **Simplify `analyze_python()`**: Refocus it to *only* run Flake8 and report basic output.  *Defer more advanced static analysis or Bandit integration for Phase 2*.  Your current agent already runs Flake8 - *simplify* it to just handle that MVP task for now.
+            * **Verify Functionality (Unit Tests):** Write unit tests to ensure the *refined* `CodeReviewAgent` can execute Flake8 and parse *basic* output.
+        *   **(Iterative Testing - Agent Readiness):** **Action:** *Iteratively test and refine* these agents.  *Specific Action:*
+            * **Write unit tests *first* (or concurrently).**
+            * **Run tests frequently as you simplify/refine the agents.**
+            * **Ensure agents are *operationally ready* for the MVP endpoint.**
 
     *2. **JSON Schema Design for Ethical Policies:**
         *   **Action:** *Define* a robust JSON schema to represent ethical principles, constraints (BiasRisk, TransparencyScore, SafetyBoundary), categories, and enforcement levels.  *Specific Action:* Create `ethical_policy_schema.json` file defining the schema.
-        *   (**Self-Bootstrapping Example**: **Self-Bootstrap:** *Use* the *barebones* `TestGenAgent` (deliverable from Task 1) to auto-generate initial validation tests for the `EthicalPolicyEngine` based on the defined `ethical_policy_schema.json`, ensuring that the engine can load and validate policies correctly *before writing engine code*.)
+        *   (**Self-Bootstrapping Example**: **Self-Bootstrap (Iterative):**  *Adapt your refined `TestGenAgent`* (from Task 1) to *iteratively generate validation tests* for the `EthicalPolicyEngine` as you define the `ethical_policy_schema.json`.  Test schema loading and basic validation logic *incrementally*.)
 
     *3. **Ethical Policy Engine (Basic & Configurable):**
         *   **Action:** *Implement* a basic `EthicalPolicyEngine` capable of loading and enforcing ethical policies from JSON configurations (based on `ethical_policy_schema.json`).  Focus on enforcing BiasRisk, TransparencyScore, and SafetyBoundary constraints initially.
         *   **Action:** *Implement* API endpoints for basic policy management (e.g., `/ethical/policy/load`, `/ethical/policy/view`).  Use in-memory storage for policies initially; defer database integration.
-        *   (**Automated Testing - Critical**): **Self-Bootstrap:** *Use* the *barebones* `TestGenAgent` (deliverable from Task 1) to generate a comprehensive suite of unit and integration tests for the `EthicalPolicyEngine`, focusing on rigorous testing of policy loading, enforcement logic, constraint validation, and API endpoint functionality *before writing engine code*.
+        *   (**Automated Testing - Critical & Iterative**): **Self-Bootstrap (Iterative):** *Use your refined `TestGenAgent`* (from Task 1) to *iteratively generate comprehensive unit and integration tests* for the `EthicalPolicyEngine`, focusing on rigorous testing of policy loading, enforcement logic, constraint validation, and API endpoint functionality *incrementally*.
 
     *4. **GDPR/COPPA Placeholder API (Interface Definition Only):**
-        *   **Action:** *Define* placeholder API endpoints (`/ethical/gdpr`, `/ethical/coppa`) with clear request/response interfaces documented in API specifications (e.g., OpenAPI/Swagger).  *Specific Action:* Create API route definitions in `ethical_endpoints.py` but leave the function implementations empty (returning "Not Implemented" responses). (**Clarity: No functional logic implemented in Phase 1 - placeholders only for interface definition.**)
+        *   **Action:** *Define* placeholder API endpoints (`/ethical/gdpr`, `/ethical/coppa`) with clear request/response interfaces documented in API specifications (e.g., OpenAPI/Swagger).  *Specific Action:* Create API route definitions in `ethical_endpoints.py` but leave the function implementations empty (returning "Not Implemented" responses).
 
     *5. **Bias Detection Module (Starter Integration - Text Analysis Focus):**
         *   **Action:** *Integrate* a starter-level bias detection library (e.g., `Fairlearn` or basic `transformers` text analysis tools) into the `BiasDetectionMitigationModule`. Focus *initially* on text-based bias detection capabilities for code comments and docstrings.  *Specific Action:* Implement basic text bias analysis within `BiasDetectionMitigationModule` that can be called by the `EthicalPolicyEngine`.
 
-* **Month 2: Core Agent Network - Specification Analysis & Test Generation (**Self-Bootstrapping Focus**)**
-    1. **Develop Specification Analysis Agent (Enhanced):**  Improve `SpecificationAnalyzer` to handle more complex specification formats (beyond Python code, consider basic natural language input). Output structured specifications in JSON format. **Action:** *Refactor* `SpecificationAnalyzer` class to accept both Python code strings and basic natural language descriptions. *Specific Action:* Implement logic to differentiate input types and process accordingly.
-    2. **Enhance Test Generation Agent (Advanced):**  Refine `TestGenAgent` to generate more sophisticated and comprehensive tests (property-based testing with `Hypothesis`, integration tests).  Focus on generating tests for Python and basic JavaScript initially. **Action:** *Extend* `TestGenAgent` to utilize `Hypothesis` for property-based test generation in Python. *Specific Action:* Integrate `Hypothesis` library and implement example property-based tests.
-    3. **Automated Testing:** (**Self-Bootstrapping Example**): Use TestGenAgent to generate unit and integration tests for the Specification Analysis Agent, Test Generation Agent, and basic Code Generation Agent. Focus on testing agent interactions and core functionalities *before writing agent code*. **Action:** *Run* `TestGenAgent` against `SpecificationAnalyzer`, `TestGenAgent`, and `CodeGenerationAgent` (stubs). *Specific Action:* Automate test execution in CI and review generated tests.
-    4. **Basic Code Generation Agent (Python MVP):**  Implement a basic `CodeGenerationAgent` that can generate simple Python functions based on specifications. Focus on function signatures and basic logic (placeholders initially). **Action:** *Create* `CodeGenerationAgent` class and implement `generate_python_function()` method. *Specific Action:* Focus on generating function stubs with docstrings from specifications.
-    5. **API Endpoints for Agents:** Expose API endpoints to trigger Specification Analysis, Test Generation, and Code Generation agents (e.g., `/agent/analyze-spec`, `/agent/generate-tests`, `/agent/generate-code`). **Action:** *Define* API routes in `api/routes/agent_endpoints.py` for each agent function. *Specific Action:* Implement Flask routes and basic request/response handling.
-    6. **CI/CD Integration - Agent Tests:** Extend the CI pipeline to automatically run tests generated by the `TestGenAgent` as part of the integration tests. **Action:** *Modify* `.github/workflows/ci.yml` to include execution of tests generated by `TestGenAgent`. *Specific Action:* Add a step in the CI workflow to discover and run pytest files in a designated "generated_tests" directory.
+* **Month 2: Integrate Agents & API Endpoint - Specification Analysis & Test Generation (**Iterative Integration**)**
+    1. **Integrate Specification Analysis Agent (Iterative Enhancement):**  *Adapt your `SpecificationAnalyzer`* to be ready for the MVP endpoint. *Action:* *Iteratively enhance* `SpecificationAnalyzer` to handle the input expected by the `/genesis/analyze-ethical` endpoint. *Specific Action:* Ensure it can analyze Python code strings and output structured specifications in JSON format relevant to ethical analysis and code quality.
+    2. **API Endpoint Integration (`/genesis/analyze-ethical` - Core MVP):**  **Action:** *Implement the `/genesis/analyze-ethical` API endpoint*. *Specific Action:*
+        * **Route code input:**  Ensure the API endpoint correctly receives Python code via POST request.
+        * **Orchestrate Agents:** Wire up the refined `CodeReviewAgent` and `EthicalPolicyEngine` (and basic `BiasDetectionMitigationModule`) to be called by this endpoint.  *Start with a simple sequential flow*.
+        * **Return JSON Response:** Format the output from the agents and policy engine into a JSON response as defined in the MVP.
+    3. **Automated Testing - API Endpoint & Agent Integration:** (**Iterative Testing**): *Write integration tests* for the `/genesis/analyze-ethical` API endpoint. Focus on testing the *integration* of the agents and the endpoint, ensuring data flows correctly and the API returns the expected JSON response. *Action:* *Create integration tests* in `tests/integration/test_api_ethical_analysis.py`. *Specific Action:* Use `pytest` and API client libraries to send requests to the endpoint and validate the responses.
+    4. **CI/CD Integration - MVP Endpoint Tests:** Extend the CI pipeline to automatically run the integration tests for the `/genesis/analyze-ethical` endpoint. *Action:* *Modify* `.github/workflows/ci.yml` to include execution of the new integration tests. *Specific Action:* Add a step in the CI workflow to discover and run pytest files in `tests/integration/`.
 
-* **Month 3: MVP API & Basic Orchestration (Integration & API Focus)**
-    1. **Basic Metamorphic Core Orchestration:** Implement basic orchestration logic in `MetamorphicCore` to coordinate the Specification Analysis, Test Generation, and Code Generation agents.  Focus on sequential workflow initially. **Action:** *Implement* `orchestrate_genesis()` function in `MetamorphicCore` to sequentially call agents. *Specific Action:*  Initial implementation should focus on a linear flow: Spec Analysis -> Test Gen -> Code Gen.
-    2. **MVP API Endpoints (Integrated Workflow):** Create MVP API endpoints to trigger the end-to-end workflow (specification submission -> analysis -> test generation -> code generation -> response).  (e.g., `/genesis/create-software`).  **Focus on `/genesis/analyze-ethical` endpoint for MVP deliverable.**  *Re-emphasis of MVP Deliverable: Ensure `/genesis/analyze-ethical` endpoint is fully functional, integrating ethical analysis and code quality reporting for the MVP.* **Action:** *Implement* `/genesis/analyze-ethical` route in `api/routes/genesis_endpoints.py`. *Specific Action:*  Route should call `MetamorphicCore.orchestrate_genesis()` and return a JSON response with ethical analysis and code quality report.
-    3. **Automated Testing:** (**Self-Bootstrapping Example**): Write integration tests (manual initially, automate later) to test the end-to-end MVP workflow via the API endpoints. Focus on testing workflow orchestration, data flow between agents, and basic API functionality *as you build the API and orchestration logic*. **Action:** *Create* integration tests in `tests/integration/test_api_workflow.py`. *Specific Action:*  Start with manual testing via `curl` or Postman, then automate tests using `pytest` and API client libraries.
-    4. **Knowledge Graph Integration (Basic Workflow):**  Ensure all agents interact with the Knowledge Graph to store and retrieve specifications, generated code, tests, analysis results, and ethical decisions. **Action:** *Modify* agent classes to interact with `KnowledgeGraph` class. *Specific Action:* Agents should store inputs, outputs, and intermediate data in the KG and retrieve necessary information from it.
-    5. **Basic Monitoring Dashboard (Text-Based):** Create a very basic text-based dashboard (e.g., in the API output or logs) to display key metrics (operation latency, ethical scores, basic error counts). No UI in this phase. **Action:** *Implement* basic logging and metrics output in `MetamorphicCore`. *Specific Action:* Use Python `logging` module to output key events and metrics to console and log files.
+* **Month 3: MVP Refinement & Documentation - API Focus & Initial Polish (MVP Completion)**
+    1. **Refine MVP API Endpoint (`/genesis/analyze-ethical` - Polish):** *Polish the MVP API endpoint* based on testing and initial feedback.  *Action:* *Refine error handling, response formatting, and performance* of the `/genesis/analyze-ethical` endpoint. *Specific Action:*  Implement better error responses, improve JSON output structure, and optimize for latency.
+    2. **Basic Documentation - MVP API Endpoint:** *Document the MVP API endpoint*. *Action:* *Create basic documentation* for the `/genesis/analyze-ethical` API endpoint. *Specific Action:*  Update `README.md` with clear instructions on how to use the endpoint, request/response examples, and expected output.
+    3. **Initial MVP Release (Internal/Alpha):** *Release an initial MVP version* for internal testing or alpha users. *Action:* *Prepare a minimal release* of the MVP. *Specific Action:* Tag a release in Git, ensure Docker image is buildable and runnable with the MVP functionality.
+    4. **Gather Feedback - MVP Endpoint:** *Gather feedback on the MVP API endpoint*. *Action:* *Collect feedback* from internal testers or alpha users on the usability and functionality of the `/genesis/analyze-ethical` endpoint. *Specific Action:* Set up a feedback mechanism (e.g., a simple form or a dedicated communication channel) and actively solicit feedback.
 
 **Phase 2: Enhanced Features & Quality (Next ~4-6 Months)**
 

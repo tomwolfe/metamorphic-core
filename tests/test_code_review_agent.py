@@ -23,22 +23,20 @@ def test_analyze_python_returns_flake8_stdout():
     mock_result.stdout = "Sample flake8 output"
     with patch('subprocess.run', return_value=mock_result):
         result = CodeReviewAgent().analyze_python("")
-    assert result == {'output': mock_result.stdout}
+    assert result == {'output': 'Sample flake8 output'}
 
 def test_analyze_python_returns_empty_stdout_on_success():
     """Verify clean code returns empty output dict (no flake8 warnings)."""
-    mock_result = MagicMock(returncode=0, stdout="")
-    with patch('subprocess.run', return_value=mock_result):
+    with patch('subprocess.run', return_value=MagicMock(stdout="", returncode=0)):
         result = CodeReviewAgent().analyze_python("def x(): return 1")
-    assert result.get('output') == ""
+    assert result['output'] == ""
 
 def test_analyze_python_returns_flake8_errors_when_present():
     """Ensure flake8 errors are captured correctly in output."""
     mock_error = "test.py:1:7: E225 missing whitespace around operator"
-    mock_result = MagicMock(stdout=mock_error, returncode=1)
-    with patch('subprocess.run', return_value=mock_result):
+    with patch('subprocess.run', return_value=MagicMock(stdout=mock_error, returncode=1)):
         result = CodeReviewAgent().analyze_python("if(True):print('test')")
-    assert result.get('output') == mock_error
+    assert result['output'] == mock_error
 
 def test_analyze_python_handles_file_not_found():
     """Test file not found scenario returns error dict."""
@@ -54,6 +52,6 @@ def test_analyze_python_captures_returncode_exit_status():
     mock_result = MagicMock(stdout="Error found", returncode=1)
     with patch('subprocess.run', return_value=mock_result):
         # Even with returncode=1, output should be captured
-        result = agent.analyze_python("var = 5;")
+        result = CodeReviewAgent().analyze_python("var = 5;")
         assert 'output' in result
         assert result['output'] == "Error found"

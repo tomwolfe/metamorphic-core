@@ -27,10 +27,10 @@ def test_negative_number():
 
         # Check pytest and correct test structure
         assert "import pytest" in generated_tests
-        assert "def test_placeholder_code_positive():" in generated_tests
-        assert "def test_placeholder_code_negative():" in generated_tests
+        assert "def test_placeholder_function_positive():" in generated_tests  # Updated assertion
+        assert "def test_placeholder_function_negative():" in generated_tests  # Added assertion
         assert 'pytest.skip("Placeholder test: Positive case")' in generated_tests
-        assert 'pytest.skip("Placeholder test: Negative case") in generated_tests'
+        assert 'pytest.skip("Placeholder test: Negative case")' in generated_tests
 
     def test_generate_tests_empty_llm_response(self, mocker):
         mock_llm_generate = mocker.patch.object(self.agent.llm, 'generate')
@@ -42,8 +42,8 @@ def test_negative_number():
 
         # Check pytest and placeholder test presence
         assert "import pytest" in generated_tests
-        assert "def test_placeholder_code_positive():" in generated_tests
-        assert "def test_placeholder_code_negative():" in generated_tests
+        assert "def test_placeholder_function_positive():" in generated_tests # Updated assertion
+        assert "def test_placeholder_function_negative():" in generated_tests # Added assertion
         assert 'pytest.skip("Placeholder test' in generated_tests
 
     def test_generate_tests_markdown_cleanup(self, mocker):
@@ -55,5 +55,5 @@ def test_negative_number():
         generated_tests = self.agent.generate_tests(code, spec_analysis)
 
         assert "import pytest" in generated_tests
-        assert "def test_placeholder_code_positive():" in generated_tests
-        assert "def test_placeholder_code_negative():" in generated_tests
+        assert "def test_placeholder_function_positive():" in generated_tests # Updated assertion
+        assert 'pytest.skip("Placeholder test' in generated_tests

@@ -1,3 +1,4 @@
+# src/core/agents/test_generator.py
 import re
 from pydantic import UUID4
 from src.core.llm_orchestration import LLMOrchestrator
@@ -9,10 +10,20 @@ class TestGenAgent:
         self.llm = LLMOrchestrator()
         self.kg = KnowledgeGraph()
 
-    def generate_tests(self, code: str, spec_analysis: dict) -> str:
-        """Generate placeholder tests with pytest.skip() markers."""
-        function_name = self._extract_function_name(code)  # Leverage existing helper
-        return f"""import pytest
+    def generate_tests(self, code: str, spec_analysis: dict,
+                      file_path: str = "generated_tests/generated_tests.py") -> str: # Modified - added file_path with default
+        """
+        Generate placeholder pytest tests for a function and write them to a file.
+
+        Args:
+            code: The Python code to test (e.g., function definition).
+            spec_analysis: (Future use) Metadata about code requirements.
+            file_path: Path to save generated test code (default: generated_tests/generated_tests.py).
+        """
+        # function_name = self._extract_function_name(code)  # Leverage existing helper
+        function_name = "placeholder_function" # Hardcode a placeholder function name for MVP simplicity
+
+        test_code = f"""import pytest
 
 def test_{function_name}_positive():
     pytest.skip("Placeholder test: Positive case")
@@ -22,6 +33,20 @@ def test_{function_name}_negative():
     pytest.skip("Placeholder test: Negative case")
     assert True
 """
+
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        # Write the generated tests to file
+        with open(file_path, 'w') as f:
+            f.write(test_code)
+
+        return test_code
+
+    ''' # ------------------------ COMMENT BLOCK START --------------------------
+    # Commenting out _extract_function_name and _store_tests for Phase 1 MVP Simplification
+    # These methods might be re-enabled or their logic reused in Phase 2 or Phase 3 for enhanced 
+    # test generation and Knowledge Graph integration.
 
     def _extract_function_name(self, code: str) -> str:
         """Helper to extract function name from code string."""
@@ -50,3 +75,5 @@ def test_{function_name}_negative():
         )
         self.kg.add_node(test_node)
         return modified_test_code
+
+    # ------------------------ COMMENT BLOCK END ---------------------------- '''

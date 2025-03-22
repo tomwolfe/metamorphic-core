@@ -115,6 +115,7 @@ jobs:
       - name: Run tests with coverage
         run: pytest tests --cov=src --cov-report=term --cov-report=html tests/
 
+
       - name: Run Generated Tests
         run: |
           # Set up the test file path
@@ -122,7 +123,10 @@ jobs:
 
           # Generate tests and store them in KG (and write to file)
           python -c "from src.core.agents.test_generator import TestGenAgent; \
-          TestGenAgent().generate_tests('def square(n):\n    return n * n', {})"
+          TestGenAgent().generate_tests('def square(n):\n    return n * n', {}, 'generated_tests/generated_tests.py')" # Corrected python -c command with spec_analysis and file_path
+
+          # Verify the file exists (still a good sanity check)
+          ls -l generated_tests
 
           # Run pytest on the generated tests
           pytest generated_tests/generated_tests.py --cov=src --cov-append

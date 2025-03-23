@@ -43,8 +43,8 @@
 * [Getting Started](#getting-started)
     * [Prerequisites](#prerequisites)
     * [Installation](#installation)
-    * [Running the API Server](#running-the-api-server)
-    * [Quickstart Guide](#quickstart-guide)
+    * [Running the API Server](#running_the_api_server)
+    * [Quickstart Guide](#quickstart_guide)
     * [System Requirements](#system-requirements)
 * [API Endpoints](#api-endpoints)
     * [Sample MVP Request/Response - `/genesis/analyze-ethical`](#sample-mvp-requestresponse---genesisanalyze-ethical)
@@ -79,8 +79,8 @@ To create a self-refining, AI-driven framework capable of independently generati
 5. **Testing & Validation**: Conduct thorough testing, including:
    - Unit, integration, and end-to-end tests
    - Code quality analysis with Flake8
-   - Ethical assessment using rule-based engine and quantum-inspired analysis<a href="#footnote-quantum-inspired"><sup>1</sup></a>
-   - Security scans with OWASP ZAP and Bandit
+   - Ethical assessment using a basic rule-based engine and quantum-inspired analysis<a href="#footnote-quantum-inspired"><sup>1</sup></a>
+   - Security scans with OWASP ZAP and Bandit (Bandit integration within `CodeReviewAgent` is currently commented out for MVP)
 6. **Continuous Integration**: Integrate seamlessly into CI/CD pipelines using GitHub Actions
 7. **Self-Improvement**: Evolve capabilities through learning and adaptation
 
@@ -90,36 +90,38 @@ The ecosystem is actively under development and demonstrating core functionaliti
 
 **Current Phase 1 Capabilities**
 
+**Note:**  The Phase 1 MVP provides a *basic* level of ethical analysis and placeholder test generation. Functionality beyond Flake8 code quality checks and basic ethical rule enforcement is currently under development and will be implemented in subsequent phases.
+
 ### Key Milestones Achieved:
 - Operational `/genesis/analyze-ethical` API endpoint with:
-  – Basic code quality assessment (API v1.1)
-  – Gamma-level ethical analysis backbone
-  – Placeholder test-generation proof-of-concept
+  – Basic code quality assessment (API v1.1) via Flake8
+  – Initial rule-based ethical analysis backbone (very basic rule enforcement directly in code; JSON policy configuration is under active development)
+  – Placeholder test-generation proof-of-concept (TestGenAgent generates placeholder test *code*, but tests are not executed by the API in MVP)
 
 ### Technical Foundations Live:
 - **LLM Orchestration Layer** (Gemini/Hugging Face)
 - **Security Scanning Integration** (OWASP ZAP 2.12+)
-- **Knowledge Graph** (Central repository of >500 ethical code patterns)
+- **Knowledge Graph** (Central repository of ethical code patterns - *initial phase, content being expanded*)
 
-- **Ethical Validation Framework**: Mechanisms for ethical assessment are in place, leveraging a rule-based engine and quantum-inspired state analysis for ethical insights.  Policy configuration via JSON is under development.
-- **Code Analysis Agents**: Code review capabilities are implemented using static analysis tools like Flake8 and Bandit, providing detailed code quality and security vulnerability assessments. Basic pytest placeholder test generation is implemented but not yet fully integrated into the API workflow.
+- **Ethical Validation Framework**: Mechanisms for ethical assessment are in place, leveraging a *very basic* rule-based engine (currently rules are implemented directly in code, not yet JSON configurable) and quantum-inspired state analysis for ethical insights.  Policy configuration via JSON is under development and a key focus for MVP completion.
+- **Code Analysis Agents**: Code review capabilities are implemented using static analysis tools like Flake8, providing detailed code quality assessments accessible via API. Bandit security scanning integration within the `CodeReviewAgent` is implemented in code but currently commented out for the Phase 1 MVP to streamline development and focus on core MVP features (Flake8 integration). Basic pytest placeholder test generation is implemented but not yet fully integrated into the API workflow beyond returning placeholder test *code* as a string in the API response.  *Note: Bandit integration is commented out within the `CodeReviewAgent` code.*
 - **Managing Long AI Contexts**: Initial mechanisms for managing long AI contexts through smart LLM selection, context chunking, and summarization are implemented.
 - **LLM Orchestration Layer**: Robust infrastructure for managing interactions with multiple LLMs, currently supporting Google Gemini and Hugging Face models. The system intelligently routes tasks, manages context, and optimizes costs. Phase 1.4 development is ongoing, with focus on enhanced context management and ethical policy engine integration.
-- **Knowledge Graph**: A dynamic knowledge graph is operational, serving as a central repository for ethical principles, code analysis findings, security vulnerabilities, and system knowledge, enabling informed decision-making and continuous learning.
+- **Knowledge Graph**: A dynamic knowledge graph is operational, serving as a central repository for ethical principles, code analysis findings, security vulnerabilities, and system knowledge, enabling informed decision-making and continuous learning.  The Knowledge Graph is in its early stages and content related to ethical principles and code patterns is actively being expanded.
 - **CI/CD Integration**: Automated CI workflows using GitHub Actions are established, ensuring code quality, running tests (including generated tests), performing security scans, and building Docker images upon code changes.
-- **Security Scanning**: Integration with OWASP ZAP for dynamic application security testing (DAST) is functional, enabling baseline scans to detect web application vulnerabilities, particularly for APIs. The system actively scans API endpoints and reports high-risk issues. Baseline security scanning with Bandit is also integrated.
+- **Security Scanning**: Integration with OWASP ZAP for dynamic application security testing (DAST) is functional, enabling baseline scans to detect web application vulnerabilities, particularly for APIs. The system actively scans API endpoints and reports high-risk issues. Baseline security scanning with Bandit is integrated in code but currently commented out for MVP, specifically the Bandit integration within `CodeReviewAgent` is not active in the MVP build.
 - **Formal Verification**: Initial integration of formal verification using Coq is in place, with compiled proofs included in the CI pipeline, starting with core modules like boundary detection.
 
 ## Key Highlights of Current Capabilities <a name="key-highlights-of-current-capabilities"></a>
 
-- **Advanced Code Analysis**: Static analysis with Flake8 and Bandit, providing detailed code quality and security insights accessible via API. We aim to align with the latest stable versions of Flake8 and Bandit rules for up-to-date analysis.
+- **Advanced Code Analysis**: Static analysis with Flake8, providing detailed code quality insights accessible via API. We aim to align with the latest stable versions of Flake8 rules for up-to-date analysis. Bandit integration is present in the codebase but commented out within `CodeReviewAgent` for the MVP.
 - **OWASP ZAP Integration**: Automated security scanning for web applications and APIs, with vulnerability reporting and scan history caching.
-- **Ethical Code Assessment**: Rule-based ethical assessment engine with quantum-inspired analysis<a href="#footnote-quantum-inspired"><sup>1</sup></a> providing ethical insights on code. Policy configuration via JSON is under development.
-- **LLM Powered Features**:  Leveraging Gemini and Hugging Face models for code analysis, test generation (placeholder tests), and problem-solving.
+- **Ethical Code Assessment**: *Basic* rule-based ethical assessment engine (rules directly in code, not yet JSON configurable) with quantum-inspired analysis<a href="#footnote-quantum-inspired"><sup>1</sup></a> providing *initial* ethical insights on code. Policy configuration via JSON is under development and a key next step.  **Note:** The configurable Ethical Policy Engine is a key development task for the MVP.  The current ethical assessment is rule-based but represents a *very early stage* of ethical analysis capabilities.
+- **LLM Powered Features**:  Leveraging Gemini and Hugging Face models for code analysis, *placeholder* test *code* generation (tests are not executed), and problem-solving.
 - **CI/CD Pipeline**: Automated testing, security scanning, and build processes via GitHub Actions, including Coq proof compilation.
-- **Knowledge Graph Backbone**: Centralized storage and retrieval of system knowledge, analysis data, and ethical guidelines.
+- **Knowledge Graph Backbone**: Centralized storage and retrieval of system knowledge, analysis data, and ethical guidelines.  Knowledge Graph is in early stage and actively being populated.
 
-**Note**: While the system is not yet capable of fully autonomous software generation, it currently functions as an advanced AI-powered code analysis and ethical assessment framework with basic security scanning capabilities.
+**Note**: While the system is not yet capable of fully autonomous software generation, it currently functions as an advanced AI-powered code quality analysis and *very basic* ethical assessment framework with basic security scanning capabilities. Bandit integration for security scanning within `CodeReviewAgent` is commented out for the MVP phase. The ethical assessment in the MVP is rule-based and provides a foundational level of ethical insight, with more advanced capabilities planned for future phases.
 
 ## Roadmap Update - Phase 1 MVP <a name="roadmap-update---phase-1-mvp"></a> 🚧
 
@@ -129,15 +131,15 @@ The ecosystem is actively under development and demonstrating core functionaliti
 
 A functional API endpoint (`/genesis/analyze-ethical`) capable of:
 
-1.  **Analyzing Python Code for Ethical Concerns:** Using a configurable policy engine (enforcing BiasRisk, TransparencyScore, and Safety Boundary constraints, configurable via JSON).
+1.  **Analyzing Python Code for Basic Ethical Concerns:** Using a *very basic*, directly-in-code rule-based policy engine (initially enforcing BiasRisk, TransparencyScore, and Safety Boundary constraints - configurable via JSON in active development).
 2.  **Providing Basic Code Quality Assessment:**  Leveraging `CodeReviewAgent` (Flake8 output reporting via API).
-3.  **Generating Placeholder Tests:** Utilizing `TestGenAgent` to create basic pytest placeholder tests for Python code.
-4.  **API Access:**  Providing a functional `/genesis/analyze-ethical` API endpoint that integrates ethical analysis and code quality checks.
+3.  **Generating Placeholder Tests:** Utilizing `TestGenAgent` to create basic pytest placeholder tests for Python code and return the placeholder test *code* as a string in the API response (*Tests are not executed by the API in the MVP*).
+4.  **API Access:**  Providing a functional `/genesis/analyze-ethical` API endpoint that integrates basic ethical analysis and code quality checks.
 
 #### Phase 1 Deliverables <a name="phase-1-deliverables"></a>
 
-1. Functional API endpoint (`/genesis/analyze-ethical`) for ethical code analysis.
-2. Basic Ethical Policy Engine enforcing BiasRisk, TransparencyScore, and Safety Boundary constraints, with policies configurable via JSON.
+1. Functional API endpoint (`/genesis/analyze-ethical`) for basic ethical code analysis and code quality assessment.
+2. Basic Ethical Policy Engine enforcing BiasRisk, TransparencyScore, and Safety Boundary constraints (*JSON configuration loading and enforcement in active development*).
 
 #### Phase 1 Actionable Steps (Version 1.3 - Revised 3 - *Final Revision*) <a name="phase-1-actionable-steps-version-13---revised-3---final-revision"></a>
 
@@ -205,9 +207,9 @@ A functional API endpoint (`/genesis/analyze-ethical`) capable of:
 
 ##### Month 2: Integrate Agents & API Endpoint <a name="month-2-integrate-agents--api-endpoint"></a>
 * **Month 2: Integrate Agents & API Endpoint**
-    1.  **Integrate Specification Analysis Agent:** API endpoint integration, JSON output, basic ethical engine use.
+    1.  **Integrate Specification Analysis Agent:** API endpoint integration, JSON output, basic ethical engine use. (*Commented out for MVP focus*)
     2.  **Refine API Endpoint (`/genesis/analyze-ethical`):**
-        *   **2a. Orchestrate Agents:** Integrate `CodeReviewAgent`, `EthicalPolicyEngine`, `SpecificationAnalyzer`, `BiasDetectionMitigationModule`.
+        *   **2a. Orchestrate Agents:** Integrate `CodeReviewAgent`, `EthicalPolicyEngine`, `SpecificationAnalyzer` (*Commented out for MVP focus*), `BiasDetectionMitigationModule` (*Commented out for MVP focus*).
         *   **2b. Format JSON Response:** Structure output from agents and engine into MVP-defined JSON format.
         *   **2c. Integration Tests:** Write integration tests for the complete `/genesis/analyze-ethical` endpoint flow.
     3.  **(Step Removed - Redundant)**
@@ -217,23 +219,23 @@ A functional API endpoint (`/genesis/analyze-ethical`) capable of:
 
     ##### Week 5:  `EthicalPolicyEngine` - Basic Constraint Enforcement Logic Implementation (BiasRisk, TransparencyScore, Safety Boundary) <a name="week-5--ethicalpolicyengine---basic-constraint-enforcement-logic-implementation-biasrisk-transparencyscore-safety-boundary"></a>
         *   **Task 5.1: `EthicalPolicyEngine` - Implement Constraint Enforcement Logic:**
-            *   **Action:** Replace the placeholder enforcement logic in `EthicalPolicyEngine.enforce_policy(code, policy_config)` with *basic but functional* constraint enforcement logic for BiasRisk, TransparencyScore, and Safety Boundary.  For the MVP, this logic does not need to be highly sophisticated, but it should: 1) Load constraint thresholds from the provided `policy_config` (JSON policy). 2) Implement *simple, rule-based checks* to evaluate the `code` against each constraint.  For example:
-                *   **BiasRisk:**  Check if the code string contains keywords associated with bias (e.g., racial terms, gendered pronouns if relevant to your ethical policy).  If it does, consider it a "high bias risk" violation.
-                *   **TransparencyScore:** Check if the code includes comments and docstrings.  Calculate a basic "transparency score" based on the presence/absence of comments and docstrings. Compare against the TransparencyScore threshold in the policy.
-                *   **Safety Boundary:**  For the MVP, you can implement a very basic safety check. For example, check if the code contains potentially unsafe operations like `os.system()` or `eval()`. If it does, consider it a "safety boundary violation".
-            *   **Specific Action:**  Within the `EthicalPolicyEngine.enforce_policy(code, policy_config)` method: 1) Implement logic to extract threshold values for BiasRisk, TransparencyScore, and Safety Boundary from the `policy_config` JSON object. 2) Implement the simplified, rule-based checks described above for each constraint. 3) Return a dictionary or object that clearly indicates the enforcement status (compliant/violation) for each constraint, and a overall "policy enforcement result" (APPROVED/REJECTED) based on whether any constraints were violated.
+            *   **Action:** Replace the placeholder enforcement logic in `EthicalPolicyEngine.enforce_policy(code, policy_config)` with *basic but functional* constraint enforcement logic for BiasRisk, TransparencyScore, and Safety Boundary.  For the MVP, this logic does not need to be highly sophisticated, but it should: 1) Load constraint thresholds from the provided `policy_config` (JSON policy - *in development*). 2) Implement *simple, rule-based checks* to evaluate the `code` against each constraint.  For example:
+                *   **BiasRisk:**  Check if the code string contains keywords associated with bias (e.g., racial terms, gendered pronouns if relevant to your ethical policy - *basic keyword check for MVP*).  If it does, consider it a "high bias risk" violation.
+                *   **TransparencyScore:** Check if the code includes comments and docstrings.  Calculate a basic "transparency score" based on the presence/absence of comments and docstrings. Compare against the TransparencyScore threshold in the policy (*basic presence check for MVP*).
+                *   **Safety Boundary:**  For the MVP, you can implement a very basic safety check. For example, check if the code contains potentially unsafe operations like `os.system()` or `eval()`. If it does, consider it a "safety boundary violation" (*basic operation check for MVP*).
+            *   **Specific Action:**  Within the `EthicalPolicyEngine.enforce_policy(code, policy_config)` method: 1) Implement logic to extract threshold values for BiasRisk, TransparencyScore, and Safety Boundary from the `policy_config` JSON object (*JSON policy loading in development*). 2) Implement the simplified, rule-based checks described above for each constraint. 3) Return a dictionary or object that clearly indicates the enforcement status (compliant/violation) for each constraint, and a overall "policy enforcement result" (APPROVED/REJECTED) based on whether any constraints were violated.
         *   **Task 5.2: `EthicalPolicyEngine` - Unit Testing (Constraint Enforcement):**
-            *   **Action:** Write comprehensive unit tests for the `EthicalPolicyEngine` to rigorously verify that the constraint enforcement logic implemented in Task 5.1 functions correctly.  Test different policy configurations (with varying thresholds) and code samples that are designed to either violate or comply with each of the BiasRisk, TransparencyScore, and Safety Boundary constraints based on your simplified rule-based enforcement logic.
-            *   **Specific Action:** Use `pytest` to expand unit tests in `tests/test_ethics.py` for the `EthicalPolicyEngine`.  Create test cases to: 1) Test BiasRisk enforcement: provide code samples that should and should not trigger bias risk violations based on your keyword-based check, and verify `enforce_policy()` returns the correct result for different BiasRisk thresholds in the policy. 2) Test TransparencyScore enforcement: provide code samples with varying levels of comments/docstrings, and verify `enforce_policy()` correctly assesses the transparency score and compares it to the policy threshold. 3) Test Safety Boundary enforcement: provide code samples that include and exclude unsafe operations like `os.system()` and `eval()`, and verify `enforce_policy()` correctly identifies safety boundary violations based on your check for these operations and the Safety Boundary threshold in the policy.
+            *   **Action:** Write comprehensive unit tests for the `EthicalPolicyEngine` to rigorously verify that the constraint enforcement logic implemented in Task 5.1 functions correctly.  Test different policy configurations (with varying thresholds - *JSON policy loading in development*) and code samples that are designed to either violate or comply with each of the BiasRisk, TransparencyScore, and Safety Boundary constraints based on your simplified rule-based enforcement logic.
+            *   **Specific Action:** Use `pytest` to expand unit tests in `tests/test_ethics.py` for the `EthicalPolicyEngine`.  Test cases should include: 1) Test BiasRisk enforcement: provide code samples that should and should not trigger bias risk violations based on your keyword-based check, and verify `enforce_policy()` returns the correct result for different BiasRisk thresholds in the policy (*JSON policy loading in development*). 2) Test TransparencyScore enforcement: provide code samples with varying levels of comments/docstrings, and verify `enforce_policy()` correctly assesses the transparency score and compares it to the policy threshold (*basic presence check for MVP*). 3) Test Safety Boundary enforcement: provide code samples that include and exclude unsafe operations like `os.system()` and `eval()`, and verify `enforce_policy()` correctly identifies safety boundary violations based on your check for these operations and the Safety Boundary threshold in the policy (*basic operation check for MVP*).
         *   **Task 5.3: API Integration - `EthicalPolicyEngine` Basic Enforcement into Endpoint:**
             *   **Action:** Integrate the basic constraint enforcement logic of the `EthicalPolicyEngine` into the `/genesis/analyze-ethical` API endpoint handler function. Update the API endpoint code to call `enforce_policy()` and use the returned enforcement results to dynamically set the `status` (APPROVED/REJECTED) in the JSON API response, and to populate the `ethical_analysis` section with the detailed constraint enforcement results.
-            *   **Specific Action:** Modify the API route handler in `ethical_endpoints.py` to: 1) Call `ethical_policy_engine.enforce_policy(code, default_policy_config)`. 2) Use the returned "policy enforcement result" from `enforce_policy()` to set the `status` field in the JSON API response to either "APPROVED" or "REJECTED". 3) Populate the `ethical_analysis` section of the JSON API response with the detailed constraint violation/compliance information returned by `enforce_policy()`.
+            *   **Specific Action:** Modify the API route handler in `ethical_endpoints.py` to: 1) Call `ethical_policy_engine.enforce_policy(code, default_policy_config)` (*default policy config in development*). 2) Use the returned "policy enforcement result" from `enforce_policy()` to set the `status` field in the JSON API response to either "APPROVED" or "REJECTED". 3) Populate the `ethical_analysis` section of the JSON API response with the detailed constraint violation/compliance information returned by `enforce_policy()`.
         *   **(Weekly Integration Testing - *Expand*):** **Action:** Expand the weekly integration tests in `tests/integration/test_api_mvp_endpoint.py` to now rigorously verify that the API endpoint correctly returns `status` (APPROVED/REJECTED) and a detailed `ethical_analysis` section in the JSON response, based on the *functional* (albeit basic) ethical policy enforcement logic you've implemented. Run these tests weekly to ensure the API endpoint and `EthicalPolicyEngine` are working together correctly.
 
     ##### Week 6:  API Endpoint Response Refinement & Basic Error Handling - *Polish API Output* <a name="week-6--api-endpoint-response-refinement--basic-error-handling---polish-api-output"></a>
         *   **Task 6.1: API Response - Detailed Analysis Output Refinement:**
             *   **Action:** Refine the structure and formatting of the detailed analysis output in the API response JSON.  Specifically, improve the `code_quality` section (from `CodeReviewAgent`) and the `ethical_analysis` section (from `EthicalPolicyEngine`) to be more readable, informative, and user-friendly for the MVP.  Ensure the JSON output is well-structured and easy to parse programmatically if needed.
-            *   **Specific Action:** Review the current JSON output in the `code_quality` and `ethical_analysis` sections of the API response.  Restructure and reformat this data to be more organized and easily understandable.  For `code_quality`, ensure Flake8 findings are presented clearly (file, line, code, message). For `ethical_analysis`, ensure constraint enforcement results (status for each constraint, violation details if any) are clearly presented.  Aim for a JSON structure that is both human-readable and machine-parseable.
+            *   **Specific Action:** Review the current JSON output in the `code_quality` and `ethical_analysis` sections of the API response.  Restructure and reformat this data to be more organized and easily understandable.  For `code_quality`, ensure Flake8 findings are presented clearly (file, line, code, message). For `ethical_analysis`, ensure constraint enforcement results (status for each constraint, violation details if any - *basic enforcement logic for MVP*) are clearly presented.  Aim for a JSON structure that is both human-readable and machine-parseable.
         *   **Task 6.2: API Endpoint - Implement Basic Error Handling:**
             *   **Action:** Implement robust basic error handling within the `/genesis/analyze-ethical` API endpoint handler function. Ensure the API endpoint gracefully catches potential exceptions that might occur during agent execution (e.g., exceptions from `CodeReviewAgent.analyze_python()` or `EthicalPolicyEngine.enforce_policy()`) and returns informative JSON error responses to the client instead of crashing or returning unhandled exceptions.  Use appropriate HTTP status codes (e.g., 500 Internal Server Error for unexpected errors).
             *   **Specific Action:** Add `try...except` blocks within the API route handler function in `ethical_endpoints.py` to wrap calls to `code_review_agent.analyze_python()` and `ethical_policy_engine.enforce_policy()`.  Within the `except` blocks, implement logic to: 1) Log the error details using Flask's logging mechanism. 2) Construct a JSON error response that includes an `error` field with a descriptive error message and a `status` field set to "error". 3) Return this JSON error response to the client with a 500 Internal Server Error HTTP status code using `jsonify()` and `return ..., 500`.
@@ -241,12 +243,12 @@ A functional API endpoint (`/genesis/analyze-ethical`) capable of:
             *   **Action:** Expand the integration tests in `tests/integration/test_api_mvp_endpoint.py` to thoroughly verify both the refined API response structure (including the improved `code_quality` and `ethical_analysis` sections) and the implemented error handling.  Specifically, add test cases to simulate error scenarios (e.g., by mocking agent methods to raise exceptions) and verify that the API endpoint correctly catches these exceptions and returns the expected JSON error responses with 500 status codes.
             *   **Specific Action:** Add integration tests to `tests/integration/test_api_mvp_endpoint.py` to: 1) Validate the refined JSON response structure, ensuring the `code_quality` and `ethical_analysis` sections are formatted as expected and contain the correct data. 2) Test error handling: Use `unittest.mock` to mock the `analyze_python()` method of `CodeReviewAgent` and the `enforce_policy()` method of `EthicalPolicyEngine` to raise exceptions.  Verify that when these exceptions are raised during API endpoint calls, the API returns a JSON error response with a 500 status code and an informative error message in the `error` field.
 
-    ##### Week 7:  Documentation - MVP API Endpoint in `README.md` - *Basic API Usage Guide* <a name="week-7--documentation---mvp-api-endpoint-in-readmemd---basic-api-usage-guide"></a>
+    ##### Week 7:  Documentation - MVP API Endpoint in `README.md` - *Basic API Usage Guide* <a name="week-7--documentation---mvp-api-usage-guide"></a>
         *   **Task 7.1: README.md - MVP API Endpoint Documentation - *Write Usage Guide*:**
             *   **Action:** Update the `README.md` file in the project root to include comprehensive documentation for the MVP `/genesis/analyze-ethical` API endpoint.  This documentation should serve as a basic usage guide for developers or internal users who want to use the MVP functionality.  Include the following sections:
                 *   **Endpoint Overview:** Briefly describe the purpose of the `/genesis/analyze-ethical` endpoint (ethical code analysis and basic code quality assessment).
                 *   **Request Format:** Clearly specify the HTTP method (POST), the API endpoint URL (`/genesis/analyze-ethical`), the request headers (e.g., `Content-Type: application/json`), and the JSON request body format (including the required `code` field and its expected data type - string). Provide a clear example of a request.
-                *   **Response Format:** Detail the JSON response format returned by the API endpoint.  Explain each field in the JSON response: `status` (APPROVED/REJECTED/error), `analysis` (detailed ethical analysis results - describe the structure and data), `code_quality` (code quality assessment results from Flake8 - describe the structure and data), and `generated_tests_placeholder` (placeholder test code string). Provide *example* JSON responses for both APPROVED and REJECTED scenarios, and for error scenarios.
+                *   **Response Format:** Detail the JSON response format returned by the API endpoint.  Explain each field in the JSON response: `status` (APPROVED/REJECTED/error - *basic enforcement logic for MVP*), `analysis` (detailed ethical analysis results - describe the structure and data - *basic enforcement logic for MVP*), `code_quality` (code quality assessment results from Flake8 - describe the structure and data), and `generated_tests_placeholder` (placeholder test code string - *tests not executed in MVP*). Provide *example* JSON responses for both APPROVED and REJECTED scenarios, and for error scenarios.
                 *   **Basic Instructions:** Include basic instructions on how to run the Flask API server locally (referencing `src/api/server.py`) and how to send requests to the `/genesis/analyze-ethical` API endpoint using `curl` or `Postman` or similar tools.
             *   **Specific Action:**  Open the `README.md` file and add a new section specifically for documenting the `/genesis/analyze-ethical` MVP API endpoint.  Write clear and concise text for each of the sections outlined above (Endpoint Overview, Request Format, Response Format, Basic Instructions).  Create well-formatted code blocks to show example requests and JSON responses.  Ensure the documentation is accurate, complete, and easy for a developer to understand and use.
         *   **Task 7.2: Documentation Review & Refinement - *Clarity and Accuracy Check*:**
@@ -273,9 +275,9 @@ A functional API endpoint (`/genesis/analyze-ethical`) capable of:
 
 **Contribution Sprint Queue (Phase 1 MVP - Top 3 Tasks):**
 
-1. **Ethical Policy Engine - JSON Configuration Loading & Enforcement:** Implement the ability to load ethical policies from JSON files and enforce these policies within the `EthicalPolicyEngine`.  This is crucial for configurable ethical assessments. (See: "Month 1, Step 4: Implement Ethical Policy Engine").
-2. **`/genesis/analyze-ethical` API Endpoint - Agent Orchestration & JSON Response:** Refine the API endpoint to orchestrate all relevant agents (`CodeReviewAgent`, `EthicalPolicyEngine`, `TestGenAgent`, `BiasDetectionMitigationModule`) and structure their outputs into a well-defined JSON response format. (See: "Month 2, Step 2b: Format JSON Response").
-3. **Integration Tests for `/genesis/analyze-ethical` Endpoint:** Write comprehensive integration tests for the `/genesis/analyze-ethical` API endpoint to ensure the entire workflow, including agent orchestration and ethical policy enforcement, functions correctly. (See: "Month 2, Step 2c: Integration Tests").
+1. **Ethical Policy Engine - JSON Configuration Loading & Enforcement:** Implement the ability to load ethical policies from JSON files and enforce these policies within the `EthicalPolicyEngine`.  This is crucial for configurable ethical assessments and a primary focus to resolve the current roadblock. (See: "Month 1, Step 4: Implement Ethical Policy Engine").
+2. **`/genesis/analyze-ethical` API Endpoint - Agent Orchestration & JSON Response:** Refine the API endpoint to orchestrate relevant agents (`CodeReviewAgent`, `EthicalPolicyEngine`, `TestGenAgent`) and structure their outputs into a well-defined JSON response format.  `SpecificationAnalyzer` and `BiasDetectionMitigationModule` are currently deferred for post-MVP phases. (See: "Month 2, Step 2b: Format JSON Response").
+3. **Integration Tests for `/genesis/analyze-ethical` Endpoint:** Write comprehensive integration tests for the `/genesis/analyze-ethical` API endpoint to ensure the entire workflow, including agent orchestration (of the MVP agents) and basic ethical policy enforcement, functions correctly. (See: "Month 2, Step 2c: Integration Tests").
 
 
 <details>
@@ -291,7 +293,7 @@ A functional API endpoint (`/genesis/analyze-ethical`) capable of:
 | Ethical Policy Engine (JSON Configurable)      |            30%            |                5%               | Not Implemented       | 1. Implement JSON loading 2. Implement `/ethical/policy/load` endpoint 3. Implement `/ethical/policy/view` endpoint 4. Integrate into workflow 5. Write tests 6. MVP constraints |
 | GDPR/COPPA Placeholder API                     |            70%            |               60%               | Partially Implemented | 1. Document API endpoints in README/Swagger                                                                                            |
 | Bias Detection Module Integration             |            20%            |               10%               | Not Implemented       | 1. Integrate starter bias detection library 2. Basic text analysis 3. Placeholder integration in workflow                                 |
-| **API Endpoint Integration Task**              |            60%            |               50%               | Partially Implemented | 1. Refine agent orchestration 2. Implement JSON response formatting 3. Write integration tests                                                            |
+| **API Endpoint Integration Task**              |            60%            |               50%               | Partially Implemented | 1. Refine agent orchestration (for MVP agents) 2. Implement JSON response formatting 3. Write integration tests                                                            |
 
 </details>
 
@@ -346,7 +348,7 @@ gantt
 
 2.  **Task 1.2: Agent Stub Integration into API Endpoint**
     *   **Goal:** Integrate stubbed `CodeReviewAgent` & `EthicalPolicyEngine` and call MVP methods within the API endpoint.
-    *   **Specific Steps:**
+        *   **Specific Steps:**
         *   Import agents in `ethical_endpoints.py`: `from src.core.agents import CodeReviewAgent` and `from src.core.ethics.governance import EthicalPolicyEngine`.
         *   Instantiate agents in `genesis_ethical_analysis_endpoint()`: `code_review_agent = CodeReviewAgent()` and `ethical_policy_engine = EthicalPolicyEngine()`.
         *   Call MVP methods: `code_quality_result = code_review_agent.analyze_python(code)` and `ethical_analysis_result = ethical_policy_engine.validate_code(code)`.
@@ -361,7 +363,7 @@ gantt
 
 4.  **Daily Integration Testing (Mandatory)**
     *   **Goal:** Implement daily integration tests to verify API endpoint and JSON response structure.
-    *   **Specific Steps:**
+        *   **Specific Steps:**
         *   Create `tests/integration/test_api_mvp_endpoint.py`.
         *   Use `pytest` and `requests`.
         *   Write tests to:
@@ -380,10 +382,10 @@ gantt
 
 **Expected Outcome (End of Week 1 Checklist):**
 
-*   [ ] Functional `/genesis/analyze-ethical` API endpoint (Flask).
-*   [ ] Basic wiring to stubbed `CodeReviewAgent` & `EthicalPolicyEngine`.
-*   [ ] API returns MVP JSON response structure.
-*   [ ] Automated daily integration tests (verifying API & JSON structure).
+*   [x] Functional `/genesis/analyze-ethical` API endpoint (Flask).
+*   [x] Basic wiring to stubbed `CodeReviewAgent` & `EthicalPolicyEngine`.
+*   [x] API returns MVP JSON response structure.
+*   [x] Automated daily integration tests (verifying API & JSON structure).
 
 **Next Steps (After Week 1):**  Proceed to **Week 2 of Month 1**, focusing on **implementing Flake8 integration in `CodeReviewAgent`** to provide basic code quality assessment for the MVP API endpoint.
 
@@ -399,7 +401,7 @@ gantt
 #### Beyond Month 2 (Future Iterations) <a name="beyond-month-2-future-iterations"></a>
 
 *   **Iterate on MVP Feedback:** Address feedback collected from internal/alpha testing of the MVP API endpoint.  Refine the API endpoint, ethical policy engine, and agents based on user input.
-*   **Implement Basic Bias Detection (Month 3 - if time allows):**  Integrate a *basic* bias detection library into the `BiasDetectionMitigationModule`.
+*   **Implement Basic Bias Detection (Month 3 - if time allows):**  Integrate a *basic* bias detection library into the `BiasDetectionMitigationModule`. (*Deferred to post-MVP phases*)
 *   **GDPR/COPPA Placeholder API (Month 3 - if time allows):** Implement the placeholder GDPR/COPPA API endpoints (`/ethical/gdpr`, `/ethical/coppa`) with clear request/response interfaces.
 *   **Phase 2 Feature Planning:** Begin more detailed planning and outlining of the enhanced features and quality improvements for Phase 2.
 
@@ -477,7 +479,7 @@ pip install -r requirements/base.txt
 pip install -r requirements/dev.txt # Optional: for development dependencies (testing, linting)
 ```
 
-### Running the API Server <a name="running-the-api-server"></a>
+### Running the API Server <a name="running_the_api_server"></a>
 
 ```bash
 cd src/api
@@ -486,7 +488,7 @@ python server.py
 
 The API server will be available at http://0.0.0.0:50000/.
 
-### Quickstart Guide <a name="quickstart-guide"></a>
+### Quickstart Guide <a name="quickstart_guide"></a>
 
 #### 1. Clone Repository
 ```bash
@@ -549,13 +551,13 @@ curl --request POST \
   --data '{"code":"def hello_world():\n  print(\"Hello, world!\")"}'
 ```
 
-**Response (Example):**
+**Response (Example - *Basic MVP Output*):**
 ```json
 {
   "status": "completed",
-  "code_quality": "No Flake8 issues found.",
-  "analysis": "Ethical analysis completed. No policy violations detected.",
-  "test_generation": "Basic pytest placeholder tests generated."
+  "code_quality": "Flake8 analysis output will be here.",
+  "analysis": "Ethical analysis results from basic rule-based checks will be here. (JSON Configurable Policy Engine in development for enhanced ethical analysis)",
+  "generated_tests_placeholder": "Placeholder pytest test code will be returned here. (Tests are not executed in the MVP API)"
 }
 ```
 
@@ -566,7 +568,7 @@ curl --request POST \
 | Endpoint                          | Method | Status             | Description |
 |-----------------------------------|--------|--------------------|-------------|
 | **/genesis/health**               | GET    | Working            | Basic liveness check (healthcheck response) |
-| **/genesis/analyze-ethical**      | POST   | Alpha              | Full code analysis including: <br> • Grammar/Quality (Flake8) <br> • Basic ethics assessment (Beta) <br> • Test placeholder generation (v1.1) |
+| **/genesis/analyze-ethical**      | POST   | Alpha              | Full code analysis including: <br> • Grammar/Quality (Flake8) <br> • Basic ethics assessment (Beta - *very basic rule-based*, JSON Configurable Policy Engine in development) <br> • Test placeholder generation (v1.1 - *placeholder code only, tests not executed*) |
 | /genesis/solve-math               | POST   | MVP Baseline       | LLM-powered mathematical problem solving demo |
 | /genesis/ethical/audit/{state_id} | GET    | To Be Implemented  | Future ethics audit history access |
 | /genesis/ethical/visualize/*      | ALL    | Coming Soon        | Maturity visualizations (API v1.3+) |
@@ -588,7 +590,7 @@ curl -X POST \
 
 ## License <a name="license"></a>
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3). See `LICENSE` for details.
+This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3). See `LICENSE`.
 
 ## License and Compliance <a name="license-and-compliance"></a>
 **Developed under AGPLv3**: See `LICENSE`.
@@ -601,7 +603,7 @@ For inquiries, contact: tomwolfe@gitproject.devices
 
 ## Disclaimer <a name="disclaimer"></a>
 
-**This project is in early MVP development and not intended for production use.** Functionality is limited to the features outlined in the Phase 1 Roadmap and is subject to change. API endpoints and responses are under active development and may evolve.  **We are actively working towards the Phase 1 MVP outlined in the Roadmap below.**
+**This project is in early MVP development and not intended for production use.** Functionality is limited to the features outlined in the Phase 1 Roadmap and is subject to change. API endpoints and responses are under active development and may evolve.  **We are actively working towards the Phase 1 MVP outlined in the Roadmap below. The Ethical Policy Engine with JSON configuration is a key feature still under development and represents a current known limitation of the MVP.  The ethical analysis and test generation capabilities in the current MVP are intentionally basic and will be significantly enhanced in future iterations.**
 
 ---
 

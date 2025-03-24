@@ -13,4 +13,3 @@ def genesis_ethical_analysis_endpoint():
     code = request.get_json().get('code')
     return jsonify({
         "status": "working"
-    })

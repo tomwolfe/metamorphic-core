@@ -1,3 +1,4 @@
+# src/core/agents/code_review_agent.py
 from src.core.knowledge_graph import KnowledgeGraph, Node
 import subprocess
 import tempfile
@@ -12,10 +13,13 @@ logger = logging.getLogger(__name__)
 class CodeReviewAgent:
     def __init__(self, kg: KnowledgeGraph=None):
         self.kg = kg if kg is not None else KnowledgeGraph()
+        # Corrected regex from LLM Solution 2
         self.issue_pattern = re.compile(
-            r"(?P<file>.+):(?P<line>\d+):(?P<col>\d+): (?P<code>\w+) (?P<msg>.+)")
+            r"^(?P<file>.+):(?P<line>\d+):(?P<col>\d+): (?P<code>\w+) (?P<message>.+)$"
+        )
 
     def analyze_python(self, code: str) -> dict:
+        """Analyze Python code using Flake8 (MVP only)."""
         flake8_results = {'static_analysis': [], 'output': ''}
         # bandit_results = {'findings': [], 'error': False, 'error_message': None}  # Initialize bandit_results - Commented out for MVP
 
@@ -35,35 +39,46 @@ class CodeReviewAgent:
 
                     # Simplify return for MVP - only include 'output' key for successful runs
                     return {
-                        'output': flake8_output
+                        'output': flake8_output,
+                        'static_analysis': self._parse_flake8_results(flake8_output) # Parse results here
                     }
 
                 except FileNotFoundError as e:
                     logger.error(f"Flake8 executable not found: {str(e)}")
-                    return {'error': f"FileNotFoundError: {str(e)}"}
+                    return {'error': f"FileNotFoundError: {str(e)}", 'static_analysis': []} # Include static_analysis empty list in error case
 
         except Exception as e:
             logger.error(f"Unexpected error during code analysis: {str(e)}")
-            return {'error': f"Unexpected error: {str(e)}"}
+            return {'error': f"Unexpected error: {str(e)}", 'static_analysis': []} # Include static_analysis empty list in exception case
 
-    def _parse_flake8_results(self, output: str) -> dict:
+    def _parse_flake8_results(self, output: str) -> list: # Corrected return type to list (consistent with findings)
+        """Parse Flake8 output into structured findings."""
         findings = []
-        for match in self.issue_pattern.finditer(output):
-            issue_details = match.groupdict()
-            issue_details['severity'] = self._determine_severity(issue_details['code'])
-            findings.append(issue_details)
-        return {'static_analysis': findings}
+        for line in output.splitlines():
+            match = self.issue_pattern.match(line)
+            if match:
+                details = match.groupdict()
+                details["severity"] = self._determine_severity(details["code"])
+                findings.append(details)
+        return findings
+
 
     def _determine_severity(self, code: str) -> str:
+        """Map Flake8 error codes to severity levels."""
         severity_map = {
             'E': 'error',
             'F': 'error',
             'W': 'warning',
             'C': 'warning',
-            'S': 'security',
-            'B9': 'security',
+            'S': 'security', # Although 'S' is not flake8 standard, kept for potential extensions
+            'B9': 'security', # Although 'B9' is not flake8 standard, kept for potential extensions
+            'PL': 'style',     # Pylint - example for future plugins
+            'D': 'info',      # Documentation (pydocstyle)
+            'N': 'info',      # Naming conventions
+            'T': 'info'       # Type hints
         }
-        return severity_map.get(code[0], 'info')
+        return severity_map.get(code[0], 'info') # Default to 'info' if not in map
+
 
     # --- Bandit Integration - Commented Out for Phase 1 MVP ---
     '''
@@ -152,21 +167,22 @@ class CodeReviewAgent:
         if flake8_results.get('error'): # if flake8 has error
              merged['error'] = True
              merged['error_message'] = flake8_results['error_message'] # Use Flake8's error message if  has an error
-        return merged
+        return merged # type: ignore
 
-    def store_findings(self, findings: dict, code_hash: str, code: str):  # Added code parameter
-        """Store static analysis findings in the Knowledge Graph."""
-        node = Node(
-            type="code_review",
-            content="Static analysis findings from flake8",  # Updated content for clarity - Bandit removed for MVP
-            metadata={
-                "code_hash": code_hash,
-                "code_snippet": self._get_code_snippet(code),  # Store full code snippet - changed to full snippet
-                "findings": [{**f, 'severity': f.get('severity', 'unknown')} for f in findings['static_analysis']],  # Add severity to each finding
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        )
-        self.kg.add_node(node)
+    def store_findings(self, findings: dict, code_hash: str, code: str):
+        """Store analysis findings in Knowledge Graph (optional for MVP)."""
+        if self.kg:  # Only store if KG is provided
+            node = Node(
+                type="code_review",
+                content="Static analysis findings from flake8",
+                metadata={
+                    "code_hash": code_hash,
+                    "code_snippet": code,
+                    "findings": findings.get('static_analysis', []),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            )
+            self.kg.add_node(node)
 
     def _get_code_snippet(self, code: str, line_num: int = None, context: int = 5) -> str:
         """Extracts a code snippet around a given line number.
@@ -182,32 +198,4 @@ class CodeReviewAgent:
         # Adjust line numbers for display (1-based indexing)
         return "\n".join(f"{i+1:4d} | {line}" for i, line in enumerate(lines[start:end], start=start))
 
-    def _parse_flake8_results(self, output: str) -> dict:  # Removed code parameter
-        findings = []
-        severity_map = {
-            'E': 'error',           # General Errors
-            'F': 'error',           # Fatal errors
-            'W': 'warning',         # Warnings
-            'C': 'warning',         # Conventions (potential issues)
-            'E001': 'style',        # Flake8 E001: Whitespace error
-            'E002': 'style',        # Flake8 E002: Continuation line indentation
-            'E123': 'style',        # Flake8 E123: Indentation not a multiple of four
-            'E1': 'style', 'W6': 'style',  # PEP8 style (example subsets)
-            'E2': 'style', 'E3': 'style', 'E4': 'style', 'E5': 'style',
-            'E7': 'style', 'E9': 'style', 'C0': 'style', 'C4': 'style', 'C9': 'style',  # More PEP8
-            'B': 'warning',         # Bug Bear
-            'D': 'info',            # Documentation (pydocstyle)
-            'N': 'info',            # Naming conventions
-            'T': 'info',            # Type hint checks
-            'S': 'security',        # Bandit security issues
-            'PL': 'style',          # Pylint (if integrated) - example for future plugins
-            'B9': 'security'        # Flake8-bugbear security - example
-        }
-
-        for match in self.issue_pattern.finditer(output):
-            issue_details = match.groupdict()
-            code = issue_details['code']  # Use full code for specific mapping
-            issue_details['severity'] = severity_map.get(code, severity_map.get(code[0], 'info'))  # Assign severity from map
-            # issue_details['code_snippet'] = self._get_code_snippet(code, int(issue_details['line'])) # Get snippet for each issue # Removed to store whole snippet in node metadata
-            findings.append(issue_details)
-        return {'static_analysis': findings}
+    # _parse_flake8_results and _determine_severity methods remain the same

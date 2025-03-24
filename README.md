@@ -87,9 +87,9 @@ To create a self-refining, AI-driven framework capable of independently generati
 
 The ecosystem is actively under development, demonstrating core functionalities as an **advanced AI-powered code analysis, ethical validation, and security scanning framework.** While fully autonomous software generation is under development, the current status showcases significant progress in key areas:
 
-**Phase 1 Capabilities - Week 1 Month 1 Achieved** ✅
+**Phase 1 Capabilities - Week 2 Month 1 Achieved** ✅
 
-**Note:**  The Phase 1 MVP delivers a foundational level of ethical analysis and placeholder test generation. Functionality beyond Flake8 code quality checks and basic ethical rule enforcement is under active development for subsequent phases.
+**Note:**  The Phase 1 MVP delivers foundational code quality analysis and basic ethical assessment. Functionality beyond Flake8 code quality checks and basic ethical rule enforcement is under active development for subsequent phases.
 
 ### Key Milestones Achieved (Week 1 Month 1):
 - **[✅] Operational `/genesis/analyze-ethical` API endpoint:**  A functional API endpoint is live, providing the core interface for ethical analysis and code quality checks.
@@ -98,6 +98,14 @@ The ecosystem is actively under development, demonstrating core functionalities 
     * **[✅] Placeholder test-generation proof-of-concept:** `TestGenAgent` is wired to the API, generating placeholder test code (pytest) as a proof of concept. These tests are not yet executed by the API in the MVP.
     * **[✅] Basic JSON response structure:** The API endpoint returns a well-defined JSON response structure, including `status`, `analysis`, `code_quality`, and `generated_tests_placeholder` fields.
     * **[✅] Daily Integration Testing:** Automated integration tests are in place, ensuring API endpoint stability and basic functionality.
+
+### Key Milestones Achieved (Week 2 Month 1):
+- **[✅] `CodeReviewAgent` MVP - Flake8 Integration:** The `CodeReviewAgent` is now fully integrated with Flake8, providing code quality analysis as a core MVP functionality.
+    * **[✅] Flake8 execution via `subprocess`:** Implemented Flake8 execution within `CodeReviewAgent` using `subprocess`, capturing Flake8 output for analysis.
+    * **[✅] Basic Flake8 output parsing:** Implemented basic parsing of Flake8 output to extract key information: **file path, line number, error code, and message**, for structured reporting.
+    * **[✅] Unit tests for `CodeReviewAgent` (Flake8 MVP):** Developed unit tests specifically for the MVP-focused `CodeReviewAgent` to ensure correct Flake8 execution and output parsing.
+    * **[✅] API Endpoint Integration (`/genesis/analyze-ethical`):** Integrated the MVP-refined `CodeReviewAgent` into the `/genesis/analyze-ethical` API endpoint, populating the `code_quality` section of the API response with Flake8 analysis results.
+    * **[✅] Expanded Daily Integration Testing:** Expanded daily integration tests to specifically validate the `code_quality` section of the API response, ensuring the correct integration and functionality of the `CodeReviewAgent` within the API endpoint.
 
 ### Technical Foundations Live:
 - **LLM Orchestration Layer (Gemini/Hugging Face):** Operational infrastructure for managing interactions with Language Model providers.
@@ -108,7 +116,7 @@ The ecosystem is actively under development, demonstrating core functionalities 
 - **Code Analysis Agents**:  `CodeReviewAgent` provides code quality assessment using Flake8. Bandit integration is implemented in code but commented out for the MVP. `TestGenAgent` generates placeholder pytest test code.
 - **Managing Long AI Contexts**: Initial mechanisms are implemented for handling long AI contexts through intelligent LLM selection and context management strategies.
 - **LLM Orchestration Layer**: Robust infrastructure manages interactions with Google Gemini and Hugging Face models, optimizing task routing and context handling.
-- **Knowledge Graph**: Centralized repository for ethical principles, code analysis, security findings, and system knowledge, enabling informed decision-making and continuous learning.
+- **Knowledge Graph**: Centralized repository for ethical principles, code analysis data, security findings, and system knowledge, enabling informed decision-making and continuous learning.
 - **CI/CD Integration**: Automated CI workflows using GitHub Actions for code quality, testing, security scanning, and Docker image builds.
 - **Security Scanning**: OWASP ZAP integration provides dynamic application security testing (DAST) for API vulnerability detection. Bandit integration within `CodeReviewAgent` is commented out for the MVP.
 - **Formal Verification**: Initial Coq integration with compiled proofs in the CI pipeline, starting with core modules like boundary detection.
@@ -156,7 +164,7 @@ A functional API endpoint (`/genesis/analyze-ethical`) with the capability to:
     **Detailed Weekly Breakdown for Month 1:** *To achieve the Month 1 goals, we are following this weekly plan, breaking down each step into actionable tasks:*
 
     ##### Week 1: MVP API Endpoint Shell & Basic Agent Wiring - *Get the API Talking to Agents* <a name="week-1-mvp-api-endpoint-shell--basic-agent-wiring---get-the-api-talking-to-agents"></a>
-        *   **[✅] Task 1.1: API Endpoint Route (`/genesis/analyze-ethical`) Implementation:**
+        *   **[✅] Task 1.1: API Endpoint Route (`/genesis/analyze-ethical`) Implementation:** ✅
             *   **[✅] Action:** Implemented the Flask API route `/genesis/analyze-ethical` in `src/api/routes/ethical_endpoints.py`. Ensured correct acceptance of POST requests with Python code in the `code` field of a JSON payload.
             *   **[✅] Specific Action:** Created the Flask route in `ethical_endpoints.py` using Flask decorators for POST request handling. Implemented code to extract `code` from JSON requests and return a basic JSON response `{"status": "working"}` to verify core functionality.
         *   **[✅] Task 1.2: Agent Stub Integration into API Endpoint:**
@@ -168,18 +176,18 @@ A functional API endpoint (`/genesis/analyze-ethical`) with the capability to:
         *   **[✅] (Daily Integration Testing - *Critical*):** **Action:** Implemented minimal integration tests using `pytest` and `requests` for daily validation of the `/genesis/analyze-ethical` API endpoint. Tests verify endpoint reachability, POST request acceptance, and JSON response structure compliance (status, analysis, code\_quality, quantum\_state). *Specific Action:* Created `tests/integration/test_api_mvp_endpoint.py` and added tests to validate API endpoint reachability and basic JSON response structure.  These tests are integrated into the daily development workflow for continuous validation.
 
     ##### Week 2:  `CodeReviewAgent` MVP Functionality - *Flake8 Focus* <a name="week-2--codereviewagent-mvp-functionality---flake8-focus"></a>
-        *   **Task 2.1: `CodeReviewAgent` - Flake8 MVP Integration:**
-            *   **Action:** Refined existing `CodeReviewAgent` code to exclusively focus on running Flake8 and returning basic, parsed output. Non-MVP functionalities (Bandit integration, advanced static analysis) were commented out to streamline for MVP.
-            *   **Specific Action:** Modified `CodeReviewAgent.analyze_python()` to execute *only* Flake8 via `subprocess` using the `flake8` command-line tool. Simplified output parsing logic to extract essential Flake8 information: file path, line number, error code, and message.
-        *   **Task 2.2: `CodeReviewAgent` - Unit Testing (MVP - Flake8):**
-            *   **Action:** Developed focused unit tests for the MVP-refined `CodeReviewAgent` to verify correct Flake8 execution via `subprocess` and accurate parsing of basic Flake8 output.
-            *   **Specific Action:** Utilized `pytest` and `unittest.mock` to create mock objects for `subprocess.run`. Wrote unit tests in `tests/test_code_review_agent.py` simulating various Flake8 outputs (with/without errors, different error types). Asserted that `CodeReviewAgent.analyze_python()` correctly parses mock outputs and returns expected structured data.
-        *   **Task 2.3: API Integration - `CodeReviewAgent` MVP into Endpoint:**
-            *   **Action:** Integrated the MVP-refined and unit-tested `CodeReviewAgent` into the `/genesis/analyze-ethical` API endpoint handler function. Updated API endpoint code to call the functional `CodeReviewAgent`, populating the `code_quality` section of the JSON API response with agent output.
-            *   **Specific Action:** Modified the API route handler in `ethical_endpoints.py` to instantiate the *functional* `CodeReviewAgent` and call its `analyze_python()` method with code from API requests. Ensured the `code_quality` data returned by the agent is correctly included in the JSON API response.
-        *   **(Daily Integration Testing - *Expand*):** **Action:** Expanded daily integration tests in `tests/integration/test_api_mvp_endpoint.py` to verify specifically that the `code_quality` section of the API response is correctly populated with output from the MVP `CodeReviewAgent`. These tests are run daily to ensure continuous integration of the agent with the API.
+        *   **[✅] Task 2.1: `CodeReviewAgent` - Flake8 MVP Integration:** ✅ *Focus: Flake8 Code Quality Checks for MVP*
+            *   **[✅] Action:** Refined existing `CodeReviewAgent` code to exclusively focus on running Flake8 and returning basic, parsed output. Non-MVP functionalities (Bandit integration, advanced static analysis) were commented out to streamline for MVP.
+            *   **[✅] Specific Action:** Modified `CodeReviewAgent.analyze_python()` to execute *only* Flake8 via `subprocess` using the `flake8` command-line tool. Simplified output parsing logic to extract essential Flake8 information: file path, line number, error code, and message.
+        *   **[✅] Task 2.2: `CodeReviewAgent` - Unit Testing (MVP - Flake8):** ✅ *Focus: Unit Tests for Flake8 MVP Functionality*
+            *   **[✅] Action:** Developed focused unit tests for the MVP-refined `CodeReviewAgent` to verify correct Flake8 execution via `subprocess` and accurate parsing of basic Flake8 output.
+            *   **[✅] Specific Action:** Utilized `pytest` and `unittest.mock` to create mock objects for `subprocess.run`. Wrote unit tests in `tests/test_code_review_agent.py` simulating various Flake8 outputs (with/without errors, different error types). Asserted that `CodeReviewAgent.analyze_python()` correctly parses mock outputs and returns expected structured data.
+        *   **[✅] Task 2.3: API Integration - `CodeReviewAgent` MVP into Endpoint:**
+            *   **[✅] Action:** Integrated the MVP-refined and unit-tested `CodeReviewAgent` into the `/genesis/analyze-ethical` API endpoint handler function. Updated API endpoint code to call the functional `CodeReviewAgent`, populating the `code_quality` section of the JSON API response with agent output.
+            *   **[✅] Specific Action:** Modified the API route handler in `ethical_endpoints.py` to instantiate the *functional* `CodeReviewAgent` and call its `analyze_python()` method with code from API requests. Ensured the `code_quality` data returned by the agent is correctly included in the JSON API response.
+         *   **(Daily Integration Testing - *Expand*):** **Action:** Expanded daily integration tests in `tests/integration/test_api_mvp_endpoint.py` to verify specifically that the `code_quality` section of the API response is correctly populated with output from the MVP `CodeReviewAgent`. These tests are run daily to ensure continuous integration of the agent with the API.
 
-    ##### Week 3: `EthicalPolicyEngine` MVP Foundation - *JSON Policy Loading & Basic Enforcement* <a name="week-3-ethicalpolicyengine-mvp-foundation---json-policy-loading--basic-enforcement"></a>
+    ##### Week 3: `EthicalPolicyEngine` MVP Foundation - *JSON Policy Loading & Basic Enforcement* <a name="week-3-ethicalpolicyengine-mvp-foundation---json-policy-loading--basic-enforcement"></a> 🚧
         *   **Task 3.1: JSON Schema & Example Ethical Policies Definition:**
             *   **Action:** Defined a robust JSON schema (`ethical_policy_schema.json`) to represent ethical policies, focusing on MVP constraints: BiasRisk, TransparencyScore, and Safety Boundary. Created realistic example JSON policy files conforming to the schema, defining policies for each MVP constraint.
             *   **Specific Action:** Created `ethical_policy_schema.json` in the project root, defining the JSON structure for ethical policies, including fields for `policy_name`, `description`, `constraints` (nested objects for BiasRisk, TransparencyScore, Safety Boundary, each with `threshold`, `enforcement_level`). Created example policy JSON files (e.g., `policy_bias_risk_strict.json`, `policy_transparency_minimum.json`, `policy_safety_moderate.json`) in a new `policies/` directory, defining concrete thresholds and enforcement levels.
@@ -259,7 +267,7 @@ A functional API endpoint (`/genesis/analyze-ethical`) with the capability to:
     ##### Week 8:  MVP Internal/Alpha Release & Initial Testing - *First Release & Feedback* <a name="week-8--mvp-internalalpha-release--initial-testing---first-release--feedback"></a>
         *   **Task 8.1:  Prepare MVP Release Package (Internal/Alpha):**
             *   **Action:** Prepare minimal MVP release package for internal/alpha testing. Tag current codebase in Git for release version, ensure Docker image is buildable and runnable with MVP functionality, prepare release notes/instructions for testers.
-            *   **Specific Action:** 1) Tag current commit in Git as release version (e.g., `git tag v0.1-alpha -m "MVP Alpha Release"` and `git push --tags`). 2) Verify `Dockerfile` builds Docker image with MVP functionality. Test build locally using `docker build -t metamorphic-core-mvp-alpha .`. 3) Verify built Docker image is runnable and API server starts correctly using `docker run -p 5000:5000 metamorphic-core-mvp-alpha`. 4) Prepare brief release notes/instructions for internal testers (e.g., `RELEASE_NOTES_ALPHA.md`) including: MVP summary, Docker image run instructions, `/genesis/analyze-ethical` API endpoint usage instructions (referencing `README.md`), and feedback guidance.
+            *   **Specific Action:** 1) Tag current commit in Git as release version (e.g., `git tag v0.1-alpha -m "MVP Alpha Release"` and `git push --tags`). 2) Verify `Dockerfile` builds Docker image with MVP functionality. Test build locally using `docker build -t metamorphic-core-mvp-alpha .`. 3) Verify built Docker image is runnable and API server starts correctly using `docker run -p 5002:5002 metamorphic-core-mvp-alpha`. 4) Prepare brief release notes/instructions for internal testers (e.g., `RELEASE_NOTES_ALPHA.md`) including: MVP summary, Docker image run instructions, `/genesis/analyze-ethical` API endpoint usage instructions (referencing `README.md`), and feedback guidance.
         *   **Task 8.2:  Conduct Internal/Alpha Testing of MVP Endpoint - *Gather Initial Usage Data*:**
             *   **Action:** Distribute MVP release package to internal testers/alpha users for testing `/genesis/analyze-ethical` API endpoint. Provide testers with example Python code snippets and ask them to systematically test API endpoint functionality based on documentation.
             *   **Specific Action:** Share Docker image and release notes/instructions with internal testers/alpha users. Provide diverse Python code snippets representing different scenarios (ethical/unethical code, code quality issues, syntax correctness/errors, etc.). Ask testers to send requests to `/genesis/analyze-ethical` API endpoint and verify: 1) API endpoint reachability and correct responses. 2) API returns JSON responses in documented format. 3) `status` field in response is APPROVED/REJECTED based on enforced policies, with `ethical_analysis` section detailing violations.
@@ -427,7 +435,7 @@ cd src/api
 python server.py
 ```
 
-The API server will be accessible at [http://0.0.0.0:50000/](http://0.0.0.0:50000/).
+The API server will be accessible at [http://0.0.0.0:5002/](http://0.0.0.0:5002/).
 
 ### Quickstart Guide <a name="quickstart_guide"></a>
 
@@ -465,7 +473,7 @@ cd src/api
 python server.py
 ```
 
-Visit `http://0.0.0.0:50000/genesis/health` in your browser or using `curl` to check the live API status.
+Visit `http://0.0.0.0:5002/genesis/health` in your browser or using `curl` to check the live API status.
 
 ## API Endpoints <a name="api-endpoints"></a>
 
@@ -487,7 +495,7 @@ For detailed API documentation (under development), refer to: [docs/api/api-endp
 
 ```bash
 curl --request POST \
-  --url http://0.0.0.0:50000/genesis/analyze-ethical \
+  --url http://0.0.0.0:5002/genesis/analyze-ethical \
   --header 'Content-Type: application/json' \
   --data '{"code":"def hello_world():\n  print(\"Hello, world!\")"}'
 ```
@@ -517,7 +525,7 @@ curl --request POST \
 *Example Request (using curl):*
 ```bash
 curl -X POST \
-  http://0.0.0.0:50000/genesis/analyze-ethical \
+  http://0.0.0.0:5002/genesis/analyze-ethical \
   -H "Content-Type: application/json" \
   -d '{"code": "def gcd(a,b): return a if b==0 else gcd(b,a%b)"}'
 ```

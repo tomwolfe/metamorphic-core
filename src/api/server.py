@@ -3,6 +3,12 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from src.api.routes.ethical_endpoints import ethical_bp
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+import logging
+import redis
+from src.core.llm_orchestration import LLMOrchestrator
+
 
 startup_done = False
 
@@ -59,4 +65,4 @@ def startup_debug():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5002)
+    app.run(host='0.0.0.0', port=5002, debug=True)

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from src.core.agents.code_review_agent import CodeReviewAgent
-from src.core.ethics.governance import EthicalPolicyEngine
+from src.core.ethics.governance import EthicalGovernanceEngine
 
 ethical_bp = Blueprint('ethical', __name__)
 

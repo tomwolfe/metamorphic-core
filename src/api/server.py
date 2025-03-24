@@ -30,10 +30,6 @@ def generate_endpoint():
 def test_endpoint():
     return jsonify({"status": "test-route-working"}), 200
 
-@app.route('/health')
-def health_check():
-    return jsonify({"status": "ready"}), 200
-
 app.register_blueprint(ethical_bp, url_prefix='/genesis')
 
 @app.before_request
@@ -65,4 +61,4 @@ def startup_debug():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5002, debug=True)
+    app.run(host='0.0.0.0', port=5002) # Correct port to 5002

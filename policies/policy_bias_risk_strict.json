@@ -1,0 +1,20 @@
+{
+  "policy_name": "Strict Bias Risk Policy",
+  "description": "Zero tolerance for biased language",
+  "constraints": {
+    "BiasRisk": {
+      "threshold": 0.1,
+      "enforcement_level": 3,
+      "keywords": ["hate speech", "racist", "sexist", "offensive"]
+    },
+    "TransparencyScore": {
+      "threshold": 0.5,
+      "enforcement_level": 2
+    },
+    "SafetyBoundary": {
+      "threshold": 0.8,
+      "enforcement_level": 2,
+      "unsafe_operations": ["os.system", "eval(", "exec(", "subprocess.call"]
+    }
+  }
+}

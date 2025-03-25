@@ -1,0 +1,20 @@
+{
+  "policy_name": "Moderate Safety Policy",
+  "description": "Balanced safety restrictions",
+  "constraints": {
+    "BiasRisk": {
+      "threshold": 0.3,
+      "enforcement_level": 2,
+      "keywords": ["hate speech", "racist", "offensive language"]
+    },
+    "TransparencyScore": {
+      "threshold": 0.4,
+      "enforcement_level": 2
+    },
+    "SafetyBoundary": {
+      "threshold": 0.7,
+      "enforcement_level": 3,
+      "unsafe_operations": ["os.system", "eval(", "exec(", "subprocess.call", "pickle.loads"]
+    }
+  }
+}

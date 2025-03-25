@@ -8,10 +8,12 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime
 from src.core.ethics.governance import QuantumEthicalValidator
 from src.core.quantum.ethical_validation import EthicalQuantumCore
+from src.core.ethics.governance import EthicalGovernanceEngine # Import EthicalGovernanceEngine for tests
+
 
 # Original tests
 @patch.object(QuantumEthicalValidator, '_predict_ethical_impact') # Mock predict_ethical_impact to prevent LLM calls
-@patch('src.core.agents.test_generator.TestGenAgent.generate_tests') # Mock TestGenAgent.generate_tests to prevent LLM calls
+@patch('src.core.agents.test_generator.TestGenAgent.generate_tests') # Mock TestGenAgent.generate_tests
 def test_ethical_validation_approved(mock_generate_tests, mock_predict):
     mock_predict.return_value = { # Mock a safe prediction
         "bias_risk": 0.15,
@@ -28,7 +30,7 @@ def test_ethical_validation_approved(mock_generate_tests, mock_predict):
     assert result["score"] >= 0.8  # Safe code should have high score
 
 @patch.object(QuantumEthicalValidator, '_predict_ethical_impact') # Mock predict_ethical_impact to prevent LLM calls
-@patch('src.core.agents.test_generator.TestGenAgent.generate_tests') # Mock TestGenAgent.generate_tests to prevent LLM calls
+@patch('src.core.agents.test_generator.TestGenAgent.generate_tests') # Mock TestGenAgent.generate_tests
 def test_ethical_validation_rejected(mock_generate_tests, mock_predict):
     mock_predict.return_value = {
         "bias_risk": 0.30,  # Exceeds 0.25 threshold
@@ -144,3 +146,84 @@ def test_score_calculation(mock_generate_tests, mock_predict, immediate, long_te
         result = validator.validate_code("any_code")
 
         assert result["score"] == expected_score
+
+# Unit tests for EthicalGovernanceEngine - JSON Policy Loading & Basic Enforcement (Week 3)
+@pytest.fixture
+def engine():
+    return EthicalGovernanceEngine()
+
+@pytest.fixture
+def valid_policy_path():
+    return "policies/policy_bias_risk_strict.json"
+
+@pytest.fixture
+def invalid_policy_path():
+    return "policies/invalid_policy.json"
+
+@pytest.fixture
+def compliant_code():
+    return '''"""
+    This is a well-documented function
+    """
+    def example():
+        return "Hello World"
+    '''
+
+@pytest.fixture
+def bias_violation_code():
+    return "def bad_code(): # contains hate speech"
+
+@pytest.fixture
+def safety_violation_code():
+    return "import os; os.system('rm -rf /')"
+
+def test_load_policy_from_json_valid(engine, valid_policy_path):
+    policy = engine.load_policy_from_json(valid_policy_path)
+    assert isinstance(policy, dict)
+    assert "policy_name" in policy
+    assert "description" in policy
+    assert "constraints" in policy
+    assert "BiasRisk" in policy["constraints"]
+    assert "TransparencyScore" in policy["constraints"]
+    assert "SafetyBoundary" in policy["constraints"]
+
+def test_load_policy_from_json_invalid_file(engine, invalid_policy_path):
+    with pytest.raises(FileNotFoundError):
+        engine.load_policy_from_json(invalid_policy_path)
+
+def test_load_policy_from_json_invalid_schema(tmp_path, engine):
+    invalid_policy = tmp_path / "invalid_schema.json"
+    invalid_policy.write_text('{"invalid": "policy"}')
+
+    with pytest.raises(Exception):
+        engine.load_policy_from_json(str(invalid_policy))
+
+def test_enforce_policy_bias_risk_compliant(engine, valid_policy_path, compliant_code):
+    policy = engine.load_policy_from_json(valid_policy_path)
+    result = engine.enforce_policy(compliant_code, policy)
+    assert result["BiasRisk"]["status"] == "compliant"
+
+def test_enforce_policy_bias_risk_violation(engine, valid_policy_path, bias_violation_code):
+    policy = engine.load_policy_from_json(valid_policy_path)
+    result = engine.enforce_policy(bias_violation_code, policy)
+    assert result["BiasRisk"]["status"] == "violation"
+
+def test_enforce_policy_transparency_compliant(engine, valid_policy_path, compliant_code):
+    policy = engine.load_policy_from_json(valid_policy_path)
+    result = engine.enforce_policy(compliant_code, policy)
+    assert result["TransparencyScore"]["status"] == "compliant"
+
+def test_enforce_policy_transparency_violation(engine, valid_policy_path, safety_violation_code):
+    policy = engine.load_policy_from_json(valid_policy_path)
+    result = engine.enforce_policy(safety_violation_code, policy)
+    assert result["TransparencyScore"]["status"] == "violation"
+
+def test_enforce_policy_safety_compliant(engine, valid_policy_path, compliant_code):
+    policy = engine.load_policy_from_json(valid_policy_path)
+    result = engine.enforce_policy(compliant_code, policy)
+    assert result["SafetyBoundary"]["status"] == "compliant"
+
+def test_enforce_policy_safety_violation(engine, valid_policy_path, safety_violation_code):
+    policy = engine.load_policy_from_json(valid_policy_path)
+    result = engine.enforce_policy(safety_violation_code, policy)
+    assert result["SafetyBoundary"]["status"] == "violation"

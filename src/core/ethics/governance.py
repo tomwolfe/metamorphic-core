@@ -10,6 +10,8 @@ from ..quantum.state_preservation import QuantumStatePreserver
 from src.core.agents.specification_analyzer import SpecificationAnalyzer
 from src.core.knowledge_graph import KnowledgeGraph
 from src.core.agents.test_generator import TestGenAgent
+from jsonschema import validate, ValidationError # ADDED - jsonschema import
+
 
 class QuantumEthicalValidator:
     def __init__(self):
@@ -124,60 +126,109 @@ class EthicalAuditLogger:
         """Get current ethical model version"""
         return "ETHICAL_MODEL_v2.3.1"
 
-class EthicalGovernanceEngine:
-    """Orchestrates complete ethical oversight"""
-
+class EthicalGovernanceEngine: # Using this class name - DO NOT RENAME
     def __init__(self):
-        self.validator = QuantumEthicalValidator()
-        self.history = []
-        self.health_data = {
-            "average_score": 0.85,
-            "recent_issues": [],
-            "violation_stats": {
-                "last_24h": 0,
-                "last_week": 0
-            }
+        self.principles = [
+            EthicalPrinciple(
+                name="Bias Mitigation",
+                description="Ensure fairness in all operations"
+            ),
+             EthicalPrinciple(
+                name="Transparency",
+                description="Ensure code is well-documented and explainable"
+            ),
+            EthicalPrinciple(
+                name="Safety",
+                description="Ensure code doesn't contain dangerous operations"
+            )
+        ]
+        self._schema = None
+        self._load_schema() # Load schema on initialization
+
+
+    def _load_schema(self):
+        """Load the JSON schema for policy validation"""
+        if self._schema is None:
+            schema_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'ethical_policy_schema.json')
+            with open(schema_path, 'r') as f:
+                self._schema = json.load(f)
+        return self._schema
+
+    def load_policy_from_json(self, filepath):
+        """
+        Load and validate a policy from JSON file
+
+        Args:
+            filepath (str): Path to the JSON policy file
+
+        Returns:
+            dict: The loaded policy if valid
+
+        Raises:
+            FileNotFoundError: If file doesn't exist
+            json.JSONDecodeError: If invalid JSON
+            ValidationError: If JSON doesn't conform to schema
+        """
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Policy file not found: {filepath}")
+
+        with open(filepath, 'r') as f:
+            policy = json.load(f)
+
+        validate(instance=policy, schema=self._schema) # Validate against loaded schema
+
+        return policy
+
+    def enforce_policy(self, code, policy_config):
+        """
+        Enforce ethical policy rules on the given code
+
+        Args:
+            code (str): Python code to analyze
+            policy_config (dict): Loaded policy configuration
+
+        Returns:
+            dict: Enforcement results for each constraint
+        """
+        constraints = policy_config.get("constraints", {})
+        enforcement_results = {
+            "policy_name": policy_config.get("policy_name"),
+            "description": policy_config.get("description")
         }
 
-    def get_ethical_health_report(self) -> dict:
-        """Return comprehensive ethical health status"""
-        return {
-            "average_score": self.health_data["average_score"],
-            "recent_issues": self.health_data["recent_issues"],
-            "model_version": self.get_ethical_model_version(),
-            "active_constraints": len(self.validator.formal_verifier.constraints),
-            "violation_stats": self.health_data["violation_stats"]
+        # BiasRisk Enforcement
+        bias_config = constraints.get("BiasRisk", {})
+        bias_keywords = bias_config.get("keywords", ["hate speech", "racist", "sexist", "offensive"]) # Get keywords from config
+        bias_violation = any(keyword.lower() in code.lower() for keyword in bias_keywords) # Check for keywords (case-insensitive)
+        enforcement_results["BiasRisk"] = {
+            "status": "violation" if bias_violation else "compliant",
+            "threshold": bias_config.get("threshold"),
+            "enforcement_level": bias_config.get("enforcement_level")
         }
 
-    def evaluate_development_cycle(self, code: str) -> Dict:
-        """Full ethical evaluation pipeline"""
-        result = self.validator.validate_code(code)
-        self._update_health_data(result)
-        return result
+        # TransparencyScore Enforcement
+        transparency_config = constraints.get("TransparencyScore", {})
+        transparency_threshold = transparency_config.get("threshold", 0.6) # Example threshold - now from config - not actually used in rule yet
+        has_docstring = '"""' in code or "'''" in code # Basic docstring check
+        enforcement_results["TransparencyScore"] = {
+            "status": "compliant" if has_docstring else "violation", # Simple docstring presence check
+            "threshold": transparency_config.get("threshold"),
+            "enforcement_level": transparency_config.get("enforcement_level")
+        }
 
-    def get_ethical_model_version(self) -> str:
-        """Get current ethical model version"""
-        return "ETHICAL_MODEL_v2.3.1"
+        # SafetyBoundary Enforcement
+        safety_config = constraints.get("SafetyBoundary", {})
+        safety_threshold = safety_config.get("threshold", 0.9) # Example threshold - from config - not used in rule yet
+        unsafe_operations = safety_config.get("unsafe_operations", ["os.system", "eval("]) # Get unsafe ops from config
+        safety_violation = False
+        for operation in unsafe_operations: # Check for each unsafe operation
+            if operation in code:
+                safety_violation = True
+                break # Exit loop if any unsafe operation is found
+        enforcement_results["SafetyBoundary"] = {
+            "status": "violation" if safety_violation else "compliant",
+            "threshold": safety_config.get("threshold"),
+            "enforcement_level": safety_config.get("enforcement_level")
+        }
 
-    def _update_health_data(self, validation_result: dict):
-        """Update health metrics based on validation results"""
-        if validation_result["status"] == "rejected":
-            self.health_data["recent_issues"].append({
-                "timestamp": datetime.utcnow().isoformat(),
-                "issue_type": "ethical_violation",
-                "score": validation_result["score"]
-            })
-            self.health_data["violation_stats"]["last_week"] += 1
-
-        # Maintain rolling average of scores
-        total = self.health_data["average_score"] * len(self.history)
-        total += validation_result["score"]
-        self.history.append(validation_result["score"])
-        self.health_data["average_score"] = total / len(self.history)
-
-        # Keep only last 100 entries for rolling average
-        if len(self.history) > 100:
-            removed = self.history.pop(0)
-            self.health_data["average_score"] = (
-                self.health_data["average_score"] * 100 - removed
-            ) / 99
+        return enforcement_results

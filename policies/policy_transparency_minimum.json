@@ -1,0 +1,20 @@
+{
+  "policy_name": "Minimum Transparency Policy",
+  "description": "Basic documentation requirements",
+  "constraints": {
+    "BiasRisk": {
+      "threshold": 0.5,
+      "enforcement_level": 1,
+      "keywords": ["hate speech", "racist term"]
+    },
+    "TransparencyScore": {
+      "threshold": 0.3,
+      "enforcement_level": 1
+    },
+    "SafetyBoundary": {
+      "threshold": 0.5,
+      "enforcement_level": 1,
+      "unsafe_operations": ["os.system", "eval("]
+    }
+  }
+}

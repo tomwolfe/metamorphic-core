@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "properties": {
+    "policy_name": {"type": "string"},
+    "description": {"type": "string"},
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "BiasRisk": {
+          "type": "object",
+          "properties": {
+            "threshold": {"type": "number"},
+            "enforcement_level": {"type": "integer"},
+            "keywords": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["threshold", "enforcement_level"]
+        },
+        "TransparencyScore": {
+          "type": "object",
+          "properties": {
+            "threshold": {"type": "number"},
+            "enforcement_level": {"type": "integer"}
+          },
+          "required": ["threshold", "enforcement_level"]
+        },
+        "SafetyBoundary": {
+          "type": "object",
+          "properties": {
+            "threshold": {"type": "number"},
+            "enforcement_level": {"type": "integer"},
+            "unsafe_operations": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["threshold", "enforcement_level"]
+        }
+      },
+      "required": ["BiasRisk", "TransparencyScore", "SafetyBoundary"]
+    }
+  },
+  "required": ["policy_name", "description", "constraints"]
+}

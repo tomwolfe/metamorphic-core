@@ -1,3 +1,4 @@
+# src/core/ethics/governance.py
 # File: src/core/ethics/governance.py
 import os
 import json
@@ -128,13 +129,14 @@ class EthicalAuditLogger:
         """Get current ethical model version"""
         return "ETHICAL_MODEL_v2.3.1"
 
-class EthicalGovernanceEngine: # Using this class name - DO NOT RENAME
+class EthicalGovernanceEngine:  # Using this class name - DO NOT RENAME
     def __init__(self):
         self.principles = [
             EthicalPrinciple(
                 name="Bias Mitigation",
                 description="Ensure fairness in all operations"
             ),
+
              EthicalPrinciple(
                 name="Transparency",
                 description="Ensure code is well-documented and explainable"
@@ -235,12 +237,10 @@ class EthicalGovernanceEngine: # Using this class name - DO NOT RENAME
 
         return enforcement_results
 
-    def get_ethical_model_version(self) -> Dict[str, Any]: # <---- ADDED PLACEHOLDER METHOD - get_ethical_model_version
+    def get_ethical_health_report(self) -> Dict[str, Any]:
         """Placeholder implementation of ethical health reporting.
-
         Returns:
             A dictionary with placeholder ethical health data.
-
         Note:
             This is a temporary implementation to unblock testing.
             A full implementation should provide actual ethical health metrics.
@@ -249,5 +249,18 @@ class EthicalGovernanceEngine: # Using this class name - DO NOT RENAME
             "status": "placeholder - ethical health reporting not yet implemented",
             "compliance_score": 0.95,  # placeholder value
             "policy_violations": [],   # placeholder value
-            "model_integrity": 1.0     # placeholder value
+            "model_integrity": 1.0,    # placeholder value
+            "recent_issues": []        # ADDED: Placeholder for recent_issues
         }
+
+    def get_ethical_model_version(self) -> Dict[str, Any]:
+        """Legacy method for ethical health reporting (backward compatibility alias).
+
+        This method is an alias for `get_ethical_health_report` and is maintained
+        for backward compatibility with existing code that may call this method.
+        New code should prefer to use `get_ethical_health_report`.
+
+        Returns:
+            A dictionary with ethical health data (same format as `get_ethical_health_report`).
+        """
+        return self.get_ethical_health_report()

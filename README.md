@@ -267,7 +267,7 @@ A functional API endpoint (`/genesis/analyze-ethical`) with the capability to:
     ##### Week 8:  MVP Internal/Alpha Release & Initial Testing - *First Release & Feedback* <a name="week-8--mvp-internalalpha-release--initial-testing---first-release--feedback"></a>
         *   **Task 8.1:  Prepare MVP Release Package (Internal/Alpha):**
             *   **Action:** Prepare minimal MVP release package for internal/alpha testing. Tag current codebase in Git for release version, ensure Docker image is buildable and runnable with MVP functionality, prepare release notes/instructions for testers.
-            *   **Specific Action:** 1) Tag current commit in Git as release version (e.g., `git tag v0.1-alpha -m "MVP Alpha Release"` and `git push --tags`). 2) Verify `Dockerfile` builds Docker image with MVP functionality. Test build locally using `docker build -t metamorphic-core-mvp-alpha .`. 3) Verify built Docker image is runnable and API server starts correctly using `docker run -p 5002:5002 metamorphic-core-mvp-alpha`. 4) Prepare brief release notes/instructions for internal testers (e.g., `RELEASE_NOTES_ALPHA.md`) including: MVP summary, Docker image run instructions, `/genesis/analyze-ethical` API endpoint usage instructions (referencing `README.md`), and feedback guidance.
+            *   **Specific Action:** 1) Tag current commit in Git as release version (e.g., `git tag v0.1-alpha -m "MVP Alpha Release"` and `git push --tags`). 2) Verify `Dockerfile` builds Docker image with MVP functionality. Test build locally using `docker build -t metamorphic-core-mvp-alpha .`. 3) Verify built Docker image is runnable and API server starts correctly using `docker run -p 5000:5000 metamorphic-core-mvp-alpha`. 4) Prepare brief release notes/instructions for internal testers (e.g., `RELEASE_NOTES_ALPHA.md`) including: MVP summary, Docker image run instructions, `/genesis/analyze-ethical` API endpoint usage instructions (referencing `README.md`), and feedback guidance.
         *   **Task 8.2:  Conduct Internal/Alpha Testing of MVP Endpoint - *Gather Initial Usage Data*:**
             *   **Action:** Distribute MVP release package to internal testers/alpha users for testing `/genesis/analyze-ethical` API endpoint. Provide testers with example Python code snippets and ask them to systematically test API endpoint functionality based on documentation.
             *   **Specific Action:** Share Docker image and release notes/instructions with internal testers/alpha users. Provide diverse Python code snippets representing different scenarios (ethical/unethical code, code quality issues, syntax correctness/errors, etc.). Ask testers to send requests to `/genesis/analyze-ethical` API endpoint and verify: 1) API endpoint reachability and correct responses. 2) API returns JSON responses in documented format. 3) `status` field in response is APPROVED/REJECTED based on enforced policies, with `ethical_analysis` section detailing violations.
@@ -435,7 +435,7 @@ cd src/api
 python server.py
 ```
 
-The API server will be accessible at [http://0.0.0.0:5002/](http://0.0.0.0:5002/).
+The API server will be accessible at [http://0.0.0.0:5000/](http://0.0.0.0:5000/).
 
 ### Quickstart Guide <a name="quickstart_guide"></a>
 
@@ -473,7 +473,7 @@ cd src/api
 python server.py
 ```
 
-Visit `http://0.0.0.0:5002/genesis/health` in your browser or using `curl` to check the live API status.
+Visit `http://0.0.0.0:5000/genesis/health` in your browser or using `curl` to check the live API status.
 
 ## API Endpoints <a name="api-endpoints"></a>
 
@@ -495,7 +495,7 @@ For detailed API documentation (under development), refer to: [docs/api/api-endp
 
 ```bash
 curl --request POST \
-  --url http://0.0.0.0:5002/genesis/analyze-ethical \
+  --url http://0.0.0.0:5000/genesis/analyze-ethical \
   --header 'Content-Type: application/json' \
   --data '{"code":"def hello_world():\n  print(\"Hello, world!\")"}'
 ```
@@ -525,7 +525,7 @@ curl --request POST \
 *Example Request (using curl):*
 ```bash
 curl -X POST \
-  http://0.0.0.0:5002/genesis/analyze-ethical \
+  http://0.0.0.0:5000/genesis/analyze-ethical \
   -H "Content-Type: application/json" \
   -d '{"code": "def gcd(a,b): return a if b==0 else gcd(b,a%b)"}'
 ```

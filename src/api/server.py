@@ -61,4 +61,4 @@ def startup_debug():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5002) # Correct port to 5002
+    app.run(host='0.0.0.0', port=5000) # Correct port to 5000

@@ -3,7 +3,7 @@ import requests
 import os
 
 # Ensure that the Flask application is running at this URL, adjust if necessary.
-BASE_URL = "http://localhost:5002/genesis"  # Correct BASE_URL to include /genesis and port 5002
+BASE_URL = "http://localhost:5000/genesis"  # Correct BASE_URL to include /genesis and port 5000
 
 @pytest.mark.integration
 def test_health_endpoint_integration():

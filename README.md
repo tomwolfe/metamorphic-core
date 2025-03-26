@@ -10,7 +10,7 @@
 
 **🎯 CURRENT FOCUS & ROADBLOCK:**
 
-*   **Goal:** Complete Phase 1 MVP ASAP (Target: End of Week 6).
+*   **Goal:** Complete Phase 1 MVP ASAP (Target: End of Week 6 - Mid-April 2025).
 *   **Critical Path:** Implementing the **fully JSON-configurable dynamic logic** within the `EthicalGovernanceEngine`. This is the **sole remaining major feature** for the MVP.
 *   **Status:** Foundation laid (JSON loading, basic enforcement). Dynamic logic implementation is **IN PROGRESS (Week 4)**.
 *   **See:** [Phase 1 MVP - Optimized Roadmap (Weeks 4-6)](#phase-1-mvp---optimized-roadmap-weeks-4-6) for immediate tasks.
@@ -35,6 +35,7 @@
         * [Week 6: MVP Polish & Internal Release - *Deliver & Iterate*](#week-6-mvp-polish--internal-release---deliver--iterate)
     * [Gantt Chart: Phase 1 MVP (Weeks 4-6)](#gantt-chart-phase-1-mvp-weeks-4-6)
     * [Beyond MVP (Future Iterations)](#beyond-mvp-future-iterations)
+* [Competitive Landscape](#competitive-landscape)
 * [Getting Started](#getting-started)
     * [Prerequisites](#prerequisites)
     * [Installation](#installation)
@@ -45,6 +46,7 @@
     * [Sample MVP Request/Response - `/genesis/analyze-ethical`](#sample-mvp-requestresponse---genesisanalyze-ethical)
     * [Core API Endpoints](#core-api-endpoints)
 * [Contributing](#contributing)
+* [Full High-Level Specification (Detailed Vision)](#full-high-level-specification-detailed-vision)
 * [License](#license)
 * [License and Compliance](#license-and-compliance)
 * [Contact](#contact)
@@ -67,17 +69,19 @@ To create an AI-driven framework that autonomously generates, maintains, and evo
 
 ## Envisioned Workflow: From Concept to Code <a name="envisioned-workflow-from-concept-to-code"></a>
 
-1.  **Input**: High-level software description.
-2.  **Refinement**: AI clarifies requirements.
-3.  **Design**: Generate software architecture.
-4.  **Generation**: Produce code adhering to best practices.
-5.  **Validation (MVP Focus)**:
-    *   Unit/Integration/E2E Tests (Placeholder Gen - `TestGenAgent`).
-    *   Code Quality (Flake8 - `CodeReviewAgent`).
-    *   Ethical Assessment (**Configurable Engine** - `EthicalGovernanceEngine` - **MVP Core Task**).
-    *   Security Scans (ZAP DAST; Bandit static analysis deferred post-MVP).
-6.  **Integration**: CI/CD via GitHub Actions.
-7.  **Improvement**: Learn and adapt.
+1.  **Input**: High-level software description (natural language, structured formats).
+2.  **Refinement**: AI clarifies requirements, identifies ambiguities (`SpecificationAnalysisAgent`).
+3.  **Design**: AI generates software architecture, potentially stored in KG.
+4.  **Generation**: `CodeGenerationAgent` produces code (Python, Go, Rust, JS/TS planned) using LLMs managed by `LLMOrchestrator`.
+5.  **Validation (Iterative Loop)**:
+    *   **Code Quality & Static Analysis:** `CodeReviewAgent` (Flake8 now, Bandit/Semgrep later) analyzes code.
+    *   **Ethical Assessment:** `EthicalGovernanceEngine` loads JSON policy, checks code against constraints (Bias, Transparency, Safety).
+    *   **Security Scans:** `SecurityAgent` orchestrates ZAP DAST scans against running instances/APIs.
+    *   **Testing:** `TestGenerationAgent` creates tests (placeholders in MVP); tests are executed in CI.
+    *   **Formal Verification:** `FormalVerificationEngine` applies Coq/Isabelle proofs to critical components (limited in MVP).
+    *   **Feedback:** Results feed back into KG and `ContinuousLearningCore` to refine future generation/analysis.
+6.  **Integration**: Validated code integrated via Git workflow; CI/CD pipeline (GitHub Actions) runs checks, builds artifacts.
+7.  **Improvement**: `ContinuousLearningCore` analyzes overall performance, ethical adherence, and feedback to adapt agents and processes. `SelfMonitoringAndAdaptiveHealing` detects and attempts recovery from runtime issues.
 
 ## Current Status (MVP Progress) <a name="current-status-mvp-progress"></a>
 
@@ -120,7 +124,7 @@ The primary remaining task for the MVP is implementing the **fully JSON-configur
 - **Knowledge Graph:** Dynamic Knowledge Graph operational (initial phase, content expansion ongoing).
 - **Ethical Validation Framework**: Mechanisms established, leveraging a basic rule-based engine (with JSON loading foundation) and quantum-inspired state analysis. **Fully JSON-configurable policy enforcement is under active development.**
 - **Code Analysis Agents**: `CodeReviewAgent` provides Flake8 analysis. Bandit integration present but commented out for MVP. `TestGenAgent` generates placeholder pytest code.
-- **Managing Long AI Contexts**: Initial mechanisms implemented.
+- **Managing Long AI Contexts**: Initial mechanisms implemented (basic chunking).
 - **LLM Orchestration Layer**: Robust infrastructure manages LLM interactions.
 - **Knowledge Graph**: Centralized repository for system knowledge.
 - **CI/CD Integration**: Automated CI workflows using GitHub Actions.
@@ -142,7 +146,7 @@ The primary remaining task for the MVP is implementing the **fully JSON-configur
 
 ## Roadmap: Phase 1 MVP (Optimized for ASAP Completion) <a name="roadmap-phase-1-mvp-optimized-for-asap-completion"></a> 🚧
 
-**Goal:** Complete the defined Phase 1 MVP (`/genesis/analyze-ethical` endpoint with a **fully JSON-configurable** Ethical Policy Engine, Flake8 code quality, and placeholder test generation) within the next 3 weeks.
+**Goal:** Complete the defined Phase 1 MVP (`/genesis/analyze-ethical` endpoint with a **fully JSON-configurable** Ethical Policy Engine, Flake8 code quality, and placeholder test generation) within the next 3 weeks (by mid-April 2025).
 
 #### Phase 1 MVP Definition <a name="phase-1-mvp-definition"></a>
 
@@ -187,7 +191,7 @@ A functional API endpoint (`/genesis/analyze-ethical`) capable of:
 *   **[ ] Task 6.4 (P2 - Polish): Address Critical MVP Feedback:** Fix critical bugs/usability issues found in internal testing.
 
 #### Gantt Chart: Phase 1 MVP (Weeks 4-6) <a name="gantt-chart-phase-1-mvp-weeks-4-6"></a>
-*(Assuming Week 4 starts 2024-07-15 for illustration)*
+*(Week 4 starts March 31, 2025)*
 ```mermaid
 gantt
     title Metamorphic MVP Completion (Weeks 4-6)
@@ -195,23 +199,24 @@ gantt
     axisFormat %m-%d
     todayMarker stroke-width:3px,stroke:#FF0000
 
-    section Week 4: Engine Core
-    Task 4.1 JSON Load/Validate :done, 2024-07-15, 2d
-    Task 4.2 Dynamic Logic      :done, 2024-07-16, 3d
-    Task 4.3 Engine Unit Tests  :active, 2024-07-17, 3d
-    Task 4.4 API Update         : 2024-07-19, 2d
+    section Week 4: Engine Core (Mar 31 - Apr 4)
+    Task 4.1 JSON Load/Validate :done, 2025-03-31, 2d
+    Task 4.2 Dynamic Logic      :done, 2025-04-01, 3d
+    Task 4.3 Engine Unit Tests  :active, 2025-04-02, 3d
+    Task 4.4 API Update         : 2025-04-04, 1d
 
-    section Week 5: Integration & Testing
-    Task 5.1 API Integ Tests    : 2024-07-22, 4d
-    Task 5.2 API Polish         : 2024-07-24, 2d
-    Task 5.3 README Docs        : 2024-07-22, 3d
+    section Week 5: Integration & Testing (Apr 7 - Apr 11)
+    Task 5.1 API Integ Tests    : 2025-04-07, 4d
+    Task 5.2 API Polish         : 2025-04-09, 2d
+    Task 5.3 README Docs        : 2025-04-07, 3d
 
-    section Week 6: Release & Polish
-    Task 6.1 Code Review        : 2024-07-29, 2d
-    Task 6.2 Prep Release       : 2024-07-30, 1d
-    Task 6.3 Internal Testing   : 2024-07-31, 2d
-    Task 6.4 Address Feedback   : 2024-08-01, 2d
+    section Week 6: Release & Polish (Apr 14 - Apr 18)
+    Task 6.1 Code Review        : 2025-04-14, 2d
+    Task 6.2 Prep Release       : 2025-04-15, 1d
+    Task 6.3 Internal Testing   : 2025-04-16, 2d
+    Task 6.4 Address Feedback   : 2025-04-17, 2d
 ```
+*(Note: Post-MVP phases removed from this chart for clarity)*
 
 #### Beyond MVP (Future Iterations) <a name="beyond-mvp-future-iterations"></a>
 
@@ -221,7 +226,74 @@ gantt
 *   Improve Test Generation (`TestGenAgent` beyond placeholders).
 *   Expand Formal Verification (Coq/Z3 integration).
 *   Enhance Knowledge Graph usage.
-*   Begin detailed Phase 2 planning.
+*   Begin detailed Phase 2 planning (referencing the [Full High-Level Specification](#full-high-level-specification-detailed-vision)).
+
+## Competitive Landscape <a name="competitive-landscape"></a>
+
+<details>
+<summary>Click to expand the Competitive Landscape Analysis</summary>
+
+Understanding the competitive terrain is crucial. While no single entity perfectly mirrors the Metamorphic Software Genesis Ecosystem's integrated vision, the landscape features numerous players addressing parts of the software development lifecycle.
+
+### 1. AI-Augmented Code Generation
+
+*   **a) Inline AI Code Completion/Snippet Tools:**
+    *   *Examples:* GitHub Copilot, Tabnine, JetBrains AI Assistant, CodiumAI, Replit Ghostwriter.
+    *   *Focus:* Developer productivity enhancement, code completion, boilerplate reduction.
+    *   *Metamorphic Differentiation:* Ecosystem-centric vs. developer-centric. Metamorphic aims for full SDLC automation with integrated ethics and verification, not just inline assistance.
+    *   *Intensity:* Very High. Becoming standard developer tooling.
+
+*   **b) AI-Powered Code Synthesis/Function Generation:**
+    *   *Examples:* Specific features within larger platforms (e.g., Gemini Code Assist), research projects.
+    *   *Focus:* Automating generation of specific functions or translating between languages.
+    *   *Metamorphic Differentiation:* Aims for autonomous generation of *complete applications* from specs, not just isolated functions.
+    *   *Intensity:* High and Growing.
+
+### 2. Low-Code/No-Code Platforms
+
+*   **a) Visual App Builders:**
+    *   *Examples:* Salesforce Platform, Microsoft PowerApps, OutSystems, Mendix, Retool.
+    *   *Focus:* Empowering citizen developers and accelerating development for specific business applications, often with visual interfaces.
+    *   *Metamorphic Differentiation:* Targets complex, potentially mission-critical software requiring professional development standards, deep ethical considerations, and formal verification, rather than simpler visual builds.
+    *   *Intensity:* High within their target market.
+
+*   **b) "Code-Optional" & Intelligent Automation:**
+    *   *Examples:* Platforms integrating AI suggestions within low-code environments.
+    *   *Focus:* Blurring the lines between low-code and AI assistance.
+    *   *Metamorphic Differentiation:* Strong emphasis on verifiable ethics, security, and formal methods, often lacking in these platforms.
+    *   *Intensity:* Moderate but Increasing Rapidly.
+
+### 3. MLOps/DevOps with AI Integration
+
+*   **a) AI-Enhanced DevOps Automation:**
+    *   *Examples:* GitLab AI features, Harness IO, Datadog AI monitoring, Dynatrace.
+    *   *Focus:* Optimizing CI/CD pipelines, deployment strategies, monitoring, and incident response using AI.
+    *   *Metamorphic Differentiation:* Focuses on the *creation* and *validation* phases preceding deployment, integrating these deeply rather than optimizing post-creation workflows.
+    *   *Intensity:* High. AI is becoming integral to DevOps.
+
+*   **b) AI for Software Quality & Testing:**
+    *   *Examples:* Testim.io, Applitools, Diffblue, Functionize.
+    *   *Focus:* Automating test creation, execution, visual regression, and bug detection.
+    *   *Metamorphic Differentiation:* Quality and ethics are "built-in" via generation, review, and verification, not just "tested-in" after the fact. Includes formal methods beyond traditional testing.
+    *   *Intensity:* Moderate to High.
+
+### 4. Academic & Research Initiatives
+
+*   **a) Advanced Program Synthesis & Automated Reasoning:**
+    *   *Examples:* Research groups at major universities (MIT, Stanford, CMU, Berkeley, etc.) focusing on formal methods, program synthesis from specs, and automated theorem proving.
+    *   *Focus:* Theoretical foundations and cutting-edge algorithms.
+    *   *Metamorphic Differentiation:* Aims to *industrialize* and *integrate* these advanced concepts into a practical, usable ecosystem, bridging the gap between research and real-world software development.
+    *   *Intensity:* Not directly competitive in the market, but a vital source of innovation and potential future collaborators/competitors.
+
+### Strategic Takeaways for Metamorphic
+
+1.  **Emphasize the "Genesis Ecosystem":** Highlight the unique, holistic, end-to-end integration across the entire SDLC.
+2.  **Highlight Ethical & Verification Pillars:** These are strong, defensible differentiators against purely productivity-focused tools.
+3.  **Showcase Long-Context & Complexity Handling:** Demonstrate capability beyond simple functions or apps.
+4.  **Build a Strong Open-Source Community:** Leverage the AGPLv3 license and community focus as a strategic asset.
+5.  **Target High-Value Domains:** Focus on industries where quality, security, ethics, and verifiability are paramount (e.g., finance, healthcare, critical infrastructure).
+
+</details>
 
 ## Getting Started <a name="getting-started"></a>
 
@@ -287,7 +359,7 @@ gantt
     ```bash
     python -m venv venv
     source venv/bin/activate  # Linux/macOS
-    # venv\Scripts\activate     # Windows
+    venv\Scripts\activate     # Windows
     ```
 
 5.  **Install Dependencies:**
@@ -372,34 +444,34 @@ curl --request POST \
   --data '{"code":"import os\ndef potentially_unsafe():\n  os.system(\"echo unsafe\")"}'
 ```
 
-**Response (Example - *Target state after Week 4/5, using dynamic policy*):**
+**Response (Example - *Target for End of Week 4/5, using dynamic policy*):**
 ```json
 {
-  "status": "rejected",
-  "code_quality": {
-    "output": "",
-    "static_analysis": []
+  "status": "rejected", // Status determined dynamically by policy enforcement
+  "code_quality": { // Populated by CodeReviewAgent (Flake8)
+    "output": "...",
+    "static_analysis": [] // Assuming no Flake8 issues in this example
   },
-  "ethical_analysis": {
-    "policy_name": "Strict Bias Risk Policy",
+  "ethical_analysis": { // Populated by EthicalGovernanceEngine (Dynamic)
+    "policy_name": "Strict Bias Risk Policy", // Name of the policy applied
     "description": "Zero tolerance for biased language",
     "BiasRisk": {
-      "status": "compliant",
+      "status": "compliant", // Dynamically determined
       "threshold": 0.1,
       "enforcement_level": 3
     },
     "TransparencyScore": {
-      "status": "violation",
+      "status": "violation", // Dynamically determined (e.g., missing docstring)
       "threshold": 0.5,
       "enforcement_level": 2
     },
     "SafetyBoundary": {
-      "status": "violation",
+      "status": "violation", // Dynamically determined (due to os.system)
       "threshold": 0.8,
       "enforcement_level": 2
     }
   },
-  "generated_tests_placeholder": "import pytest\n\ndef test_placeholder_function_positive():\n    pytest.skip(\"Placeholder test: Positive case\")\n    assert True\n\ndef test_placeholder_function_negative():\n    pytest.skip(\"Placeholder test: Negative case\")\n    assert True\n"
+  "generated_tests_placeholder": "import pytest\n\ndef test_placeholder_function_positive():\n    pytest.skip(\"Placeholder test: Positive case\")\n    assert True\n\ndef test_placeholder_function_negative():\n    pytest.skip(\"Placeholder test: Negative case\")\n    assert True\n" // Populated by TestGenAgent
 }
 ```
 
@@ -430,6 +502,153 @@ curl -X POST \
 - Verify implementation details against the optimized roadmap.
 
 **Want visibility for your contributions**? Our contributor acknowledgment badge initiative will be launched in Phase 2 to recognize and highlight community contributions.
+
+## Full High-Level Specification (Detailed Vision) <a name="full-high-level-specification-detailed-vision"></a>
+
+<details>
+<summary>Click to expand the Full High-Level Specification (Detailed Vision - Iteration 3)</summary>
+
+**Adaptive Software Genesis Ecosystem (Version 1.0): High-Level Specification (AGPLv3 Licensed)**
+**Detailed Version (Community-Driven & Passion-Project Focused)**
+
+**Executive Summary:**
+
+The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source platform (AGPLv3) designed to revolutionize software development through **ethical actionability, adaptive learning, and human-AI symbiosis.** As a community-driven passion project, it aims for exceptional software quality, efficiency, and ethical responsibility by synergistically combining advanced AI with human expertise. Envisioned for creating robust software, especially for complex, long-context tasks, ASGE prioritizes verifiable reliability, resource efficiency, and transparent ethical operations, aligning with frameworks like the **EU AI Act, GDPR, and COPPA.** Long-term sustainability is fostered through vibrant community contribution, resourceful operation, and a commitment to open knowledge. This document outlines the core design, architecture, high-level post-MVP roadmap, technical specifications, and KPIs for Version 1.0. While this specification details the long-term vision, the **current development focus is on delivering the Phase 1 MVP** as outlined in the main roadmap section – establishing the foundational configurable ethical analysis capability.
+
+**I. Foundational Design Principles:**
+
+1.  **Human-AI Symbiosis**: Balancing AI automation with essential human oversight for strategy, nuance, and ethics.
+    *   *Mechanism:* AI handles efficiency (code generation, analysis); humans provide strategic direction (specifications, feedback) and ethical judgment (ERB, overrides).
+    *   *Oversight:* Ethical Review Board (ERB, 5+ members, quarterly reviews, 3-vote majority for overrides) provides expert governance. User-friendly interfaces (web UI planned) enable stakeholder interaction. Open contribution processes manage community input.
+
+2.  **Ethical Actionability**: Embedding demonstrable and enforceable ethics into every component.
+    *   *Mechanism:* Ethics integrated by design. The **`EthicalGovernanceEngine`** uses configurable JSON policies (aligned with EU AI Act, GDPR, COPPA) to enforce constraints during validation. Policies are version-controlled and community-vetted. Monthly audits by ERB ensure accountability.
+    *   *Modules:* Proactive **Bias Detection & Mitigation Module** analyzes code/outputs. **Transparency & Explainability Module** (planned) will provide APIs to query LLM rationale (e.g., "Why was this code flagged?"). Clear Human Override pathways exist via the ERB interface (planned). Continuous AI self-assessment against policies generates compliance reports.
+
+3.  **Adaptive Learning Fabric**: Intelligently designed for continuous improvement.
+    *   *Mechanism:* Data-driven adaptation using performance metrics (KPIs), agent feedback (e.g., code review results), and user input.
+    *   *Modules:* **Continuous Learning & Adaptation Core** uses ML techniques (e.g., reinforcement learning from agent feedback, A/B testing of generation strategies) to enhance agent performance and ethical alignment. **Self-Monitoring & Adaptive Healing Subsystem** uses health checks (API latency, resource usage) and error logs to trigger automated recovery procedures (e.g., restarting agents, rolling back configurations). **Predictive Risk Assessment Module** uses historical data and modeling (e.g., `QuantumRiskPredictor`) to forecast potential issues.
+
+4.  **Cyber-Physical Resilience & Resource Efficiency**: Prioritizing security, robustness, and sustainability.
+    *   *Mechanism:* Formal verification (**Coq** proofs compiled in CI for core logic like boundary detection; **Isabelle/HOL** planned for critical algorithms) provides mathematical guarantees. Strategic use of memory-safe **Rust** for safety-critical modules (e.g., verification components, policy engine core) and high-performance **Go** for concurrent agents (e.g., API handlers, parallel analysis tasks). Proactive error handling (e.g., retries, graceful degradation) built into agents and orchestration. Core focus on resource optimization (caching, efficient algorithms, potential serverless components).
+    *   *Targets:* 25% resource reduction, 40% performance improvement (12 months post-Phase 2 completion).
+
+5.  **Knowledge-Based Problem Solving**: Leveraging and evolving knowledge for advanced software genesis.
+    *   *Mechanism:* The **Dynamic Knowledge Graph (KG)** acts as the central "memory," storing semantic representations of code, specifications, ethical rules, security findings, performance data, and community feedback. The **Intelligent LLM Orchestration Layer** queries the KG for relevant context before prompting LLMs (Gemini, Hugging Face, others planned). It manages long contexts using techniques like **semantic chunking** (`SemanticChunker`) and **recursive summarization** (`RecursiveSummarizer`). It routes tasks to appropriate LLMs based on capability/cost and handles API failover. Specialized **AI Agents** query the KG and LLM Orchestrator to perform their tasks (analysis, generation, review).
+
+6.  **Open Innovation & Global Accessibility**: Fostering a vibrant community and broad usability.
+    *   *Mechanism:* Actively manage community contributions via **GitHub** (primary repository). Adhere to open standards (OpenAPI for APIs) and prioritize FOSS tools (Python, Go, Rust, Coq, ZAP, etc.).
+    *   *Future:* Develop a **Community Contribution Platform** (web UI). Implement localization (10+ languages). Support diverse open-source LLMs (Alpa, StarCoder) to reduce vendor lock-in and improve global accessibility.
+
+**II. System Architecture & Core Workflow:**
+
+```
++------------------------------+      +------------------------+      +---------------------------+      +---------------------------+
+| Human Input/API Gateways     |----->| Ethical Governance Layer |----->| Metamorphic Core          |----->| Software Artifacts/Reports|
+| (Specs, Feedback, Overrides) |      | (Policy Engine, Bias   |      | (LLM Orch, KG, Agents)    |      | (Code, Tests, Docs, KPIs) |
+| (Community Contributions)    |<-----| Detection, Transparency)|<-----| (Resource Mgmt)           |<-----| (ISO/IEC 25010 Metrics)   |
++------------------------------+      +------------------------+      +---------------------------+      +---------------------------+
+          ^                                      ^                             ^
+          |--------------------------------------|-----------------------------|---(Feedback Loops, Monitoring, Validation)
+```
+
+*   **Core Workflow Example (Code Analysis):**
+    1.  User submits code via API (`/genesis/analyze-ethical`).
+    2.  API Gateway routes request.
+    3.  `Metamorphic Core` receives request.
+    4.  `Ethical Governance Layer` (`EthicalGovernanceEngine`) loads the relevant JSON policy.
+    5.  `Metamorphic Core` invokes `CodeReviewAgent` (Flake8) and `TestGenAgent` (placeholders).
+    6.  `CodeReviewAgent` analyzes code, results stored temporarily/sent back.
+    7.  `EthicalGovernanceEngine` enforces loaded policy against the code and analysis results.
+    8.  Results (Flake8 output, ethical status, placeholder tests) are aggregated by the `Metamorphic Core`.
+    9.  Results potentially stored in KG.
+    10. Formatted JSON response returned via API Gateway.
+    11. (Parallel/Async) `SecurityAgent` might trigger ZAP scan if applicable.
+    12. (Post-MVP) Feedback loops update KG and `ContinuousLearningCore`.
+
+*   **Key Components (Detailed):**
+    *   **Human Input & Oversight Interface:** (Planned Web UI) Secure portal for spec submission (text, later diagrams), configuration, feedback, ethical guidance input, ERB overrides, progress dashboards.
+    *   **Metamorphic Core (Adaptive AI Orchestration):**
+        *   *Dynamic Knowledge Graph:* Neo4j or similar graph DB storing nodes (code chunks, specs, policies, vulnerabilities, tests, metrics) and semantic relationships. Enables complex querying for context retrieval and pattern analysis.
+        *   *Intelligent LLM Orchestration Layer:* Manages API calls to multiple LLMs (Gemini, HF models via `InferenceClient`, potentially OpenAI). Implements context window management (semantic chunking, summarization), cost/latency optimization (model selection based on task complexity), robust retries, and failover logic. Uses `TokenAllocator` for budget management.
+        *   *Modular AI Agent Network:*
+            *   `SpecificationAnalysisAgent`: Parses natural language/structured input into formal requirements, potentially using AST analysis and LLMs.
+            *   `TestGenerationAgent`: Generates pytest tests (placeholders in MVP, meaningful tests using code/spec analysis later).
+            *   `CodeGenerationAgent`: (Post-MVP) Generates code (Python, Go, Rust, JS/TS) based on specs from KG/LLM Orchestrator.
+            *   `CodeReviewAgent`: Runs static analysis (Flake8 now; Bandit, Semgrep later). (Post-MVP) Uses LLMs for deeper semantic review.
+            *   `SecurityAgent`: Orchestrates security tools (ZAP DAST now; SAST via Bandit/Semgrep later). Analyzes results, stores findings in KG.
+            *   `PerformanceAnalysisAgent`: (Post-MVP) Integrates profiling tools (cProfile) and analyzes performance metrics.
+            *   `FormalVerificationEngine`: Interfaces with Coq/Isabelle/Z3 to run proofs against code or specifications.
+            *   `PredictiveRiskAssessmentModule`: Uses `QuantumRiskPredictor` (trained on historical KG data) to forecast ethical/security risks.
+            *   `SelfMonitoringAndAdaptiveHealing`: Monitors system metrics (Prometheus), logs errors, triggers recovery actions.
+            *   `ContinuousLearningCore`: Uses ML (RL, supervised learning) on KG data/feedback to update agent strategies and LLM prompts.
+            *   `ResourceManagementOptimization`: (Post-MVP) Optimizes cloud resource usage, potentially using Kubernetes HPA based on Prometheus metrics.
+    *   **Ethical Governance Framework:**
+        *   *EthicalPolicyEngine (`EthicalGovernanceEngine`):* Loads JSON policies (`jsonschema` validation). `enforce_policy` method checks code/metadata against loaded constraints (regex, keyword checks, AST analysis, calls to Bias Detection Module). Returns compliance status.
+        *   *BiasDetectionMitigationModule:* Uses NLP libraries (spaCy, Transformers) or fairness toolkits (Fairlearn) to analyze text (comments, docs) and potentially code structure for bias indicators. (Post-MVP) Implements mitigation strategies (e.g., suggesting alternative phrasing).
+        *   *TransparencyExplainabilityModule:* (Planned) Provides API endpoints to retrieve justification for policy violations or agent decisions, potentially querying LLM logs or KG links.
+        *   *HumanOverrideIntervention:* (Planned UI) Interface for ERB to review flagged cases and issue binding overrides recorded in the audit trail.
+        *   *ContinuousEthicalSelfAssessment:* (Planned) Agent periodically runs analysis on generated artifacts/internal logs against policies, generating reports for ERB.
+        *   *EthicalReviewBoardInterface:* (Planned UI) Secure portal for ERB members to view audits, manage policies (via Git PRs), vote on overrides.
+    *   **Software Output & Data Repository:** Git (GitHub) for code/policies/docs. Potentially artifact repository (Nexus, Artifactory) for builds. Database/Object storage for logs, metrics, KG backups.
+
+**III. High-Level Phased Plan (Post-Current MVP):**
+
+*(Focuses on major milestones after the initial 3-week MVP completion)*
+
+| **Phase**      | **Approx. Timeline** | **Key Deliverable & Milestone**                                    | **Illustrative Community Milestone**                                   | **Aligned KPI Target (Phase End)**                               |
+|----------------|----------------------|-------------------------------------------------------------------|----------------------------------------------------------------------|--------------------------------------------------------------------|
+| **Phase 2**    | Months 4–9           | Enhanced LLM Orchestration (Context Mgmt, Cost Opt); Advanced Agents (Code Review, Security); Basic Bias/Transparency Modules; Prometheus Monitoring Integrated (Month 6); Release First Functional Python/Go Output (Month 9)    | Grow Core Contributor Base; Hold First Community Workshop (Month 7-8) | Achieve 20% Perf. Improvement; 10% Resource Reduction (Month 9)     |
+| **Phase 3**    | Months 10–15         | Advanced Bias/Transparency; Performance Agent; Predictive Risk (Initial); Self-Monitoring (Basic); Ethical Override UI Finalized (Month 12); Achieve 30% Vulnerability Reduction (Month 15) | Organize Community Contribution Drive (Month 11)                     | Demonstrate 30% Error & Vuln. Reduction from Baseline (Month 15)        |
+| **Phase 4**    | Months 16+           | Community Platform (Basic); Initial Self-Improvement Loops (Test Gen, Perf Opt); Enhanced Formal Verification; Basic Accessibility Features; Advanced Monitoring UI; Community Contribution Platform Live (Month 18) | Launch Contributor Recognition Program (Month 17)                    | Reach 95% Formal Verification Coverage for Critical Components (Month 18) |
+
+**IV. Technical Specifications & Key Performance Indicators (KPIs):**
+
+1.  **KPI Anchoring & Measurement**:
+    *   **Code Quality (Target: 97%+ ISO/IEC 25010):** *Baseline:* Measured via SonarQube analysis of the v0.1.0 MVP codebase upon release. *Tracked:* Continuously via SonarQube in CI/CD pipeline; periodic LLM-based assessment using standardized rubric (aligned with ISO 25010 attributes). *Target:* 97%+ (12 mo. post-Phase 2). 95% Formal Verification coverage (Coq/Isabelle) for critical components (Month 18).
+    *   **Operational Efficiency (Target: 40% Perf.↑, 25% Res.↓):** *Baseline:* Benchmark key API endpoint latency (e.g., `/genesis/analyze-ethical`) and cloud resource consumption (CPU/memory hours per typical analysis task) on v0.1.0 MVP release. *Tracked:* Prometheus metrics, cloud provider monitoring (e.g., Azure Monitor). *Optimized:* Kubernetes autoscaling, Rust/Go agent performance tuning, caching strategies. *Target:* 40% perf↑, 25% res↓ (12 mo. post-Phase 2).
+    *   **Error & Vulnerability Reduction (Target: 80%↓):** *Baseline:* Number and severity of issues identified by Flake8, ZAP, and manual review in the v0.1.0 MVP codebase. *Tracked:* % reduction in new critical/high severity issues per release cycle (normalized by code churn/complexity) compared to baseline. *Target:* 80%↓ (18 mo. post-Phase 3).
+    *   **User Satisfaction & Ethical Trust (Target: 4.8/5 Rating):** *Tracked:* Regular (e.g., quarterly) surveys to internal testers, community contributors, and (future) users; sentiment analysis of forum discussions/GitHub issues.
+    *   **Self-Improvement Rate (Target: 20+ Merges/Month):** *Tracked:* Number of validated, merged pull requests per month representing functional improvements, bug fixes, or ethical policy refinements (excluding simple maintenance). *Target:* Sustained 20+/month post-Phase 3.
+
+2.  **Risk Mitigation Matrix (Example):**
+
+    | Risk                               | Impact | Likelihood | Mitigation Strategy                                                                 | Owner/Actor                               | Monitoring Frequency |
+    |------------------------------------|--------|------------|-------------------------------------------------------------------------------------|-------------------------------------------|----------------------|
+    | Ethical Override Failure             | High   | Low        | ERB 3-vote majority; Immutable Audit Trails; Post-override review.                  | ERB - Policy & Audit Subcommittee         | Quarterly             |
+    | Data Leakage/Privacy Violation     | High   | Moderate   | GDPR compliance checks; Rust `zeroize` for secrets; TLS encryption; Least privilege access. | Security Agent Team / Infra Lead          | Continuous/Monthly    |
+    | LLM Bias Propagation                | Medium | Moderate   | Bias Detection Module (text analysis); Policy Engine constraints; Diverse datasets (future); Human spot-checks. | Bias Mitigation Analysis Team / ERB       | Continuous            |
+    | Supply Chain Vulnerabilities (Deps) | Medium | Moderate   | Automated scanning (**Trivy** in CI); Dependency pinning; Regular audits (e.g., `cargo audit`). | Security Agent Infra Team / Dev Leads     | CI / Monthly          |
+    | Community Contribution Quality     | Medium | Moderate   | Rigorous review (3 approvals for critical/policy); Automated testing (unit, integ, static analysis); Contribution guidelines. | Core Developer Team Leads / Maintainers | Per Contribution     |
+    | Formal Verification Complexity       | High   | Moderate   | Target critical components only; Use proven libraries; Expert consultation (community/external). | Formal Verification Lead / Core Devs    | Per Feature/Module    |
+
+3.  **Workflow Details:**
+    *   **Version Control:** GitHub primary (`metamorphic-core`). Monthly **Trivy** scans in CI/CD.
+    *   **Branching:** Gitflow-like: `main` (stable releases), `develop` (integration), feature branches (`feature/xxx`), release branches (`release/vx.y.z`), hotfix branches (`hotfix/xxx`).
+    *   **Code Review:** Mandatory PRs to `develop`. 2+ approvals standard; **3+ for critical modules (e.g., `EthicalGovernanceEngine`, `LLMOrchestrator`, security components) or policy changes.** Automated checks (CI tests, linting, static analysis) must pass. Top contributors recognized (e.g., badges, leaderboard).
+
+**V. Sustainability through Community & Resourcefulness:**
+
+ASGE's longevity as an open, ethical AI resource relies on:
+*   **Vibrant Community Contribution:** Actively fostering and managing contributions from developers, ethicists, researchers, and users is paramount. This collective effort drives innovation and maintenance.
+*   **Resourceful Efficiency:** A core design principle. Optimizing algorithms (e.g., efficient graph traversals), infrastructure (e.g., serverless functions where appropriate, Kubernetes resource limits), and LLM usage (e.g., model cascading, caching) ensures long-term viability and minimizes operational costs.
+*   **Shared Infrastructure Potential:** Exploring partnerships or community donations for computing resources (CI runners, hosting) as the project scales.
+*   **Open Knowledge and Empowerment:** Creating comprehensive documentation, tutorials, and examples lowers the barrier to entry for contributors and users, ensuring knowledge is shared and the project is maintainable.
+*   **Ethical Foundation as a Magnet:** The strong commitment to verifiable ethics attracts contributors passionate about responsible AI, fostering a dedicated and value-aligned community crucial for long-term health.
+
+**VI. Conclusion & Invitation:**
+
+ASGE 1.0 represents a community-driven endeavor to build a new paradigm for software development – one grounded in ethical actionability, continuous learning, and human-AI collaboration. This detailed specification outlines the vision, but the immediate focus remains on delivering the foundational **Phase 1 MVP**. We aim to create a valuable open resource for building trustworthy, efficient, and ethically sound AI systems.
+
+**Join Our Passion Project: Build the Future of Ethical AI-Driven Software!**
+
+*   **Developers:** Contribute to the core codebase (Python, Rust, Go). Check out the MVP tasks! [Contribution Portal - Coming Soon].
+*   **Ethicists:** Lend your expertise to the Ethical Review Board. [MetaReview Portal - Coming Soon].
+*   **Community Members:** Participate in discussions, share insights. [Community Forum - Coming Soon].
+
+Source code available at [https://github.com/tomwolfe/metamorphic-core/](https://github.com/tomwolfe/metamorphic-core/). Let's build something extraordinary, together!
+
+</details>
 
 ## License <a name="license"></a>
 

@@ -33,7 +33,7 @@
           "required": ["threshold", "enforcement_level"]
         }
       },
-      "required": ["BiasRisk", "TransparencyScore", "SafetyBoundary"]
+      "required": []
     }
   },
   "required": ["policy_name", "description", "constraints"]

@@ -3,8 +3,8 @@ from src.core.ethics.governance import EthicalGovernanceEngine
 # Removed unused import: CodeReviewAgent
 import os
 import logging # Added logging
-import json # Added json import
 from jsonschema import ValidationError # Import validation error
+import json # Need json for JSONDecodeError
 
 ethical_bp = Blueprint('ethical', __name__)
 logger = logging.getLogger(__name__) # Initialize logger
@@ -13,29 +13,35 @@ logger = logging.getLogger(__name__) # Initialize logger
 ethical_governance_engine = EthicalGovernanceEngine()
 
 # --- Default Policy Loading ---
-# FIX: Calculate path relative to the app's root directory inside the container
-# The working directory in the container is /app
-APP_ROOT = os.path.abspath(os.path.dirname(__file__) + "/../../../..") # This should resolve to /app in container
-DEFAULT_POLICY_PATH = os.path.join(APP_ROOT, 'policies', 'policy_bias_risk_strict.json')
-# Alternative (often more robust): Use relative path from known location if structure is fixed
-# current_dir = os.path.dirname(os.path.abspath(__file__))
-# DEFAULT_POLICY_PATH = os.path.abspath(os.path.join(current_dir, '..', '..', '..', 'policies', 'policy_bias_risk_strict.json'))
-
+# FIX: Calculate path relative to the container's WORKDIR (/app)
+# The 'policies' directory is directly under /app after the COPY instruction
+DEFAULT_POLICY_FILENAME = 'policy_bias_risk_strict.json'
+# Assume WORKDIR is /app, so policies is directly under it
+DEFAULT_POLICY_PATH = os.path.abspath(os.path.join('policies', DEFAULT_POLICY_FILENAME))
 
 logger.info(f"Attempting to load default policy from: {DEFAULT_POLICY_PATH}")
 
 # Load the default policy at startup, handle potential errors
 try:
     if not os.path.exists(DEFAULT_POLICY_PATH):
-         logger.error(f"CRITICAL: Default policy file not found at {DEFAULT_POLICY_PATH}")
-         # Depending on requirements, you might exit, use a fallback, or raise an exception
-         # For now, log error and proceed (endpoint will fail later if policy needed)
-         default_policy_config = None
+         # If not found relative to WORKDIR, try relative to the script's dir (less ideal in Docker)
+         script_dir = os.path.dirname(__file__)
+         alt_path = os.path.abspath(os.path.join(script_dir, '..', '..', '..', 'policies', DEFAULT_POLICY_FILENAME))
+         logger.warning(f"Default policy not found at {DEFAULT_POLICY_PATH}, trying alternative path: {alt_path}")
+         if not os.path.exists(alt_path):
+              logger.error(f"CRITICAL: Default policy file not found at {DEFAULT_POLICY_PATH} or {alt_path}")
+              default_policy_config = None
+         else:
+              DEFAULT_POLICY_PATH = alt_path # Use the alternative path if it exists
+              default_policy_config = ethical_governance_engine.load_policy_from_json(DEFAULT_POLICY_PATH)
+              logger.info(f"Successfully loaded default policy from alternative path: {DEFAULT_POLICY_PATH} ({default_policy_config.get('policy_name')})")
+
     else:
          default_policy_config = ethical_governance_engine.load_policy_from_json(DEFAULT_POLICY_PATH)
-         logger.info(f"Successfully loaded default policy: {default_policy_config.get('policy_name')}")
-except (FileNotFoundError, json.JSONDecodeError, ValidationError, Exception) as e:
-    logger.error(f"CRITICAL: Failed to load default policy '{DEFAULT_POLICY_PATH}': {e}")
+         logger.info(f"Successfully loaded default policy: {DEFAULT_POLICY_PATH} ({default_policy_config.get('policy_name')})")
+
+except (FileNotFoundError, json.JSONDecodeError, ValidationError, SchemaError, Exception) as e:
+    logger.error(f"CRITICAL: Failed to load default policy '{DEFAULT_POLICY_PATH}': {e}", exc_info=True) # Add exc_info for more details
     default_policy_config = None # Ensure it's None if loading fails
 
 def get_policy_config(policy_name: str = None) -> dict:
@@ -59,9 +65,6 @@ def health_check():
     if default_policy_config is None:
          health_status["status"] = "degraded"
          health_status["error"] = "Default ethical policy failed to load."
-         # FIX: Ensure this returns 500 only if the policy is absolutely essential for health
-         # If the app can run degraded, maybe return 200 but include the error.
-         # Let's assume for now it's critical for basic operation.
          return jsonify(health_status), 500 # Return 500 if essential config missing
     return jsonify(health_status), 200
 
@@ -72,7 +75,7 @@ def genesis_ethical_analysis_endpoint():
     and performs basic code quality checks (Flake8).
     """
     try:
-        # Ensure default policy is loaded before processing
+        # Ensure default policy is loaded before handling request
         current_policy = get_policy_config() # This will raise RuntimeError if default_policy_config is None
 
         data = request.get_json()
@@ -83,7 +86,7 @@ def genesis_ethical_analysis_endpoint():
         code = data['code']
         # For MVP, we use the default policy. Post-MVP could get policy name from request:
         # policy_name = data.get('policy_name')
-        # current_policy = get_policy_config(policy_name) # Already loaded above
+        # current_policy = get_policy_config(policy_name) <-- Already got it above
 
         # --- Ethical Analysis ---
         try:

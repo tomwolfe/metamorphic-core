@@ -3,8 +3,9 @@ from src.core.ethics.governance import EthicalGovernanceEngine
 # Removed unused import: CodeReviewAgent
 import os
 import logging # Added logging
-from jsonschema import ValidationError # Import validation error
+from jsonschema import ValidationError, SchemaError # Import validation error AND SchemaError
 import json # Need json for JSONDecodeError
+from typing import Optional # Import Optional
 
 ethical_bp = Blueprint('ethical', __name__)
 logger = logging.getLogger(__name__) # Initialize logger
@@ -44,19 +45,44 @@ except (FileNotFoundError, json.JSONDecodeError, ValidationError, SchemaError, E
     logger.error(f"CRITICAL: Failed to load default policy '{DEFAULT_POLICY_PATH}': {e}", exc_info=True) # Add exc_info for more details
     default_policy_config = None # Ensure it's None if loading fails
 
-def get_policy_config(policy_name: str = None) -> dict:
+def get_policy_config(policy_name: str = None) -> Optional[dict]:
     """
     Loads the specified policy or the default policy.
-    For MVP, it primarily loads the default policy.
+
+    Args:
+        policy_name: The name of the policy file (without .json extension).
+                     If None, loads the default policy.
+
+    Returns:
+        The loaded policy dictionary, or None if the requested policy fails to load.
+
+    Raises:
+        RuntimeError: If the default policy failed to load at startup and is requested.
+        FileNotFoundError: If the requested policy file is not found.
+        ValueError: If the policy_name contains invalid characters.
+        json.JSONDecodeError: If the requested policy file contains invalid JSON.
+        ValidationError: If the requested policy file fails schema validation.
+        SchemaError: If the schema itself is invalid during validation.
+        Exception: For other unexpected errors during loading/validation.
     """
-    # MVP Simplification: Always use the pre-loaded default policy
-    if default_policy_config is None:
-         logger.error("Default policy was not loaded successfully at startup. Cannot proceed.")
-         raise RuntimeError("Default ethical policy configuration is unavailable.") # Raise runtime error if default failed to load
-    # Post-MVP: Add logic here to load different policies based on 'policy_name'
-    # e.g., construct path, call engine.load_policy_from_json, handle errors
-    logger.debug(f"Using default policy: {default_policy_config.get('policy_name')}")
-    return default_policy_config
+    if policy_name:
+        # Construct path for the requested policy
+        # Basic sanitization: allow only alphanumeric and underscores
+        if not policy_name.replace('_', '').isalnum():
+             logger.warning(f"Invalid characters in requested policy name: {policy_name}")
+             raise ValueError(f"Invalid policy name format: {policy_name}") # Raise ValueError for invalid format
+        requested_policy_filename = f"{policy_name}.json"
+        requested_policy_path = os.path.abspath(os.path.join('policies', requested_policy_filename))
+        logger.info(f"Attempting to load requested policy: {requested_policy_path}")
+        # load_policy_from_json will raise appropriate errors if loading fails
+        return ethical_governance_engine.load_policy_from_json(requested_policy_path)
+    else:
+        # Use the pre-loaded default policy
+        if default_policy_config is None:
+            logger.error("Default policy was not loaded successfully at startup. Cannot proceed.")
+            raise RuntimeError("Default ethical policy configuration is unavailable.")
+        logger.debug(f"Using default policy: {default_policy_config.get('policy_name')}")
+        return default_policy_config
 
 @ethical_bp.route('/health', methods=['GET'])
 def health_check():
@@ -74,19 +100,28 @@ def genesis_ethical_analysis_endpoint():
     Analyzes Python code for ethical considerations based on a configurable policy
     and performs basic code quality checks (Flake8).
     """
+    current_policy = None # Initialize
     try:
-        # Ensure default policy is loaded before handling request
-        current_policy = get_policy_config() # This will raise RuntimeError if default_policy_config is None
-
         data = request.get_json()
         if not data or 'code' not in data:
             logger.warning("Received request without 'code' field.")
             return jsonify({"status": "error", "message": "Missing 'code' field in request body"}), 400
 
         code = data['code']
-        # For MVP, we use the default policy. Post-MVP could get policy name from request:
-        # policy_name = data.get('policy_name')
-        # current_policy = get_policy_config(policy_name) <-- Already got it above
+        policy_name = data.get('policy_name') # Get requested policy name (optional)
+
+        # --- Load Policy ---
+        try:
+            current_policy = get_policy_config(policy_name)
+        except FileNotFoundError:
+             logger.warning(f"Requested policy '{policy_name}' not found.")
+             return jsonify({"status": "error", "message": f"Policy '{policy_name}' not found."}), 404 # Not Found
+        except (ValueError, json.JSONDecodeError, ValidationError, SchemaError) as e:
+             logger.warning(f"Requested policy '{policy_name}' is invalid: {e}")
+             return jsonify({"status": "error", "message": f"Policy '{policy_name}' is invalid: {e}"}), 400 # Bad Request
+        except RuntimeError as e: # Catch if default policy failed startup and wasn't requested
+             logger.error(f"Runtime error getting policy config: {e}", exc_info=True)
+             return jsonify({"status": "error", "message": str(e)}), 500
 
         # --- Ethical Analysis ---
         try:
@@ -114,6 +149,7 @@ def genesis_ethical_analysis_endpoint():
         # --- Construct Response ---
         response_payload = {
             "status": overall_status, # Use the status determined by the engine
+            "requested_policy_name": current_policy.get('policy_name', 'Unknown'), # Add policy name used
             "code_quality": code_quality_results,
             "ethical_analysis": ethical_analysis_results, # Return the full results from the engine
             "generated_tests_placeholder": generated_tests_placeholder
@@ -127,11 +163,8 @@ def genesis_ethical_analysis_endpoint():
 
         return jsonify(response_payload), 200
 
-    except RuntimeError as e:
-         # Catch specific error if default policy failed to load
-         logger.error(f"Runtime error in /analyze-ethical: {e}", exc_info=True)
-         return jsonify({"status": "error", "message": str(e)}), 500
     except Exception as e:
         # Generic error handler for unexpected issues
         logger.error(f"Unexpected error in /analyze-ethical: {e}", exc_info=True)
+        # Ensure a response is always sent
         return jsonify({"status": "error", "message": "An unexpected internal server error occurred."}), 500

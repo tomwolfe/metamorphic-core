@@ -2,7 +2,7 @@
 
 [![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
-[![Roadmap Status](https://img.shields.io/badge/MVP_Focus-API_Integration_&_Testing-yellow)](https://github.com/tomwolfe/metamorphic-core/milestones?direction=asc&sort=due_date&state=open)
+[![Roadmap Status](https://img.shields.io/badge/MVP_Focus-MVP_Polish_&_Release-yellow)](https://github.com/tomwolfe/metamorphic-core/milestones?direction=asc&sort=due_date&state=open)
 
 **Version ∞: An Ever-Evolving Framework for Software Excellence** ✨
 
@@ -11,9 +11,9 @@
 **🎯 CURRENT FOCUS:**
 
 *   **Goal:** Complete Phase 1 MVP ASAP (Target: End of Week 6 - Mid-April 2025).
-*   **Status:** Week 4 (Configurable Ethical Engine Core) **COMPLETE ✅**.
-*   **Current Focus:** **Week 5 - API Integration & Testing**. Ensuring the dynamic ethical engine works correctly through the API endpoint and polishing the API behavior.
-*   **See:** [Phase 1 MVP - Optimized Roadmap (Weeks 4-6)](#phase-1-mvp---optimized-roadmap-weeks-4-6) for immediate tasks (Week 5 & 6).
+*   **Status:** Week 5 (API Integration & Testing) **COMPLETE ✅**.
+*   **Current Focus:** **Week 6 - MVP Polish & Internal Release**. Final code review, cleanup, internal testing, and addressing critical feedback.
+*   **See:** [Phase 1 MVP - Optimized Roadmap (Weeks 4-6)](#phase-1-mvp---optimized-roadmap-weeks-4-6) for immediate tasks (Week 6).
 
 ---
 
@@ -75,7 +75,7 @@ To create an AI-driven framework that autonomously generates, maintains, and evo
 4.  **Generation**: `CodeGenerationAgent` produces code (Python, Go, Rust, JS/TS planned) using LLMs managed by `LLMOrchestrator`.
 5.  **Validation (Iterative Loop)**:
     *   **Code Quality & Static Analysis:** `CodeReviewAgent` (Flake8 now, Bandit/Semgrep later) analyzes code.
-    *   **Ethical Assessment:** `EthicalGovernanceEngine` loads JSON policy, checks code against constraints (Bias, Transparency, Safety).
+    *   **Ethical Assessment:** `EthicalGovernanceEngine` loads JSON policy (dynamically via API request or default), checks code against constraints (Bias, Transparency, Safety).
     *   **Security Scans:** `SecurityAgent` orchestrates ZAP DAST scans against running instances/APIs.
     *   **Testing:** `TestGenerationAgent` creates tests (placeholders in MVP); tests are executed in CI.
     *   **Formal Verification:** `FormalVerificationEngine` applies Coq/Isabelle proofs to critical components (limited in MVP).
@@ -87,12 +87,12 @@ To create an AI-driven framework that autonomously generates, maintains, and evo
 
 The ecosystem is actively under development, demonstrating core functionalities as an **AI-powered code analysis, ethical validation, and security scanning framework.**
 
-**Phase 1 MVP Capabilities - Week 4 of Month 1 COMPLETE** ✅
+**Phase 1 MVP Capabilities - Week 5 of Month 1 COMPLETE** ✅
 
-The core logic for the **JSON-configurable `EthicalGovernanceEngine` is implemented and unit-tested**. The immediate focus shifts to integrating this dynamic engine fully into the API endpoint and writing comprehensive integration tests (Week 5).
+The core logic for the **JSON-configurable `EthicalGovernanceEngine` is implemented and fully integrated into the `/genesis/analyze-ethical` API endpoint**. This endpoint now dynamically loads and applies ethical policies based on user requests (or uses a default). Comprehensive integration tests verify this dynamic behavior and error handling. The immediate focus shifts to final MVP polishing, code review, and internal release preparation (Week 6).
 
 <details>
-<summary>Click to expand Completed MVP Task Details (Weeks 1-4)</summary>
+<summary>Click to expand Completed MVP Task Details (Weeks 1-5)</summary>
 
 #### Key Milestones Achieved (Week 1 Month 1):
 - **[✅] Operational `/genesis/analyze-ethical` API endpoint:** Functional API endpoint live.
@@ -125,11 +125,17 @@ The core logic for the **JSON-configurable `EthicalGovernanceEngine` is implemen
     * **[✅] Task 4.3 (P2 - Testing): Write Comprehensive Engine Unit Tests:** Developed thorough unit tests for loading and dynamic enforcement. *(Self-Bootstrapping: Used `TestGenAgent` for test skeletons).*
     * **[✅] Task 4.4 (P2 - API): Update API Endpoint for Dynamic Policy Usage:** Modified `/genesis/analyze-ethical` to load/use policies dynamically and update the response accordingly (including overall status logic).
 
+#### Key Milestones Achieved (Week 5 Month 1):
+- **[✅] API Integration & Testing - *Verify Dynamic Behavior Complete***
+    * **[✅] Task 5.1 (P1 - Testing): Write Comprehensive API Integration Tests:** Created integration tests verifying API behavior with different code snippets and *multiple dynamic policies* (default, moderate, minimum, non-existent, invalid name).
+    * **[✅] Task 5.2 (P2 - API): Refine API Error Handling & Response:** Polished error handling (policy loading FileNotFound/ValueError/ValidationError -> 404/400, engine errors -> 500) and added `requested_policy_name` to response structure.
+    * **[✅] Task 5.3 (P3 - Docs - Concurrent): Update README API Documentation:** Updated API examples and explanations in `README.md` to reflect dynamic policies and final response structure.
+
 #### Technical Foundations Live:
 - **LLM Orchestration Layer (Gemini/Hugging Face):** Operational infrastructure for managing LLM interactions.
 - **Security Scanning Integration (OWASP ZAP 2.12+):** Baseline security scanning functional using OWASP ZAP.
 - **Knowledge Graph:** Dynamic Knowledge Graph operational (initial phase, content expansion ongoing).
-- **Ethical Validation Framework**: **JSON-configurable `EthicalGovernanceEngine` implemented**, capable of dynamic rule enforcement based on loaded policies. Quantum-inspired analysis placeholders exist.
+- **Ethical Validation Framework**: **JSON-configurable `EthicalGovernanceEngine` implemented and integrated**, capable of dynamic rule enforcement based on loaded policies via API request. Quantum-inspired analysis placeholders exist.
 - **Code Analysis Agents**: `CodeReviewAgent` provides Flake8 analysis. Bandit integration present but commented out for MVP. `TestGenAgent` generates placeholder pytest code.
 - **Managing Long AI Contexts**: Initial mechanisms implemented (basic chunking).
 - **LLM Orchestration Layer**: Robust infrastructure manages LLM interactions.
@@ -144,41 +150,42 @@ The core logic for the **JSON-configurable `EthicalGovernanceEngine` is implemen
 
 - **Code Analysis**: Static analysis with Flake8 via API (`CodeReviewAgent`).
 - **Security Scanning**: Automated DAST via OWASP ZAP integration.
-- **Ethical Assessment**: **JSON-configurable** rule-based engine (`EthicalGovernanceEngine`) capable of dynamic enforcement. Quantum-inspired analysis placeholders.
+- **Ethical Assessment**: **Dynamically JSON-configurable** rule-based engine (`EthicalGovernanceEngine`) integrated into the API, capable of dynamic enforcement based on requested or default policies. Quantum-inspired analysis placeholders.
 - **LLM Powered Features**: Core functionalities leverage Google Gemini and Hugging Face.
 - **CI/CD Pipeline**: Fully automated via GitHub Actions (tests, security scans, builds).
 - **Knowledge Graph Backbone**: Operational KG for system knowledge.
 
-**Note**: MVP completion requires integration testing and polishing of the API endpoint using the now-configurable ethical engine (Week 5 & 6 tasks).
+**Note**: MVP completion requires final polish, code review, and internal release preparation (Week 6 tasks).
 
 ## Roadmap: Phase 1 MVP (Optimized for ASAP Completion) <a name="roadmap-phase-1-mvp-optimized-for-asap-completion"></a> 🚧
 
-**Goal:** Complete the defined Phase 1 MVP (`/genesis/analyze-ethical` endpoint with a **fully JSON-configurable** Ethical Policy Engine, Flake8 code quality, and placeholder test generation) within the next 2 weeks (by mid-April 2025).
+**Goal:** Complete the defined Phase 1 MVP (`/genesis/analyze-ethical` endpoint with a **fully JSON-configurable** Ethical Policy Engine, Flake8 code quality, and placeholder test generation) within the next week (by mid-April 2025).
 
 #### Phase 1 MVP Definition <a name="phase-1-mvp-definition"></a>
 
 A functional API endpoint (`/genesis/analyze-ethical`) capable of:
-1.  Analyzing Python code for ethical concerns using a **dynamically configurable JSON policy engine** (`EthicalGovernanceEngine`).
+1.  Analyzing Python code for ethical concerns using a **dynamically configurable JSON policy engine** (`EthicalGovernanceEngine`), loaded based on an optional request parameter or defaulting.
 2.  Providing Flake8 code quality assessment (`CodeReviewAgent`).
 3.  Generating placeholder pytest tests (`TestGenAgent`).
-4.  Exposing this functionality via the API.
+4.  Exposing this functionality via the API with appropriate error handling and response structure.
 
 #### Phase 1 Deliverables <a name="phase-1-deliverables"></a>
 
-1.  Functional `/genesis/analyze-ethical` API endpoint with **dynamically configurable ethical analysis**.
+1.  Functional `/genesis/analyze-ethical` API endpoint with **dynamically configurable ethical analysis** via request parameter or default.
 2.  **Fully JSON-Configurable** `EthicalGovernanceEngine` loading policies and dynamically enforcing constraints (BiasRisk, TransparencyScore, Safety Boundary).
+3.  Comprehensive integration tests verifying dynamic policy loading and error handling.
+4.  Updated documentation reflecting the dynamic policy capability.
 
 #### Phase 1 MVP - Optimized Roadmap (Weeks 4-6) <a name="phase-1-mvp---optimized-roadmap-weeks-4-6"></a>
 
-*(Weeks 1-4 Complete)*
+*(Weeks 1-5 Complete)*
 
 ##### Strategy Notes (MVP Focus) <a name="strategy-notes-mvp-focus"></a>
-*   **Laser Focus:** Only the **JSON-configurable `EthicalGovernanceEngine`** is blocking the MVP. Defer everything else (Bandit, SpecAnalyzer, Bias Detection).
-*   **Leverage Foundations:** Build on Week 1-4 work. Avoid unnecessary refactoring.
-*   **Self-Bootstrapping:** Use `TestGenAgent` for engine test skeletons; use `CodeReviewAgent` for code quality.
-*   **Parallelize:** Update docs concurrently (Week 5). Develop integration tests incrementally.
-*   **TDD Mindset:** Write tests early (Unit Wk4, Integration Wk5).
-*   **"Good Enough" MVP:** Focus on *correct* dynamic enforcement based on JSON; sophistication can come later.
+*   **Laser Focus:** Only the **MVP Polish & Release** tasks are blocking the MVP. Defer everything else (Bandit, SpecAnalyzer, Bias Detection).
+*   **Leverage Foundations:** Build on Week 1-5 work. Avoid unnecessary refactoring.
+*   **Self-Bootstrapping:** Use `CodeReviewAgent` for final code quality checks.
+*   **TDD Mindset:** Ensure all tests pass before release.
+*   **"Good Enough" MVP:** Focus on delivering the *correct* dynamic enforcement based on JSON; sophistication can come later.
 
 ##### Week 4: Configurable Ethical Engine Core - *Dynamic Policy Enforcement* <a name="week-4-configurable-ethical-engine-core---dynamic-policy-enforcement"></a> - **COMPLETE ✅**
 *   **[✅] Task 4.1 (P1 - Engine): Implement Robust JSON Policy Loading & Validation:** Enhanced `EthicalGovernanceEngine.load_policy_from_json` with `jsonschema` validation and error handling.
@@ -186,12 +193,12 @@ A functional API endpoint (`/genesis/analyze-ethical`) capable of:
 *   **[✅] Task 4.3 (P2 - Testing): Write Comprehensive Engine Unit Tests:** Developed thorough unit tests for loading and dynamic enforcement. *(Self-Bootstrapping: Used `TestGenAgent` for test skeletons).*
 *   **[✅] Task 4.4 (P2 - API): Update API Endpoint for Dynamic Policy Usage:** Modified `/genesis/analyze-ethical` to load/use policies dynamically and update the response accordingly (including overall status logic).
 
-##### Week 5: API Integration & Testing - *Verify Dynamic Behavior* <a name="week-5-api-integration--testing---verify-dynamic-behavior"></a> - **CURRENT FOCUS**
-*   **[ ] Task 5.1 (P1 - Testing): Write Comprehensive API Integration Tests:** Create integration tests verifying API behavior with different code snippets and *multiple dynamic policies*.
-*   **[ ] Task 5.2 (P2 - API): Refine API Error Handling & Response:** Polish error handling (policy loading, engine errors) and response structure clarity.
-*   **[ ] Task 5.3 (P3 - Docs - Concurrent): Update README API Documentation:** Update API examples and explanations in `README.md` to reflect dynamic policies and final response structure.
+##### Week 5: API Integration & Testing - *Verify Dynamic Behavior* <a name="week-5-api-integration--testing---verify-dynamic-behavior"></a> - **COMPLETE ✅**
+*   **[✅] Task 5.1 (P1 - Testing): Write Comprehensive API Integration Tests:** Created integration tests verifying API behavior with different code snippets and *multiple dynamic policies* (default, moderate, minimum, non-existent, invalid name).
+*   **[✅] Task 5.2 (P2 - API): Refine API Error Handling & Response:** Polished error handling (policy loading FileNotFound/ValueError/ValidationError -> 404/400, engine errors -> 500) and added `requested_policy_name` to response structure.
+*   **[✅] Task 5.3 (P3 - Docs - Concurrent): Update README API Documentation:** Updated API examples and explanations in `README.md` to reflect dynamic policies and final response structure.
 
-##### Week 6: MVP Polish & Internal Release - *Deliver & Iterate* <a name="week-6-mvp-polish--internal-release---deliver--iterate"></a>
+##### Week 6: MVP Polish & Internal Release - *Deliver & Iterate* <a name="week-6-mvp-polish--internal-release---deliver--iterate"></a> - **CURRENT FOCUS**
 *   **[ ] Task 6.1 (P1 - Quality): Final Code Review & Cleanup:** Review all MVP code. *(Self-Bootstrapping: Run `CodeReviewAgent` (Flake8) and address issues).*
 *   **[ ] Task 6.2 (P1 - Release): Prepare MVP Internal Release Package:** Tag code, verify Docker build, write internal release notes.
 *   **[ ] Task 6.3 (P2 - Testing): Conduct Internal MVP Testing:** Distribute MVP package internally, gather feedback.
@@ -213,12 +220,12 @@ gantt
     Task 4.4 API Update         :done, 2025-04-04, 1d
 
     section Week 5: Integration & Testing (Apr 7 - Apr 11)
-    Task 5.1 API Integ Tests    :active, 2025-04-07, 4d
-    Task 5.2 API Polish         : 2025-04-09, 2d
-    Task 5.3 README Docs        : 2025-04-07, 3d
+    Task 5.1 API Integ Tests    :done, 2025-04-07, 4d
+    Task 5.2 API Polish         :done, 2025-04-09, 2d
+    Task 5.3 README Docs        :done, 2025-04-07, 3d
 
     section Week 6: Release & Polish (Apr 14 - Apr 18)
-    Task 6.1 Code Review        : 2025-04-14, 2d
+    Task 6.1 Code Review        :active, 2025-04-14, 2d
     Task 6.2 Prep Release       : 2025-04-15, 1d
     Task 6.3 Internal Testing   : 2025-04-16, 2d
     Task 6.4 Address Feedback   : 2025-04-17, 2d
@@ -424,25 +431,27 @@ python src/api/server.py
 
 Visit `http://127.0.0.1:5000/genesis/health` in your browser or using `curl` to check the live API status.
 
-Send a POST request to `http://127.0.0.1:5000/genesis/analyze-ethical` with JSON `{"code": "def hello():\n print('world')"}` to test the MVP endpoint.
+Send a POST request to `http://127.0.0.1:5000/genesis/analyze-ethical` with JSON `{"code": "def hello():\n print('world')"}` to test the MVP endpoint using the default policy.
+
+Send a POST request to `http://127.0.0.1:5000/genesis/analyze-ethical` with JSON `{"code": "def hello():\n print('world')", "policy_name": "policy_safety_moderate"}` to test using a specific policy.
 
 ## API Endpoints <a name="api-endpoints"></a>
 
 For detailed API documentation (under development), refer to: [docs/api/api-endpoints.md](docs/api/api-endpoints.md)
 
-| Endpoint                      | Method | Description                                                                     | Status (MVP)        |
-| :---------------------------- | :----- | :------------------------------------------------------------------------------ | :------------------ |
-| `/genesis/health`             | GET    | Check API server status. Returns `{"status": "ready"}`.                         | ✅ Working          |
-| `/genesis/analyze-ethical`    | POST   | Analyzes Python code for ethical considerations (configurable) & code quality. | 🚧 **MVP Core Endpoint** (Configurable Engine Complete; API Integration Wk 5) |
-| `/genesis/solve-math`         | POST   | Test endpoint for demonstrating basic LLM math capabilities.                    | ✅ Working (Test)   |
-| `/genesis/ethical/audit/{state_id}`   | GET    | Retrieve audit trail data (planned).                                            | ❌ Not Implemented |
-| `/genesis/ethical/visualize/{state_id}` | GET    | Obtain visualization data (planned).                                      | ❌ Not Implemented |
+| Endpoint                      | Method | Description                                                                                                | Status (MVP)        |
+| :---------------------------- | :----- | :--------------------------------------------------------------------------------------------------------- | :------------------ |
+| `/genesis/health`             | GET    | Check API server status. Returns `{"status": "ready"}` or `degraded`.                                      | ✅ Working          |
+| `/genesis/analyze-ethical`    | POST   | Analyzes Python code for ethical considerations (dynamically configurable via `policy_name`) & code quality. | ✅ **MVP Core Endpoint** |
+| `/genesis/solve-math`         | POST   | Test endpoint for demonstrating basic LLM math capabilities.                                               | ✅ Working (Test)   |
+| `/genesis/ethical/audit/{state_id}`   | GET    | Retrieve audit trail data (planned).                                                                       | ❌ Not Implemented |
+| `/genesis/ethical/visualize/{state_id}` | GET    | Obtain visualization data (planned).                                                                 | ❌ Not Implemented |
 
-**Note:** API functionality is primarily focused on the `/genesis/analyze-ethical` endpoint as part of the Phase 1 MVP. Integration testing and API polishing are the main focus for Week 5.
+**Note:** The Phase 1 MVP is complete. The `/genesis/analyze-ethical` endpoint now dynamically loads ethical policies based on the optional `policy_name` field in the request JSON. If omitted, the default policy (`policy_bias_risk_strict`) is used. Error handling for policy loading is included. Focus shifts to Week 6 (MVP Polish & Release).
 
 #### Sample MVP Request/Response - `/genesis/analyze-ethical` <a name="sample-mvp-requestresponse---genesisanalyze-ethical"></a>
 
-**Request (Example using curl):**
+**Request (Example using curl - optionally specify a policy):**
 
 ```bash
 curl --request POST \
@@ -450,21 +459,23 @@ curl --request POST \
   --header 'Content-Type: application/json' \
   --data '{"code":"import os\ndef potentially_unsafe():\n  os.system(\"echo unsafe\")"}'
 ```
+*To use a specific policy (e.g., moderate safety):* `--data '{"code":"...", "policy_name": "policy_safety_moderate"}'`
 
-**Response (Example - *Reflecting Completed Week 4 Logic*):**
+**Response (Example - Using Default Policy `policy_bias_risk_strict`):**
 ```json
 {
-  "status": "rejected", // Status determined dynamically by policy enforcement
+  "status": "rejected", // Overall status determined dynamically by policy enforcement
+  "requested_policy_name": "Strict Bias Risk Policy", // Name of the policy used (default in this case)
   "code_quality": { // Populated by CodeReviewAgent (Flake8) - Placeholder for MVP
     "output": "Flake8 analysis placeholder - Integrate CodeReviewAgent",
     "static_analysis": []
   },
   "ethical_analysis": { // Populated by EthicalGovernanceEngine (Dynamic)
-    "policy_name": "Strict Bias Risk Policy", // Name of the policy applied (default)
+    "policy_name": "Strict Bias Risk Policy", // Name from the loaded policy file
     "description": "Zero tolerance for biased language",
     "overall_status": "rejected", // Overall status from engine
     "BiasRisk": {
-      "status": "compliant", // Dynamically determined
+      "status": "compliant", // Dynamically determined (code doesn't contain strict keywords)
       "threshold": 0.1,
       "enforcement_level": 3,
       "details": "No violating keywords found."
@@ -493,23 +504,23 @@ curl --request POST \
 | Endpoint                          | Method | Status (Optimized MVP) | Description |
 | :-------------------------------- | :----- | :--------------------- | :---------- |
 | **/genesis/health**               | GET    | ✅ Working             | Basic liveness check endpoint. |
-| **/genesis/analyze-ethical**      | POST   | 🚧 **MVP Core**        | Core MVP endpoint: <br> • Flake8 Code Quality (`CodeReviewAgent` - *Basic Integration*). <br> • **Configurable** Ethics Assessment (`EthicalGovernanceEngine` - **Logic Complete, API Integ Wk 5**). <br> • Placeholder Test Generation (`TestGenAgent` - *Basic Integration*). |
+| **/genesis/analyze-ethical**      | POST   | ✅ **MVP Core**        | Core MVP endpoint: <br> • Flake8 Code Quality (`CodeReviewAgent` - *Basic Integration*). <br> • **Dynamically Configurable** Ethics Assessment (`EthicalGovernanceEngine` - **Integration Complete**). <br> • Placeholder Test Generation (`TestGenAgent` - *Basic Integration*). |
 | /genesis/solve-math               | POST   | ✅ Working (Test)      | Basic LLM integration demo. |
 | /genesis/ethical/audit/{state_id} | GET    | ❌ Not Implemented     | Future endpoint for ethics audit history. |
 | /genesis/ethical/visualize/*      | ALL    | ❌ Not Implemented     | Future endpoint for maturity visualizations. |
 
-*Example Request (using curl):*
+*Example Request (using curl with specific policy):*
 ```bash
 curl -X POST \
   http://127.0.0.1:5000/genesis/analyze-ethical \
   -H "Content-Type: application/json" \
-  -d '{"code": "def gcd(a,b): return a if b==0 else gcd(b,a%b)"}'
+  -d '{"code": "def gcd(a,b): return a if b==0 else gcd(b,a%b)", "policy_name": "policy_transparency_minimum"}'
 ```
 </details>
 
 ## Contributing <a name="contributing"></a>
-- **Focus:** Contributions should align with the **Phase 1 MVP - Optimized Roadmap (Weeks 5-6)**, primarily focusing on API integration testing, API polishing, and documentation.
-- **Good First Issues:** Look for tasks related to writing integration tests (Task 5.1) or updating documentation (Task 5.3).
+- **Focus:** Contributions should align with the **Phase 1 MVP - Optimized Roadmap (Week 6)**, primarily focusing on final code review, cleanup, internal testing preparation, and addressing critical feedback.
+- **Good First Issues:** Look for tasks related to code cleanup (Task 6.1), documentation improvements, or preparing internal release notes (Task 6.2).
 - Verify implementation details against the optimized roadmap.
 
 **Want visibility for your contributions**? Our contributor acknowledgment badge initiative will be launched in Phase 2 to recognize and highlight community contributions.
@@ -564,14 +575,14 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
 ```
 
 *   **Core Workflow Example (Code Analysis):**
-    1.  User submits code via API (`/genesis/analyze-ethical`).
+    1.  User submits code via API (`/genesis/analyze-ethical`), optionally specifying `policy_name`.
     2.  API Gateway routes request.
     3.  `Metamorphic Core` receives request.
-    4.  `Ethical Governance Layer` (`EthicalGovernanceEngine`) loads the relevant JSON policy.
+    4.  `Ethical Governance Layer` (`EthicalGovernanceEngine`) loads the requested or default JSON policy.
     5.  `Metamorphic Core` invokes `CodeReviewAgent` (Flake8) and `TestGenAgent` (placeholders).
     6.  `CodeReviewAgent` analyzes code, results stored temporarily/sent back.
     7.  `EthicalGovernanceEngine` enforces loaded policy against the code and analysis results.
-    8.  Results (Flake8 output, ethical status, placeholder tests) are aggregated by the `Metamorphic Core`.
+    8.  Results (Flake8 output, ethical status, placeholder tests, policy name used) are aggregated by the `Metamorphic Core`.
     9.  Results potentially stored in KG.
     10. Formatted JSON response returned via API Gateway.
     11. (Parallel/Async) `SecurityAgent` might trigger ZAP scan if applicable.
@@ -676,7 +687,7 @@ For project-related inquiries, please contact: tomwolfe@gitproject.devices
 
 ## Disclaimer <a name="disclaimer"></a>
 
-**This project is currently in its active MVP development phase and is not intended for production use.** Functionality is intentionally limited to the features explicitly outlined in the **Phase 1 MVP - Optimized Roadmap**. The primary focus for the remaining MVP work is **API integration testing, polishing, and documentation (Weeks 5-6)**. API endpoints and response formats may evolve. Ethical analysis and test generation capabilities are foundational and will be enhanced post-MVP.
+**This project is currently in its active MVP development phase and is not intended for production use.** Functionality is intentionally limited to the features explicitly outlined in the **Phase 1 MVP - Optimized Roadmap**. The Phase 1 MVP core functionality (dynamically configurable ethical analysis via API) is complete. The current focus for the remaining MVP work is **final code review, polishing, internal testing, and release preparation (Week 6)**. API endpoints and response formats may evolve slightly during polish. Ethical analysis and test generation capabilities are foundational and will be enhanced post-MVP.
 
 ---
 
@@ -688,7 +699,10 @@ For project-related inquiries, please contact: tomwolfe@gitproject.devices
 *   **Docker Compose Issues (Redis/ZAP):** Ensure Docker is running, check for port conflicts (`docker ps`), and examine logs (`docker-compose logs redis` or `docker-compose logs zap`). Make sure `docker-compose.yml` exists and is configured.
 *   **Python Dependency Errors:** Ensure Python 3.11+ is used and the virtual environment (`venv`) is activated. Try `pip install --upgrade pip` then `pip install -r requirements/base.txt` (and `dev.txt` if needed).
 *   **API Connection Errors:** Ensure the Flask server (`python src/api/server.py`) is running. Check the host/port (usually `http://127.0.0.1:5000`). If using Docker, ensure the container is running and ports are mapped correctly. Check firewall settings.
-*   **Ethical Policy Errors:** Ensure policy files exist in the `policies/` directory and conform to `ethical_policy_schema.json`. Check file paths used in `src/api/routes/ethical_endpoints.py` (e.g., `load_default_policy`). Verify JSON syntax.
+*   **Ethical Policy Errors (404/400):**
+    *   **404 Not Found:** If requesting a specific policy (`policy_name` in JSON), ensure the corresponding `.json` file (e.g., `policies/my_policy.json`) exists in the `policies/` directory. Check for typos in the requested `policy_name`.
+    *   **400 Bad Request:** This usually means the requested policy file exists but is invalid. Check if the JSON format is correct (use a JSON validator). Ensure the policy conforms to the `ethical_policy_schema.json` structure (check required fields, data types, etc.). Verify the `policy_name` in the request doesn't contain invalid characters (like `/`, `..`).
+*   **Ethical Policy Errors (500 - Default Policy):** If the `/genesis/health` endpoint shows `{"status": "degraded"}`, the default policy likely failed to load at startup. Check server logs (`python src/api/server.py` output) for errors related to loading `policies/policy_bias_risk_strict.json`. Ensure the file exists and is valid JSON conforming to the schema.
 
 ## Terminology Footnotes <a name="terminology-footnotes"></a>
 

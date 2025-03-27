@@ -40,7 +40,6 @@ def test_analyze_ethical_default_policy_success_structure(policies_dir):
     )
     assert response.status_code == 200
 
-    # --- Added Assertions for Response Structure ---
     response_json = response.json()
 
     # Check top-level keys expected in MVP success response
@@ -83,9 +82,8 @@ def test_analyze_ethical_default_policy_success_structure(policies_dir):
 def test_analyze_ethical_request_moderate_policy_success(policies_dir):
     """Test requesting the 'moderate' policy and verifying its application."""
     policy_name_req = "policy_safety_moderate"
-    # Code that violates strict safety (os.system) but might pass moderate (depends on exact rules)
-    # Let's use code that is compliant with moderate but maybe not strict bias
-    code_to_analyze = '"""Docstring present."""\ndef safe_ish():\n  # Contains "offensive language" which might fail strict but pass moderate\n  print("offensive language")'
+    # Code contains "offensive language" which IS flagged by the moderate policy's BiasRisk.
+    code_to_analyze = '"""Docstring present."""\ndef safe_ish():\n  # Contains "offensive language" which will fail moderate bias check\n  print("offensive language")' # Updated comment for clarity
 
     response = requests.post(
         f"{BASE_URL}/analyze-ethical",
@@ -100,11 +98,12 @@ def test_analyze_ethical_request_moderate_policy_success(policies_dir):
     with open(moderate_policy_path, 'r') as f: moderate_policy_name_actual = json.load(f)['policy_name']
     assert response_json["requested_policy_name"] == moderate_policy_name_actual
 
-    # Check status based on moderate policy rules (example: bias might pass, safety passes)
-    assert response_json["status"] == "approved" # Assuming moderate allows "offensive language"
-    assert response_json["ethical_analysis"]["BiasRisk"]["status"] == "compliant" # Moderate threshold might be higher
-    assert response_json["ethical_analysis"]["TransparencyScore"]["status"] == "compliant"
-    assert response_json["ethical_analysis"]["SafetyBoundary"]["status"] == "compliant"
+    # --- CORRECTED ASSERTIONS ---
+    # Check status based on moderate policy rules (BiasRisk fails, others pass)
+    assert response_json["status"] == "rejected" # Expect rejected because BiasRisk is violated
+    assert response_json["ethical_analysis"]["BiasRisk"]["status"] == "violation" # Moderate policy flags "offensive language"
+    assert response_json["ethical_analysis"]["TransparencyScore"]["status"] == "compliant" # Docstring is present
+    assert response_json["ethical_analysis"]["SafetyBoundary"]["status"] == "compliant" # No unsafe operations used
 
 @pytest.mark.integration
 def test_analyze_ethical_request_minimum_policy_violation(policies_dir):

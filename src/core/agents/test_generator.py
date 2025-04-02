@@ -50,7 +50,7 @@ def test_{function_name}_negative():
     # Note: Using raw string r'' for regex below to avoid escape sequence warnings.
     def _extract_function_name(self, code: str) -> str:
         """Helper to extract function name from code string."""
-        match = re.search(r'^def (\w+)', code, re.MULTILINE) # Using raw string r''
+        match = re.search(r'^def (\w+)', code, re.MULTILINE) # ENSURE raw string r'' HERE
         return match.group(1) if match else "unknown_function"
 
     def _store_tests(self, test_code: str, code_hash: int) -> str:

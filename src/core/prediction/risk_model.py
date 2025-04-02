@@ -1,154 +1,187 @@
 # File: src/core/prediction/risk_model.py
 from qiskit.circuit import ParameterVector, QuantumCircuit
-from qiskit.primitives import StatevectorSampler  # Updated to V2 primitive
+from qiskit.primitives import StatevectorSampler  # Use V2 primitive compatible with Qiskit 1.x
 from scipy.optimize import minimize # Import minimize from scipy
-from qiskit_machine_learning.neural_networks import SamplerQNN
+from qiskit_machine_learning.neural_networks import SamplerQNN # RESTORED import
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+import logging
+
+logger = logging.getLogger(__name__)
 
 class QuantumRiskPredictor:
-    """Quantum-enhanced risk prediction using modern Qiskit primitives"""
+    """
+    Quantum-enhanced risk prediction using modern Qiskit primitives.
+    Uses SamplerQNN from qiskit-machine-learning.
+    """
 
     def __init__(self, num_qubits=4):
-        self.sampler = StatevectorSampler()  # V2 primitive
+        # logger.warning("QuantumRiskPredictor initialized, but QNN functionality is disabled due to dependency incompatibility.") # Removed warning
+        self.sampler = StatevectorSampler() # Use V2 primitive
         self.num_qubits = num_qubits
         self.scaler = MinMaxScaler()
-
-        # Quantum neural network setup
-        self.qnn = self._create_qnn()
-        # self.optimizer = COBYLA(maxiter=100) # COBYLA is used via scipy.optimize.minimize
         self.optimal_weights = None # Initialize optimal_weights
 
+        # Quantum neural network setup - RESTORED
+        self.qnn = self._create_qnn()
+
     def _create_qnn(self):
-        """Create parameterized quantum circuit with V2 integration"""
+        """
+        Create parameterized quantum circuit and SamplerQNN instance. RESTORED.
+        """
+        # logger.error("Attempted to create QNN, but qiskit-machine-learning is not installed/used.") # Removed error
+        # raise NotImplementedError("QNN creation is disabled due to dependency incompatibility.") # Removed error
+        # Original code restored and adapted:
         params = ParameterVector('input', self.num_qubits)
-        feature_map = QuantumCircuit(self.num_qubits)
+        feature_map = QuantumCircuit(self.num_qubits, name="FeatureMap") # Added name
         for qubit in range(self.num_qubits):
             feature_map.h(qubit)
             feature_map.ry(params[qubit], qubit)
 
-        ansatz = QuantumCircuit(self.num_qubits)
-        # Ensure ansatz has parameters if qnn expects them
+        ansatz = QuantumCircuit(self.num_qubits, name="Ansatz") # Added name
         ansatz_params = ParameterVector('weights', self.num_qubits) # Example: Add parameters to ansatz
         for qubit in range(self.num_qubits-1):
             ansatz.cx(qubit, qubit+1)
         for qubit in range(self.num_qubits): # Example: Add rotation with weights
              ansatz.rz(ansatz_params[qubit], qubit)
 
-
         # Combine feature map and ansatz
         full_circuit = feature_map.compose(ansatz)
 
+        # SamplerQNN expects a callable for interpret function in newer versions
+        # Default interpret maps output probabilities to labels {0, 1} based on parity.
+        # Adjust if your risk prediction needs raw probabilities or different mapping.
+        def parity(x):
+             return "{:b}".format(x).count("1") % 2
+
         return SamplerQNN(
-            sampler=self.sampler,
-            circuit=full_circuit, # Use combined circuit
+            sampler=self.sampler, # Use the V2 sampler
+            circuit=full_circuit,
             input_params=feature_map.parameters,
-            weight_params=ansatz.parameters, # Use ansatz parameters as weights
-            input_gradients=True
+            weight_params=ansatz.parameters,
+            interpret=parity, # Default interpret function (maps to 0 or 1)
+            output_shape=2, # Output shape for binary classification (adjust if needed)
+            input_gradients=True # Optional: for gradient-based optimization
         )
+
 
     def train(self, historical_data: list):
-        """Train using V2-compatible approach"""
+        """
+        Training functionality using SamplerQNN. RESTORED.
+        """
+        # logger.error("Training attempted, but QNN functionality is disabled.") # Removed error
+        # raise NotImplementedError("Training is disabled due to dependency incompatibility.") # Removed error
+        # Original code restored and adapted:
         X, y = self._preprocess_data(historical_data)
+        if X.size == 0:
+             logger.warning("Training skipped: No preprocessed data available.")
+             return
 
         def cost_function(weights):
-            # Get predictions directly from QNN forward pass
-            # Ensure input X is correctly shaped if needed by QNN
+            # QNN forward pass for SamplerQNN returns probabilities for each class (shape depends on output_shape)
+            # Input X might need reshaping depending on QNN expectations
             predictions = self.qnn.forward(X, weights)
-            # Ensure predictions and y are compatible for loss calculation
-            # QNN might return probabilities, adjust loss accordingly if y is not probability
-            return np.mean((predictions - y)**2) # Simple MSE loss
+            # Assuming binary classification (output_shape=2) and y contains labels {0, 1}
+            # We need to compare predicted probabilities (e.g., prob of class 1) with labels y
+            # Example: Use probability of class 1 for loss calculation
+            prob_class_1 = predictions[:, 1] # Assuming second column is prob of class 1
+            return np.mean((prob_class_1 - y)**2) # Simple MSE loss against labels
 
-        # Use scipy.optimize.minimize with COBYLA method
         initial_weights = np.random.rand(self.qnn.num_weights)
         result = minimize(
-            fun=cost_function,
-            x0=initial_weights,
-            method='COBYLA',
-            options={'maxiter': 100}
+             fun=cost_function,
+             x0=initial_weights,
+             method='COBYLA',
+             options={'maxiter': 100}
         )
-        self.optimal_weights = result.x # Store the optimal weights found by the optimizer
+        self.optimal_weights = result.x
 
     def predict_risk(self, current_state: dict) -> float:
-        """Predict risk using V2 primitive results"""
+        """
+        Risk prediction using trained SamplerQNN. RESTORED.
+        Returns the predicted probability of the positive class (risk).
+        """
+        # logger.warning("Predict_risk called, but QNN functionality is disabled. Returning placeholder 0.0.") # Removed warning
+        # return 0.0 # Removed placeholder
+        # Original code restored and adapted:
         if self.optimal_weights is None:
             raise RuntimeError("Model has not been trained yet. Call train() first.")
 
         processed_input = self._process_current_state(current_state)
-        input_scaled = self.scaler.transform([processed_input])
+        # Ensure input has the correct shape for QNN (e.g., (1, num_features))
+        input_scaled = self.scaler.transform(np.array(processed_input).reshape(1, -1))
 
-        # Convert numpy array to scalar probability if needed
-        # QNN forward might return an array, e.g., [[prob_class_0, prob_class_1]]
-        # Adjust indexing based on QNN output format and what 'risk' represents
+        # QNN forward pass returns probabilities (e.g., shape (1, 2) for binary)
         probabilities = self.qnn.forward(input_scaled, self.optimal_weights)
 
-        # Assuming QNN output is shape (1, num_classes) or similar,
-        # and risk corresponds to the probability of the first class/state.
-        # Adjust this logic based on your specific QNN output interpretation.
-        if probabilities.ndim > 1:
-             risk_probability = probabilities[0, 0] # Example: take first element of first row
-        else:
-             risk_probability = probabilities[0] # Example: take first element if 1D array
+        # Return the probability of the "risky" class (e.g., class 1)
+        # Adjust index [0, 1] if your interpretation differs
+        risk_probability = probabilities[0, 1]
 
         return float(risk_probability)
 
+    # _preprocess_data, _process_current_state, _extract_temporal_features remain the same as in the previous response
+    # (with the fix for empty data handling in _preprocess_data)
     def _preprocess_data(self, data: list):
-        """Convert audit trails to temporal features"""
-        # Feature engineering from historical sequences
+        """Convert audit trails to temporal features (kept for potential future use)"""
         features = np.array([
             self._extract_temporal_features(seq)
             for seq in data if seq # Ensure sequence is not empty
         ])
-        # Ensure labels correspond to the filtered features
-        labels = np.array([
-            seq[-1]['risk_metrics']['composite_risk']
-            for seq in data if seq and 'risk_metrics' in seq[-1] and 'composite_risk' in seq[-1]['risk_metrics']
-        ])
+        # Ensure labels correspond to the filtered features and handle potential missing keys
+        labels = []
+        valid_features_indices = []
+        for i, seq in enumerate(data):
+             if seq and 'risk_metrics' in seq[-1] and 'composite_risk' in seq[-1]['risk_metrics']:
+                 labels.append(seq[-1]['risk_metrics']['composite_risk'])
+                 valid_features_indices.append(i)
+
+        if not valid_features_indices:
+             logger.warning("Preprocessing resulted in empty features or labels due to missing data.")
+             return np.array([]), np.array([])
+
+        # Filter features to match valid labels
+        features = features[valid_features_indices]
+        labels = np.array(labels)
+
 
         if features.size == 0 or labels.size == 0:
-             raise ValueError("Preprocessing resulted in empty features or labels. Check input data.")
+             logger.warning("Preprocessing resulted in empty features or labels.")
+             return np.array([]), np.array([])
 
-        # Ensure features and labels have the same number of samples
         if features.shape[0] != labels.shape[0]:
-            raise ValueError(f"Mismatch between number of feature samples ({features.shape[0]}) and label samples ({labels.shape[0]})")
+            # This case should ideally not happen if filtering is correct, but handle defensively
+            logger.error(f"CRITICAL: Mismatch between number of feature samples ({features.shape[0]}) and label samples ({labels.shape[0]}) after filtering.")
+            min_len = min(features.shape[0], labels.shape[0])
+            return self.scaler.fit_transform(features[:min_len]), labels[:min_len]
 
 
         return self.scaler.fit_transform(features), labels
 
     def _process_current_state(self, state: dict):
-        """Convert real-time state to model input"""
-        # Ensure the input state structure matches what _extract_temporal_features expects
-        # It expects a list of states (a sequence), so wrap the single state in a list
+        """Convert real-time state to model input (kept for potential future use)"""
         features = self._extract_temporal_features([state])
-        # Since scaler expects 2D array, reshape features if necessary or ensure _extract returns suitable shape
-        # The scaler was fit on potentially multiple features, transform expects same number.
-        # If features is 1D, reshape: features.reshape(1, -1)
-        return features # Return the extracted features directly
+        return features
 
     def _extract_temporal_features(self, sequence: list):
-        """Feature engineering from audit sequences"""
+        """Feature engineering from audit sequences (kept for potential future use)"""
         if not sequence:
-            # Return features consistent with the number of qubits/input params
-            return [0.0] * self.num_qubits # Match num_qubits
+            return [0.0] * self.num_qubits
 
-        # Ensure the last entry and its nested dictionaries/keys exist
         last_entry = sequence[-1]
         risk_metrics = last_entry.get('risk_metrics', {})
 
-        # Extract features, providing defaults if keys are missing
         bias_risk = risk_metrics.get('bias_risk', 0.0)
         safety_risk = risk_metrics.get('safety_risk', 0.0)
         transparency_score_mean = np.mean([
             e.get('risk_metrics', {}).get('transparency_score', 0.0)
-            for e in sequence if isinstance(e, dict) # Check if e is a dict
+            for e in sequence if isinstance(e, dict)
         ]) if sequence else 0.0
 
-        # Construct the feature vector - ensure it matches num_qubits
-        # Example: if num_qubits is 4, provide 4 features
         features = [
             bias_risk,
             safety_risk,
-            len(sequence) / 10.0, # Normalize sequence length (example)
+            len(sequence) / 10.0, # Example normalization
             transparency_score_mean
         ]
 

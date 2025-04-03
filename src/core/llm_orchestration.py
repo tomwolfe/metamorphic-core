@@ -71,7 +71,7 @@ class LLMOrchestrator:
             if not self.config.gemini_api_key:
                 raise RuntimeError("GEMINI_API_KEY is required for Gemini provider")
             self.client = genai.Client(api_key=self.config.gemini_api_key)
-            self.client.model = "gemini-2.0-flash-thinking-exp"
+            self.client.model = "gemini-2.5-pro-exp-03-25" # <-- UPDATED HERE
             self.client.api_key = self.config.gemini_api_key
         elif self.config.provider == LLMProvider.HUGGING_FACE:
             if not self.config.hf_api_key:
@@ -101,7 +101,7 @@ class LLMOrchestrator:
     def _gemini_generate(self, prompt: str) -> str:
         try:
             response = self.client.models.generate_content(
-                model="gemini-2.0-flash-thinking-exp",
+                model="gemini-2.5-pro-exp-03-25", # <-- UPDATED HERE
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     temperature=0.6,
@@ -281,3 +281,4 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r"\\boxed{([^}]+)}", text)
     if match:
         return match.group(1)
+    return None # Added explicit return None

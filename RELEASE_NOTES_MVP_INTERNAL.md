@@ -30,7 +30,7 @@ This Phase 1 MVP Internal Release includes the following key features:
 
 This Phase 1 MVP Internal Release has the following known issues and limitations:
 
-*   **ZAP Service (docker-compose.yml) Issue:** The ZAP service defined in `docker-compose.yml` may exit unexpectedly after startup and is **not reliably functional locally in this MVP release.**  Local ZAP-based security scans using `docker-compose up` are not currently reliable. **For security vulnerability assessment in this MVP, please rely on the automated ZAP Baseline Scan reports available in the CI pipeline runs for each Pull Request and Push to the `main` branch.** Resolution of the local ZAP service issue is planned for a future release (post-MVP).
+*   **ZAP Service (docker-compose.yml) Issue:** The ZAP service defined in `docker-compose.yml` may exit unexpectedly after startup and is **not reliably functional locally in this MVP release.**  Local ZAP-based security scans using `docker-compose up` are not currently reliable. **For security vulnerability assessment in this MVP, please rely on the automated ZAP Baseline Scan reports available in the CI pipeline runs for each Pull Request and Push to the `main` branch.** Resolution of the local ZAP service issue is planned for a future release (post-MVP). **Note: Code quality reporting via Flake8 is now verified and functional in the MVP.**
 *   **Placeholder Test Generation:** The `TestGenAgent` currently generates placeholder pytest tests only. These generated tests are intended as a basic integration point and **do not provide meaningful test coverage** for the generated code. Enhanced and intelligent test generation is planned for future iterations.
 *   **Limited API Endpoints:**  This MVP release focuses primarily on the `/genesis/analyze-ethical` API endpoint, which integrates the core ethical analysis and code quality checking functionalities.  The `/genesis/health` and `/genesis/solve-math` endpoints are included for basic testing and verification purposes. **Other API endpoints outlined in the roadmap are placeholders or are not yet implemented in this MVP.**
 *   **Performance:**  Performance optimization is an ongoing effort.  You may observe **latency, especially when using LLM-powered features** (like code analysis involving LLM calls). Performance will be a key focus for future optimization iterations.  **Note:** Code quality analysis via Flake8, however, is designed for efficiency and should provide relatively fast feedback in most cases.
@@ -87,7 +87,7 @@ To ensure the MVP effectively meets its goals and to guide our next development 
     *   Verify that the `ethical_analysis` section of the API response accurately reflects the enforcement of different policy constraints (BiasRisk, TransparencyScore, SafetyBoundary).
     *   Do policy violations result in the expected `"status": "rejected"` response?
 
-*   **Code Quality Reporting (Flake8 Integration) - Feedback Requested:** (Feedback Requested)
+*   **Code Quality Reporting (Flake8 Integration) - Feedback Requested:**
     *   **The `code_quality` section in the API response is now verified to correctly report Flake8 findings.** Please provide feedback on:
     *   Are the reported Flake8 messages clear and informative?
 

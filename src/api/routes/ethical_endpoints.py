@@ -158,4 +158,5 @@ def genesis_ethical_analysis_endpoint():
 
     except Exception as e:
         logger.error(f"Unexpected error in /analyze-ethical: {e}", exc_info=True)
+        # Ensure a 500 is returned for truly unexpected errors
         return jsonify({"status": "error", "message": "An unexpected internal server error occurred."}), 500

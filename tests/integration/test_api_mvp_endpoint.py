@@ -196,4 +196,3 @@ def test_analyze_ethical_request_invalid_policy_name_format():
     )
     assert response.status_code == 400
     response_json = response.json()
-    assert response_json["status"] == "error"

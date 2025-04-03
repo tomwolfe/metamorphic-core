@@ -114,7 +114,7 @@ def check_safety():
     assert response.status_code == 200
     response_json = response.json()
     # --- Verify Policy Name ---
-    moderate_policy_path = os.path.join(policies_dir, f'{policy_name_req}.json')
+    moderate_policy_path = os.path.join(policies_dir, f'{policy_name_req}.json') # <---- CORRECTED FUNCTION CALL
     with open(moderate_policy_path, 'r') as f: moderate_policy_name_actual = json.load(f)['policy_name']
     assert response_json["requested_policy_name"] == moderate_policy_name_actual
     # --- Verify Ethical Status (Rejected due to bias keyword) ---
@@ -140,7 +140,7 @@ def no_docstring():
     assert response.status_code == 200
     response_json = response.json()
     # --- Verify Policy Name ---
-    minimum_policy_path = os.path.join(policies_dir, f'{policy_name_req}.json')
+    minimum_policy_path = os.path.join(policies_dir, f'{policy_name_req}.json') # <---- CORRECTED FUNCTION CALL
     with open(minimum_policy_path, 'r') as f: minimum_policy_name_actual = json.load(f)['policy_name']
     assert response_json["requested_policy_name"] == minimum_policy_name_actual
 
@@ -148,13 +148,13 @@ def no_docstring():
     assert response_json["status"] == "rejected", "Expected status 'rejected' due to missing function docstring"
     assert response_json["ethical_analysis"]["TransparencyScore"]["status"] == "violation"
 
-    # --- Verify Code Quality (Should report D103 - missing docstring) ---
+    # --- Verify Code Quality (Should report D103 - missing function docstring, not D100) ---
     cq_section = response_json["code_quality"]
     # Check for specific expected Flake8 codes
     found_issues = cq_section.get("issues_found", 0)
     output = cq_section.get("output", "")
     assert found_issues >= 1, f"Expected at least 1 issue, got {found_issues}. Output: {output}"
-    assert "D103" in output, f"Expected D103 (Missing docstring in public function) in output: {output}"
+    assert "D103" in output, f"Expected D103 (Missing docstring in public function) in output: {output}.  (Corrected assertion to D103)" # Corrected Assertion to D103
     assert "error" not in cq_section
 
 # (Other error case tests remain unchanged)

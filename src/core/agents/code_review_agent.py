@@ -37,6 +37,11 @@ class CodeReviewAgent:
                     )
                     flake8_output = result_flake8.stdout.strip() # Keep output parsing
 
+                    # Enhanced debug logging - log full result object
+                    logger.debug(f"Full result_flake8 object: {result_flake8}")
+                    logger.debug(f"Flake8 raw stdout: {result_flake8.stdout}")
+                    logger.debug(f"Flake8 raw stderr: {result_flake8.stderr}")
+
                     # Return structured dict including output and parsed findings
                     return {
                         'output': flake8_output,
@@ -77,4 +82,3 @@ class CodeReviewAgent:
             'T': 'info'       # Type hints
         }
         return severity_map.get(code[0], 'info') # Default to 'info' if not in map
-

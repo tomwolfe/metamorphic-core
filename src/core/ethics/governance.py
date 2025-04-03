@@ -1,6 +1,7 @@
 # src/core/ethics/governance.py
 import os
 import json
+import ast # <--- IMPORT ast
 from datetime import datetime
 from typing import Dict, Any, Optional
 from z3 import ModelRef # Keep for potential future use, though not used in MVP logic
@@ -230,6 +231,42 @@ class EthicalGovernanceEngine:
 
         return policy
 
+    def _check_transparency(self, code: str) -> bool:
+        """
+        Checks if all functions and classes in the code have docstrings using AST.
+        Also checks for a module-level docstring if the code isn't empty.
+        Returns True if compliant, False otherwise.
+        """
+        try:
+            tree = ast.parse(code)
+            # Check module docstring
+            module_docstring = ast.get_docstring(tree)
+            if not code.strip(): # Empty code is trivially transparent (no functions/classes)
+                return True
+            if not module_docstring:
+                 # Allow missing module docstring if there are no functions/classes defined
+                 has_defs = any(isinstance(node, (ast.FunctionDef, ast.ClassDef)) for node in ast.walk(tree))
+                 if has_defs:
+                      # print("DEBUG: Missing module docstring") # Optional debug
+                      return False # Missing module docstring when functions/classes exist
+
+            # Check function/class docstrings
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                    if not ast.get_docstring(node):
+                        # print(f"DEBUG: Missing docstring for {node.name}") # Optional debug
+                        return False # Missing docstring in function or class
+            return True # All checks passed
+        except SyntaxError:
+            # If code can't be parsed, consider it non-transparent
+            # print("DEBUG: Syntax error during transparency check") # Optional debug
+            return False
+        except Exception as e:
+            # Handle other potential AST errors
+            print(f"ERROR during AST parsing for transparency: {e}") # Log unexpected errors
+            return False
+
+
     def enforce_policy(self, code: str, policy_config: Dict) -> Dict:
         """
         Enforce ethical policy rules on the given code using the loaded configuration.
@@ -263,18 +300,19 @@ class EthicalGovernanceEngine:
         }
         if bias_status == "violation": any_violation = True
 
-        # --- TransparencyScore Enforcement ---
+        # --- TransparencyScore Enforcement (Using AST Check) ---
         transparency_config = constraints_config.get("TransparencyScore", {})
         # For MVP, we stick to a simple docstring presence check. Threshold isn't used in logic yet.
         transparency_threshold = transparency_config.get("threshold") # Get threshold, default is None if missing
-        # Basic check: does the code contain a module-level or function/class docstring?
-        has_docstring = '"""' in code or "'''" in code
-        transparency_status = "compliant" if has_docstring else "violation"
+        # --- UPDATED LOGIC ---
+        is_transparent = self._check_transparency(code)
+        transparency_status = "compliant" if is_transparent else "violation"
+        # --- END UPDATE ---
         enforcement_results["TransparencyScore"] = {
             "status": transparency_status,
             "threshold": transparency_threshold,
             "enforcement_level": transparency_config.get("enforcement_level"),
-            "details": "Docstring presence check passed." if has_docstring else "No top-level or function/class docstring found."
+            "details": "Docstring presence check passed (module/functions/classes)." if is_transparent else "Missing required docstring(s) (module/function/class)."
         }
         if transparency_status == "violation": any_violation = True
 
@@ -318,4 +356,8 @@ class EthicalGovernanceEngine:
 
     def get_ethical_model_version(self) -> Dict[str, Any]:
         """Legacy method alias for backward compatibility."""
-        return self.get_ethical_health_report()
+        # Placeholder implementation
+        return {
+            "version": "ETHICAL_MODEL_MVP_v0.1.0",
+            "last_updated": datetime.utcnow().isoformat()
+        }

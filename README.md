@@ -64,7 +64,7 @@ To create an AI-driven framework that autonomously generates, maintains, and evo
 *(As of Week 6, focusing on MVP)*
 
 -   **Code Analysis**: Static analysis with **Flake8** via API (`CodeReviewAgent`). **Integrated into `/genesis/analyze-ethical`.**
--   **Security Scanning**: Automated DAST via OWASP ZAP integration (run in CI, basic agent exists).
+-   **Security Scanning**: Automated DAST via OWASP ZAP integration is **actively running in the CI pipeline** using GitHub Actions, providing baseline security checks for each code change.  **Note:** For this MVP internal release, the ZAP service in `docker-compose.yml` has a known issue and may not function as expected locally.  Please rely on the CI pipeline for verified security scan results during this MVP phase.
 -   **Ethical Assessment**: **JSON-configurable** rule-based engine (`EthicalGovernanceEngine`) capable of dynamic enforcement based on loaded policies. **API integration tested and refined.**
 -   **LLM Powered Features**: Core functionalities leverage Google Gemini and Hugging Face via `LLMOrchestrator`.
 -   **CI/CD Pipeline**: Fully automated via GitHub Actions (tests, security scans, builds).
@@ -276,6 +276,9 @@ tomwolfe@gmail.com
 *   **API Connection Errors:** Ensure the Flask server (`python src/api/server.py`) is running. Check the host/port (usually `http://127.0.0.1:5000`). If using Docker, ensure the container is running and ports are mapped correctly. Check firewall settings.
 *   **Ethical Policy Errors:** Ensure policy files exist in the `policies/` directory and conform to `ethical_policy_schema.json`. Check file paths used in `src/api/routes/ethical_endpoints.py` (e.g., `load_default_policy`). Verify JSON syntax.
 *   **Code Quality Issues Not Reported:** Ensure `flake8` is installed in your virtual environment (`pip install -r requirements/dev.txt`). Check server logs for errors related to `CodeReviewAgent` or `subprocess` calls to `flake8`. Verify the `code_quality` section exists in the API response.
+
+**Known Issues:**
+*   **ZAP Service in `docker-compose.yml`:** The ZAP service defined in `docker-compose.yml` may exit unexpectedly after startup and is not fully functional in this MVP internal release.  Local ZAP-based security scans using `docker-compose up` are not currently reliable.  **For MVP internal testing, please rely on the automated ZAP Baseline Scan results available in the CI pipeline runs for each Pull Request and Push to the `main` branch.** Resolution of the local ZAP service issue is planned for a future release (post-MVP).
 
 ## Terminology Footnotes <a name="terminology-footnotes"></a>
 

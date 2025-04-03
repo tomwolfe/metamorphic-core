@@ -14,7 +14,7 @@
 *   **Status:**
     *   Week 4 (Configurable Ethical Engine Core) **COMPLETE ✅**.
     *   Week 5 (API Integration & Testing) **COMPLETE ✅**.
-    *   **Current Focus:** **Week 6 - MVP Polish & Internal Release - PACKAGING COMPLETE**. Internal MVP Release package is prepared (tagged `v0.1.0-internal-mvp`). **Current focus is now on Week 6 - Tasks 6.3 & 6.4: Internal MVP Testing and Addressing Feedback.**
+    *   Week 6 (MVP Polish & Internal Release) **TASKS 6.1, 6.2, and 6.3 COMPLETE ✅ - Code Review, Packaging, and Internal MVP Testing (including Flake8 Integration Tests) are now completed and verified.**  Internal MVP Release package is prepared (tagged `v0.1.0-internal-mvp`). **Current focus is now on Week 6 - Task 6.4: Addressing Critical MVP Feedback.**
     *   **See:** [**ROADMAP.md**](ROADMAP.md) for the detailed Phase 1 MVP plan (Week 6 Tasks) and future iterations.
 
 ---
@@ -63,8 +63,8 @@ To create an AI-driven framework that autonomously generates, maintains, and evo
 
 *(As of Week 6, focusing on MVP)*
 
--   **Code Analysis**: Static analysis with **Flake8** via API (`CodeReviewAgent`). **Integrated into `/genesis/analyze-ethical`. Flake8 code quality analysis: fully integrated and verified (integration tests passing).**
--   **Security Scanning**: Automated DAST via OWASP ZAP integration is **actively running in the CI pipeline** using GitHub Actions, providing baseline security checks for each code change.  **Note:** For this MVP internal release, the ZAP service in `docker-compose.yml` has a known issue and may not function as expected locally.  Please rely on the CI pipeline for verified security scan results during this MVP phase.
+-   **Code Analysis**: Static analysis with **Flake8** via API (`CodeReviewAgent`). **Integrated into `/genesis/analyze-ethical`. Flake8 code quality analysis: fully integrated and verified (through integration tests).**
+-   **Security Scanning**: Automated DAST via OWASP ZAP integration is **actively running in the CI pipeline** using GitHub Actions, providing baseline security checks for each code change.  **Note:** For this MVP internal release, the ZAP service in `docker-compose.yml` has a known issue and may not function as expected locally.  Please rely on the CI pipeline for verified security scan results during this MVP phase. **However, code quality analysis via Flake8 is now verified and fully functional in the MVP.**
 -   **Ethical Assessment**: **JSON-configurable** rule-based engine (`EthicalGovernanceEngine`) capable of dynamic enforcement based on loaded policies. **API integration tested and refined.**
 
 **Note**: MVP completion requires final polish, internal testing, and addressing feedback (Week 6 tasks - see [ROADMAP.md](ROADMAP.md)).
@@ -272,8 +272,6 @@ tomwolfe@gmail.com
 *   **Code Quality Issues Not Reported:** Ensure `flake8` is installed in your virtual environment (`pip install -r requirements/dev.txt`). Check server logs for errors related to `CodeReviewAgent` or `subprocess` calls to `flake8`. Verify the `code_quality` section exists in the API response.
 
 **Known Issues:**
-*   **ZAP Service in `docker-compose.yml`:** The ZAP service defined in `docker-compose.yml` may exit unexpectedly after startup and is not fully functional in this MVP internal release.  Local ZAP-based security scans using `docker-compose up` are not currently reliable.  **For MVP internal testing, please rely on the automated ZAP Baseline Scan results available in the CI pipeline runs for each Pull Request and Push to the `main` branch.** Resolution of the local ZAP service issue is planned for a future release (post-MVP).  **Note:** Code quality analysis via Flake8, however, is now verified and fully functional in the MVP.
+*   **ZAP Service in `docker-compose.yml`:** The ZAP service defined in `docker-compose.yml` may exit unexpectedly after startup and is not fully functional in this MVP internal release.  Local ZAP-based security scans using `docker-compose up` are not currently reliable.  **For MVP internal testing, please rely on the automated ZAP Baseline Scan results available in the CI pipeline runs for each Pull Request and Push to the `main` branch.** Resolution of the local ZAP service issue is planned for a future release (post-MVP).  **Note: Code quality analysis via Flake8, however, is now verified and fully functional in the MVP.**
 
 ## Terminology Footnotes <a name="terminology-footnotes"></a>
-
-**Quantum-inspired analysis**: <a name="footnote-quantum-inspired"></a><sup>1</sup> Refers to analytical methodologies that leverage principles inspired by quantum computing (like superposition and entanglement) to explore multiple ethical risk pathways and potential system states simultaneously within the ethical assessment engine. In practical terms for this project, it involves using quantum circuit representations (simulated) to model the interplay of different ethical factors (bias, safety, transparency) and assess the overall ethical posture, drawing inspiration from quantum state exploration concepts rather than requiring actual quantum hardware at this stage.

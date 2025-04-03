@@ -71,7 +71,7 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
             *   `SpecificationAnalysisAgent`: Parses natural language/structured input into formal requirements, potentially using AST analysis and LLMs.
             *   `TestGenerationAgent`: Generates pytest tests (placeholders in MVP, meaningful tests including HIL using code/spec analysis later).
             *   `CodeGenerationAgent`: (Post-MVP) Generates code (Python, Go, Rust, JS/TS, C++) based on specs from KG/LLM Orchestrator.
-            *   `CodeReviewAgent`: Runs static analysis (**Flake8 now**; Bandit, Semgrep later). (Post-MVP) Uses LLMs for deeper semantic review.
+            *   `CodeReviewAgent`: Runs static analysis with **Flake8** for code quality. **Integrated into `/genesis/analyze-ethical` API endpoint.** (Post-MVP: Bandit, Semgrep for security SAST; LLMs for deeper semantic review).
             *   `SecurityAgent`: Orchestrates security tools (ZAP DAST now; SAST via Bandit/Semgrep later). Analyzes results, stores findings in KG.
             *   `PerformanceAnalysisAgent`: (Post-MVP) Integrates profiling tools (cProfile) and analyzes performance metrics.
             *   `FormalVerificationEngine`: Interfaces with Coq/Isabelle/Z3 to run proofs against code or specifications.

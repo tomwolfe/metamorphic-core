@@ -14,8 +14,8 @@
 *   **Status:**
     *   Week 4 (Configurable Ethical Engine Core) **COMPLETE ✅**.
     *   Week 5 (API Integration & Testing) **COMPLETE ✅**.
-*   **Current Focus:** **Week 6 - MVP Polish & Internal Release**. Final code review, cleanup (including Flake8 integration), packaging, internal testing, and addressing feedback (test fixes).
-*   **See:** [**ROADMAP.md**](ROADMAP.md) for the detailed Phase 1 MVP plan (Week 6 Tasks) and future iterations.
+    *   **Current Focus:** **Week 6 - MVP Polish & Internal Release**. Final code review, cleanup (including Flake8 integration), packaging, internal testing, and addressing feedback (test fixes). **Week 6 tasks are now nearing completion with Flake8 integration.**
+    *   **See:** [**ROADMAP.md**](ROADMAP.md) for the detailed Phase 1 MVP plan (Week 6 Tasks) and future iterations.
 
 ---
 
@@ -172,6 +172,7 @@ curl -X POST \
   -d '{"code": "def add(a, b):\n  \"\"\"Adds two numbers.\"\"\"\n  return a + b\n\nprint(add(1, 2))"}'
 ```
 Check the response for `code_quality` results alongside `ethical_analysis`.
+The `code_quality` section will now also be present in the response.
 
 ### System Requirements <a name="system-requirements"></a>
 - **Python**: 3.11+ is required for optimal performance and compatibility.
@@ -187,7 +188,7 @@ Check the response for `code_quality` results alongside `ethical_analysis`.
 | Endpoint                      | Method | Description                                                                     | Status (MVP)     |
 | :---------------------------- | :----- | :------------------------------------------------------------------------------ | :--------------- |
 | `/genesis/health`             | GET    | Check API server status. Returns `{"status": "ready"}`.                         | ✅ Working       |
-| `/genesis/analyze-ethical`    | POST   | Analyzes Python code: Configurable Ethics, **Flake8 Quality**, Placeholder Tests. | ✅ MVP Core (Polish Wk 6) |
+| `/genesis/analyze-ethical`    | POST   | Analyzes Python code: Configurable Ethics, **Flake8 Quality**, Placeholder Tests. | ✅ MVP Core (Quality) |
 | `/genesis/solve-math`         | POST   | Basic LLM integration test endpoint.                                            | ✅ Working (Test) |
 | `/genesis/ethical/audit/{state_id}`   | GET    | Retrieve audit trail data (planned).                                            | ❌ Not Implemented |
 | `/genesis/ethical/visualize/{state_id}` | GET    | Obtain visualization data (planned).                                      | ❌ Not Implemented |
@@ -235,7 +236,7 @@ curl --request POST \
       "details": "No configured unsafe operations found."
     }
   },
-  "generated_tests_placeholder": "import pytest\n# Placeholder tests - Integrate TestGenAgent" // Placeholder content
+  "generated_tests_placeholder": "import pytest\n# Placeholder tests - Integrate TestGenAgent" // Placeholder content - unchanged
 }
 ```
 

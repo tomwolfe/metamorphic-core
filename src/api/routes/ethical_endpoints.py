@@ -1,7 +1,7 @@
 # src/api/routes/ethical_endpoints.py
 from flask import Blueprint, request, jsonify
 from src.core.ethics.governance import EthicalGovernanceEngine
-from src.core.agents.code_review_agent import CodeReviewAgent # <--- IMPORT Agent
+from src.core.agents.code_review_agent import CodeReviewAgent  # Import Agent
 import os
 import logging
 from jsonschema import ValidationError, SchemaError
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # Instantiate engines/agents once if stateless or thread-safe
 ethical_governance_engine = EthicalGovernanceEngine()
-code_review_agent = CodeReviewAgent() # <--- INSTANTIATE Agent
+code_review_agent = CodeReviewAgent()  # Instantiate Agent
 
 # --- Default Policy Loading ---
 # (Keep existing default policy loading logic - unchanged)
@@ -22,19 +22,19 @@ DEFAULT_POLICY_PATH = os.path.abspath(os.path.join('policies', DEFAULT_POLICY_FI
 logger.info(f"Attempting to load default policy from: {DEFAULT_POLICY_PATH}")
 try:
     if not os.path.exists(DEFAULT_POLICY_PATH):
-         script_dir = os.path.dirname(__file__)
-         alt_path = os.path.abspath(os.path.join(script_dir, '..', '..', '..', 'policies', DEFAULT_POLICY_FILENAME))
-         logger.warning(f"Default policy not found at {DEFAULT_POLICY_PATH}, trying alternative path: {alt_path}")
-         if not os.path.exists(alt_path):
-              logger.error(f"CRITICAL: Default policy file not found at {DEFAULT_POLICY_PATH} or {alt_path}")
-              default_policy_config = None
-         else:
-              DEFAULT_POLICY_PATH = alt_path
-              default_policy_config = ethical_governance_engine.load_policy_from_json(DEFAULT_POLICY_PATH)
-              logger.info(f"Successfully loaded default policy from alternative path: {DEFAULT_POLICY_PATH} ({default_policy_config.get('policy_name')})")
+        script_dir = os.path.dirname(__file__)
+        alt_path = os.path.abspath(os.path.join(script_dir, '..', '..', '..', 'policies', DEFAULT_POLICY_FILENAME))
+        logger.warning(f"Default policy not found at {DEFAULT_POLICY_PATH}, trying alternative path: {alt_path}")
+        if not os.path.exists(alt_path):
+            logger.error(f"CRITICAL: Default policy file not found at {DEFAULT_POLICY_PATH} or {alt_path}")
+            default_policy_config = None
+        else:
+            DEFAULT_POLICY_PATH = alt_path
+            default_policy_config = ethical_governance_engine.load_policy_from_json(DEFAULT_POLICY_PATH)
+            logger.info(f"Successfully loaded default policy from alternative path: {DEFAULT_POLICY_PATH} ({default_policy_config.get('policy_name')})")
     else:
-         default_policy_config = ethical_governance_engine.load_policy_from_json(DEFAULT_POLICY_PATH)
-         logger.info(f"Successfully loaded default policy: {DEFAULT_POLICY_PATH} ({default_policy_config.get('policy_name')})")
+        default_policy_config = ethical_governance_engine.load_policy_from_json(DEFAULT_POLICY_PATH)
+        logger.info(f"Successfully loaded default policy: {DEFAULT_POLICY_PATH} ({default_policy_config.get('policy_name')})")
 except (FileNotFoundError, json.JSONDecodeError, ValidationError, SchemaError, Exception) as e:
     logger.error(f"CRITICAL: Failed to load default policy '{DEFAULT_POLICY_PATH}': {e}", exc_info=True)
     default_policy_config = None
@@ -43,8 +43,8 @@ def get_policy_config(policy_name: str = None) -> Optional[dict]:
     # (Keep existing get_policy_config logic - unchanged)
     if policy_name:
         if not policy_name.replace('_', '').isalnum():
-             logger.warning(f"Invalid characters in requested policy name: {policy_name}")
-             raise ValueError(f"Invalid policy name format: {policy_name}")
+            logger.warning(f"Invalid characters in requested policy name: {policy_name}")
+            raise ValueError(f"Invalid policy name format: {policy_name}")
         requested_policy_filename = f"{policy_name}.json"
         requested_policy_path = os.path.abspath(os.path.join('policies', requested_policy_filename))
         logger.info(f"Attempting to load requested policy: {requested_policy_path}")
@@ -61,9 +61,9 @@ def health_check():
     # (Keep existing health_check logic - unchanged)
     health_status = {"status": "ready"}
     if default_policy_config is None:
-         health_status["status"] = "degraded"
-         health_status["error"] = "Default ethical policy failed to load."
-         return jsonify(health_status), 500
+        health_status["status"] = "degraded"
+        health_status["error"] = "Default ethical policy failed to load."
+        return jsonify(health_status), 500
     return jsonify(health_status), 200
 
 @ethical_bp.route('/analyze-ethical', methods=['POST'])
@@ -87,24 +87,24 @@ def genesis_ethical_analysis_endpoint():
         try:
             current_policy = get_policy_config(policy_name)
         except FileNotFoundError:
-             logger.warning(f"Requested policy '{policy_name}' not found.")
-             return jsonify({"status": "error", "message": f"Policy '{policy_name}' not found."}), 404
+            logger.warning(f"Requested policy '{policy_name}' not found.")
+            return jsonify({"status": "error", "message": f"Policy '{policy_name}' not found."}), 404
         except (ValueError, json.JSONDecodeError, ValidationError, SchemaError) as e:
-             logger.warning(f"Requested policy '{policy_name}' is invalid: {e}")
-             return jsonify({"status": "error", "message": f"Policy '{policy_name}' is invalid: {e}"}), 400
+            logger.warning(f"Requested policy '{policy_name}' is invalid: {e}")
+            return jsonify({"status": "error", "message": f"Policy '{policy_name}' is invalid: {e}"}), 400
         except RuntimeError as e:
-             logger.error(f"Runtime error getting policy config: {e}", exc_info=True)
-             return jsonify({"status": "error", "message": str(e)}), 500
+            logger.error(f"Runtime error getting policy config: {e}", exc_info=True)
+            return jsonify({"status": "error", "message": str(e)}), 500
 
         # --- Ethical Analysis ---
         # (Keep existing ethical analysis logic - unchanged)
         try:
             ethical_analysis_results = ethical_governance_engine.enforce_policy(code, current_policy)
         except Exception as e:
-             logger.error(f"Error during ethical policy enforcement: {e}", exc_info=True)
-             return jsonify({"status": "error", "message": "Internal error during ethical analysis."}), 500
+            logger.error(f"Error during ethical policy enforcement: {e}", exc_info=True)
+            return jsonify({"status": "error", "message": "Internal error during ethical analysis."}), 500
 
-        # --- Code Quality (Flake8 via CodeReviewAgent) ---
+        # --- Code Quality Analysis (Flake8 via CodeReviewAgent) ---
         try:
             flake8_results = code_review_agent.analyze_python(code)
 
@@ -116,31 +116,37 @@ def genesis_ethical_analysis_endpoint():
             # Structure the results for the API response
             code_quality_results = {
                 "output": flake8_results.get('output', ''),
+                # --- REVISED: Use length of parsed static_analysis list ---
                 "issues_found": len(flake8_results.get('static_analysis', [])),
             }
             if 'error' in flake8_results:
                 # Log the specific error from the agent for better debugging
                 logger.error(f"CodeReviewAgent analysis failed: {flake8_results['error']}")
                 code_quality_results["error"] = f"Flake8 analysis failed: {flake8_results['error']}"
+                # Ensure issues_found reflects error state if needed
+                # If there's an error, static_analysis should be [], so len is 0.
+                # We might want to explicitly set -1 to indicate an error occurred during analysis.
+                code_quality_results["issues_found"] = -1  # Explicitly indicate error state
 
         except Exception as e:
-             # Catch potential TypeError from above or other unexpected agent errors
-             logger.error(f"Error during code quality analysis execution: {e}", exc_info=True)
-             code_quality_results = {
-                 "output": "Error during Flake8 analysis.",
-                 "issues_found": -1,
-                 "error": f"Internal error during code quality check: {str(e)}"
-             }
+            # Catch potential TypeError from above or other unexpected agent errors
+            logger.error(f"Error during code quality analysis execution: {e}", exc_info=True)
+            # Provide a structured error response for code quality
+            code_quality_results = {
+                "output": "Error during Flake8 analysis.",
+                "issues_found": -1,
+                "error": f"Internal error during code quality check: {str(e)}"
+            }
 
         # --- Test Generation (Placeholder/Integration Point) ---
         # (Keep existing placeholder - unchanged)
         generated_tests_placeholder = "import pytest\n# Placeholder tests - Integrate TestGenAgent"
 
-        # --- Determine Overall Status ---
+        # --- Determine Overall Status (Based on Ethical Analysis) ---
         # (Keep existing status logic - unchanged)
         overall_status = ethical_analysis_results.get("overall_status", "error")
 
-        # --- Construct Response ---
+        # --- Construct Response (Including Code Quality) ---
         # (Keep existing response construction - unchanged)
         response_payload = {
             "status": overall_status,
@@ -150,7 +156,7 @@ def genesis_ethical_analysis_endpoint():
             "generated_tests_placeholder": generated_tests_placeholder
         }
 
-        logger.info(f"Ethical analysis completed. Policy: '{current_policy.get('policy_name')}'. Overall Status: {overall_status}. Flake8 Issues: {code_quality_results.get('issues_found', 'N/A')}")
+        logger.info(f"Analysis completed. Policy: '{current_policy.get('policy_name')}'. Overall Status: {overall_status}. Flake8 Issues: {code_quality_results.get('issues_found', 'N/A')}")
         violation_details = {k: v['status'] for k, v in ethical_analysis_results.items() if isinstance(v, dict) and 'status' in v}
         logger.debug(f"Constraint Statuses: {violation_details}")
 
@@ -159,4 +165,4 @@ def genesis_ethical_analysis_endpoint():
     except Exception as e:
         logger.error(f"Unexpected error in /analyze-ethical: {e}", exc_info=True)
         # Ensure a 500 is returned for truly unexpected errors
-        return jsonify({"status": "error", "message": "An unexpected internal server error occurred."}), 500
+

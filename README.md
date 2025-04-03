@@ -14,7 +14,7 @@
 *   **Status:**
     *   Week 4 (Configurable Ethical Engine Core) **COMPLETE ✅**.
     *   Week 5 (API Integration & Testing) **COMPLETE ✅**.
-*   **Current Focus:** **Week 6 - MVP Polish & Internal Release**. Final code review, cleanup, packaging, internal testing, and addressing feedback.
+*   **Current Focus:** **Week 6 - MVP Polish & Internal Release**. Final code review, cleanup (including Flake8 integration), packaging, internal testing, and addressing feedback (test fixes).
 *   **See:** [**ROADMAP.md**](ROADMAP.md) for the detailed Phase 1 MVP plan (Week 6 Tasks) and future iterations.
 
 ---
@@ -54,23 +54,23 @@ To create an AI-driven framework that autonomously generates, maintains, and evo
 
 -   **Autonomous Generation:** Generate functional software applications directly from natural language or structured specifications.
 -   **Ethical Governance:** Integrate and enforce **configurable** ethical policies throughout the development lifecycle.
--   **Automated Quality & Security:** Implement continuous, automated testing (unit, integration, HIL), code review (style, logic, security vulnerabilities), and **formal verification**.
+-   **Automated Quality & Security:** Implement continuous, automated testing (unit, integration, HIL), code review (style via **Flake8**, logic, security vulnerabilities), and **formal verification**.
 -   **Self-Improvement:** Enable the framework to learn from analysis results, user feedback, and performance metrics to enhance its generation, analysis, and ethical enforcement capabilities.
 
 *(For the full detailed vision and architecture, see [**SPECIFICATION.md**](SPECIFICATION.md))*
 
 ## Key Highlights of Current Capabilities <a name="key-highlights-of-current-capabilities"></a>
 
-*(As of end of Week 5, focusing on MVP)*
+*(As of Week 6, focusing on MVP)*
 
--   **Code Analysis**: Static analysis with Flake8 via API (`CodeReviewAgent`).
--   **Security Scanning**: Automated DAST via OWASP ZAP integration.
--   **Ethical Assessment**: **JSON-configurable** rule-based engine (`EthicalGovernanceEngine`) capable of dynamic enforcement based on loaded policies. **API integration tested.**
+-   **Code Analysis**: Static analysis with **Flake8** via API (`CodeReviewAgent`). **Integrated into `/genesis/analyze-ethical`.**
+-   **Security Scanning**: Automated DAST via OWASP ZAP integration (run in CI, basic agent exists).
+-   **Ethical Assessment**: **JSON-configurable** rule-based engine (`EthicalGovernanceEngine`) capable of dynamic enforcement based on loaded policies. **API integration tested and refined.**
 -   **LLM Powered Features**: Core functionalities leverage Google Gemini and Hugging Face via `LLMOrchestrator`.
 -   **CI/CD Pipeline**: Fully automated via GitHub Actions (tests, security scans, builds).
--   **Knowledge Graph Backbone**: Operational KG for system knowledge.
+-   **Knowledge Graph Backbone**: Operational KG for system knowledge (basic usage).
 -   **Test Generation (Placeholder):** `TestGenAgent` generates placeholder pytest code.
--   **API Endpoint (`/genesis/analyze-ethical`):** Core functionality integrated and verified through integration tests. Error handling refined.
+-   **API Endpoint (`/genesis/analyze-ethical`):** Core functionality (Ethics + **Flake8 Quality**) integrated and verified through integration tests. Error handling refined.
 
 **Note**: MVP completion requires final polish, internal testing, and addressing feedback (Week 6 tasks - see [ROADMAP.md](ROADMAP.md)).
 
@@ -102,7 +102,7 @@ To illustrate how MSGE is intended to work on an ambitious, high-value project, 
 
 **5. Validation (Iterative Loop with Human Oversight Potential):**
 *   Generated code undergoes rigorous checks against the *enhanced* requirements. This is a cyclical feedback loop.
-*   **Checks:** `CodeReviewAgent` (quality), `EthicalGovernanceEngine` (safety/privacy policies), `SecurityAgent` (DAST, SAST, dependencies, security policy), `TestGenerationAgent` (unit, integration, **Hardware-in-the-Loop (HIL)** simulation tests), `FormalVerificationEngine` (proofs for critical logic like EPM safety).
+*   **Checks:** `CodeReviewAgent` (**Flake8 quality**), `EthicalGovernanceEngine` (safety/privacy policies), `SecurityAgent` (DAST, SAST, dependencies, security policy), `TestGenerationAgent` (unit, integration, **Hardware-in-the-Loop (HIL)** simulation tests), `FormalVerificationEngine` (proofs for critical logic like EPM safety).
 *   **Feedback & Regeneration:** Validation results are fed back. If failures occur, the `LLMOrchestrator` directs `CodeGenerationAgent` to fix the specific issues. The LLM uses the direct feedback *and may query the KG for context on similar past fixes or relevant design patterns* to generate corrected code. The corrected code then re-enters the validation step. **This loop repeats until the generated code passes all configured checks.**
 *   **Human Oversight Point (Optional):** For critical failures (e.g., complex security vulnerability, failed safety proof, persistent ethical violation), the system could flag the issue for human review before attempting further automated regeneration.
 
@@ -126,7 +126,7 @@ This example demonstrates MSGE's goal: transforming a detailed, policy-rich spec
 2.  **Refinement**: AI clarifies requirements (`SpecificationAnalysisAgent`).
 3.  **Design**: AI generates software architecture (stored in KG).
 4.  **Generation**: `CodeGenerationAgent` produces code (Python, Go, Rust, JS/TS, C++) using LLMs managed by `LLMOrchestrator`.
-5.  **Validation (Iterative Loop)**: Code Quality (`CodeReviewAgent`), Ethical Assessment (`EthicalGovernanceEngine`), Security Scans (`SecurityAgent`), Testing (`TestGenAgent` - Unit, Integration, HIL), Formal Verification (`FormalVerificationEngine`). Feedback drives regeneration.
+5.  **Validation (Iterative Loop)**: Code Quality (`CodeReviewAgent` - **Flake8**), Ethical Assessment (`EthicalGovernanceEngine`), Security Scans (`SecurityAgent`), Testing (`TestGenAgent` - Unit, Integration, HIL), Formal Verification (`FormalVerificationEngine`). Feedback drives regeneration.
 6.  **Integration**: Validated code integrated via Git; CI/CD pipeline runs checks.
 7.  **Improvement**: `ContinuousLearningCore` analyzes performance/feedback to adapt agents/processes.
 
@@ -153,7 +153,7 @@ This example demonstrates MSGE's goal: transforming a detailed, policy-rich spec
     ```bash
     pip install --upgrade pip
     pip install -r requirements/base.txt
-    # pip install -r requirements/dev.txt # Optional for dev
+    pip install -r requirements/dev.txt # Required for Flake8 used by CodeReviewAgent
     ```
 
 ### Running the API Server <a name="running_the_api_server"></a>
@@ -171,6 +171,7 @@ curl -X POST \
   -H "Content-Type: application/json" \
   -d '{"code": "def add(a, b):\n  \"\"\"Adds two numbers.\"\"\"\n  return a + b\n\nprint(add(1, 2))"}'
 ```
+Check the response for `code_quality` results alongside `ethical_analysis`.
 
 ### System Requirements <a name="system-requirements"></a>
 - **Python**: 3.11+ is required for optimal performance and compatibility.
@@ -186,54 +187,55 @@ curl -X POST \
 | Endpoint                      | Method | Description                                                                     | Status (MVP)     |
 | :---------------------------- | :----- | :------------------------------------------------------------------------------ | :--------------- |
 | `/genesis/health`             | GET    | Check API server status. Returns `{"status": "ready"}`.                         | ✅ Working       |
-| `/genesis/analyze-ethical`    | POST   | Analyzes Python code: Configurable Ethics, Flake8 Quality, Placeholder Tests. | ✅ MVP Core (Polish Wk 6) |
+| `/genesis/analyze-ethical`    | POST   | Analyzes Python code: Configurable Ethics, **Flake8 Quality**, Placeholder Tests. | ✅ MVP Core (Polish Wk 6) |
 | `/genesis/solve-math`         | POST   | Basic LLM integration test endpoint.                                            | ✅ Working (Test) |
 | `/genesis/ethical/audit/{state_id}`   | GET    | Retrieve audit trail data (planned).                                            | ❌ Not Implemented |
 | `/genesis/ethical/visualize/{state_id}` | GET    | Obtain visualization data (planned).                                      | ❌ Not Implemented |
 
 **Sample MVP Request/Response - `/genesis/analyze-ethical`**
 
-**Request (Example using curl):**
+**Request (Example using curl for code with Flake8 issues):**
 
 ```bash
 curl --request POST \
   --url http://127.0.0.1:5000/genesis/analyze-ethical \
   --header 'Content-Type: application/json' \
-  --data '{"code": "def add(a, b):\n  \"\"\"Adds two numbers.\"\"\"\n  # TODO: Add type hints\n  return a + b\n\nprint(add(1, 2))"}'
+  --data '{"code": "import os # F401\ndef add(a, b):\n  \"\"\"Adds two numbers.\"\"\"\n  # TODO: Add type hints\n  return a + b\n\nprint(add(1, 2))"}'
 ```
 
-**Response (Example - *Reflecting Polished Post-Week 5 State*):**
+**Response (Example - *Reflecting Polished Post-Week 6 State*):**
 ```json
 {
-  "status": "compliant", // Status determined dynamically by policy enforcement
+  "status": "approved", // Status determined dynamically by policy enforcement (assuming code is ethically compliant)
+  "requested_policy_name": "Strict Bias Risk Policy", // Example policy name used (default)
   "code_quality": { // Populated by CodeReviewAgent (Flake8)
-    "output": "src/submitted_code.py:3:3: W291 trailing whitespace", // Example Flake8 finding
-    "issues_found": 1
+    "output": "/path/to/tempfile.py:1:1: F401 'os' imported but unused", // Example Flake8 finding
+    "issues_found": 1 // Count of Flake8 issues
   },
   "ethical_analysis": { // Populated by EthicalGovernanceEngine (Dynamic)
-    "policy_name": "Default Balanced Policy", // Example policy name
-    "description": "Balanced approach to bias, transparency, and safety.",
-    "overall_status": "compliant", // Overall status from engine based on policy rules
+    "policy_name": "Strict Bias Risk Policy", // Actual policy name used
+    "description": "Zero tolerance for biased language",
+    "overall_status": "approved", // Overall status from engine based on policy rules
     "BiasRisk": {
       "status": "compliant",
-      "threshold": 0.2,
-      "enforcement_level": 2,
+      "threshold": 0.1,
+      "enforcement_level": 3,
       "details": "No violating keywords found."
     },
     "TransparencyScore": {
       "status": "compliant", // Docstring present
       "threshold": 0.5,
       "enforcement_level": 2,
-      "details": "Docstring found for function 'add'."
+      "details": "Docstring presence check passed (module/functions/classes)."
     },
     "SafetyBoundary": {
       "status": "compliant", // No obviously unsafe operations
       "threshold": 0.8,
       "enforcement_level": 2,
-      "details": "No known unsafe operations detected."
+      "details": "No configured unsafe operations found."
     }
   },
-  "generated_tests_placeholder": "import pytest\n\ndef test_add():\n    assert add(1, 2) == 3\n    assert add(-1, 1) == 0\n# Placeholder tests - Integrate TestGenAgent" // Placeholder content
+  "generated_tests_placeholder": "import pytest\n# Placeholder tests - Integrate TestGenAgent" // Placeholder content
 }
 ```
 
@@ -269,9 +271,10 @@ tomwolfe@gmail.com
 
 *   **LLM API Key Errors:** Verify API keys in `.env` and the `LLM_PROVIDER` setting. Ensure keys are valid and active. Check for typos.
 *   **Docker Compose Issues (Redis/ZAP):** Ensure Docker is running, check for port conflicts (`docker ps`), and examine logs (`docker-compose logs redis` or `docker-compose logs zap`). Make sure `docker-compose.yml` exists and is configured.
-*   **Python Dependency Errors:** Ensure Python 3.11+ is used and the virtual environment (`venv`) is activated. Try `pip install --upgrade pip` then `pip install -r requirements/base.txt` (and `dev.txt` if needed).
+*   **Python Dependency Errors:** Ensure Python 3.11+ is used and the virtual environment (`venv`) is activated. Try `pip install --upgrade pip` then `pip install -r requirements/base.txt -r requirements/dev.txt`. Ensure `flake8` is installed (`dev.txt`).
 *   **API Connection Errors:** Ensure the Flask server (`python src/api/server.py`) is running. Check the host/port (usually `http://127.0.0.1:5000`). If using Docker, ensure the container is running and ports are mapped correctly. Check firewall settings.
 *   **Ethical Policy Errors:** Ensure policy files exist in the `policies/` directory and conform to `ethical_policy_schema.json`. Check file paths used in `src/api/routes/ethical_endpoints.py` (e.g., `load_default_policy`). Verify JSON syntax.
+*   **Code Quality Issues Not Reported:** Ensure `flake8` is installed in your virtual environment (`pip install -r requirements/dev.txt`). Check server logs for errors related to `CodeReviewAgent` or `subprocess` calls to `flake8`. Verify the `code_quality` section exists in the API response.
 
 ## Terminology Footnotes <a name="terminology-footnotes"></a>
 

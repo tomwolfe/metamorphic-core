@@ -48,7 +48,7 @@ A functional API endpoint (`/genesis/analyze-ethical`) capable of:
 *   **[✅] Task 5.3 (P3 - Docs - Concurrent): Update README & Create Separate Docs**
 
 ##### Week 6: MVP Polish & Internal Release - *Deliver & Iterate* <a name="week-6-mvp-polish--internal-release---deliver--iterate"></a> - **CURRENT FOCUS**
-*   **(Active) Task 6.1 (P1 - Quality): Final Code Review & Cleanup:** Review all MVP code. *(Self-Bootstrapping: Run `CodeReviewAgent` (Flake8) and address issues). **Integrate `CodeReviewAgent` into API endpoint.** *
+*   **(✅) Task 6.1 (P1 - Quality): Final Code Review & Cleanup: **COMPLETE ✅**  (Flake8 Integration Done). Review all MVP code. *(Self-Bootstrapping: Run `CodeReviewAgent` (Flake8) and address issues). *
 *   **(Active) Task 6.2 (P1 - Release): Prepare MVP Internal Release Package:** Tag code, verify Docker build, write internal release notes.
 *   **(Active) Task 6.3 (P2 - Testing): Conduct Internal MVP Testing:** Distribute MVP package internally, gather feedback. **Update/Fix integration tests for Flake8 output.**
 *   **(Active) Task 6.4 (P2 - Polish): Address Critical MVP Feedback:** Fix critical bugs/usability issues found in internal testing (e.g., test failures, logic errors).
@@ -74,7 +74,7 @@ gantt
     Task 5.3 Docs Update              :done, 2025-04-07, 3d
 
     section Week 6: Release & Polish (Apr 14 - Apr 18)
-    Task 6.1 Code Review & Flake8 Integ :active, 2025-04-14, 2d
+    Task 6.1 Code Review & Flake8 Integ :done, 2025-04-14, 2d
     Task 6.2 Prep Release               :active, 2025-04-15, 1d
     Task 6.3 Internal Testing & Test Fixes:active, 2025-04-16, 2d
     Task 6.4 Address Feedback           :active, 2025-04-17, 2d

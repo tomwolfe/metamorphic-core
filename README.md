@@ -14,7 +14,7 @@
 *   **Status:**
     *   Week 4 (Configurable Ethical Engine Core) **COMPLETE ✅**.
     *   Week 5 (API Integration & Testing) **COMPLETE ✅**.
-    *   **Current Focus:** **Week 6 - MVP Polish & Internal Release**. Final code review, cleanup (including Flake8 integration), packaging, internal testing, and addressing feedback (test fixes). **Week 6 tasks are now nearing completion with Flake8 integration.**
+    *   **Current Focus:** **Week 6 - MVP Polish & Internal Release - PACKAGING COMPLETE**. Internal MVP Release package is prepared (tagged `v0.1.0-internal-mvp`). **Current focus is now on Week 6 - Tasks 6.3 & 6.4: Internal MVP Testing and Addressing Feedback.**
     *   **See:** [**ROADMAP.md**](ROADMAP.md) for the detailed Phase 1 MVP plan (Week 6 Tasks) and future iterations.
 
 ---
@@ -118,8 +118,6 @@ To illustrate how MSGE is intended to work on an ambitious, high-value project, 
 *   **Software Artifacts:** Ready-to-deploy Cloud Backend code, ready-to-flash enhanced ESP32 Firmware binary, comprehensive test suites (including HIL), configuration/policy files, formal verification artifacts.
 *   **MSGE Reports (Evidence):** Ethical Compliance Report (vs updated policies), Security Analysis Report, Test Coverage & HIL Report (validating enhanced features), Formal Verification Certificate.
 
-This example demonstrates MSGE's goal: transforming a detailed, policy-rich specification into functional, validated, and evidence-backed software components for complex systems.
-
 ## Envisioned Conceptual Workflow <a name="envisioned-conceptual-workflow"></a>
 
 1.  **Input**: High-level software description + detailed policies/constraints.
@@ -168,7 +166,7 @@ Follow steps 1-5 under Installation, then run the server (above). Test the MVP e
 ```bash
 curl -X POST \
   http://127.0.0.1:5000/genesis/analyze-ethical \
-  -H "Content-Type: application/json" \
+  -H "Content-Type": "application/json" \
   -d '{"code": "def add(a, b):\n  \"\"\"Adds two numbers.\"\"\"\n  return a + b\n\nprint(add(1, 2))"}'
 ```
 Check the response for `code_quality` results alongside `ethical_analysis`.

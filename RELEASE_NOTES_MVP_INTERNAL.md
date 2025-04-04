@@ -19,7 +19,7 @@ This Phase 1 MVP Internal Release includes the following key features:
 
 *   **Code Analysis**: Static analysis with **Flake8** via API (`CodeReviewAgent`). **Integrated into `/genesis/analyze-ethical`. Flake8 code quality analysis is now fully integrated and verified with passing integration tests.**
 *   **Security Scanning**: Automated DAST via OWASP ZAP integration is **actively running in the CI pipeline** using GitHub Actions, providing baseline security checks for each code change.  **Note:** For this MVP internal release, the ZAP service in `docker-compose.yml` has a known issue and may not function as expected locally.  Please rely on the CI pipeline for verified security scan results during this MVP phase.
-*   **Ethical Assessment**: **JSON-configurable** rule-based engine (`EthicalGovernanceEngine`) capable of dynamic enforcement based on loaded policies. **API integration tested and refined.**
+*   **Ethical Assessment**: **JSON-configurable** rule-based engine (`EthicalGovernanceEngine`) capable of dynamic enforcement of loaded policies. **API integration tested and refined.**
 *   **LLM Powered Features**: Core functionalities leverage Google Gemini and Hugging Face via `LLMOrchestrator`.
 *   **CI/CD Pipeline**: Fully automated via GitHub Actions (tests, security scans, builds).
 *   **Knowledge Graph Backbone**: Operational KG for system knowledge (basic usage).
@@ -27,6 +27,12 @@ This Phase 1 MVP Internal Release includes the following key features:
 *   **API Endpoint (`/genesis/analyze-ethical`):** Core functionality (Ethics + **Flake8 Quality**) integrated and verified through integration tests. Error handling refined.
 
 **3. Known Issues and Limitations (MVP Scope) - Updated**
+
+**Important Note Regarding "Commented Out Code" and "Skipped Tests" for MVP:**
+
+To achieve the Phase 1 MVP within the target timeframe, certain non-essential features and complex test scenarios were intentionally *commented out* in the code or *skipped* in pytest (using `pytest.mark.skip(reason="Temporarily skipping...")`). This was a strategic decision to focus development efforts on the core MVP functionality.
+
+**Phase 2 Iteration 1 (Week 7 and beyond) will prioritize reviewing, uncommenting, re-integrating, and fully testing these intentionally simplified elements.** This includes features like Bandit SAST in `CodeReviewAgent`, more advanced test generation logic in `TestGenAgent`, and related unit/integration tests.
 
 This Phase 1 MVP Internal Release has the following known issues and limitations:
 
@@ -81,14 +87,14 @@ To ensure the MVP effectively meets its goals and to guide our next development 
     *   Does it accurately report code quality issues using Flake8 in the `code_quality` section of the API response?
     *   Are the API responses (both success and error cases) well-structured and easy to understand?
 
-*   **Dynamic Policy Enforcement (Verified):**
+*   **Dynamic Policy Enforcement (Functionality Verified):**
     *   Does the Ethical Governance Engine dynamically enforce the loaded JSON policies?
     *   Test different policies (e.g., `policy_bias_risk_strict.json`, `policy_safety_moderate.json`, `policy_transparency_minimum.json`) by specifying the `policy_name` parameter in API requests.
     *   Verify that the `ethical_analysis` section of the API response accurately reflects the enforcement of different policy constraints (BiasRisk, TransparencyScore, SafetyBoundary).
     *   Do policy violations result in the expected `"status": "rejected"` response?
 
 *   **Code Quality Reporting (Flake8 Integration) - Feedback Requested:**
-    *   **The `code_quality` section in the API response is now verified to correctly report Flake8 findings.** Please provide feedback on:
+    *   **Code Quality Reporting via Flake8 (Functionality Verified): The `code_quality` section in the API response is now verified to correctly report Flake8 findings.** Please provide feedback on:
     *   Are the reported Flake8 messages clear and informative?
 
 **Priority 2: Usability & General Impressions**

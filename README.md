@@ -1,6 +1,6 @@
 # Metamorphic Software Genesis Ecosystem 🚀
 
-[![CI Status](https://github.com/yourusername/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/metamorphic-core/actions/workflows/ci.yml)
+[![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/metamorphic-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
 [![Roadmap Status](https://img.shields.io/badge/Roadmap-See_ROADMAP.md_for_Phase_2_and_Beyond-yellow)](ROADMAP.md)
 

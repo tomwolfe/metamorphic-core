@@ -8,15 +8,17 @@
 
 ---
 
-**🎯 CURRENT FOCUS:**
+**🎯 CURRENT FOCUS: PHASE 2 ITERATION 1 - ENHANCEMENTS & FEATURE EXPANSION (Weeks 7-9)**
 
-*   **Goal:** Move to Phase 2 Development - Enhancements & Feature Expansion (Starting Week 7 - Late April 2025).
+*   **Goal:** Begin Phase 2 Iteration 1 Development - Enhancements & Feature Expansion (Starting Week 7 - Late April 2025). See [**ROADMAP.md - Phase 2 Iteration 1**](ROADMAP.md#roadmap-phase-2---iteration-1-weeks-7-9) for detailed tasks.
+*   **Key Objectives for Phase 2 Iteration 1:**
+    *   **Enhanced Test Generation:** Re-integrate and expand MVP test generation logic (see [ROADMAP.md - Enhanced Test Generation](ROADMAP.md#roadmap-phase-2---iteration-1-weeks-7-9)).
+    *   **Security Integration:** Integrate ZAP security scans into the `/genesis/analyze-ethical` API endpoint (see [ROADMAP.md - Security Integration](ROADMAP.md#roadmap-phase-2---iteration-1-weeks-7-9)).
+    *   **API Documentation:** Detailed documentation for the `/genesis/analyze-ethical` API endpoint (see [ROADMAP.md - Documentation & Refactoring](ROADMAP.md#roadmap-phase-2---iteration-1-weeks-7-9)).
 *   **Status:**
-    *   Week 4 (Configurable Ethical Engine Core) **COMPLETE ✅**.
-    *   Week 5 (API Integration & Testing) **COMPLETE ✅**.
-    *   Week 6 (MVP Polish & Internal Release) **TASKS 6.1, 6.2, 6.3, and 6.4 COMPLETE ✅ - Code Review, Packaging, Internal MVP Testing, and Addressing Feedback (Proactive Polish) are now completed and verified.**  Internal MVP Release package is prepared (tagged `v0.1.0-internal-mvp`). **Phase 1 MVP IS NOW COMPLETE ✅. Moving to Phase 2 Development in Week 7.**
-    *   **See:** [**ROADMAP.md**](ROADMAP.md) for the detailed Phase 1 MVP plan (Week 6 Tasks) and future iterations.
-    *   **NEXT PHASE FOCUS (Week 7+):** See [**ROADMAP.md**](ROADMAP.md) for initial Phase 2 planning. **Priorities for Phase 2 (Weeks 7-9) will be refined based on initial MVP internal testing feedback.**
+    *   Phase 1 MVP IS NOW COMPLETE ✅. Moving to Phase 2 Iteration 1 Development in Week 7.
+    *   **See:** [**ROADMAP.md**](ROADMAP.md) for the detailed Phase 1 MVP plan (Week 6 Tasks) and future Phase 2 Iteration 1 planning.
+    *   **NEXT PHASE FOCUS (Week 7+):** See [**ROADMAP.md - Phase 2 Iteration 1**](ROADMAP.md#roadmap-phase-2---iteration-1-weeks-7-9) for initial Phase 2 Iteration 1 planning. **Priorities for Phase 2 Iteration 1 are refined based on initial MVP internal testing feedback.**  Refer to the [**SPECIFICATION.md - Phase 2 Iteration 1 Focused Specification Summary**](SPECIFICATION.md#phase-2-iteration-1-focused-specification-summary) for a concise overview of the specification elements relevant to this iteration.
 
 ---
 
@@ -278,3 +280,5 @@ tomwolfe@gmail.com
 *   **ZAP Service (Local `docker-compose.yml`):** The ZAP service in `docker-compose.yml` may exit unexpectedly and is not reliably functional for local ZAP-based security scans in this MVP internal release.  **For MVP security vulnerability assessment, please rely on CI pipeline ZAP Baseline Scan reports.** Local ZAP scans are not reliable for MVP internal testing. Resolution of the local ZAP service issue is planned for a future release. **Important Note: Code quality analysis via Flake8 is verified and fully functional in the MVP for both local and CI pipeline use.**
 
 ## Terminology Footnotes <a name="terminology-footnotes"></a>
+
+*(Terminology footnotes content - unchanged)*

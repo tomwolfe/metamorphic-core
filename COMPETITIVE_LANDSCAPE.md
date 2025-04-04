@@ -63,3 +63,4 @@ Understanding the competitive terrain is crucial. While no single entity perfect
 3.  **Showcase Long-Context & Complexity Handling:** Demonstrate capability beyond simple functions or apps.
 4.  **Build a Strong Open-Source Community:** Leverage the AGPLv3 license and community focus as a strategic asset.
 5.  **Target High-Value Domains:** Focus on industries where quality, security, ethics, and verifiability are paramount (e.g., finance, healthcare, critical infrastructure, aerospace, autonomous systems).
+6.  **Highlight AI-Driven Process Optimization as a Differentiator:**  Emphasize that Metamorphic is not just an AI-augmented *code generator*, but an AI-driven *software genesis ecosystem* that continuously optimizes its *own development processes* using AI-powered planning, risk assessment, and iterative refinement. This is a unique and powerful differentiator compared to tools focused solely on code completion or function generation.

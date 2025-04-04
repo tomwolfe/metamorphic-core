@@ -9,8 +9,8 @@
 ---
 
 **🎯 CURRENT FOCUS:**
-    **Phase 1 MVP is now COMPLETE ✅.  Moving into Phase 2 Development - See [ROADMAP.md](ROADMAP.md) for Phase 2 Iteration 1 plan and beyond.**
 
+*   **Goal:** Move to Phase 2 Development - Enhancements & Feature Expansion (Starting Week 7 - Late April 2025).
 *   **Status:**
     *   Week 4 (Configurable Ethical Engine Core) **COMPLETE ✅**.
     *   Week 5 (API Integration & Testing) **COMPLETE ✅**.
@@ -56,6 +56,7 @@ To create an AI-driven framework that autonomously generates, maintains, and evo
 -   **Autonomous Generation:** Generate functional software applications directly from natural language or structured specifications.
 -   **Ethical Governance:** Integrate and enforce **configurable** ethical policies throughout the development lifecycle.
 -   **Automated Quality & Security:** Implement continuous, automated testing (unit, integration, HIL), code review (style via **Flake8**, logic, security vulnerabilities), and **formal verification**.
+-   **Self-Improving Development Process:** Continuously refine and optimize its own development processes using AI-driven planning and risk assessment.
 -   **Self-Improvement:** Enable the framework to learn from analysis results, user feedback, and performance metrics to enhance its generation, analysis, and ethical enforcement capabilities.
 
 *(For the full detailed vision and architecture, see [**SPECIFICATION.md**](SPECIFICATION.md))*
@@ -68,6 +69,7 @@ To create an AI-driven framework that autonomously generates, maintains, and evo
 -   **Security Scanning**: Automated DAST via OWASP ZAP integration is **actively running in the CI pipeline** using GitHub Actions, providing baseline security checks for each code change.  **Note:** For this MVP internal release, the ZAP service in `docker-compose.yml` has a known issue and may not function as expected locally.  Please rely on the CI pipeline for verified security scan results during this MVP phase. **However, code quality analysis via Flake8 is now verified and fully functional in the MVP.**
 -   **Ethical Assessment**: **JSON-configurable** rule-based engine (`EthicalGovernanceEngine`) capable of dynamic enforcement based on loaded policies. **API integration tested and refined.**
 
+**Note:** For MVP release, certain features (like Bandit SAST in `CodeReviewAgent`, advanced `TestGenAgent` logic) and some tests were intentionally *commented out* or *skipped* to prioritize core functionality and meet MVP release timelines. Phase 2 will focus on re-integrating these elements. See [**ROADMAP.md**](ROADMAP.md) for details.
 **Note**: MVP completion requires final polish, internal testing, and addressing feedback (Week 6 tasks - see [ROADMAP.md](ROADMAP.md)).
 
 ## Showcase: Ideal Project Workflow Example <a name="showcase-ideal-project-workflow-example"></a>
@@ -237,7 +239,7 @@ curl --request POST \
 
 ## Contributing <a name="contributing"></a>
 
-We welcome contributions! Please align with the current **Phase 2 Iteration 1 focus** outlined in [**ROADMAP.md**](ROADMAP.md) (primarily Week 7-9 tasks: Enhanced Test Generation, Security Agent API Integration, and API Documentation).
+We welcome contributions! Please align with the current **Phase 2 Iteration 1 focus** outlined in [**ROADMAP.md**](ROADMAP.md) (primarily Week 7-9 tasks: **Re-integrating MVP test code**, Enhanced Test Generation, Security Agent API Integration, and API Documentation).
 
 See `CONTRIBUTING.md` (to be created) for detailed guidelines. Look for issues related to Phase 2 Iteration 1 tasks.
 

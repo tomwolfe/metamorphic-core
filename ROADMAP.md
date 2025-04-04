@@ -60,34 +60,72 @@ A functional API endpoint (`/genesis/analyze-ethical`) capable of:
    * Re-integrate and expand MVP test generation logic
    * Tasks include uncommenting code from `src/core/agents/test_generator.py` and re-enabling skipped tests
    * Target: Basic intelligent test generation for Python functions
-   * Risk mitigation for code re-integration
+   * **Estimated Time: 4 days + 0.5 day buffer**
+   * **Dependency:**  None (can be started independently)
+   * **Risk:** Code re-integration might introduce unexpected bugs; Logic might be more complex than anticipated.
+   * **Mitigation:** Incremental re-integration, thorough unit and integration tests (add specific tests for uncommented code), code review after re-integration. **Start by writing unit tests for re-integrated logic *before* uncommenting code to proactively mitigate integration issues. Consider a brief pair programming session for re-integration to share knowledge.**
+   * **DoD:**
+      * Uncommented `TestGeneratorAgent` code successfully re-integrated without breaking existing functionality.
+      * Skipped tests in `tests/test_test_generator.py` re-enabled and passing.
+      * Test generation agent generates at least **3 basic test cases** for a sample Python function (e.g., `def square(n): return n*n`) that pass Flake8.
+      * New unit tests added for re-integrated logic in `tests/test_test_generator.py`.
 
 2. **Security Integration**:
    * Integrate ZAP security scans into `/genesis/analyze-ethical` endpoint
    * API now includes `"security_analysis"` section with ZAP findings
    * Synchronous scan implementation first, with ASYNC in Phase 2.2
    * CI pipeline dependency considerations
+   * **Estimated Time: 5 days + 0.5 day buffer**
+   * **Dependency:**  Requires `/genesis/analyze-ethical` endpoint to be functional (implicitly depends on MVP being stable).
+   * **Risk:** ZAP integration with Flask API might be complex; Potential performance impact of synchronous scans; ZAP service reliability issues (as known from MVP).
+   * **Mitigation:** Start with basic synchronous integration; Focus on API endpoint integration first, then performance optimization; Leverage CI pipeline ZAP for initial testing and reliability verification; Investigate and address local ZAP service issues if time permits (or defer to Iteration 2). **Before starting API integration, create a simple mock ZAP service for local testing to decouple API integration from real ZAP service issues. Consider a collaborative review session for the API integration design.**
+   * **DoD:**
+      * `/genesis/analyze-ethical` endpoint successfully triggers ZAP baseline scan **against `http://localhost:5000/genesis/health` endpoint for initial integration test.**
+      * API response includes a `"security_analysis"` section with **at least a placeholder message like `"ZAP scan integration placeholder"`**.
+      * Basic integration tests in `tests/integration/test_api_mvp_endpoint.py` for ZAP functionality in API endpoint (verifying presence of `"security_analysis"` section).
 
 3. **Documentation & Refactoring**:
    * Detailed `/genesis/analyze-ethical` API documentation
    * Flake8 refinements for new code
    * README and integration test updates
+   * **Estimated Time: 3 days + 0.5 day buffer**
+   * **Dependency:** Can be started in parallel with feature development, but final documentation polish best done *after* features are stable.
+   * **Risk:** Documentation can be time-consuming; Refactoring might uncover unexpected issues; Documentation might become outdated quickly.
+   * **Mitigation:** Focus on essential API documentation first; Prioritize documentation clarity over completeness initially; Use code comments and docstrings to aid documentation; Plan for documentation updates as part of future iterations; Use Flake8 proactively during development for code quality. **Start drafting API documentation based on existing API route code *before* feature implementation is fully complete to parallelize documentation effort.**
+   * **DoD:**
+      * Detailed documentation for `/genesis/analyze-ethical` API endpoint documented in `docs/api/api-endpoints.md` (parameters, request/response examples, error codes, **and a section on the `code_quality` and `security_analysis` response sections**).
+      * All new code in Phase 2 Iteration 1 is Flake8 compliant (no new Flake8 warnings introduced).
+      * README updated with Phase 2 Iteration 1 progress and updated API endpoint details, **including a section on new features in Phase 2 Iteration 1.**
+      * Integration tests in `tests/integration/test_api_mvp_endpoint.py` updated to cover new API functionality and documented in the test code comments.
 
 #### Implementation Details
 
-- **Test Repurposing**: Use `CodeReviewAgent` (Flake8) to validate generated test quality
-- **Self-Bootstrapping**: Use existing agents to improve new features
-- **Resource Allocation**: Dev 1 for Tests and Docs, Dev 2 for Security
+- **Test Repurposing**: Use `CodeReviewAgent` (Flake8) to validate generated test quality (ensure tests themselves are Flake8 compliant).
+- **Self-Bootstrapping**: Use existing agents (CodeReviewAgent, potentially TestGenAgent) to improve new features (e.g., use TestGenAgent to generate tests for ZAP integration, use CodeReviewAgent to check generated tests).
+- **Resource Allocation**: Dev 1 for Tests and Docs, Dev 2 for Security.
 
 ##### Week 9 Gantt Tasks
 ```mermaid
 gantt
-    section Phase 2 Tasks
-    Re-integrate MVP Test Code :2025-04-21, 2d
-    Security Agent Integration :2025-04-23, 3d
+    section Phase 2 Iteration 1 Tasks (with Buffers, Dependencies & Integration)
+    Test Gen - Unit Tests Pre-Work   :2025-04-21, 1d, Enhanced Test Generation
+    Enhanced Test Generation         :2025-04-22, 3d, Enhanced Test Generation
+    Test Gen - Re-integration Buffer  :2025-04-25, 0.5d, Enhanced Test Generation, after Enhanced Test Generation
+    Security - Mock ZAP Setup       :2025-04-25, 1d, Security Agent Integration
+    Security Agent Integration       :2025-04-26, 4d, Security Agent Integration
+    Security - Integration Buffer     :2025-05-02, 0.5d, Security Agent Integration, after Security Agent Integration
+    Docs - API Draft                :2025-04-21, 1d, Documentation
+    API Endpoint Documentation        :2025-05-02, 2d, Documentation
+    Docs - Documentation Buffer       :2025-05-05, 0.5d, Documentation, after API Endpoint Documentation
+    Refactoring & Polish            :2025-05-05, 2d, Refactoring & Polish, after Docs - Documentation Buffer
+    README Update                   :2025-05-07, 1d, README Update, after Refactoring & Polish
+    **Integration & End-to-End Test**: 2025-05-08, 0.5d, Integration Test, after README Update **Code Freeze for Integration & Test: 2025-05-08**
+    Iteration 1 Review & Feedback   :2025-05-08, 1d, Iteration Review, after Integration & End-to-End Test **Code Freeze for Review: 2025-05-08-05-09**
+    Iteration 1 Retrospective       :2025-05-09, 0.5d, Iteration Review, after Iteration 1 Review & Feedback
 
-    section Documentation
-    API Endpoint Docs          :2025-05-05, 3d
-    Refactoring & Polish       :2025-05-06, 3d
-    README Update              :2025-05-08, 2d
-```
+    section Iteration 1 Metrics for Retrospective
+    Metric 1: DoD Criteria Met?    :Iteration 1 Retrospective
+    Metric 2: Time Estimation Accuracy:Iteration 1 Retrospective
+    Metric 3: Major Roadblocks      :Iteration 1 Retrospective
+    Metric 4: Flake8 Issue Count    :Iteration 1 Retrospective
+    Metric 5: Integration Tests Added:Iteration 1 Retrospective

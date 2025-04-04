@@ -6,100 +6,59 @@ This document outlines the development roadmap for the Metamorphic Software Gene
 
 ---
 
-## Roadmap: Phase 1 MVP (Optimized for ASAP Completion) <a name="roadmap-phase-1-mvp-optimized-for-asap-completion"></a> 🚧
-
-**Goal:** Complete the defined Phase 1 MVP (`/genesis/analyze-ethical` endpoint with a **fully JSON-configurable** Ethical Policy Engine, **Flake8 code quality**, and placeholder test generation) **this week** (by end of Week 6 - Mid-April 2025).
-
-#### Phase 1 MVP Definition <a name="phase-1-mvp-definition"></a>
-
-A functional API endpoint (`/genesis/analyze-ethical`) capable of:
-1. Analyzing Python code for ethical concerns using a **dynamically configurable JSON policy engine** (`EthicalGovernanceEngine`).
-2. Providing **Flake8 code quality assessment** (`CodeReviewAgent`).
-3. Generating placeholder pytest tests (`TestGenAgent`).
-4. Exposing this functionality via the API.
-
-#### Phase 1 Deliverables <a name="phase-1-deliverables"></a>
-
-1. Functional `/genesis/analyze-ethical` API endpoint with **dynamically configurable ethical analysis** and **Flake8 code quality checks**.
-2. **Fully JSON-Configurable** `EthicalGovernanceEngine` loading policies and dynamically enforcing constraints (BiasRisk, TransparencyScore, Safety Boundary).
-3. Integrated `CodeReviewAgent` providing Flake8 results within the API response.
-
-##### Strategy Notes (MVP Focus & Simplifications) <a name="strategy-notes-mvp-focus"></a>
-* **Laser Focus:** Only the **JSON-configurable `EthicalGovernanceEngine`** integration, **`CodeReviewAgent` (Flake8) integration**, and testing are blocking the MVP. Defer everything else (Bandit, SpecAnalyzer, Bias Detection).
-* **Leverage Foundations:** Build on Week 1-4 work. Avoid unnecessary refactoring.
-* **Self-Bootstrapping:** Use `TestGenAgent` for engine test skeletons; use `CodeReviewAgent` for code quality.
-* **Parallelize:** Update docs concurrently (Week 5). Develop integration tests incrementally.
-* **TDD Mindset:** Write tests early (Unit Wk4, Integration Wk5/6).
-* **"Good Enough" MVP:** Focus on *correct* dynamic enforcement based on JSON and basic Flake8 reporting; sophistication can come later.
-* **Intentional Simplifications:** Certain non-critical features and complex test scenarios were intentionally *commented out* or *skipped*. These are explicitly noted as `COMMENT BLOCK START` and `pytest.mark.skip(...)`. Phase 2 will re-integrate these.
-* **MVP Scope - Code Quality Focus:** Phase 1 prioritized core ethical policy engine and basic *code quality* reporting via Flake8. Security scanning (Bandit, ZAP) and test generation sophistication are deferred to future phases.
-
-#### Week 4: Configurable Ethical Engine Core - *Dynamic Policy Enforcement* <a name="week-4-configurable-ethical-engine-core---dynamic-policy-enforcement"></a> - **COMPLETE ✅** (Completed 2025-04-04)
-* [✅] Task 4.1: Policy loading/validation
-* [✅] Task 4.2: Dynamic enforcement logic
-* [✅] Task 4.3: Engine unit tests
-* [✅] Task 4.4: API endpoint updates
-
-#### Week 5: API Integration & Testing - *Verify Dynamic Behavior* <a name="week-5-api-integration--testing---verify-dynamic-behavior"></a> - **COMPLETE ✅** (Completed 2025-04-11)
-* [✅] Task 5.1: Integration tests
-* [✅] Task 5.2: Error handling
-* [✅] Task 5.3: Documentation updates
-
-#### Week 6: MVP Polish & Internal Release - *Deliver & Iterate* <a name="week-6-mvp-polish--internal-release---deliver--iterate"></a> - **COMPLETE ✅** (Completed 2025-04-18)
-* Task 6.1-6.4: Code review, release prep, feedback incorporation
-
----
-
 ## Roadmap: Phase 2 - Iteration 1 (Weeks 7-9) <a name="roadmap-phase-2---iteration-1-weeks-7-9"></a> 🚀
 
 **Goal:** Enhance MVP capabilities through iterative improvements while establishing self-bootstrapping processes.
 
-### Phase 2 - Iteration 1 Focus
+**Iteration Goal:** Deliver Enhanced Test Generation and Security Integration into the `/genesis/analyze-ethical` API, with detailed API documentation, by the end of Week 9.
 
-1. **Enhanced Test Generation**:
-   * Re-integrate and expand MVP test generation logic
-   * Tasks include uncommenting code from `src/core/agents/test_generator.py` and re-enabling skipped tests
-   * Target: Basic intelligent test generation for Python functions
-   * Risk mitigation for code re-integration
+**Potential Risks & Mitigation (Iteration 1):**
+* **Risk 1: Re-integration of MVP Test Code Complexity:**  Uncommenting and expanding MVP test code might reveal unexpected complexities or integration issues.
+    * **Mitigation:** Start with a thorough code review of the commented-out sections. Re-integrate incrementally, testing each part before moving to the next. Allocate extra time in Week 7 for initial re-integration and debugging.
+* **Risk 2: Security Agent API Integration Challenges:**  Integrating ZAP security scans into the API might encounter API compatibility issues or unexpected ZAP behavior within the Flask app context.
+    * **Mitigation:** Start security integration early in Week 8. Prioritize synchronous implementation first to simplify initial integration.  Thoroughly test the API endpoint with ZAP integration in a dedicated testing environment before merging to `main`.
+* **Risk 3: Documentation Delays:** API documentation can be time-consuming and might get delayed.
+    * **Mitigation:** Start documentation in parallel with feature development in Week 7.  Assign documentation tasks to team members specifically. Use a documentation-generation tool (if applicable) to streamline the process.
 
-2. **Security Integration**:
-   * Integrate ZAP security scans into `/genesis/analyze-ethical` endpoint
-   * API now includes `"security_analysis"` section with ZAP findings
-   * Synchronous scan implementation first, with ASYNC in Phase 2.2
-   * CI pipeline dependency considerations
+**Phase 2 - Iteration 1 Focus:**
 
-3. **Documentation & Refactoring**:
-   * Detailed `/genesis/analyze-ethical` API documentation
-   * Flake8 refinements for new code
-   * README and integration test updates
+1. **Enhanced Test Generation (Week 7-8):**
+   * **Task 1.1 (Week 7 - 1 day):** Code Review & Re-integrate MVP Test Code
+   * **Task 1.2 (Week 7 - 2 days):** Basic Expansion of Test Generation Logic
+   * **Task 1.3 (Week 8 - 2 days):** Re-enable & Expand Unit/Integration Tests
+   * **Target Deliverable:** Basic intelligent test generation for Python functions, re-integrated and tested.
+
+2. **Security Integration (Week 8-9):**
+   * **Task 2.1 (Week 8 - 2 days):** ZAP Security Agent API Integration (Synchronous)
+   * **Task 2.2 (Week 9 - 1 day):** API Endpoint Testing with ZAP Integration
+   * **CI Pipeline Integration Check (Throughout Week 8-9):** Continuously monitor and ensure the CI pipeline (ZAP Baseline Scan) remains functional and integrates with the new API changes.
+   * **Target Deliverable:** Security Integration into `/genesis/analyze-ethical` API with synchronous ZAP baseline scans and basic reporting in API response.
+
+3. **Documentation & Refactoring (Week 9):**
+   * **Task 3.1 (Week 9 - 2 days):** Detailed `/genesis/analyze-ethical` API Documentation
+   * **Task 3.2 (Week 9 - 1 day):** Code Refactoring & Flake8 Polish
+   * **Task 3.3 (Week 9 - 1 day):** README & Integration Test Updates
+   * **Target Deliverable:** Detailed API documentation, code refactoring, updated README and integration tests.
 
 #### Implementation Details
 
-- **Test Repurposing**: Use `CodeReviewAgent` (Flake8) to validate generated test quality
-- **Self-Bootstrapping**: Use existing agents to improve new features
-- **Resource Allocation**: Dev 1 for Tests and Docs, Dev 2 for Security
+- **Test Repurposing**: Use `CodeReviewAgent` (Flake8) to validate generated test quality (ongoing).
+- **Self-Bootstrapping**: Use existing agents to improve new features (ongoing).
+- **Resource Allocation**: Dev 1 (Person A) for Test Generation and Documentation (Tasks 1 & 3). Dev 2 (Person B) for Security Integration (Task 2).
+- **Mid-Week Progress Review:** Schedule a brief progress review meeting mid-week (e.g., Wednesday afternoon) to check progress against tasks, identify any roadblocks, and make necessary adjustments to the plan for the rest of the week.
 
 ##### Week 9 Gantt Tasks
 ```mermaid
 gantt
-    section Phase 2 Tasks
+    section Phase 2: Enhanced Features & Integration
     Re-integrate MVP Test Code :2025-04-21, 2d
-    Security Agent Integration :2025-04-23, 3d
+    Expand Test Generation Logic :2025-04-23, 2d
+    Re-enable & Expand Tests :2025-04-25, 2d
+    ZAP API Integration :2025-04-28, 2d
+    API Testing with ZAP :2025-04-30, 1d
 
-    section Documentation
-    API Endpoint Docs          :2025-05-05, 3d
-    Refactoring & Polish       :2025-05-06, 3d
-    README Update              :2025-05-08, 2d
+    section Phase 2: Documentation & Polish
+    API Endpoint Docs :2025-05-01, 2d
+    Code Refactoring & Polish :2025-05-05, 1d
+    README & Test Updates :2025-05-06, 1d
 ```
-
----
-
-**Version Notes**: This version removes all Git diff syntax, patch artifacts, and process commentary while preserving:
-- Full roadmap content
-- Task dependencies
-- Gantt chart formatting
-- Implementation notes
-- Phase shifts and status indicators
-
-This version maintains structured markdown format while eliminating:
- sorrow comments `+`, `-`, `@@...`, extra markdown fences, and repetitive step explanations. The core roadmap details remain intact with logical task flows, deadlines, and key dependencies. Let me know if you need any specific part expanded or clarified!

@@ -1,21 +1,22 @@
 # Metamorphic Software Genesis Ecosystem 🚀
 
-[![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)
+[![CI Status](https://github.com/yourusername/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/metamorphic-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
-[![Roadmap Status](https://img.shields.io/badge/Roadmap-See_ROADMAP.md-yellow)](ROADMAP.md)
+[![Roadmap Status](https://img.shields.io/badge/Roadmap-See_ROADMAP.md_for_Phase_2_and_Beyond-yellow)](ROADMAP.md)
 
 **Version ∞: An Ever-Evolving Framework for Software Excellence** ✨
 
 ---
 
 **🎯 CURRENT FOCUS:**
+    **Phase 1 MVP is now COMPLETE ✅.  Moving into Phase 2 Development - See [ROADMAP.md](ROADMAP.md) for Phase 2 Iteration 1 plan and beyond.**
 
-*   **Goal:** Complete Phase 1 MVP ASAP (Target: End of Week 6 - Mid-April 2025).
 *   **Status:**
     *   Week 4 (Configurable Ethical Engine Core) **COMPLETE ✅**.
     *   Week 5 (API Integration & Testing) **COMPLETE ✅**.
-    *   Week 6 (MVP Polish & Internal Release) **TASKS 6.1, 6.2, and 6.3 COMPLETE ✅ - Code Review, Packaging, and Internal MVP Testing (including Flake8 Integration Tests) are now completed and verified.**  Internal MVP Release package is prepared (tagged `v0.1.0-internal-mvp`). **Current focus is now on Week 6 - Task 6.4: Addressing Critical MVP Feedback.**
+    *   Week 6 (MVP Polish & Internal Release) **TASKS 6.1, 6.2, 6.3, and 6.4 COMPLETE ✅ - Code Review, Packaging, Internal MVP Testing, and Addressing Feedback (Proactive Polish) are now completed and verified.**  Internal MVP Release package is prepared (tagged `v0.1.0-internal-mvp`). **Phase 1 MVP IS NOW COMPLETE ✅. Moving to Phase 2 Development in Week 7.**
     *   **See:** [**ROADMAP.md**](ROADMAP.md) for the detailed Phase 1 MVP plan (Week 6 Tasks) and future iterations.
+    *   **NEXT PHASE FOCUS (Week 7+):** See [**ROADMAP.md**](ROADMAP.md) for initial Phase 2 planning. **Priorities for Phase 2 (Weeks 7-9) will be refined based on initial MVP internal testing feedback.**
 
 ---
 
@@ -157,7 +158,7 @@ python src/api/server.py
 Server runs at `http://127.0.0.1:5000/`. Check health at `/genesis/health`.
 
 ### Quickstart Guide <a name="quickstart_guide"></a>
-Follow steps 1-5 under Installation, then run the server (above). Test the MVP endpoint:
+To quickly test the core MVP endpoint, follow these steps after installation and server startup:
 ```bash
 curl -X POST \
   http://127.0.0.1:5000/genesis/analyze-ethical \
@@ -179,7 +180,7 @@ The `code_quality` section in the API response is now reliably populated with Fl
 
 *(Focus on MVP - see `docs/api/api-endpoints.md` for future plans)*
 
-| Endpoint                      | Method | Description                                                                     | Status (MVP)     |
+| Endpoint                        | Method | Description                                                                       | Status (MVP)     |
 | :---------------------------- | :----- | :------------------------------------------------------------------------------ | :--------------- |
 | `/genesis/health`             | GET    | Check API server status. Returns `{"status": "ready"}`.                         | ✅ Working       |
 | `/genesis/analyze-ethical`    | POST   | Analyzes Python code: Configurable Ethics, **Flake8 Quality**, Placeholder Tests. | ✅ MVP Core (Quality) |
@@ -189,7 +190,7 @@ The `code_quality` section in the API response is now reliably populated with Fl
 
 **Sample MVP Request/Response - `/genesis/analyze-ethical`**
 
-**Request (Example using curl for code with Flake8 issues):**
+**Request (Example using curl for code with potential Flake8 issues):**
 
 ```bash
 curl --request POST \
@@ -198,7 +199,7 @@ curl --request POST \
   --data '{"code": "import os # F401\ndef add(a, b):\n  \"\"\"Adds two numbers.\"\"\"\n  # TODO: Add type hints\n  return a + b\n\nprint(add(1, 2))"}'
 ```
 
-**Response (Example - *Reflecting Polished Post-Week 6 State*):**
+**Response (Example - *Reflecting Polished MVP State with Flake8 and Ethical Analysis*):**
 ```json
 {
   "status": "approved", // Status determined dynamically by policy enforcement (assuming code is ethically compliant)
@@ -236,9 +237,9 @@ curl --request POST \
 
 ## Contributing <a name="contributing"></a>
 
-We welcome contributions! Please align with the current **Phase 1 MVP focus** outlined in [**ROADMAP.md**](ROADMAP.md) (primarily Week 6 tasks: final code review, cleanup, packaging, internal testing, addressing feedback).
+We welcome contributions! Please align with the current **Phase 2 Iteration 1 focus** outlined in [**ROADMAP.md**](ROADMAP.md) (primarily Week 7-9 tasks: Enhanced Test Generation, Security Agent API Integration, and API Documentation).
 
-See `CONTRIBUTING.md` (to be created) for detailed guidelines. Look for issues related to Week 6 polish and release preparation.
+See `CONTRIBUTING.md` (to be created) for detailed guidelines. Look for issues related to Phase 2 Iteration 1 tasks.
 
 ## Detailed Documentation Links <a name="detailed-documentation-links"></a>
 
@@ -272,6 +273,6 @@ tomwolfe@gmail.com
 *   **Code Quality Issues Not Reported:** Ensure `flake8` is installed in your virtual environment (`pip install -r requirements/dev.txt`). Check server logs for errors related to `CodeReviewAgent` or `subprocess` calls to `flake8`. Verify the `code_quality` section exists in the API response.
 
 **Known Issues:**
-*   **ZAP Service in `docker-compose.yml`:** The ZAP service defined in `docker-compose.yml` may exit unexpectedly after startup and is not fully functional in this MVP internal release.  Local ZAP-based security scans using `docker-compose up` are not currently reliable.  **For MVP internal testing, please rely on the automated ZAP Baseline Scan results available in the CI pipeline runs for each Pull Request and Push to the `main` branch.** Resolution of the local ZAP service issue is planned for a future release (post-MVP).  **Note: Code quality analysis via Flake8, however, is now verified and fully functional in the MVP.**
+*   **ZAP Service (Local `docker-compose.yml`):** The ZAP service in `docker-compose.yml` may exit unexpectedly and is not reliably functional for local ZAP-based security scans in this MVP internal release.  **For MVP security vulnerability assessment, please rely on CI pipeline ZAP Baseline Scan reports.** Local ZAP scans are not reliable for MVP internal testing. Resolution of the local ZAP service issue is planned for a future release. **Important Note: Code quality analysis via Flake8 is verified and fully functional in the MVP for both local and CI pipeline use.**
 
 ## Terminology Footnotes <a name="terminology-footnotes"></a>

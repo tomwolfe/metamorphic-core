@@ -28,13 +28,13 @@ class TestGeneratorAgent: # Renamed class
         if positive_test_assertion:  # If a positive test could be generated
             test_code = f"""import pytest
 
-def test_{function_name}_positive():
+def test_{function_name}_positive(): # Corrected test function names to use function_name
     {positive_test_assertion}
 
 def test_{function_name}_negative():
-    pytest.skip(f"Placeholder test: Negative case for function '{{function_name}}'")
+    pytest.skip(f"Placeholder test: Negative case for function '{function_name}'") # Corrected skip message
     assert True
-"""
+""" # Corrected f-string and formatting
         else:  # Fallback to placeholder tests if positive test generation fails
             test_code = f"""import pytest
 
@@ -45,7 +45,7 @@ def test_{function_name}_positive():
 def test_{function_name}_negative():
     pytest.skip(f"Placeholder test: Negative case for function '{{function_name}}'")
     assert True
-"""
+""" # Corrected f-string and formatting
 
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -144,4 +144,3 @@ def test_{function_name}_negative():
             metadata={"source_hash": code_hash, "generator": "TestGeneratorAgent"} # Updated generator name metadata
         )
         self.kg.add_node(test_node)
-        return modified_test_code

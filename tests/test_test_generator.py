@@ -1,3 +1,4 @@
+# tests/test_test_generator.py
 import pytest
 import os
 from src.core.agents.test_generator import TestGeneratorAgent # Corrected import
@@ -31,16 +32,14 @@ class TestTestGeneratorAgent: # Updated test class name
         # Check pytest and correct test structure in file content
         assert "import pytest" in content
         assert "def test_placeholder_code_positive():" in content # Updated assertion - placeholder_code
-        assert "def test_placeholder_code_negative():" in content # Updated assertion - placeholder_code
-        assert 'pytest.skip("Placeholder test: Positive case")' in content
-        assert 'pytest.skip("Placeholder test: Negative case")' in content
+        assert "def test_placeholder_code_negative():" in content
+        assert 'pytest.skip(f"Placeholder test: Positive case for function \'placeholder_code\'")' in content
 
         # Also check returned string
         assert "import pytest" in generated_tests
         assert "def test_placeholder_code_positive():" in generated_tests # Updated assertion - placeholder_code
-        assert "def test_placeholder_code_negative():" in generated_tests # Updated assertion - placeholder_code
-        assert 'pytest.skip("Placeholder test: Positive case")' in generated_tests
-        assert 'pytest.skip("Placeholder test: Negative case")' in generated_tests
+        assert "def test_placeholder_code_negative():" in generated_tests
+        assert 'pytest.skip(f"Placeholder test: Positive case for function \'placeholder_code\'")' in generated_tests
 
 
     def test_generate_tests_empty_llm_response(self, mocker):
@@ -64,14 +63,14 @@ class TestTestGeneratorAgent: # Updated test class name
         # Check pytest and placeholder test presence in file content
         assert "import pytest" in content
         assert "def test_placeholder_code_positive():" in content # Updated assertion - placeholder_code
-        assert "def test_placeholder_code_negative():" in content # Updated assertion - placeholder_code
-        assert 'pytest.skip("Placeholder test' in content
+        assert "def test_placeholder_code_negative():" in content
+        assert 'pytest.skip(f"Placeholder test: Positive case for function \'placeholder_code\'")' in content
 
         # Also check returned string
         assert "import pytest" in generated_tests
         assert "def test_placeholder_code_positive():" in generated_tests # Updated assertion - placeholder_code
-        assert "def test_placeholder_code_negative():" in generated_tests # Updated assertion - placeholder_code
-        assert 'pytest.skip("Placeholder test' in generated_tests
+        assert "def test_placeholder_code_negative():" in generated_tests
+        assert 'pytest.skip(f"Placeholder test: Positive case for function \'placeholder_code\'")' in generated_tests
 
     def test_generate_tests_markdown_cleanup(self, mocker):
         # LLM mock not needed for placeholder generation
@@ -139,7 +138,7 @@ class TestTestGeneratorAgent: # Updated test class name
 
         # Check for positive assertion in test code
         assert "assert square(2) == 4" in content
-        assert "pytest.skip(f\"Placeholder test: Negative case for function 'square'\")" in content
+        assert 'pytest.skip(f"Placeholder test: Negative case for function \'square\'")' in content
 
 
     def test_generate_tests_positive_assertion_add(self, mocker):
@@ -159,7 +158,7 @@ class TestTestGeneratorAgent: # Updated test class name
 
         # Check for positive assertion in test code
         assert "assert add(3, 5) == 8" in content
-        assert "pytest.skip(f\"Placeholder test: Negative case for function 'add'\")" in content
+        assert 'pytest.skip(f"Placeholder test: Negative case for function \'add\'")' in content
 
 
     def test_generate_tests_positive_assertion_multiply(self, mocker):

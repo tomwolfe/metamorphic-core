@@ -27,16 +27,16 @@ For Phase 2 Iteration 1, the core workflow (as detailed in Section II of the ful
 
 ---
 
-**(Rest of the original `SPECIFICATION.md` content remains unchanged below this point)**
+**(Rest of the original `SPECIFICATION.md` content remains unchanged below this point, with revisions to "Executive Summary", "Core Workflow Example" and "Ethical Governance Framework" sections as shown below)**
 
 ---
 
-**Adaptive Software Genesis Ecosystem (Version 1.0): High-Level Specification (AGPLv3 Licensed)**
+**Adaptive Software Genesis Ecosystem (Version 1.0): High-Level Specification (Detailed Vision) (AGPLv3 Licensed)**
 **Detailed Version (Community-Driven & Passion-Project Focused)**
 
 **Executive Summary:**
 
-The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source platform (AGPLv3) designed to revolutionize software development through **ethical actionability, adaptive learning, and human-AI symbiosis.** As a community-driven passion project, it aims for exceptional software quality, efficiency, and ethical responsibility by synergistically combining advanced AI with human expertise. Envisioned for creating robust software, especially for complex, long-context tasks, ASGE prioritizes verifiable reliability, resource efficiency, and transparent ethical operations, aligning with frameworks like the **EU AI Act, GDPR, and COPPA.** Long-term sustainability is fostered through vibrant community contribution, resourceful operation, and a commitment to open knowledge. This document outlines the core design, architecture, high-level post-MVP roadmap, technical specifications, and KPIs for Version 1.0. While this specification details the long-term vision, the **current development focus is on delivering the Phase 1 MVP** as outlined in the main roadmap section – establishing the foundational configurable ethical analysis and basic code quality checking capability.
+The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source platform (AGPLv3) designed to revolutionize software development through **ethical actionability, adaptive learning, and human-AI symbiosis.** As a community-driven passion project, it aims for exceptional software quality, efficiency, and ethical responsibility by synergistically combining advanced AI with human expertise. Envisioned for creating robust software, especially for complex, long-context tasks, ASGE prioritizes verifiable reliability, resource efficiency, and transparent ethical operations, aligning with frameworks like the **EU AI Act, GDPR, and COPPA.** **A key aspect of our methodology is an Iterative Grading Process, ensuring continuous quality improvement and verifiable software artifacts.** Long-term sustainability is fostered through vibrant community contribution, resourceful operation, and a commitment to open knowledge. This document outlines the core design, architecture, high-level post-MVP roadmap, technical specifications, and KPIs for Version 1.0. While this specification details the long-term vision, the **current development focus is on delivering the Phase 1 MVP** as outlined in the main roadmap section – establishing the foundational configurable ethical analysis and basic code quality checking capability.
 
 **I. Foundational Design Principles:**
 
@@ -46,7 +46,7 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
 
 2.  **Ethical Actionability**: Embedding demonstrable and enforceable ethics into every component.
     *   *Mechanism:* Ethics integrated by design. The **`EthicalGovernanceEngine`** uses configurable JSON policies (aligned with EU AI Act, GDPR, COPPA) to enforce constraints during validation. Policies are version-controlled and community-vetted. Monthly audits by ERB ensure accountability.
-    *   *Modules:* Proactive **Bias Detection & Mitigation Module** analyzes code/outputs. **Transparency & Explainability Module** (planned) will provide APIs to query LLM rationale (e.g., "Why was this code flagged?"). Clear Human Override pathways exist via the ERB interface (planned). Continuous AI self-assessment against policies generates compliance reports.
+    *   *Modules:* Proactive **Bias Detection & Mitigation Module** analyzes code/outputs. **Transparency & Explainability Module** (planned) will provide APIs to retrieve justification for policy violations or agent decisions, potentially querying LLM logs or KG links. Clear Human Override pathways exist via the ERB interface (planned). Continuous AI self-assessment against policies generates compliance reports.
 
 3.  **Adaptive Learning Fabric**: Intelligently designed for continuous improvement.
     *   *Mechanism:* Data-driven adaptation using performance metrics (KPIs), agent feedback (e.g., code review results), and user input.
@@ -69,7 +69,7 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
 ```
 +------------------------------+      +------------------------+      +---------------------------+      +---------------------------+
 | Human Input/API Gateways     |----->| Ethical Governance Layer |----->| Metamorphic Core          |----->| Software Artifacts/Reports|
-| (Specs, Feedback, Overrides) |      | (Policy Engine, Bias   |      | (LLM Orch, KG, Agents)    |      | (Code, Tests, Docs, KPIs) |
+| (Specs, Feedback, Overrides) |      | (Policy Engine, Bias   |      | (LLM Orch, KG, Agents)    |----->| (Code, Tests, Docs, KPIs) |
 | (Community Contributions)    |<-----| Detection, Transparency)|<-----| (Resource Mgmt)           |<-----| (ISO/IEC 25010 Metrics)   |
 +------------------------------+      +------------------------+      +---------------------------+      +---------------------------+
           ^                                      ^                             ^
@@ -89,6 +89,14 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
     10. Formatted JSON response (including `code_quality` section) returned via API Gateway.
     11. (Parallel/Async) `SecurityAgent` might trigger ZAP scan if applicable (post-MVP focus for full integration).
     12. (Post-MVP) Feedback loops update KG and `ContinuousLearningCore`.
+    **13. (Iterative Grading & Refinement): The code changes and analysis results then enter an **Iterative Grading Process**. A reviewer assesses the changes across multiple quality dimensions, including **code style, ethical compliance, test success probability, non-regression probability, and security soundness**, and assigns a probability-based grade with actionable feedback. This feedback drives further code refinement and re-validation in subsequent iterations, ensuring continuous quality improvement.**
+
+        *(For full details on the grading process, see [**ROADMAP.md - Development Process & Methodology**](ROADMAP.md#development-process---methodology)).*
+
+        **(Parallel/Async - Future Enhancements):**
+        *   *(Post-MVP) `SecurityAgent` might trigger ZAP scan if applicable for deeper security analysis (DAST).*
+        *   *(Phase 3) `FormalVerificationEngine` could trigger Coq proofs for critical logic paths, results feeding into validation.*
+        *   *(Phase 4) `PerformanceAnalysisAgent` could run benchmarks and profiling, results informing resource optimization.*
 
 *   **Key Components (Detailed):**
     *   **Human Input & Oversight Interface:** (Planned Web UI) Secure portal for spec submission (text, later diagrams), configuration, feedback, ethical guidance input, ERB overrides, progress dashboards.
@@ -108,7 +116,7 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
             *   `ContinuousLearningCore`: Uses ML (RL, supervised learning) on KG data/feedback to update agent strategies and LLM prompts.
             *   `ResourceManagementOptimization`: (Post-MVP) Optimizes cloud resource usage, potentially using Kubernetes HPA based on Prometheus metrics.
     *   **Ethical Governance Framework:**
-        *   **Project Process Ethics:** Extend the Ethical Governance Framework to evaluate and guide MSGE's own development processes, ensuring they align with ethical principles of **transparency, risk mitigation, and continuous improvement**. This includes using AI-driven roadmap refinement to minimize uncertainty and enhance project success probability, and proactively addressing potential ethical concerns within the development process itself.
+        *   **Project Process Ethics:** Extend the Ethical Governance Framework to evaluate and guide MSGE's own development processes, ensuring they align with ethical principles of **transparency, risk mitigation, and continuous improvement**. This includes using AI-driven roadmap refinement to minimize uncertainty and enhance project success probability, and proactively addressing potential ethical concerns within the development process itself.  **Furthermore, to ensure consistent ethical considerations in code contributions, we employ an **Iterative Grading Process** (detailed in [ROADMAP.md - Development Process & Methodology](ROADMAP.md#development-process---methodology)) that includes "Ethical Policy Compliance Probability", "Code Style Compliance Probability", and other key quality metrics in code reviews and iterative refinement cycles.**
          *   *EthicalPolicyEngine (`EthicalGovernanceEngine`):* Loads JSON policies (`jsonschema` validation). `enforce_policy` method checks code/metadata against loaded constraints (regex, keyword checks, **AST analysis for transparency**). Returns compliance status.
          *   *BiasDetectionMitigationModule:* Uses NLP libraries (spaCy, Transformers) or fairness toolkits (Fairlearn) to analyze text (comments, docs) and potentially code structure for bias indicators. (Post-MVP) Implements mitigation strategies (e.g., suggesting alternative phrasing).
          *   *TransparencyExplainabilityModule:* (Planned) Provides API endpoints to retrieve justification for policy violations or agent decisions, potentially querying LLM logs or KG links.

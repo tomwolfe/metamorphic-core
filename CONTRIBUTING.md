@@ -80,4 +80,3 @@ By understanding and participating in this Iterative Grading Process, you direct
 We appreciate your contributions to the Metamorphic Software Genesis Ecosystem!
 
 ---
-

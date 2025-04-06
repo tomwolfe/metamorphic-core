@@ -64,6 +64,30 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
     *   **Actionable Feedback:** Detailed feedback for each dimension, explaining the rationale behind the grades and providing concrete steps for improvement.
 *   **Iterative Improvement:**  We encourage you to use this feedback to refine your contribution and resubmit for review.  The goal is to work iteratively, using the feedback to increase the probability percentages across all dimensions and achieve a 100% overall grade.  This collaborative process ensures that all contributions meet our rigorous quality benchmarks and contribute to a robust and reliable system.
 
+<div style="background-color:#f0f0f0; border: 1px solid #ccc; padding: 10px;">
+**--- LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE ---**
+**LLM INSTRUCTION: When acting as a "reviewer" for a hypothetical code contribution (based on a task from ROADMAP.md),  use the "Iterative Grading Process" described above, paying particular attention to the "Multi-Dimensional Quality and Risk Assessment".  Specifically:**
+
+1.  **Assume you have received a code contribution (imagine it's for the task you selected from ROADMAP.md).**
+2.  **Perform a "Multi-Dimensional Grading" of this hypothetical contribution, rigorously assessing it across the following quality dimensions (as defined in detail in the "Iterative Grading Process" section):**
+    *   Probability of Non-Regression
+    *   Probability of Test Success
+    *   Code Style Compliance Probability
+    *   Ethical Policy Compliance Probability
+    *   Probability of Security Soundness
+
+3.  **For each dimension, assign a probability percentage grade (0-100%) and provide actionable feedback (as if you were giving feedback to a developer, focusing on concrete steps to improve the grade).**
+4.  **Calculate an "Overall Percentage Grade" based on the dimension-specific grades (consider using a weighted average if certain dimensions are more critical for this specific task).**
+5.  **Generate a structured "Grade Report" in markdown format, designed for developer actionability. The report should include:**
+    *   **Overall Percentage Grade**
+    *   **Dimension-Specific Probability Percentages:** For each dimension, state the percentage grade and provide a clear justification for this grade, referencing specific aspects of the hypothetical contribution.
+    *   **Actionable Feedback for each dimension:** Provide concrete, step-by-step feedback for each dimension, explaining *how* the developer can improve their contribution to increase the probability percentage and reach a 100% overall grade.  This feedback should be directly linked to the quality dimensions and the "Iterative Grading Process".
+
+**This "Grade Report" is the key output of your review. It must be detailed, actionable, and focused on guiding the developer towards meeting the high quality standards of the Metamorphic project, as defined by the Iterative Grading Process.**
+
+**--- END LLM INSTRUCTION ---**
+</div>
+
 By understanding and participating in this Iterative Grading Process, you directly contribute to the high standards of the Metamorphic project.
 
 **Contribution Checklist (Before Submitting a PR):**
@@ -78,5 +102,3 @@ By understanding and participating in this Iterative Grading Process, you direct
 *   [ ] I have submitted a pull request to the `main` branch with a clear description.
 
 We appreciate your contributions to the Metamorphic Software Genesis Ecosystem!
-
----

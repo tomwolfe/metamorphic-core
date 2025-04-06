@@ -6,7 +6,7 @@ This document outlines the development roadmap for the Metamorphic Software Gene
 
 ---
 
-## Roadmap: Phase 2 - Iteration 1 (Weeks 7-9) <a name="roadmap-phase-2---iteration-1-weeks-7-9"></a> 🚀
+## Roadmap: Phase 2 - Iteration 1 (Weeks 7-9) 🚀
 
 **Iteration Goal:** Deliver Enhanced Test Generation and Security Integration into the `/genesis/analyze-ethical` API, with detailed API documentation, by the end of Week 9.
 
@@ -15,18 +15,16 @@ This document outlines the development roadmap for the Metamorphic Software Gene
 *   **Security Integration:** ZAP baseline scan integrated into `/genesis/analyze-ethical` API, with API response including a `security_analysis` section. ZAP scan completes successfully in CI pipeline without critical errors.
 *   **API Documentation:** Detailed documentation for `/genesis/analyze-ethical` API endpoint completed and merged into `docs/api/api-endpoints.md`.
 
-**Potential Risks & Mitigation (Iteration 1):**
-* **Risk 1: Re-integration of MVP Test Code Complexity:**  Uncommenting and expanding MVP test code might reveal unexpected complexities or integration issues.
-    * **Mitigation:** Start with a thorough code review of the commented-out sections. Re-integrate incrementally, testing each part before moving to the next. Allocate extra time in Week 7 for initial re-integration and debugging.
-* **Risk 2: Security Agent API Integration Challenges:**  Integrating ZAP security scans into the API might encounter API compatibility issues or unexpected ZAP behavior within the Flask app context.
-    * **Mitigation:** Start security integration early in Week 8. Prioritize synchronous implementation first to simplify initial integration.  Thoroughly test the API endpoint with ZAP integration in a dedicated testing environment before merging to `main`.
-* **Risk 3: Documentation Delays:** API documentation can be time-consuming and might get delayed.
-    * **Mitigation:** Start documentation in parallel with feature development in Week 7.  Assign documentation tasks to team members specifically. Use a documentation-generation tool (if applicable) to streamline the process.
+<div style="background-color:#f0f0f0; border: 1px solid #ccc; padding: 10px;">
+**--- LLM INSTRUCTION: TASK SELECTION ---**
+**LLM INSTRUCTION: Identify the next smallest, actionable sub-task within "Phase 2 - Iteration 1". Prioritize tasks in the order they are listed. Focus on tasks that can be completed within a reasonable timeframe (e.g., a few hours).**
+**--- END LLM INSTRUCTION ---**
+</div>
 
 **Phase 2 - Iteration 1 Focus:**
 
-1. **Enhanced Test Generation (Week 7-8):**
-   * **Task 1.1 (Week 7 - 1 day):** Code Review & Re-integrate MVP Test Code
+1. **Enhanced Test Generation (Week 7-8) - NEXT ACTIONABLE TASK - HIGH PRIORITY SUB-TASK:**
+   * **Task 1.1 (Week 7 - 1 day):** Code Review & Re-integrate MVP Test Code - **SMALLEST ACTIONABLE SUB-TASK**
    * **Task 1.2 (Week 7 - 2 days):** Basic Expansion of Test Generation Logic
    * **Task 1.3 (Week 8 - 2 days):** Re-enable & Expand Unit/Integration Tests
    * **Review Checkpoint (End of Week 7):** Review progress on test re-integration and expansion. Assess code coverage improvements.
@@ -122,6 +120,34 @@ To ensure the highest levels of software quality, **verifiable ethics**, and to 
 4.  **Iterative Refinement & Re-Grading:** The developer uses the feedback to refine the implementation. This may involve code refactoring, adding more tests, clarifying documentation, or addressing specific concerns raised in the review. The revised work is then resubmitted for grading, initiating a new iteration of the process.
 5.  **Targeting 100% Grade (and High Probability Percentages Across All Dimensions):** This iterative loop of implementation, grading, feedback, and refinement continues until the work achieves a grade of **100%** and demonstrates high probability percentages across *all* quality dimensions. A 100% grade signifies that the changes are deemed to meet the highest quality standards across all dimensions: minimal risk of regressions, high confidence in test success, excellent code style, full alignment with project ethics, and strong security soundness, based on the current assessment process.
 
-This Iterative Grading Process directly embodies our commitment to a **Self-Improving Development Process** by embedding continuous quality checks and feedback loops into our core workflow. It enhances **Transparency** by making the quality criteria and review process explicit and auditable.  It is a key mechanism for achieving our objective of building **high-quality, secure, reliable, and ethical** software.
+<div style="background-color:#f0f0f0; border: 1px solid #ccc; padding: 10px;">
+**--- LLM INSTRUCTION: SOLUTION GENERATION & SELF-ASSESSMENT ---**
+**LLM INSTRUCTION: For the selected task (e.g., "Code Review & Re-integrate MVP Test Code"), generate a proposed solution (code changes, documentation updates, etc.). After generating the solution, perform a self-assessment using the following metrics (refer to the "Iterative Grading Process" section above for metric definitions, and importantly, the "Multi-Dimensional Quality and Risk Assessment" in `CONTRIBUTING.md`):**
+
+*   **Probability of Non-Regression:**  Estimate the probability (percentage) that the changes will not break existing functionality.
+*   **Probability of Test Success:** Estimate the probability (percentage) that existing and newly written tests will pass after applying the changes.
+*   **Code Style Compliance Probability:** Estimate the probability (percentage) that the generated code fully complies with PEP 8 and Flake8 guidelines.
+*   **Ethical Policy Compliance Probability:**  Estimate the probability (percentage) that the generated code complies with the project's defined ethical policies (refer to SPECIFICATION.md and CONTRIBUTING.md for policy details).
+*   **Probability of Task Completion:** Estimate the probability (percentage) that the proposed solution fully addresses the selected roadmap task.
+
+**Assign a percentage grade for each metric (0-100%). Provide a brief justification for each grade. Then, calculate an overall percentage grade (you can use an average, or a weighted average if weights are defined elsewhere in the documentation).  Remember to consider the "Iterative Grading Process" from `CONTRIBUTING.md` as the benchmark for your assessment.**
+
+**--- END LLM INSTRUCTION ---**
+</div>
+
+<div style="background-color:#f0f0f0; border: 1px solid #ccc; padding: 10px;">
+**--- LLM INSTRUCTION: USER ACTIONABLE STEPS ---**
+**LLM INSTRUCTION: Generate a numbered list of "User Actionable Steps" that the user needs to perform to implement and verify your proposed solution.  These steps should include:**
+
+1.  **Specific code modifications:**  Provide code snippets or diffs if applicable.
+2.  **Testing instructions:**  Commands to run tests (e.g., `pytest tests/integration/test_api_mvp_endpoint.py`).
+3.  **Code quality checks:**  Commands to run `flake8`.
+4.  **Security checks:**  Instructions to run ZAP scan (if relevant to the task).
+5.  **Ethical governance checks:**  Steps to manually review or automatically check ethical policy compliance (if applicable).
+6.  **Documentation updates:**  Instructions to update relevant documentation files (e.g., `docs/api/api-endpoints.md`, `README.md`).
+
+**Ensure the steps are clear, concise, and actionable for a developer to follow.  These steps are crucial for the user to *actually* implement and *verify* your proposed solution, ensuring it aligns with the project's standards.  Note that some of these steps, like running `flake8` or ZAP scans, could potentially be automated further in future iterations as part of the project's self-bootstrapping capabilities.**
+**--- END LLM INSTRUCTION ---**
+</div>
 
 ---

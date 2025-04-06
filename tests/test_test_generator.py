@@ -1,10 +1,9 @@
-# tests/test_test_generator.py
 import pytest
 import os
 from src.core.agents.test_generator import TestGeneratorAgent # Corrected import
 from unittest.mock import MagicMock
 
-class TestTestGeneratorAgent: # Updated test class name
+class TestGeneratorAgentTests: # Updated test class name
     def setup_method(self):
         self.agent = TestGeneratorAgent() # Updated instantiation
 
@@ -177,8 +176,8 @@ class TestTestGeneratorAgent: # Updated test class name
             content = f.read()
 
         # Check for dynamic assertion in test code - new dynamic logic
-        assert "assert multiply(3, 5) == 15" not in content # No hardcoded multiply assertion (fallback)
-        assert "pytest.skip(f\"Placeholder test: Positive case for function 'multiply'\")" in content # Fallback to placeholder
+        assert "assert multiply(3, 5) == 15" in content # Expect dynamic assertion
+        assert "pytest.skip(f\"Placeholder test: Negative case for function 'multiply'\")" in content # Placeholder for negative case
 
 
     def test_generate_tests_dynamic_assertion_fallback_complex(self, mocker):
@@ -204,7 +203,7 @@ class TestTestGeneratorAgent: # Updated test class name
         """Test the re-integrated _extract_function_name and _store_tests methods."""
         # --- Corrected Mock Creation (Attempt 3) - Using autospec=True ---
         mock_kg_add_node = MagicMock() # Use MagicMock directly - Simpler approach
-        mocker.patch.object(self.agent.kg, 'add_node', new=mock_kg_add_node).start() # Patch with the MagicMock instance
+        mocker.patch.object(self.agent.kg, 'add_node', new=mock_kg_add_node) # Patch with the MagicMock instance
 
         code_snippet = "def example_function(arg1, arg2):\n    return arg1 + arg2"
         function_name = self.agent._extract_function_name(code_snippet)

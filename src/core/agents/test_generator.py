@@ -39,11 +39,11 @@ def test_{function_name}_negative():
             test_code = f"""import pytest
 
 def test_{function_name}_positive():
-    pytest.skip(f"Placeholder test: Positive case for function '{{function_name}}'")
+    pytest.skip(f"Placeholder test: Positive case for function '{function_name}'")
     assert True
 
 def test_{function_name}_negative():
-    pytest.skip(f"Placeholder test: Negative case for function '{{function_name}}'")
+    pytest.skip(f"Placeholder test: Negative case for function '{function_name}'")
     assert True
 """ # Corrected f-string and formatting
 
@@ -143,4 +143,3 @@ def test_{function_name}_negative():
             content=modified_test_code,
             metadata={"source_hash": code_hash, "generator": "TestGeneratorAgent"} # Updated generator name metadata
         )
-        self.kg.add_node(test_node)

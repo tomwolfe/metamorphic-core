@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for the Metamorphic Software Genesis Ecosystem, focusing on the Phase 1 MVP and future iterations.
 
-**🎯 CURRENT FOCUS (Week 8 - Start of Phase 1.5 Level 2): Transition to Phase 1.5 Level 2 - Workflow Driver Component Implementation 🚀**
+**🎯 CURRENT FOCUS (Week 8 - End of Phase 1.5 Level 2): Implement Workflow Driver Component 🚀**
 
 Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We are now focusing on **Phase 1.5 Level 2: Workflow Driver Component Implementation** to build the core automation engine for our development process.
 
@@ -14,7 +14,7 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
 
 **Success Metrics for Phase 1.5:**
 *   **Level 1 Documentation Complete: ✅ COMPLETE**:  `docs/workflows/markdown_automation.md` file created and populated with detailed documentation of the "Markdown-Only Automation Workflow," including the "Ideal Self-Driving Prompt" and usage guide. (Week 7)
-*   **Level 2 Workflow Driver Component Implemented:** `src/core/automation/workflow_driver.py` component implemented, including core functionalities for prompt generation, LLM interaction, basic output parsing, and a command-line interface in `run_genesis.py`. (Week 8)
+*   **Level 2 Workflow Driver Component Implemented:** `src/core/automation/workflow_driver.py` component implemented, including core functionalities for prompt generation, LLM interaction, basic output parsing, and a command-line interface in `src/api/server.py`. (Week 8)
 *   **Basic Workflow Tested and Functional:**  The "Markdown-Only Automation Workflow" (using the implemented `WorkflowDriver` component) is tested and shown to be functional for at least one representative development task (e.g., Task 1.1 from Phase 2 Iteration 1).
 
 **Phase 1.5 Focus (Weeks 7-8):**
@@ -26,7 +26,7 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
 
 2. **Level 2: Workflow Driver Component (Week 7-8 - 5 days) - CURRENT FOCUS:**
    * **Task 2.1 (Week 7 - 2 days):** Implement `workflow_driver.py` with prompt generation, LLM interaction, and basic output parsing.
-   * **Task 2.2 (Week 8 - 2 days):** Implement command-line interface in `run_genesis.py` to execute `WorkflowDriver` and display output.
+   * **Task 2.2 (Week 8 - 2 days):** Implement command-line interface in `src/api/server.py` to execute `WorkflowDriver` and display output.
    * **Task 2.3 (Week 8 - 1 day):** Basic testing and debugging of the "Markdown-Only Automation Workflow" using `WorkflowDriver` for a representative task.
    * **Target Deliverable:** Functional `workflow_driver.py` component with basic command-line interface, capable of executing the "Markdown-Only Automation Workflow" for simple tasks.
 
@@ -116,5 +116,3 @@ To ensure the highest levels of software quality, **verifiable ethics**, and to 
 **Ensure the steps are clear, concise, and actionable for a developer to follow.  These steps are crucial for the user to *actually* implement and *verify* your proposed solution, ensuring it aligns with the project's standards.  Note that some of these steps, like running `flake8` or ZAP scans, could potentially be automated further in future iterations as part of the project's self-bootstrapping capabilities.**
 **--- END LLM INSTRUCTION ---**
 </div>
-
----

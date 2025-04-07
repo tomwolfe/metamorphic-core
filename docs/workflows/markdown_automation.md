@@ -47,128 +47,50 @@ Your task is to:
 5. **Once a "perfect grade" solution is achieved (or you have performed a reasonable number of revisions and reached a satisfactory grade if "perfect" is unattainable immediately), generate a complete set of "User Actionable Steps"** as a numbered list in markdown format, following the "LLM INSTRUCTION: USER ACTIONABLE STEPS" block in ROADMAP.md. Ensure these steps are safe and logically sound *before* implementing them. These steps should be clear and actionable for a developer to implement the proposed solution and verify its quality.
 
 6. **After generating the "User Actionable Steps", also generate an "Updated ROADMAP.md Content" section containing the *entire content* of the ROADMAP.md file, but with the following updates:**
-    * **Mark the completed task as "✅ COMPLETE"** in the roadmap (e.g., append " - ✅ COMPLETE" to the task description in ROADMAP.md).
-    * **If all tasks within the *current phase* (e.g., "Phase 1.5 - Workflow Automation Side Project") are now marked "✅ COMPLETE", then:**
-        * **Generate a new, detailed breakdown of the *next* phase's (e.g., "Phase 2 - Iteration 1") tasks directly *below* the completed phase in the "Updated ROADMAP.md Content".**  Base this new breakdown on the high-level description of the next phase already present in ROADMAP.md (you may need to imagine or infer a logical task breakdown for the next phase).
-        * **"Archive" the completed phase's detailed task list:** Move the detailed task list of the *completed* phase to a new section at the end of the "Updated ROADMAP.md Content" called "**Archived Phase Roadmaps**" (create this section if it doesn't exist).  Clearly mark the archived section as "Archived: [Phase Name]" (e.g., "Archived: Phase 1.5 - Workflow Automation Side Project").
-        * **Update the "🎯 CURRENT FOCUS" section at the top of the "Updated ROADMAP.md Content"** to reflect the *next* active phase (e.g., "🎯 CURRENT FOCUS: PHASE 2 - Iteration 1 - Enhancements & Feature Expansion").
+    *   **Mark the completed task as "✅ COMPLETE"** in the roadmap (e.g., append " - ✅ COMPLETE" to the task description in ROADMAP.md).
+    *   **If all tasks within the *current phase* (e.g., "Phase 1.5 - Workflow Automation Side Project") are now marked "✅ COMPLETE", then:**
+        *   **Generate a new, detailed breakdown of the *next* phase's (e.g., "Phase 2 - Iteration 1") tasks directly *below* the completed phase in the "Updated ROADMAP.md Content".**  Base this new breakdown on the high-level description of the next phase already present in ROADMAP.md (you may need to imagine or infer a logical task breakdown for the next phase).
+        *   **"Archive" the completed phase's detailed task list:** Move the detailed task list of the *completed* phase to a new section at the end of the "Updated ROADMAP.md Content" called "**Archived Phase Roadmaps**" (create this section if it doesn't exist).  Clearly mark the archived section as "Archived: [Phase Name]" (e.g., "Archived: Phase 1.5 - Workflow Automation Side Project").
+        *   **Update the "🎯 CURRENT FOCUS" section at the top of the "Updated ROADMAP.md Content"** to reflect the *next* active phase (e.g., "🎯 CURRENT FOCUS: PHASE 2 - Iteration 1 - Enhancements & Feature Expansion").
 
 7. **Output the following in markdown format:**
     * The selected task name and description.
     * The complete "Grade Report" for your final (or best) solution.
     * The complete, ready-to-implement "User Actionable Steps".
     * **"Updated ROADMAP.md Content"**:  Include the *full text content* of the updated `ROADMAP.md` file, incorporating the task completion marking and roadmap evolution as described in step 6.
-    * **Crucially:  End your response with the phrase:  "(Waiting for user confirmation to implement changes and proceed to the next task)"**
+    * **Crucially:  End your response with the following choices:**
 
-8. **After providing the above output, WAIT for my confirmation before proceeding to any further tasks.**  Do not automatically move to the next task until I explicitly confirm implementation of the current solution AND the ROADMAP.md update.
+        *   **(A) Confirm:**  If the proposed changes are satisfactory and tests are passing (or there are no tests), implement the changes and proceed to the next task.  **Example:  `A: All tests passed. Implementing changes and moving on.`**
+        *   **(B) Test(s) Not Passing:** If the proposed changes are implemented but tests are failing, provide detailed information about the failing tests. (Copy and paste the test output). **Example: `B: Test tests/test_api_mvp_endpoint.py::test_analyze_ethical_endpoint_no_code_integration failed with AssertionError: assert response.status_code == 200`**
+        *   **(C) Missing File(s):** The proposed changes do not contain all files required, List the Missing Files and they will be added.. **Example: `C: Missing File(s): src/core/new_module.py, tests/test_new_module.py`**
+        *   **(D) Ask Question:** If you want to ask the LLM a question about its approach or the proposed solution *before* implementing any changes. (State your question clearly). **Example: `D: Could you explain why you chose to use the 'dataclasses' module in this context?`**
+        *   **(E) Code Issue:** If you have reviewed the code and see an error you want to point out. **Example: `E: It looks like the condition on Line 42 will always evaluate to false.`**
+        *   **(F) Regenerate:** If you want the current task regenerated, include a very short prompt to explain why. **Example: `F: This code could be greatly simplified.`**
 
-Begin now by identifying the next task from ROADMAP.md.
-```
-</p>
-</div>
-<p style="font-weight: bold; margin-top: -10px;">Important:</p><p style="font-family: monospace; font-size: 14px; line-height: 1.4; margin-top: -5px;">Remember to replace the bracketed placeholders with your actual codebase and `.md` file content.</p>
+        **Important: Ensure all generated code adheres to the project's ethical policies and guidelines. For example, if the "BiasRisk" threshold is 0.1, make sure that no keyword identified in `policies/policy_bias_risk_strict.json` (["hate speech", "racist", "sexist", "offensive"]) is found in the generated code.**
 
-    **Understanding "LLM INSTRUCTION" Blocks:**
+        **Your response MUST begin with one of the letters above (A, B, C, D, E or F) followed by a colon and a space, then your message.** For example: "B: Test test_my_function failed with assertion error..."
 
-    A key aspect of this workflow is the use of specially formatted **"LLM INSTRUCTION" blocks** within the [ROADMAP.md](ROADMAP.md) and [CONTRIBUTING.md](CONTRIBUTING.md) files. These blocks (demarcated by `--- LLM INSTRUCTION ---` and `--- END LLM INSTRUCTION ---` within `<div>` tags for visual emphasis) serve as **explicit directives for the LLM**.
+        **If your response DOES NOT begin with A, B, C, D, E, or F, or if you did not find a colon and space after the letter, the system will not know how to proceed. Please ensure your response follows the correct format. If I did not include all of the requested details, ask me to resend the full, un-truncated message.**
 
-    The "Ideal Self-Driving Prompt" is designed to instruct the LLM to **specifically read and follow the instructions contained within these "LLM INSTRUCTION" blocks**.  This allows us to embed detailed workflow logic and guidance directly within the project's documentation, making the documentation itself "executable" by the LLM.
+        (Waiting for user confirmation to implement changes and proceed to the next task)
 
-    **Key "LLM INSTRUCTION" Blocks and Their Roles:**
+8. **After providing the above output, WAIT for my confirmation before proceeding to any further tasks.** Do not automatically move to the next task until I explicitly confirm implementation of the current solution AND the ROADMAP.md update. **I will respond with one of the following options:**
 
-    *   **`ROADMAP.md` - "LLM INSTRUCTION: TASK SELECTION":**  Instructs the LLM on how to identify and prioritize the next development task from the roadmap.
-    *   **`ROADMAP.md` - "LLM INSTRUCTION: SOLUTION GENERATION & SELF-ASSESSMENT":**  Guides the LLM on how to generate a solution for the selected task and perform a multi-dimensional self-assessment, using the metrics defined in the Iterative Grading Process.
-    *   **`ROADMAP.md` - "LLM INSTRUCTION: USER ACTIONABLE STEPS":**  Directs the LLM to generate clear, actionable steps for a human developer to implement and verify the proposed solution.
-    *   **`CONTRIBUTING.md` - "LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE":**  Provides instructions for the LLM when it is acting as a "reviewer," guiding it to use the "Iterative Grading Process" and the multi-dimensional grading metrics for evaluating hypothetical code contributions.
+    *   **"A: [Optional message if all tests passed, and implementing changes]"**
+    *   **"B: [Detailed test output showing failing tests]"**
+    *   **"C: [Missing File(s): list of missing files]"**
+    *   **"D: [Your question to the LLM]"**
+    *   **"E: [Describe a code issue you've found]"**
+    *   **"F: [Reason for regenerating, e.g., 'Tests are too basic' or 'Code is inefficient']"**
 
-    **Workflow - Step-by-Step Guide:**
+   **Your response to my message should depend on the option I choose. Also, ensure all generated code adheres to ethical standards, guided by the `policies/policy_bias_risk_strict.json` example provided. If the "BiasRisk" threshold is 0.1, make sure that no keyword identified in that file's "keywords" list (["hate speech", "racist", "sexist", "offensive"]) is found in the generated code:**
 
-    1.  **Prepare your Environment:** Ensure you have your codebase, `ROADMAP.md`, and `CONTRIBUTING.md` files ready.
-    2.  **Copy the "Ideal Self-Driving Prompt":** Copy the "Ready-to-Use "Ideal" Self-Driving Prompt" from this document.
-    3.  **Paste into LLM Interface:** Paste the prompt into your chosen LLM interface (e.g., web UI, API client).
-    4.  **Replace Placeholders:** **Crucially, replace the placeholder sections** `[INSERT YOUR CODEBASE HERE...]`, `[INSERT FULL CONTENT OF ROADMAP.MD FILE HERE]`, and `[INSERT FULL CONTENT OF CONTRIBUTING.MD FILE HERE]` in the prompt with the *actual text content* of your project.
-    5.  **Send the Prompt:** Submit the filled-in prompt to the LLM.
-    6.  **Review LLM Output:** Carefully examine the LLM's response. It should include:
-        *   The selected task name and description.
-        *   A detailed "Grade Report" with self-assessment.
-        *   A numbered list of "User Actionable Steps."
-        *   The "(Waiting for user confirmation...)" message.
-    7.  **Implement User Actionable Steps:** If you are satisfied with the LLM's proposed solution, implement the "User Actionable Steps" in your codebase.
-    8.  **Provide Confirmation:**  Once implemented, provide confirmation to the LLM (e.g., "Confirmed - implemented changes").
-    9.  **Repeat for Next Task:** To move to the next task, simply re-submit the *same* "Ideal Self-Driving Prompt" to the LLM, potentially with a minimal prompt like: "OK, proceed to the next task."
+    *   **If I respond with "A:", proceed to the next task as usual, after updating the ROADMAP.md.** If the response was unusually long or had issues with code, summarize the most important aspects. Also ask me to confirm the new files were added, if any.
+    *   **If I respond with "B:", analyze the provided test output and revise the code to fix the failing tests. Re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".** Ensure all generated code adheres to project ethical standards.
+    *   **If I respond with "C:", analyze the current code and create the missing files needed for the correct functioning of the changes. Then present the updated solution, including the list of files, re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".** Ensure all generated code adheres to project ethical standards.
+    *   **If I respond with "D:", answer my question clearly and concisely. Do not proceed to the next task after answering. Simply wait for a new prompt from me.** If the response from me seems incomplete, ask me to provide the complete message again or re-send just the important data.
+    *   **If I respond with "E:", analyze the code issue, revise the code to address the issue. Re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".** Ensure all generated code adheres to project ethical standards.
+    *   **If I respond with "F:", regenerate the solution from scratch. Incorporate the reason for regeneration into your solution generation process. Re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".** Ensure all generated code adheres to project ethical standards.
 
-    **Example Usage Scenario:**
-
-    Let's imagine we want to use the "Markdown-Only Automation Workflow" to initiate **Task 2.1: Implement `workflow_driver.py`** from our roadmap.
-
-    1.  **Preparation:** We have our codebase, `ROADMAP.md`, and `CONTRIBUTING.md` files ready in our project directory.
-    2.  **Copy "Ideal Self-Driving Prompt":** We copy the "Ready-to-Use "Ideal" Self-Driving Prompt" from this document.
-    3.  **Paste into LLM Interface:** We paste the prompt into our chosen LLM interface (e.g., the Gemini Pro web UI).
-    4.  **Replace Placeholders:** **Crucially, we replace the placeholders** in the prompt with the *actual text content* of our project files:
-        *   `[INSERT YOUR CODEBASE HERE...]` is replaced with the *entire text content* of all files in our codebase (e.g., copy-paste the text of `.env.example`, `.github/workflows/ci.yml`, etc. all the way to `tests/test_unit_components.py`).
-        *   `[INSERT FULL CONTENT OF ROADMAP.MD FILE HERE]` is replaced with the *full text content* of our `ROADMAP.md` file.
-        *   `[INSERT FULL CONTENT OF CONTRIBUTING.MD FILE HERE]` is replaced with the *full text content* of our `CONTRIBUTING.md` file.
-    5.  **Send the Prompt:** We send the filled-in prompt to the LLM.
-    6.  **Review LLM Output:** The LLM generates a response.  A snippet of the *expected output* for this specific task might look like this (the actual output may vary slightly):
-
-```markdown
-```markdown
-**Selected Task:** Task 2.1 (Week 7 - 2 days): Implement `workflow_driver.py` with prompt generation, LLM interaction, and basic output parsing.
-
-**Grade Report:**
-
-```markdown
-### Grade Report: Initial Solution for Task 2.1 - Implement `workflow_driver.py`
-
-**Overall Percentage Grade:** 80%
-
-**Dimension-Specific Probability Percentages:**
-
-*   Probability of Non-Regression: 85%
-*   Probability of Test Success: 70%
-*   Code Style Compliance Probability: 95%
-*   Ethical Policy Compliance Probability: 90%
-*   Probability of Task Completion: 90%
-
-**Actionable Feedback for Improvement:**
-
-*   ... (Feedback details as in the previous Grade Report example) ...
-```
-
-**User Actionable Steps:**
-
-```markdown
-### User Actionable Steps for Task 2.1 - Implement `workflow_driver.py`
-
-1.  **Create `workflow_driver.py` file:**
-    *   ... (Code snippet for `workflow_driver.py` as in previous example) ...
-
-2.  **Modify `run_genesis.py`:**
-    *   ... (Code snippet for `run_genesis.py` as in previous example) ...
-
-3.  ... (Rest of the User Actionable Steps as in previous example) ...
-```
-
-(Waiting for user confirmation to implement changes and proceed to the next task)
-```
-
-    7.  **Implement User Actionable Steps:** We review the "User Actionable Steps" provided by the LLM. If they seem reasonable and safe, we implement them in our codebase. In this example, we would create `workflow_driver.py` and modify `run_genesis.py`.
-    8.  **Provide Confirmation:**  After implementing the steps and (ideally) running the suggested unit tests (if any are generated or if we create them ourselves), we provide confirmation to the LLM, such as: "Confirmed - implemented changes for Task 2.1 and run unit tests."
-    9.  **Repeat for Next Task:** To move to the next task, we simply re-submit the *same* "Ideal Self-Driving Prompt" to the LLM, potentially with a minimal prompt like: "OK, proceed to the next task."
-
-    **Customization and Refinement:**
-
-    *   **Experiment with Different LLMs:** While the "Ideal Self-Driving Prompt" is designed to be general-purpose, you may find that different LLMs (e.g., Gemini Pro, GPT-4, Claude, or open-source models) respond differently to the prompt and the "LLM INSTRUCTION" blocks.  Experiment with different models to see which provides the best results for your specific development tasks and coding style. Some models are known to be particularly good at following complex instructions.
-    *   **Tailor Prompts for Task Types:** For very specific or complex tasks, you might consider slightly adjusting the "Ideal Self-Driving Prompt." For example, if you are focusing on documentation tasks, you could add specific instructions related to documentation quality or format.  If you are working on a particularly security-sensitive area, you might emphasize security considerations in the prompt.
-    *   **Iteratively Refine "LLM INSTRUCTION" Blocks:** The "LLM INSTRUCTION" blocks within `ROADMAP.md` and `CONTRIBUTING.md` are designed to be flexible and adaptable. As you use the workflow and observe the LLM's behavior, you may identify areas where the instructions could be clearer, more specific, or better aligned with your project's needs.  Don't hesitate to iteratively refine these instruction blocks to improve the workflow's effectiveness over time.
-    *   **Experiment with LLM Parameters (Advanced):** For more advanced customization, you can experiment with LLM parameters within the "Ideal Self-Driving Prompt" itself (if your LLM interface allows it).  Parameters like `temperature` and `top_p` can influence the creativity and determinism of the LLM's responses.  Lower temperatures generally lead to more deterministic and focused responses, while higher temperatures can introduce more creativity and exploration.  However, for this workflow, a moderate temperature (around 0.6-0.8) is generally recommended to balance instruction following and solution generation.
-
-    **Limitations:**
-
-    [Clearly state the limitations of the "Markdown-Only Automation" workflow, such as context window limits, reliance on LLM instruction following, and the need for human oversight. *(You can add this section later - for now, focus on getting the basic documentation in place)*]
-
-    **Conclusion:**
-
-    The "Markdown-Only Automation" workflow offers a streamlined and accessible approach to AI-assisted development for the Metamorphic Software Genesis Ecosystem. By leveraging the power of LLMs and carefully designed documentation, it aims to accelerate development while maintaining quality, transparency, and human control.
-
----
+    **If my response does NOT begin with A, B, C, D, E or F, output the following error message, then wait for further instructions: "ERROR: Invalid response format. Your response MUST begin with A, B, C, D, E, or F, followed by a colon and a space. If all of the relevant code or data is not provided, please include all of the content in the resent response or a truncated part."**

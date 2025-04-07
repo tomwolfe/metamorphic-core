@@ -1,13 +1,15 @@
+# src/api/server.py
 from flask import Flask, jsonify, request
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from src.api.routes.ethical_endpoints import ethical_bp
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+import argparse
 import logging
 import redis
 from src.core.llm_orchestration import LLMOrchestrator
+from src.core.automation.workflow_driver import WorkflowDriver # Import WorkflowDriver
+from src.api.routes.ethical_endpoints import ethical_bp
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 
 startup_done = False
@@ -19,6 +21,8 @@ logging.basicConfig(level=logging.INFO)
 
 llm_orchestrator = LLMOrchestrator()
 app.llm_orchestrator = llm_orchestrator
+workflow_driver = WorkflowDriver(llm_orchestrator) # Initialize WorkflowDriver
+app.workflow_driver = workflow_driver # Expose to the app context
 
 @app.route('/generate', methods=['POST']) # Direct route for /generate - Option 1
 @limiter.limit("5/minute")
@@ -61,4 +65,13 @@ def startup_debug():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000) # Correct port to 5000
+    parser = argparse.ArgumentParser(description='Metamorphic Core API')
+    parser.add_argument('--task', type=str, help='Task description for WorkflowDriver')
+    args = parser.parse_args()
+
+    if args.task:
+        with app.app_context():  # Access the WorkflowDriver from the Flask app context
+            result = app.workflow_driver.execute_workflow(args.task)
+            print(f"Workflow Result: {result}")
+    else:
+        app.run(debug=True, host='0.0.0.0')

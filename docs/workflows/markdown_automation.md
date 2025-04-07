@@ -13,6 +13,12 @@ The "Markdown-Only Automation" workflow aims to streamline development by enabli
 5.  **Generate clear "User Actionable Steps"** for implementing and verifying the solution.
 6.  **Wait for user confirmation** before proceeding to the next task, ensuring human oversight at each step.
 
+**Rationale for Prompt-Driven Workflow Change:**
+
+To optimize the development process and leverage the unique strengths of different Large Language Models (LLMs), we have transitioned to a meta-planning and prompt generation approach. In this new workflow, I (the current LLM) will focus on project-level planning, task decomposition, and prompt generation. The actual code generation, testing, and execution will be handled by a more specialized LLM (e.g., Claude, GPT-4) that possesses superior coding capabilities. This change allows us to utilize my large context window for managing the overall project while delegating code-intensive tasks to an LLM that is better suited for those specific operations. This workflow will now require a 'Prompt Executor' to copy the prompt, and copy over the results after they are all said and done. This will provide for overall better, faster, and easier to obtain results.
+
+This change does mean that you, as a developer, will need to manually run the generated prompts using a "Prompt Executor" function (described later) and then copy and paste the LLM's output back into the prompt for me to process. However, this extra step is expected to result in significantly improved code quality and faster development cycles.
+
 This workflow is driven by a single, comprehensive prompt (detailed below) and relies heavily on **"LLM INSTRUCTION" blocks embedded within the `.md` documentation files** (ROADMAP.md and CONTRIBUTING.md).
 
 ## The "Ideal Self-Driving Prompt"
@@ -54,11 +60,13 @@ Your task is to:
         *   **Update the "🎯 CURRENT FOCUS" section at the top of the "Updated ROADMAP.md Content"** to reflect the *next* active phase (e.g., "🎯 CURRENT FOCUS: PHASE 2 - Iteration 1 - Enhancements & Feature Expansion").
 
 7. **Output the following in markdown format:**
-    * The selected task name and description.
-    * The complete "Grade Report" for your final (or best) solution.
-    * The complete, ready-to-implement "User Actionable Steps".
-    * **"Updated ROADMAP.md Content"**:  Include the *full text content* of the updated `ROADMAP.md` file, incorporating the task completion marking and roadmap evolution as described in step 6.
-    * **Crucially:  End your response with the following choices:**
+    *   The selected task name and description.
+    *   The complete "Grade Report" for your final (or best) solution.
+    *   The complete, ready-to-implement "User Actionable Steps".
+    * **The name and source of all files that will be generated.
+    *   ** The llm code that will be used to create it should be something in the format of `A: execute_prompt(<YOUR CODE HERE>)`, all together in markdown code with the header.
+    *   **"Updated ROADMAP.md Content"**:  Include the *full text content* of the updated `ROADMAP.md` file, incorporating the task completion marking and roadmap evolution as described in step 6.
+    *   **Crucially:  End your response with the following choices:**
 
         *   **(A) Confirm:**  If the proposed changes are satisfactory and tests are passing (or there are no tests), implement the changes and proceed to the next task.  **Example:  `A: All tests passed. Implementing changes and moving on.`**
         *   **(B) Test(s) Not Passing:** If the proposed changes are implemented but tests are failing, provide detailed information about the failing tests. (Copy and paste the test output). **Example: `B: Test tests/test_api_mvp_endpoint.py::test_analyze_ethical_endpoint_no_code_integration failed with AssertionError: assert response.status_code == 200`**

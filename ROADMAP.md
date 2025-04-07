@@ -13,9 +13,9 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
 **Iteration Goal:** Implement Level 1 and Level 2 of the "Markdown-Only Automation Workflow" to enhance development efficiency for Phase 2 and beyond.
 
 **Success Metrics for Phase 1.5:**
-*   **Level 1 Documentation Complete: ✅ COMPLETE**:  `docs/workflows/markdown_automation.md` file created and populated with detailed documentation of the "Markdown-Only Automation Workflow," including the "Ideal Self-Driving Prompt" and usage guide. (Week 7)
+*   **Level 1 Documentation Complete: ✅ COMPLETE**: `docs/workflows/markdown_automation.md` file created and populated with detailed documentation of the "Markdown-Only Automation Workflow," including the "Ideal Self-Driving Prompt" and usage guide. (Week 7)
 *   **Level 2 Workflow Driver Component Implemented:** `src/core/automation/workflow_driver.py` component implemented, including core functionalities for prompt generation, LLM interaction, basic output parsing, and a command-line interface in `run_genesis.py`. (Week 8)
-*   **Basic Workflow Tested and Functional:**  The "Markdown-Only Automation Workflow" (using the implemented `WorkflowDriver` component) is tested and shown to be functional for at least one representative development task (e.g., Task 1.1 from Phase 2 Iteration 1).
+*   **Basic Workflow Tested and Functional:** The "Markdown-Only Automation Workflow" (using the implemented `WorkflowDriver` component) is tested and shown to be functional for at least one representative development task (e.g., Task 1.1 from Phase 2 Iteration 1).
 
 **Phase 1.5 Focus (Weeks 7-8):**
 
@@ -25,11 +25,17 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
         *   Task ID: task_1_1
         *   Relevant Files: docs/workflows/markdown_automation.md
         *   Create `docs/workflows/markdown_automation.md` file and populate with detailed workflow guide. **✅ COMPLETE**
+        *   **Entry Criteria:** None.
+        *   **Success Criteria:** `docs/workflows/markdown_automation.md` exists and contains detailed instructions, including a working "Ideal Self-Driving Prompt" and guidance on task decomposition, self-assessment, and ROADMAP.md updates.  The file should have a fleshed-out "Example" section.
+        *   **Expected Grade Outcome:** 100%
    * **Task 1.2 (Week 7 - 1 day):**
         *   Priority: High
         *   Task ID: task_1_2
         *   Relevant Files: README.md
         *   Update `README.md` with quickstart guide and link to full documentation. **✅ COMPLETE**
+        *   **Entry Criteria:** `docs/workflows/markdown_automation.md` is complete.
+        *   **Success Criteria:** `README.md` contains a concise quickstart guide for the "Markdown-Only Automation Workflow" and a prominent link to the full documentation in `docs/workflows/markdown_automation.md`.
+        *   **Expected Grade Outcome:** 100%
    * **Target Deliverable:** Complete documentation for "Markdown-Only Automation Workflow" in `docs/workflows/markdown_automation.md` and updated `README.md`. **✅ COMPLETE**
 
 2. **Level 2: Workflow Driver Component (Week 7-8 - 5 days) - CURRENT FOCUS:**
@@ -38,20 +44,45 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
         *   Task ID: task_2_1
         *   Relevant Files: src/core/automation/workflow_driver.py, docs/workflows/markdown_automation.md
         *   Implement `workflow_driver.py` with prompt generation, LLM interaction, and basic output parsing. **IN PROGRESS**
+        *   **Entry Criteria:** `docs/workflows/markdown_automation.md` is complete. Basic project structure is set up.
+        *   **Success Criteria:** `workflow_driver.py` contains a `WorkflowDriver` class with the following methods:
+            *   `__init__(self)`: Initializes the class (can be empty).
+            *   `load_roadmap(self, roadmap_path: str)`: Reads and parses `ROADMAP.md` into a usable data structure (e.g., a list of dictionaries).
+            *    Implements basic file loading, using only safe libraries.
+            *  Includes the `list_files` commands.
+            *   `__repr__(self)` - This will ensure easier output for logging to ensure that the models read the data correctly.
+        *   **Expected Grade Outcome:** 80% (Basic functionality, initial tests). Requires basic framework for calling LLMs.
+        *   **Decomposition Hints:**
+            * Sub-task 1: Create initial unit tests for core `WorkflowDriver` functionality.
+            * Sub-task 2: Implement logging to aid debugging.
+            * Sub-task 3: Add basic error handling for potential exceptions.
    * **Task 2.2 (Week 8 - 2 days):**
         *   Priority: High
         *   Task ID: task_2_2
         *   Relevant Files: run_genesis.py, src/core/automation/workflow_driver.py
         *   Implement command-line interface in `run_genesis.py` to execute `WorkflowDriver` and display output.
+        *   **Entry Criteria:** `WorkflowDriver` class exists with `load_roadmap` method.
+        *   **Success Criteria:** `run_genesis.py` can:
+            *   Instantiate `WorkflowDriver`.
+            *   Call `load_roadmap` and display the parsed task list in a human-readable format.
+            * Has `list_files` functionality.
+            * Has appropriate doc strings.
+        *   **Expected Grade Outcome:** 85%. Must load basic functions, but it doesn't have to run.
    * **Task 2.3 (Week 8 - 1 day):**
         *   Priority: Medium
         *   Task ID: task_2_3
         *   Relevant Files: src/core/automation/workflow_driver.py, tests/test_workflow_driver.py
         *   Basic testing and debugging of the "Markdown-Only Automation Workflow" using `WorkflowDriver` for a representative task.
+        *   **Entry Criteria:** `WorkflowDriver` has basic functionality and a command-line interface.
+        *   **Success Criteria:**
+            *   Unit tests exist for `load_roadmap` and other core methods.
+            *   The `WorkflowDriver` can successfully load and parse `ROADMAP.md`.
+            *   Code is verified that it doesn't have any problems, especially security problems and potential code injection, to help verify that this doesn't have any potential problems.
         *   **Decomposition Hints:**
             * Sub-task 1: Create initial unit tests for core `WorkflowDriver` functionality.
             * Sub-task 2: Implement logging to aid debugging.
             * Sub-task 3: Add basic error handling for potential exceptions.
+        * **Expected Grade Outcome:** 80% (Basic tests passing, but edge cases not fully covered).
    * **Target Deliverable:** Functional `workflow_driver.py` component with basic command-line interface, capable of executing the "Markdown-Only Automation Workflow" for simple tasks.
 
 3. **Review & Sign-off (End of Week 8 - 1 day):**
@@ -60,31 +91,49 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
         *   Task ID: task_3_1
         *   Relevant Files: This ROADMAP.md
         *   Review all deliverables for Phase 1.5 against success metrics. Get sign-off for phase completion.
+        *   **Entry Criteria:** All Level 1 and Level 2 tasks are complete.
+        *   **Success Criteria:** All success metrics for Phase 1.5 are met. The code and documentation are reviewed and approved.
+        *   **Expected Grade Outcome:** 100%
    * **Target Deliverable:** Sign-off for completion of Phase 1.5.
 
 ---
 
 ## High-Level Roadmap: Phase 2 and Beyond (Weeks 10+) <a name="high-level-roadmap-phase-2-and-beyond"></a> 🔭
 
+**Goal:** Prepare for autonomous implementation of Enhanced Agents and Knowledge Graph, Ethical Governance & API Expansion, and Self-Improvement & Formal Verification.  Define clear entry and success criteria to enable LLM-driven development.
+
 **Phase 2 - Iteration 2 (Weeks 10-12): Enhanced Agents & Knowledge Graph**
 *   **Goal:** Improve agent intelligence and KG utilization.
-    *   Tasks:  Implement advanced test generation logic, enhance `CodeReviewAgent` with Bandit and Semgrep, expand KG schema to store security findings and test cases, refine LLM orchestration for context management.
-    *   Success Metrics:  Improved test coverage (target >90% for core modules), SAST integration functional, KG populated with security and test data, demonstrable improvement in LLM context handling.
+    *   Tasks: Implement advanced test generation logic, enhance `CodeReviewAgent` with Bandit and Semgrep, expand KG schema to store security findings and test cases, refine LLM orchestration for context management.
+    *   Success Metrics: Improved test coverage (target >90% for core modules), SAST integration functional, KG populated with security and test data, demonstrable improvement in LLM context handling.
+    *  * **Entry Criteria:** A way to generate code from a prompt, that requires a test case to generate correct behavior.
+    *  * **Success Criteria:** Ability to generate complex modules automatically based on previous test cases.
+    *  *  **Grade Outcome:** 85% - Code and initial code generation successful
+    *     *   8% Loss: Test Cases are not accurate
+    *     *   7% Loss: Code has ethical violations or security breaches.
 
-**Phase 2 - Iteration 3 (Weeks 13-15):  Ethical Governance & API Expansion**
-*   **Goal:**  Deepen ethical governance and expand API capabilities.
+**Phase 2 - Iteration 3 (Weeks 13-15): Ethical Governance & API Expansion**
+*   **Goal:** Deepen ethical governance and expand API capabilities.
     *   Tasks: Implement Bias Detection & Mitigation Module, integrate Ethical Governance Engine more deeply into agents, expand API endpoints to include `/genesis/generate-code` (placeholder), `/genesis/security-scan` (placeholder).
-    *   Success Metrics:  Improved test coverage (target >90% for core modules), SAST integration functional, KG populated with security and test data, demonstrable improvement in LLM context handling.
+    *   Success Metrics: Improved test coverage (target >90% for core modules), SAST integration functional, KG populated with security and test data, demonstrable improvement in LLM context handling.
+    *  * **Entry Criteria:** Functional agents that have code generated, with test cases, and high test success rates.
+    *  * **Success Criteria:** A code set that is verifiable and proven safe.
+    *  *  **Grade Outcome:** 80% - The grade must include ethics in the generation to be complete.
+    *     *   10% Loss: Tests did not work properly or follow proper design
+    *     *   10% Loss: Code has ethical violations or security breaches.
 
-**Phase 3 (Weeks 16-20):  Self-Improvement & Formal Verification**
+**Phase 3 (Weeks 16-20): Self-Improvement & Formal Verification**
 *   **Goal:** Enable self-improvement and integrate formal verification.
     *   Tasks: Implement Continuous Learning Core (basic version), integrate Formal Verification Engine (Coq proofs for critical logic), implement basic Self-Monitoring & Adaptive Healing Subsystem.
-    *   Success Metrics:  Basic self-improvement loop demonstrated (e.g., agent performance metrics tracking), Coq proofs compiling in CI for core modules, Self-Monitoring subsystem logging basic metrics.
+    *   Success Metrics: Basic self-improvement loop demonstrated (e.g., agent performance metrics tracking), Coq proofs compiling in CI for core modules, Self-Monitoring subsystem logging basic metrics.
+    * * **Entry Criteria:** A set of tests that can produce correct verified code.
+    * * **Success Criteria:** The generated output is formally and ethically verified with no code violations.
+    * * **Grade Outcome:** 100% - The code must be complete with no violations.
 
 **Phase 4 (Long-Term Vision - Weeks 20+): Quantum Integration & Community Growth**
 *   **Goal:** Explore quantum computing integration and foster community growth.
     *   Tasks: Research quantum algorithms for optimization and risk prediction, develop Community Contribution Platform (basic version), explore localization and multi-LLM support.
-    *   Success Metrics:  Proof-of-concept quantum algorithm integration, Community Contribution Platform MVP launched, initial investigation into localization and multi-LLM support completed.
+    *   Success Metrics: Proof-of-concept quantum algorithm integration, Community Contribution Platform MVP launched, initial investigation into localization and multi-LLM support completed.
 
 ---
 
@@ -96,11 +145,11 @@ To ensure the highest levels of software quality, **verifiable ethics**, and to 
 
 1.  **Task Implementation:** Development tasks, as defined in each roadmap iteration, are implemented by the assigned developer(s).
 2.  **Multi-Dimensional Grading (by Reviewer/Lead - Potentially AI-Augmented):** Once a task is implemented, a designated reviewer (initially project lead, potentially augmented or even partially automated by AI-powered tools in the future) rigorously assesses the changes. This assessment results in a percentage grade, reflecting a **combined evaluation across multiple quality dimensions**, with a probability percentage assigned to each:
-    *   Probability of Non-Regression:  *Estimate* (initially qualitative, potentially data-driven later) the likelihood that the changes have *not* introduced new bugs or broken existing functionality. Factors considered include code complexity, test coverage of the changes (especially unit and integration tests), and potential impact on core system components. **(Probability: \[Nearest Percent]%)**
+    *   Probability of Non-Regression: *Estimate* (initially qualitative, potentially data-driven later) the likelihood that the changes have *not* introduced new bugs or broken existing functionality. Factors considered include code complexity, test coverage of the changes (especially unit and integration tests), and potential impact on core system components. **(Probability: \[Nearest Percent]%)**
     *   Probability of Test Success: *Estimate* the likelihood that *all* relevant automated tests (unit tests, integration tests, etc.) will pass *after* these changes are merged. This is based on the tests provided with the changes and the reviewer's understanding of the existing test suite. **(Probability: \[Nearest Percent]%)**
-    *   Code Style Compliance Probability:  Estimate the probability that the code changes fully comply with the defined code style guidelines, measured by (e.g.) **Flake8 Issue Count** (lower is better, aiming for zero issues for 100% probability). **(Probability: \[Nearest Percent]%)**. **Example Feedback: "Flake8 compliance is excellent" (100% probability) or "Code Style Compliance Probability is 75% - Address Flake8 warnings in module X, particularly regarding line length to reach 100%".**
+    *   Code Style Compliance Probability: Estimate the probability that the code changes fully comply with the defined code style guidelines, measured by (e.g.) **Flake8 Issue Count** (lower is better, aiming for zero issues for 100% probability). **(Probability: \[Nearest Percent]%)**. **Example Feedback: "Flake8 compliance is excellent" (100% probability) or "Code Style Compliance Probability is 75% - Address Flake8 warnings in module X, particularly regarding line length to reach 100%".**
     *   Ethical Policy Compliance Probability: Estimate the probability that the code changes fully comply with the defined ethical policies, measured by (e.g.) **Ethical Policy Compliance Status** from the Ethical Governance Engine (status should be "compliant" for all relevant policies indicating 100% probability). **(Probability: \[Nearest Percent]%)**. **Example Feedback: "Ethical Policy Compliance Probability is 100% - Ethical Policy checks passed for all configured policies" or "Ethical Policy Compliance Probability is 60% - Ethical Policy 'BiasRisk' check failed - review and mitigate bias issues identified in section Y to reach 100%".**
-    *   Probability of Security Soundness: *Estimate* (initially qualitative, potentially more quantitative in later phases with SAST/DAST integration) the likelihood that the changes do not introduce new security vulnerabilities. This is based on code review, understanding of security best practices, and consideration of potential attack vectors. **(Probability: \[Nearest Percent]%)**.  *(Note: Security Soundness Probability is initially a more qualitative assessment, aiming for increasing quantification in future roadmap phases.)*
+    *   Probability of Security Soundness: *Estimate* (initially qualitative, potentially more quantitative in later phases with SAST/DAST integration) the likelihood that the changes do not introduce new security vulnerabilities. This is based on code review, understanding of security best practices, and consideration of potential attack vectors. **(Probability: \[Nearest Percent]%)**. *(Note: Security Soundness Probability is initially a more qualitative assessment, aiming for increasing quantification in future roadmap phases.)*
 
     The **overall percentage grade represents a holistic judgment of quality and confidence**, combining these multi-dimensional probability estimates and qualitative assessments. *(Future iterations may explore more quantitative or AI-driven methods for calculating this overall score, potentially using weighted averages or more sophisticated aggregation techniques.)*
 3.  **Actionable Feedback & Grade Report (Example):** The reviewer provides specific, actionable feedback alongside the percentage grade in a report. This feedback clearly identifies:
@@ -119,14 +168,14 @@ To ensure the highest levels of software quality, **verifiable ethics**, and to 
 *   Ethical Policy Compliance Probability: Estimate the probability (percentage) that the generated code complies with the project's defined ethical policies (refer to SPECIFICATION.md and CONTRIBUTING.md for policy details).
 *   Probability of Task Completion: Estimate the probability (percentage) that the proposed solution fully addresses the selected roadmap task.
 
-**Assign a percentage grade for each metric (0-100%). Provide a brief justification for each grade. Then, calculate an overall percentage grade (you can use an average, or a weighted average if weights are defined elsewhere in the documentation).  Remember to consider the "Iterative Grading Process" from `CONTRIBUTING.md` as the benchmark for your assessment.**
+**Assign a percentage grade for each metric (0-100%). Provide a brief justification for each grade. Then, calculate an overall percentage grade (you can use an average, or a weighted average if weights are defined elsewhere in the documentation). Remember to consider the "Iterative Grading Process" from `CONTRIBUTING.md` as the benchmark for your assessment.**
 
 **--- END LLM INSTRUCTION ---**
 </div>
 
 <div style="background-color:#f0f0f0; border: 1px solid #ccc; padding: 10px;">
 **--- LLM INSTRUCTION: USER ACTIONABLE STEPS ---**
-**LLM INSTRUCTION: Generate a numbered list of "User Actionable Steps" that the user needs to perform to implement and verify your proposed solution.  These steps should include:**
+**LLM INSTRUCTION: Generate a numbered list of "User Actionable Steps" that the user needs to perform to implement and verify your proposed solution. These steps should include:**
 
 1.  Specific instructions to use a code writing tool, that you can define by calling the tool-calling process. The code snippets must be well-defined, for you to verify that it worked.
 2.  Instructions on copying the code generation prompt for the Coder LLM, and where to put the results.
@@ -136,6 +185,6 @@ To ensure the highest levels of software quality, **verifiable ethics**, and to 
 6.  Ethical governance checks: Steps to manually review or automatically check ethical policy compliance (if applicable).
 7.  Documentation updates: Instructions to update relevant documentation files (e.g., `docs/api/api-endpoints.md`, `README.md`).
 
-**Ensure the steps are clear, concise, and actionable for a developer to follow.  These steps are crucial for the user to *actually* implement and *verify* your proposed solution, ensuring it aligns with the project's standards.  Note that some of these steps, like running `flake8` or ZAP scans, could potentially be automated further in future iterations as part of the project's self-bootstrapping capabilities.**
+**Ensure the steps are clear, concise, and actionable for a developer to follow. These steps are crucial for the user to *actually* implement and *verify* your proposed solution, ensuring it aligns with the project's standards. Note that some of these steps, like running `flake8` or ZAP scans, could potentially be automated further in future iterations as part of the project's self-bootstrapping capabilities.**
 **--- END LLM INSTRUCTION ---**
 </div>

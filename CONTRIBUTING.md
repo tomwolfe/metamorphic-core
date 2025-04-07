@@ -62,7 +62,7 @@ We enthusiastically welcome contributions to the Metamorphic Software Genesis Ec
 
 ### Contribution Review Process: Iterative Probability-Based Grading
 
-To maintain the high quality standards of the Metamorphic Software Genesis Ecosystem, we use an iterative review process for all contributions, based on **Multi-Dimensional Grading**.  When you submit a contribution, it will be evaluated using this process, which involves:
+To maintain the high quality standards of the Metamorphic Software Genesis Ecosystem, we use an iterative review process for all contributions, based on **Multi-Dimensional Grading**. When you submit a contribution, it will be evaluated using this process, which involves:
 
 *   **Multi-Dimensional Quality and Risk Assessment:** Your contribution will be rigorously assessed across multiple quality dimensions: Probability of Non-Regression, Probability of Test Success, Code Style Compliance Probability, Ethical Policy Compliance Probability, and Probability of Security Soundness.
 *   **Probability Percentage Grades & Feedback:** For each dimension, a probability percentage grade will be assigned, reflecting the estimated confidence in that aspect of the contribution. You will receive an **Iterative Grading Report** with:
@@ -90,11 +90,11 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
     * Provide accurate reports and testing results for each file you write.
     * This is what the driver will use to determine if the outcome was successful.
 
-*   **Iterative Improvement:**  We encourage you to use this feedback to refine your contribution and resubmit for review.  The goal is to work iteratively, using the feedback to increase the probability percentages across all dimensions and achieve a 100% overall grade.  This collaborative process ensures that all contributions meet our rigorous quality benchmarks and contribute to a robust and reliable system.
+*   **Iterative Improvement:** We encourage you to use this feedback to refine your contribution and resubmit for review. The goal is to work iteratively, using the feedback to increase the probability percentages across all dimensions and achieve a 100% overall grade. This collaborative process ensures that all contributions meet our rigorous quality benchmarks and contribute to a robust and reliable system.
 
 <div style="background-color:#f0f0f0; border: 1px solid #ccc; padding: 10px;">
 **--- LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE ---**
-**LLM INSTRUCTION: When acting as a "reviewer" for a hypothetical code contribution (based on a task from ROADMAP.md),  use the "Iterative Grading Process" described above, paying particular attention to the "Multi-Dimensional Quality and Risk Assessment".  Specifically:**
+**LLM INSTRUCTION: When acting as a "reviewer" for a hypothetical code contribution (based on a task from ROADMAP.md),  use the "Iterative Grading Process" described above, paying particular attention to the "Multi-Dimensional Quality and Risk Assessment". Specifically:**
 
 1.  **Assume you have received a code contribution (imagine it's for the task you selected from ROADMAP.md).**
 2.  **Perform a "Multi-Dimensional Grading" of this hypothetical contribution, rigorously assessing it across the following quality dimensions (as defined in detail in the "Iterative Grading Process" section):**
@@ -105,18 +105,90 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
     *   Probability of Security Soundness
 
 3.  **For each dimension, assign a probability percentage grade (0-100%) and provide actionable feedback (as if you were giving feedback to a developer, focusing on concrete steps to improve the grade).**
+
+    *   **Actionable feedback Examples: Probability of Non-Regression:**
+        *   Add unit tests that have over 95% branch test coverage.
+        *   Analyze the output and see what code blocks are potentially failing.
+        *   Check which code blocks change most of the high order functions, and see how that could affect the output.
+
+    *   **Actionable feedback Examples: Probability of Test Success:**
+        *   Address testing frameworks that may not work, and verify test pass with a secondary review.
+        *   When creating tests, the tests should be accurate and account for any edge cases that are missed.
+        *   The tests need to have minimal mocking code, and directly test functionality rather than mocking functionality.
+
+    *   **Actionable feedback Examples: Code Style Compliance Probability:**
+        *   Lint code, and follow established linting standards.
+        *   Ensure that all code follows python guidelines.
+        *   For any code that deviates from python guidelines, resolve this prior to finishing the code.
+
+    *   **Actionable feedback Examples: Ethical Policy Compliance Probability:**
+        *   Address the code and ensure it doesn't have problems, or the LLM cannot be allowed to generate code as it could lead to more problems.
+        *   All code needs to be within guidelines
+        *   There is no reason for code to violate these requirements, and this must always be addressed.
+        *   Take feedback and use the appropriate policy to verify compliance.
+        *   Review code and ensure it adheres to high transparency.
+
+    *   **Actionable feedback Examples: Probability of Security Soundness:**
+        *   Security is of the highest importance
+        *   No code is too inefficient to be secure, all code must pass security review.
+        *   Implement industry standard methods to verify security.
+
 4.  **Calculate an "Overall Percentage Grade" based on the dimension-specific grades (consider using a weighted average if certain dimensions are more critical for this specific task). Weights are defined in the "Probability Percentage Grades & Feedback" section.**
 5.  **Generate a structured "Grade Report" in markdown format, designed for developer actionability. The report should include:**
     *   Overall Percentage Grade
     *   Dimension-Specific Probability Percentages: For each dimension, state the percentage grade and provide a clear justification for this grade, referencing specific aspects of the hypothetical contribution.
-    *   Actionable Feedback for each dimension: Provide concrete, step-by-step feedback for each dimension, explaining *how* the developer can improve their contribution to increase the probability percentage and reach a 100% overall grade.  This feedback should be directly linked to the quality dimensions and the "Iterative Grading Process".
+    *   Actionable Feedback for each dimension: Provide concrete, step-by-step feedback for each dimension, explaining *how* the developer can improve their contribution to increase the probability percentage and reach a 100% overall grade. This feedback should be directly linked to the quality dimensions and the "Iterative Grading Process".
 
-**This "Grade Report" is the key output of your review. It must be detailed, actionable, and focused on guiding the developer towards meeting the high quality standards of the Metamorphic project, as defined by the Iterative Grading Process.**
+**Example Grade Report:**
+*   Overall Percentage Grade: 92%
+    *   Probability of Non-Regression: 90% - Excellent test coverage for core logic. Potential impact on module X needs further review.
+        *   *Actionable Feedback: Review module X to verify test validity.*
+    *   Probability of Test Success: 95% - All unit tests pass. Consider adding more integration tests.
+        *   *Actionable Feedback: Add tests to close to 100% coverage.*
+    *   Code Style Compliance Probability: 85% - Address minor Flake8 warnings related to line length and unused variables.
+        *   *Actionable Feedback: Format all code to adhere to PEP8 standards.*
+    *   Ethical Policy Compliance Probability: 100% - Ethical Policy checks passed for all configured policies.
+        *   *Actionable Feedback: Adhering to these standards must always be followed.*
+    *   Probability of Security Soundness: 90% - Code review identified one potential security vulnerability related to input validation. This has been addressed.
+        *   *Actionable Feedback: Ensure no potential security problems are apparent to get this grade to 100%.*
 
-**--- END LLM INSTRUCTION ---**
-</div>
+**Checklist for Reviewing LLM-Generated Code:**
+When acting as a reviewer, use the following checklist to ensure the quality of the LLM-generated code:
+ * Is the code syntactically correct and free of errors?
+ * Does the code adhere to the project's coding style guidelines?
+ * Does the code include clear and concise docstrings?
+ * Does the code have sufficient unit tests to ensure proper functionality?
+ * Does the code adhere to the project's ethical policies and guidelines?
+ * Does the code avoid any known security vulnerabilities?
+ * Does the code follow good software engineering practices?
+ * Is the code easily understandable and maintainable?
+
+**Ethical Considerations:**
+
+When reviewing LLM-generated code, pay particular attention to the following ethical considerations:
+
+1. **Bias:** Does the code introduce or perpetuate any biases?
+2. **Fairness:** Does the code treat all users fairly and equitably?
+3. **Transparency:** Is the code transparent and explainable?
+4. **Accountability:** Is it possible to hold someone accountable if the code causes harm?
+5. **Privacy:** Does the code protect user privacy?
+6. **Security:** Is the code secure and resistant to attack?
+7. **Verifiability:** Is the code verified with the tests created with the code?
+8. **Model Choices:** Choose the cheapest, more compliant models to complete tasks.
+9. **Tool Utilization:** Be familiar with potential tools, and use appropriate tool to validate any task.
 
 By understanding and participating in this Iterative Grading Process, you directly contribute to the high standards of the Metamorphic project.
+""
+
+By understanding and participating in this Iterative Grading Process, you directly contribute to the high standards of the Metamorphic project.
+By following these steps to meet the standards of the iterative review process, we can be sure to meet high security standards.
+
+**File List Generation:**
+    When requested to find a list of files:
+    * Use `list_files`.
+    * List the purpose for each file, and the impact this file will have to the system.
+    * Include what the files do for the system.
+    * Be extra cautious and verify the file names, as these will cause errors that are hard to debug otherwise.
 
 **Contribution Checklist (Before Submitting a PR):**
 
@@ -128,3 +200,6 @@ By understanding and participating in this Iterative Grading Process, you direct
 *   [ ] I have included unit and/or integration tests (if adding code).
 *   [ ] I have added documentation (if adding new features or changing existing functionality).
 *   [ ] I have submitted a pull request to the `main` branch with a clear description.
+";
+
+By understanding and participating in this Iterative Grading Process, you directly contribute to the high standards of the Metamorphic project.

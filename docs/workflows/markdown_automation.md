@@ -9,7 +9,7 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
 1.  **Identify and select the next development task** from the project's [ROADMAP.md](ROADMAP.md) file.
 2.  **Generate a high-level solution plan** for the selected task.
 3.  **Generate precise code generation prompts** for the **Coder LLM.**
-4.  **Generate a numbered list of "User Actionable Steps"** to guide the user. Format these steps as a Markdown checklist to enhance readability and trackability.  Each step should start with a numbered list item, followed by a Markdown checklist syntax ` - [ ] ` and then the step description.  For example:
+4.  **Generate a numbered list of "User Actionable Steps"** to guide the user. Format these steps as a Markdown checklist to enhance readability and trackability. Each step should start with a numbered list item, followed by a Markdown checklist syntax ` - [ ] ` and then the step description. For example:
 
     ```markdown
     1.  - [ ] Step 1 description goes here.
@@ -21,15 +21,15 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
 5.  Call the `list_files` tool, to confirm all files that the write_file tool will modify. Write a description to the user for what file will be written.
 6.  Call the `write_file` tool, to write all code to file.
 
-7.  **Self-Critique and Revise Output:** Before proceeding to self-assessment, take a moment to review your generated output from steps 1-6.  Specifically:
+7.  **Self-Critique and Revise Output:** Before proceeding to self-assessment, take a moment to review your generated output from steps 1-6. Specifically:
     *   **Solution Plan Review:** Is the solution plan logical and comprehensive? Does it clearly address the selected task? Are there any missing steps or potential issues?
     *   **Coder LLM Prompt Review:** Are the generated prompts for the Coder LLM clear, concise, and well-contextualized? Do they provide sufficient information for the Coder LLM to generate the correct code? Are the instructions unambiguous?
     *   **User Actionable Steps Review:** Are the User Actionable Steps complete, clear, and easy to follow for a developer? Are there any missing steps or unclear instructions?
-    *   **Revision (If Necessary):** If, during your self-critique, you identify any weaknesses or areas for improvement in your solution plan, Coder LLM prompts, or User Actionable Steps, **revise them immediately**.  Iterate on these outputs to improve their clarity, completeness, and quality before proceeding to self-assessment.
+    *   **Revision (If Necessary):** If, during your self-critique, you identify any weaknesses or areas for improvement in your solution plan, Coder LLM prompts, or User Actionable Steps, **revise them immediately**. Iterate on these outputs to improve their clarity, completeness, and quality before proceeding to self-assessment.
 
 8.  **Perform a self-assessment and grade your proposed solution** using the metrics and guidelines defined in the "Iterative Grading Process" section of CONTRIBUTING.md and the **<ins>UPDATED</ins>** "LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE" block in CONTRIBUTING.md. Generate a "Grade Report" in markdown format. Remember to include a section for manual feedback, to check security requirements. Since you can't execute code, you must propose what you expect the result to be.
 
-9. **Output the following in markdown format:**
+9.  **Output the following in markdown format:**
 
     *   The selected task name and description.
     *   The complete high-level solution plan.
@@ -43,7 +43,7 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
     *   The name and source of all files that will be written by calling the `write_file` tool.
     *   The complete "Grade Report" for your *expected* solution. Make it clear that this grade is provisional.
     *   "Updated ROADMAP.md Content": Include the *full text content* of the updated `ROADMAP.md` file, incorporating the task completion marking and roadmap evolution.
-    *   **Context Files Used:**  Explicitly list the Markdown files that you (the Driver LLM) used as context to perform this task.  This should typically include, but is not limited to, `ROADMAP.md` and `CONTRIBUTING.md`. List each file on a new line using Markdown list syntax (e.g., `* ROADMAP.md`).
+    *   **Context Files Used:** Explicitly list the Markdown files that you (the Driver LLM) used as context to perform this task. This should typically include, but is not limited to, `ROADMAP.md` and `CONTRIBUTING.md`. List each file on a new line using Markdown list syntax (e.g., `* ROADMAP.md`).
     *   **End your response with the following choices:**
 
         *   **(A) Confirm:** If the proposed changes are satisfactory and tests are passing (or there are no tests), implement the changes and proceed to the next task. **Example: `A: All tests passed. Implementing changes and moving on.`**
@@ -79,6 +79,49 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
     *   If I respond with "F:", regenerate the solution from scratch. Incorporate the reason for regeneration into your solution generation process. Re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".
 
     If my response does NOT begin with A, B, C, D, E or F, output the following error message, then wait for further instructions: "ERROR: Invalid response format. Your response MUST begin with A, B, C, D, E, or F, followed by a colon and a space. If all of the relevant code or data is not provided, please include all of the content in the resent response or a truncated part."
-```
 
-</div>
+**Example: Creating a New Class "WorkflowDriver" and Method "load_roadmap"**
+
+Suppose you are tasked with creating a new class called `WorkflowDriver` in a new file called `src/core/automation/workflow_driver.py`. This class should have a method, load_roadmap, that will read `ROADMAP.md` and parse it for all outstanding tasks, using regular expressions to pull the required information.
+
+1.  **Break down the task:**
+
+    *   Step 1: Create the basic class structure in `src/core/automation/workflow_driver.py` with `__init__` method and docstrings.
+    *   Step 2: Add a method called `load_roadmap` to the `WorkflowDriver` class that reads `ROADMAP.md` and parses the task list. This method should use a regular expression that includes the ID, Title, and Description of all tasks. Consider file safety and loading.
+    *   Step 3: Ensure that the `load_roadmap` method contains robust parsing, and consider boundary cases such as blank headers and task descriptions.
+    *   Step 4: Add unit tests for the parsing method to verify loading and integrity.
+
+2.  **Tool Utilizations:**
+
+    *   Make sure to use flake8 to review the files, and attempt to use bandit to search for any security issues.
+
+3.  **Model Choices:**
+
+    *   When writing the actual code, consider that DeepSeek can provide a good balance between quality and efficiency, and the most cost-effective model should be chosen if it meets requirements.
+
+4.  **Generate Coder LLM Prompts:**
+
+    *   "Coder LLM Prompt 1: Create a new file `src/core/automation/workflow_driver.py` with the following content:
+
+    ```python
+    \"\"\"
+    This module provides a WorkflowDriver class for automating tasks.
+    \"\"\"
+
+    class WorkflowDriver:
+        \"\"\"
+        A class for automating tasks defined in the ROADMAP.md.
+        \"\"\"
+
+        def __init__(self):
+            pass
+
+        def load_roadmap(self, roadmap_path: str):
+            \"\"\"
+            Loads and parses the ROADMAP.md file.
+            \"\"\"
+            pass
+    ```"
+    *   "Coder LLM Prompt 2: Using regex, fill in the content of the method `load_roadmap`. You must use triple quotes to represent an escaped string. For simplicity, ensure that all lines have a length of fewer than 80 characters."
+
+        *  Consider this approach as test-driven development; create the tests first, then have the model iterate it's code to ensure compliance with those tests.

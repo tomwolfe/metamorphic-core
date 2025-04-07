@@ -37,7 +37,7 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
         *   Priority: High
         *   Task ID: task_2_1
         *   Relevant Files: src/core/automation/workflow_driver.py, docs/workflows/markdown_automation.md
-        *   Implement `workflow_driver.py` with prompt generation, LLM interaction, and basic output parsing.
+        *   Implement `workflow_driver.py` with prompt generation, LLM interaction, and basic output parsing. **IN PROGRESS**
    * **Task 2.2 (Week 8 - 2 days):**
         *   Priority: High
         *   Task ID: task_2_2
@@ -48,6 +48,10 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
         *   Task ID: task_2_3
         *   Relevant Files: src/core/automation/workflow_driver.py, tests/test_workflow_driver.py
         *   Basic testing and debugging of the "Markdown-Only Automation Workflow" using `WorkflowDriver` for a representative task.
+        *   **Decomposition Hints:**
+            * Sub-task 1: Create initial unit tests for core `WorkflowDriver` functionality.
+            * Sub-task 2: Implement logging to aid debugging.
+            * Sub-task 3: Add basic error handling for potential exceptions.
    * **Target Deliverable:** Functional `workflow_driver.py` component with basic command-line interface, capable of executing the "Markdown-Only Automation Workflow" for simple tasks.
 
 3. **Review & Sign-off (End of Week 8 - 1 day):**
@@ -70,7 +74,7 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
 **Phase 2 - Iteration 3 (Weeks 13-15):  Ethical Governance & API Expansion**
 *   **Goal:**  Deepen ethical governance and expand API capabilities.
     *   Tasks: Implement Bias Detection & Mitigation Module, integrate Ethical Governance Engine more deeply into agents, expand API endpoints to include `/genesis/generate-code` (placeholder), `/genesis/security-scan` (placeholder).
-    *   Success Metrics:  Bias detection module functional (initial version), Ethical Governance Engine integrated into `CodeGenerationAgent` (placeholder) and `SecurityAgent`, new API endpoints documented (placeholders implemented).
+    *   Success Metrics:  Improved test coverage (target >90% for core modules), SAST integration functional, KG populated with security and test data, demonstrable improvement in LLM context handling.
 
 **Phase 3 (Weeks 16-20):  Self-Improvement & Formal Verification**
 *   **Goal:** Enable self-improvement and integrate formal verification.
@@ -92,11 +96,11 @@ To ensure the highest levels of software quality, **verifiable ethics**, and to 
 
 1.  **Task Implementation:** Development tasks, as defined in each roadmap iteration, are implemented by the assigned developer(s).
 2.  **Multi-Dimensional Grading (by Reviewer/Lead - Potentially AI-Augmented):** Once a task is implemented, a designated reviewer (initially project lead, potentially augmented or even partially automated by AI-powered tools in the future) rigorously assesses the changes. This assessment results in a percentage grade, reflecting a **combined evaluation across multiple quality dimensions**, with a probability percentage assigned to each:
-    *   **Probability of Non-Regression:**  *Estimate* (initially qualitative, potentially data-driven later) the likelihood that the changes have *not* introduced new bugs or broken existing functionality. Factors considered include code complexity, test coverage of the changes (especially unit and integration tests), and potential impact on core system components. **(Probability: \[Nearest Percent]%)**
-    *   **Probability of Test Success:** *Estimate* the likelihood that *all* relevant automated tests (unit tests, integration tests, etc.) will pass *after* these changes are merged. This is based on the tests provided with the changes and the reviewer's understanding of the existing test suite. **(Probability: \[Nearest Percent]%)**
-    *   **Code Style Compliance Probability:**  Estimate the probability that the code changes fully comply with the defined code style guidelines, measured by (e.g.) **Flake8 Issue Count** (lower is better, aiming for zero issues for 100% probability). **(Probability: \[Nearest Percent]%)**. **Example Feedback: "Flake8 compliance is excellent" (100% probability) or "Code Style Compliance Probability is 75% - Address Flake8 warnings in module X, particularly regarding line length to reach 100%".**
-    *   **Ethical Policy Compliance Probability:** Estimate the probability that the code changes fully comply with the defined ethical policies, measured by (e.g.) **Ethical Policy Compliance Status** from the Ethical Governance Engine (status should be "compliant" for all relevant policies indicating 100% probability). **(Probability: \[Nearest Percent]%)**. **Example Feedback: "Ethical Policy Compliance Probability is 100% - Ethical Policy checks passed for all configured policies" or "Ethical Policy Compliance Probability is 60% - Ethical Policy 'BiasRisk' check failed - review and mitigate bias issues identified in section Y to reach 100%".**
-    *   **Probability of Security Soundness:** *Estimate* (initially qualitative, potentially more quantitative in later phases with SAST/DAST integration) the likelihood that the changes do not introduce new security vulnerabilities. This is based on code review, understanding of security best practices, and consideration of potential attack vectors. **(Probability: \[Nearest Percent]%)**.  *(Note: Security Soundness Probability is initially a more qualitative assessment, aiming for increasing quantification in future roadmap phases.)*
+    *   Probability of Non-Regression:  *Estimate* (initially qualitative, potentially data-driven later) the likelihood that the changes have *not* introduced new bugs or broken existing functionality. Factors considered include code complexity, test coverage of the changes (especially unit and integration tests), and potential impact on core system components. **(Probability: \[Nearest Percent]%)**
+    *   Probability of Test Success: *Estimate* the likelihood that *all* relevant automated tests (unit tests, integration tests, etc.) will pass *after* these changes are merged. This is based on the tests provided with the changes and the reviewer's understanding of the existing test suite. **(Probability: \[Nearest Percent]%)**
+    *   Code Style Compliance Probability:  Estimate the probability that the code changes fully comply with the defined code style guidelines, measured by (e.g.) **Flake8 Issue Count** (lower is better, aiming for zero issues for 100% probability). **(Probability: \[Nearest Percent]%)**. **Example Feedback: "Flake8 compliance is excellent" (100% probability) or "Code Style Compliance Probability is 75% - Address Flake8 warnings in module X, particularly regarding line length to reach 100%".**
+    *   Ethical Policy Compliance Probability: Estimate the probability that the code changes fully comply with the defined ethical policies, measured by (e.g.) **Ethical Policy Compliance Status** from the Ethical Governance Engine (status should be "compliant" for all relevant policies indicating 100% probability). **(Probability: \[Nearest Percent]%)**. **Example Feedback: "Ethical Policy Compliance Probability is 100% - Ethical Policy checks passed for all configured policies" or "Ethical Policy Compliance Probability is 60% - Ethical Policy 'BiasRisk' check failed - review and mitigate bias issues identified in section Y to reach 100%".**
+    *   Probability of Security Soundness: *Estimate* (initially qualitative, potentially more quantitative in later phases with SAST/DAST integration) the likelihood that the changes do not introduce new security vulnerabilities. This is based on code review, understanding of security best practices, and consideration of potential attack vectors. **(Probability: \[Nearest Percent]%)**.  *(Note: Security Soundness Probability is initially a more qualitative assessment, aiming for increasing quantification in future roadmap phases.)*
 
     The **overall percentage grade represents a holistic judgment of quality and confidence**, combining these multi-dimensional probability estimates and qualitative assessments. *(Future iterations may explore more quantitative or AI-driven methods for calculating this overall score, potentially using weighted averages or more sophisticated aggregation techniques.)*
 3.  **Actionable Feedback & Grade Report (Example):** The reviewer provides specific, actionable feedback alongside the percentage grade in a report. This feedback clearly identifies:
@@ -134,3 +138,4 @@ To ensure the highest levels of software quality, **verifiable ethics**, and to 
 
 **Ensure the steps are clear, concise, and actionable for a developer to follow.  These steps are crucial for the user to *actually* implement and *verify* your proposed solution, ensuring it aligns with the project's standards.  Note that some of these steps, like running `flake8` or ZAP scans, could potentially be automated further in future iterations as part of the project's self-bootstrapping capabilities.**
 **--- END LLM INSTRUCTION ---**
+</div>

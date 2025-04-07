@@ -9,68 +9,27 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
 1.  **Identify and select the next development task** from the project's [ROADMAP.md](ROADMAP.md) file.
 2.  **Generate a high-level solution plan** for the selected task.
 3.  **Generate precise code generation prompts** for the **Coder LLM.**
-4.  **Generate a complete set of "User Actionable Steps"** for the user, to implement and verify the solution (including copying prompts to the Coder LLM and pasting the results back).
-5.  **Perform a multi-dimensional self-assessment** of the *expected* solution (based on the plan), using the "Iterative Grading Process" defined in [CONTRIBUTING.md](CONTRIBUTING.md).
-6.  **Iteratively revise the solution** (generate new prompts for the Coder LLM) to achieve a satisfactory grade, based on user-provided feedback.
-7.  **Wait for user confirmation** before proceeding to the next task, ensuring human oversight at each step.
+4.  **Generate a numbered list of "User Actionable Steps"** to guide the user. Format these steps as a Markdown checklist to enhance readability and trackability.  Each step should start with a numbered list item, followed by a Markdown checklist syntax ` - [ ] ` and then the step description.  For example:
 
-**LLM Persona Expectations:**
+    ```markdown
+    1.  - [ ] Step 1 description goes here.
+    2.  - [ ] Step 2 description goes here.
+    3.  - [ ] ... and so on.
+    ```
 
-*   **Driver LLM (Orchestrator):**
-    *   *Purpose:* To manage development steps, read project documents, and communicate with the Coder LLM.
-    *   *Abilities:* This LLM identifies tasks, calls tools, and follows the project instructions.
-    *   *Security:* This LLM does not have the ability to write to any file, or execute any code, improving overall security.
-    *   *Instructions:* The user must provide the list of available files in the repository.
+    The user will execute these steps and verify the results.
+5.  Call the `list_files` tool, to confirm all files that the write_file tool will modify. Write a description to the user for what file will be written.
+6.  Call the `write_file` tool, to write all code to file.
 
-*   **Coder LLM (Code Specialist):**
-    *   *Purpose:* To generate code snippets.
-    *   *Instructions:* The coder must return *only* a code block within a markdown structure. It must follow all provided instructions.
-    *   *Output Only:* There is no tool call functionality.
+7.  **Self-Critique and Revise Output:** Before proceeding to self-assessment, take a moment to review your generated output from steps 1-6.  Specifically:
+    *   **Solution Plan Review:** Is the solution plan logical and comprehensive? Does it clearly address the selected task? Are there any missing steps or potential issues?
+    *   **Coder LLM Prompt Review:** Are the generated prompts for the Coder LLM clear, concise, and well-contextualized? Do they provide sufficient information for the Coder LLM to generate the correct code? Are the instructions unambiguous?
+    *   **User Actionable Steps Review:** Are the User Actionable Steps complete, clear, and easy to follow for a developer? Are there any missing steps or unclear instructions?
+    *   **Revision (If Necessary):** If, during your self-critique, you identify any weaknesses or areas for improvement in your solution plan, Coder LLM prompts, or User Actionable Steps, **revise them immediately**.  Iterate on these outputs to improve their clarity, completeness, and quality before proceeding to self-assessment.
 
-This workflow is driven by a single, comprehensive prompt (detailed below) and relies heavily on **"LLM INSTRUCTION" blocks embedded within the `.md` documentation files** (ROADMAP.md and CONTRIBUTING.md). The user acts as an intermediary, executing the actions and copying feedback between the LLMs.
+8.  **Perform a self-assessment and grade your proposed solution** using the metrics and guidelines defined in the "Iterative Grading Process" section of CONTRIBUTING.md and the **<ins>UPDATED</ins>** "LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE" block in CONTRIBUTING.md. Generate a "Grade Report" in markdown format. Remember to include a section for manual feedback, to check security requirements. Since you can't execute code, you must propose what you expect the result to be.
 
-## The "Ideal Self-Driving Prompt"
-
-Here is the complete, ready-to-use "Ideal Self-Driving Prompt" for this workflow, designed for the *Driver LLM*:
-
-<div style="background-color:#e0f7fa; border: 2px solid #80deea; padding: 15px; margin-top: 10px; margin-bottom: 20px;">
-<p style="font-family: monospace; font-size: 14px; line-height: 1.4;">
-
-```
-I have this codebase:
-
-Here is the source list:
-[INSERT FILE LIST - use list_files()]
-
-I am providing these *.md files which drive the development process for this project:
-
-[INSERT FULL CONTENT OF ROADMAP.MD FILE HERE]
-
-[INSERT FULL CONTENT OF CONTRIBUTING.MD FILE HERE]
-
-Please act as an autonomous development agent (Driver LLM) for this project. You will drive development and will communicate with an isolated LLM to handle code requests.
-
-Your task is to:
-
-1. **Identify the next smallest, highest priority development task** from ROADMAP.md, following the "LLM INSTRUCTION: TASK SELECTION" block in that file and using the "Priority" field to determine the order.
-
-2. **Generate a high-level solution plan** for this task. This plan should identify the files to modify, the general coding approach, and any dependencies.
-
-3. **For each code modification step in the plan, generate a *specific, limited-context prompt* for the Coder LLM.** These prompts should be:
-    * Concise: Focus on a single, well-defined coding task.
-    * Contextual: Include only the *necessary* code snippets (function signature, surrounding code block).
-    * Instruction-Oriented: Provide explicit instructions on *what* code to generate or modify. The Coder LLM should only follow instructions, not create them.
-    * Ensure all code to be generated adheres to project's ethical policies and guidelines, as defined in `CONTRIBUTING.md`.
-
-4. **Generate a numbered list of "User Actionable Steps"** to guide the user. The user will execute these steps and verify the results.
-
-5. Call the `list_files` tool, to confirm all files that the write_file tool will modify. Write a description to the user for what file will be written.
-
-6. Call the `write_file` tool, to write all code to file.
-
-7.  **Perform a self-assessment and grade your proposed solution** using the metrics and guidelines defined in the "Iterative Grading Process" section of CONTRIBUTING.md and the "LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE" block in CONTRIBUTING.md. Generate a "Grade Report" in markdown format. Remember to include a section for manual feedback, to check security requirements. Since you can't execute code, you must propose what you expect the result to be.
-
-8. **Output the following in markdown format:**
+9. **Output the following in markdown format:**
 
     *   The selected task name and description.
     *   The complete high-level solution plan.
@@ -80,12 +39,11 @@ Your task is to:
         *   A placeholder section for the Coder LLM's output (e.g., "Coder LLM Output 1: \n\n [PASTE CODER LLM OUTPUT HERE] \n\n").
         *   After pasting the output of the coder LLM, review it to be sure the changes were made according to the requirements. If not, output new instructions for the coder, and a new section for the pasted code.
     *   The complete, ready-to-implement "User Actionable Steps".
-    * The list of actions the AI took for you to verify and run.
+    *   The list of actions the AI took for you to verify and run.
     *   The name and source of all files that will be written by calling the `write_file` tool.
     *   The complete "Grade Report" for your *expected* solution. Make it clear that this grade is provisional.
     *   "Updated ROADMAP.md Content": Include the *full text content* of the updated `ROADMAP.md` file, incorporating the task completion marking and roadmap evolution.
-        **- Provide all data to the user so they can follow each change.**
-
+    *   **Context Files Used:**  Explicitly list the Markdown files that you (the Driver LLM) used as context to perform this task.  This should typically include, but is not limited to, `ROADMAP.md` and `CONTRIBUTING.md`. List each file on a new line using Markdown list syntax (e.g., `* ROADMAP.md`).
     *   **End your response with the following choices:**
 
         *   **(A) Confirm:** If the proposed changes are satisfactory and tests are passing (or there are no tests), implement the changes and proceed to the next task. **Example: `A: All tests passed. Implementing changes and moving on.`**
@@ -102,7 +60,7 @@ Your task is to:
 
         (Waiting for user confirmation to implement changes and proceed to the next task)
 
-9.  After providing the above output, WAIT for my confirmation before proceeding to any further tasks. Do not automatically move to the next task until I explicitly confirm implementation of the current solution AND the ROADMAP.md update. I will respond with one of the following options:
+10.  After providing the above output, WAIT for my confirmation before proceeding to any further tasks. Do not automatically move to the next task until I explicitly confirm implementation of the current solution AND the ROADMAP.md update. I will respond with one of the following options:
 
    * **"A: [Optional message if all tests passed, and implementing changes]"**
     *   **"B: [Detailed test output showing failing tests]"**

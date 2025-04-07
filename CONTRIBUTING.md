@@ -42,13 +42,20 @@ We enthusiastically welcome contributions to the Metamorphic Software Genesis Ec
     *   Follow Python coding conventions (PEP 8).
     *   Write clear, well-commented code.
     *   Include unit and integration tests for new features and bug fixes.
-    *   Ensure code is Flake8 compliant (run `flake8` locally).
+    *   Ensure code is Flake8 compliant (run `flake8` locally.
     *   Use pre-commit hooks (recommended - see [INSTALL.md](INSTALL.md)).
-6.  **Submit a Pull Request (PR):**
+6.  **Submitting Code**
+    *   Code is not directly written, but instead generated through the Driver and Coder models. For details, see `docs/workflows/markdown_automation.md`.
+7.  **Toolchain Setup**
+    *   Code is passed from the Driver to the Coder for code generation. You must copy and paste the code block provided by the Driver model into the Coder model, and copy it back into the driver.
+8.  **Iterative Process**
+    *   Be sure to follow the steps to run and verify any generated output.
+    *   Copy results back into the LLM prompt for review.
+9.  **Submit a Pull Request (PR):**
     *   Once your contribution is ready, submit a pull request to the `main` branch of the `metamorphic-core` repository.
     *   Clearly describe the purpose and scope of your contribution in the PR description.
     *   Reference any related issues in the PR description (e.g., "Fixes #123", "Implements feature requested in #456").
-7.  **Code Review & Iteration:**
+10. **Code Review & Iteration:**
     *   Your pull request will be reviewed by project maintainers using an **Iterative Grading Process** (see [ROADMAP.md - Development Process & Methodology](ROADMAP.md#development-process---methodology)).
     *   Be responsive to feedback and be prepared to iterate on your contribution to address review comments and improve code quality.
     *   Code review is focused on code quality, correctness, security, ethical considerations, and alignment with project goals, as evaluated through the **Iterative Grading Process**.
@@ -59,9 +66,30 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
 
 *   **Multi-Dimensional Quality and Risk Assessment:** Your contribution will be rigorously assessed across multiple quality dimensions: Probability of Non-Regression, Probability of Test Success, Code Style Compliance Probability, Ethical Policy Compliance Probability, and Probability of Security Soundness.
 *   **Probability Percentage Grades & Feedback:** For each dimension, a probability percentage grade will be assigned, reflecting the estimated confidence in that aspect of the contribution. You will receive an **Iterative Grading Report** with:
-    *   **Overall Percentage Grade:** A combined grade reflecting overall quality and confidence.
+    *   **Overall Percentage Grade:** A combined grade reflecting overall quality and confidence. This value will be weighted as follows:
+        *   Probability of Non-Regression: 20%
+        *   Probability of Test Success: 30%
+        *   Code Style Compliance Probability: 10%
+        *   Ethical Policy Compliance Probability: 20%
+        *   Probability of Security Soundness: 20%
+
     *   **Dimension-Specific Probability Percentages:** Individual percentage grades for each quality dimension (Non-Regression, Test Success, Code Style, Ethics, Security).
     *   **Actionable Feedback:** Detailed feedback for each dimension, explaining the rationale behind the grades and providing concrete steps for improvement.
+
+*  **Guidance for Code Style Compliance Probability**:
+    * Aim to resolve all issues to have 100% score
+    * Each warning will detract from quality, even if low risk.
+    * Do not ignore any code issues, fix the problems and resolve all complaints.
+
+*  **Guidance for Ethical Policy Compliance Probability**:
+    * Aim for 100% compliance
+    * Apply an ethical framework to ensure that the generated code respects human values and rights.
+    * Any code generated that has a violation must be seen as a severe issue, as the AI is responsible for following this component.
+
+*  **Guidance for Non-Regression and Test Success**
+    * Provide accurate reports and testing results for each file you write.
+    * This is what the driver will use to determine if the outcome was successful.
+
 *   **Iterative Improvement:**  We encourage you to use this feedback to refine your contribution and resubmit for review.  The goal is to work iteratively, using the feedback to increase the probability percentages across all dimensions and achieve a 100% overall grade.  This collaborative process ensures that all contributions meet our rigorous quality benchmarks and contribute to a robust and reliable system.
 
 <div style="background-color:#f0f0f0; border: 1px solid #ccc; padding: 10px;">
@@ -77,7 +105,7 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
     *   Probability of Security Soundness
 
 3.  **For each dimension, assign a probability percentage grade (0-100%) and provide actionable feedback (as if you were giving feedback to a developer, focusing on concrete steps to improve the grade).**
-4.  **Calculate an "Overall Percentage Grade" based on the dimension-specific grades (consider using a weighted average if certain dimensions are more critical for this specific task).**
+4.  **Calculate an "Overall Percentage Grade" based on the dimension-specific grades (consider using a weighted average if certain dimensions are more critical for this specific task). Weights are defined in the "Probability Percentage Grades & Feedback" section.**
 5.  **Generate a structured "Grade Report" in markdown format, designed for developer actionability. The report should include:**
     *   Overall Percentage Grade
     *   Dimension-Specific Probability Percentages: For each dimension, state the percentage grade and provide a clear justification for this grade, referencing specific aspects of the hypothetical contribution.
@@ -100,5 +128,3 @@ By understanding and participating in this Iterative Grading Process, you direct
 *   [ ] I have included unit and/or integration tests (if adding code).
 *   [ ] I have added documentation (if adding new features or changing existing functionality).
 *   [ ] I have submitted a pull request to the `main` branch with a clear description.
-
-We appreciate your contributions to the Metamorphic Software Genesis Ecosystem!

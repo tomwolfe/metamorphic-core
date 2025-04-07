@@ -20,18 +20,42 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
 **Phase 1.5 Focus (Weeks 7-8):**
 
 1. **Level 1: Documentation (Week 7 - 2 days) - ✅ COMPLETE:**
-   * **Task 1.1 (Week 7 - 1 day):** Create `docs/workflows/markdown_automation.md` file and populate with detailed workflow guide. **✅ COMPLETE**
-   * **Task 1.2 (Week 7 - 1 day):** Update `README.md` with quickstart guide and link to full documentation. **✅ COMPLETE**
+   * **Task 1.1 (Week 7 - 1 day):**
+        *   Priority: High
+        *   Task ID: task_1_1
+        *   Relevant Files: docs/workflows/markdown_automation.md
+        *   Create `docs/workflows/markdown_automation.md` file and populate with detailed workflow guide. **✅ COMPLETE**
+   * **Task 1.2 (Week 7 - 1 day):**
+        *   Priority: High
+        *   Task ID: task_1_2
+        *   Relevant Files: README.md
+        *   Update `README.md` with quickstart guide and link to full documentation. **✅ COMPLETE**
    * **Target Deliverable:** Complete documentation for "Markdown-Only Automation Workflow" in `docs/workflows/markdown_automation.md` and updated `README.md`. **✅ COMPLETE**
 
 2. **Level 2: Workflow Driver Component (Week 7-8 - 5 days) - CURRENT FOCUS:**
-   * **Task 2.1 (Week 7 - 2 days):** Implement `workflow_driver.py` with prompt generation, LLM interaction, and basic output parsing.
-   * **Task 2.2 (Week 8 - 2 days):** Implement command-line interface in `run_genesis.py` to execute `WorkflowDriver` and display output.
-   * **Task 2.3 (Week 8 - 1 day):** Basic testing and debugging of the "Markdown-Only Automation Workflow" using `WorkflowDriver` for a representative task.
+   * **Task 2.1 (Week 7 - 2 days):**
+        *   Priority: High
+        *   Task ID: task_2_1
+        *   Relevant Files: src/core/automation/workflow_driver.py, docs/workflows/markdown_automation.md
+        *   Implement `workflow_driver.py` with prompt generation, LLM interaction, and basic output parsing.
+   * **Task 2.2 (Week 8 - 2 days):**
+        *   Priority: High
+        *   Task ID: task_2_2
+        *   Relevant Files: run_genesis.py, src/core/automation/workflow_driver.py
+        *   Implement command-line interface in `run_genesis.py` to execute `WorkflowDriver` and display output.
+   * **Task 2.3 (Week 8 - 1 day):**
+        *   Priority: Medium
+        *   Task ID: task_2_3
+        *   Relevant Files: src/core/automation/workflow_driver.py, tests/test_workflow_driver.py
+        *   Basic testing and debugging of the "Markdown-Only Automation Workflow" using `WorkflowDriver` for a representative task.
    * **Target Deliverable:** Functional `workflow_driver.py` component with basic command-line interface, capable of executing the "Markdown-Only Automation Workflow" for simple tasks.
 
 3. **Review & Sign-off (End of Week 8 - 1 day):**
-   * **Task 3.1 (Week 8 - 1 day):** Review all deliverables for Phase 1.5 against success metrics. Get sign-off for phase completion.
+   * **Task 3.1 (Week 8 - 1 day):**
+        *   Priority: Low
+        *   Task ID: task_3_1
+        *   Relevant Files: This ROADMAP.md
+        *   Review all deliverables for Phase 1.5 against success metrics. Get sign-off for phase completion.
    * **Target Deliverable:** Sign-off for completion of Phase 1.5.
 
 ---
@@ -100,13 +124,13 @@ To ensure the highest levels of software quality, **verifiable ethics**, and to 
 **--- LLM INSTRUCTION: USER ACTIONABLE STEPS ---**
 **LLM INSTRUCTION: Generate a numbered list of "User Actionable Steps" that the user needs to perform to implement and verify your proposed solution.  These steps should include:**
 
-1.  Specific code modifications: Provide code snippets or diffs if applicable.
-2.  Testing instructions: Commands to run tests (e.g., `pytest tests/integration/test_api_mvp_endpoint.py`).
-3.  Code quality checks: Commands to run `flake8`.
-4.  Security checks: Instructions to run ZAP scan (if relevant to the task).
-5.  Ethical governance checks: Steps to manually review or automatically check ethical policy compliance (if applicable).
-6.  Documentation updates: Instructions to update relevant documentation files (e.g., `docs/api/api-endpoints.md`, `README.md`).
+1.  Specific instructions to use a code writing tool, that you can define by calling the tool-calling process. The code snippets must be well-defined, for you to verify that it worked.
+2.  Instructions on copying the code generation prompt for the Coder LLM, and where to put the results.
+3.  Testing instructions: Commands to run tests (e.g., `pytest tests/integration/test_api_mvp_endpoint.py`).
+4.  Code quality checks: Commands to run `flake8`.
+5.  Security checks: Instructions to run ZAP scan (if relevant to the task).
+6.  Ethical governance checks: Steps to manually review or automatically check ethical policy compliance (if applicable).
+7.  Documentation updates: Instructions to update relevant documentation files (e.g., `docs/api/api-endpoints.md`, `README.md`).
 
 **Ensure the steps are clear, concise, and actionable for a developer to follow.  These steps are crucial for the user to *actually* implement and *verify* your proposed solution, ensuring it aligns with the project's standards.  Note that some of these steps, like running `flake8` or ZAP scans, could potentially be automated further in future iterations as part of the project's self-bootstrapping capabilities.**
 **--- END LLM INSTRUCTION ---**
-</div>

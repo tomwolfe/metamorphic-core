@@ -2,70 +2,37 @@
 
 This document outlines the development roadmap for the Metamorphic Software Genesis Ecosystem, focusing on the Phase 1 MVP and future iterations.
 
-**🎯 CURRENT FOCUS (Week 7 - Start of Phase 2): Transition to Phase 2 - Planning & Initial Feature Enhancements - MVP RELEASED INTERNALLY ✅**
+**🎯 CURRENT FOCUS (Week 8 - Start of Phase 1.5 Level 2): Transition to Phase 1.5 Level 2 - Workflow Driver Component Implementation 🚀**
+
+Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We are now focusing on **Phase 1.5 Level 2: Workflow Driver Component Implementation** to build the core automation engine for our development process.
 
 ---
 
-## Roadmap: Phase 2 - Iteration 1 (Weeks 7-9) 🚀
+## Roadmap: Phase 1.5 - Workflow Automation Side Project (Weeks 7-8) 🚀
 
-**Iteration Goal:** Deliver Enhanced Test Generation and Security Integration into the `/genesis/analyze-ethical` API, with detailed API documentation, by the end of Week 9.
+**Iteration Goal:** Implement Level 1 and Level 2 of the "Markdown-Only Automation Workflow" to enhance development efficiency for Phase 2 and beyond.
 
-**Success Metrics for Iteration 1:**
-*   **Enhanced Test Generation:** Unit and integration tests for `TestGeneratorAgent` re-integrated and expanded, achieving >80% code coverage for the agent.
-*   **Security Integration:** ZAP baseline scan integrated into `/genesis/analyze-ethical` API, with API response including a `security_analysis` section. ZAP scan completes successfully in CI pipeline without critical errors.
-*   **API Documentation:** Detailed documentation for `/genesis/analyze-ethical` API endpoint completed and merged into `docs/api/api-endpoints.md`.
+**Success Metrics for Phase 1.5:**
+*   **Level 1 Documentation Complete: ✅ COMPLETE**:  `docs/workflows/markdown_automation.md` file created and populated with detailed documentation of the "Markdown-Only Automation Workflow," including the "Ideal Self-Driving Prompt" and usage guide. (Week 7)
+*   **Level 2 Workflow Driver Component Implemented:** `src/core/automation/workflow_driver.py` component implemented, including core functionalities for prompt generation, LLM interaction, basic output parsing, and a command-line interface in `run_genesis.py`. (Week 8)
+*   **Basic Workflow Tested and Functional:**  The "Markdown-Only Automation Workflow" (using the implemented `WorkflowDriver` component) is tested and shown to be functional for at least one representative development task (e.g., Task 1.1 from Phase 2 Iteration 1).
 
-<div style="background-color:#f0f0f0; border: 1px solid #ccc; padding: 10px;">
-**--- LLM INSTRUCTION: TASK SELECTION ---**
-**LLM INSTRUCTION: Identify the next smallest, actionable sub-task within "Phase 2 - Iteration 1". Prioritize tasks in the order they are listed. Focus on tasks that can be completed within a reasonable timeframe (e.g., a few hours).**
-**--- END LLM INSTRUCTION ---**
-</div>
+**Phase 1.5 Focus (Weeks 7-8):**
 
-**Phase 2 - Iteration 1 Focus:**
+1. **Level 1: Documentation (Week 7 - 2 days) - ✅ COMPLETE:**
+   * **Task 1.1 (Week 7 - 1 day):** Create `docs/workflows/markdown_automation.md` file and populate with detailed workflow guide. **✅ COMPLETE**
+   * **Task 1.2 (Week 7 - 1 day):** Update `README.md` with quickstart guide and link to full documentation. **✅ COMPLETE**
+   * **Target Deliverable:** Complete documentation for "Markdown-Only Automation Workflow" in `docs/workflows/markdown_automation.md` and updated `README.md`. **✅ COMPLETE**
 
-1. **Enhanced Test Generation (Week 7-8) - NEXT ACTIONABLE TASK - HIGH PRIORITY SUB-TASK:**
-   * **Task 1.1 (Week 7 - 1 day):** Code Review & Re-integrate MVP Test Code - **SMALLEST ACTIONABLE SUB-TASK**
-   * **Task 1.2 (Week 7 - 2 days):** Basic Expansion of Test Generation Logic
-   * **Task 1.3 (Week 8 - 2 days):** Re-enable & Expand Unit/Integration Tests
-   * **Review Checkpoint (End of Week 7):** Review progress on test re-integration and expansion. Assess code coverage improvements.
-   * **Target Deliverable:** Basic intelligent test generation for Python functions, re-integrated and tested.
+2. **Level 2: Workflow Driver Component (Week 7-8 - 5 days) - CURRENT FOCUS:**
+   * **Task 2.1 (Week 7 - 2 days):** Implement `workflow_driver.py` with prompt generation, LLM interaction, and basic output parsing.
+   * **Task 2.2 (Week 8 - 2 days):** Implement command-line interface in `run_genesis.py` to execute `WorkflowDriver` and display output.
+   * **Task 2.3 (Week 8 - 1 day):** Basic testing and debugging of the "Markdown-Only Automation Workflow" using `WorkflowDriver` for a representative task.
+   * **Target Deliverable:** Functional `workflow_driver.py` component with basic command-line interface, capable of executing the "Markdown-Only Automation Workflow" for simple tasks.
 
-2. **Security Integration (Week 8-9):**
-   * **Task 2.1 (Week 8 - 2 days):** ZAP Security Agent API Integration (Synchronous)
-   * **Task 2.2 (Week 9 - 1 day):** API Endpoint Testing with ZAP Integration
-   * **CI Pipeline Integration Check (Throughout Week 8-9):** Continuously monitor and ensure the CI pipeline (ZAP Baseline Scan) remains functional and integrates with the new API changes.
-   * **Review Checkpoint (Mid-Week 8):** Review initial API integration progress. Test ZAP scan triggering and data flow within the API endpoint.
-   * **Target Deliverable:** Security Integration into `/genesis/analyze-ethical` API with synchronous ZAP baseline scans and basic reporting in API response.
-
-3. **Documentation & Refactoring (Week 9):**
-   * **Task 3.1 (Week 9 - 2 days):** Detailed `/genesis/analyze-ethical` API Documentation
-   * **Task 3.2 (Week 9 - 1 day):** Code Refactoring & Flake8 Polish
-   * **Task 3.3 (Week 9 - 1 day):** README & Integration Test Updates
-   * **Final Review & Sign-off (End of Week 9):** Review all iteration deliverables against success metrics. Get sign-off for iteration completion.
-   * **Target Deliverable:** Detailed API documentation, code refactoring, updated README and integration tests.
-
-#### Implementation Details
-
-- **Test Repurposing**: Use `CodeReviewAgent` (Flake8) to validate generated test quality (ongoing).
-- **Self-Bootstrapping**: Use existing agents to improve new features (ongoing).
-- **Resource Allocation**: Dev 1 (Person A) for Test Generation and Documentation (Tasks 1 & 3). Dev 2 (Person B) for Security Integration (Task 2).
-- **Mid-Week Progress Review:** Schedule a brief progress review meeting mid-week (e.g., Wednesday afternoon) to check progress against tasks, identify any roadblocks, and make necessary adjustments to the plan for the rest of the week.
-
-##### Week 9 Gantt Tasks
-```mermaid
-gantt
-    section Phase 2: Enhanced Features & Integration
-    Re-integrate MVP Test Code :2025-04-21, 2d
-    Expand Test Generation Logic :2025-04-23, 2d
-    Re-enable & Expand Tests :2025-04-25, 2d
-    ZAP API Integration :2025-04-28, 2d
-    API Testing with ZAP :2025-04-30, 1d
-
-    section Phase 2: Documentation & Polish
-    API Endpoint Docs :2025-05-01, 2d
-    Code Refactoring & Polish :2025-05-05, 1d
-    README & Test Updates :2025-05-06, 1d
-```
+3. **Review & Sign-off (End of Week 8 - 1 day):**
+   * **Task 3.1 (Week 8 - 1 day):** Review all deliverables for Phase 1.5 against success metrics. Get sign-off for phase completion.
+   * **Target Deliverable:** Sign-off for completion of Phase 1.5.
 
 ---
 
@@ -124,11 +91,11 @@ To ensure the highest levels of software quality, **verifiable ethics**, and to 
 **--- LLM INSTRUCTION: SOLUTION GENERATION & SELF-ASSESSMENT ---**
 **LLM INSTRUCTION: For the selected task (e.g., "Code Review & Re-integrate MVP Test Code"), generate a proposed solution (code changes, documentation updates, etc.). After generating the solution, perform a self-assessment using the following metrics (refer to the "Iterative Grading Process" section above for metric definitions, and importantly, the "Multi-Dimensional Quality and Risk Assessment" in `CONTRIBUTING.md`):**
 
-*   **Probability of Non-Regression:**  Estimate the probability (percentage) that the changes will not break existing functionality.
-*   **Probability of Test Success:** Estimate the probability (percentage) that existing and newly written tests will pass after applying the changes.
-*   **Code Style Compliance Probability:** Estimate the probability (percentage) that the generated code fully complies with PEP 8 and Flake8 guidelines.
-*   **Ethical Policy Compliance Probability:**  Estimate the probability (percentage) that the generated code complies with the project's defined ethical policies (refer to SPECIFICATION.md and CONTRIBUTING.md for policy details).
-*   **Probability of Task Completion:** Estimate the probability (percentage) that the proposed solution fully addresses the selected roadmap task.
+*   Probability of Non-Regression: Estimate the probability (percentage) that the changes will not break existing functionality.
+*   Probability of Test Success: Estimate the probability (percentage) that existing and newly written tests will pass after applying the changes.
+*   Code Style Compliance Probability: Estimate the probability (percentage) that the generated code fully complies with PEP 8 and Flake8 guidelines.
+*   Ethical Policy Compliance Probability: Estimate the probability (percentage) that the generated code complies with the project's defined ethical policies (refer to SPECIFICATION.md and CONTRIBUTING.md for policy details).
+*   Probability of Task Completion: Estimate the probability (percentage) that the proposed solution fully addresses the selected roadmap task.
 
 **Assign a percentage grade for each metric (0-100%). Provide a brief justification for each grade. Then, calculate an overall percentage grade (you can use an average, or a weighted average if weights are defined elsewhere in the documentation).  Remember to consider the "Iterative Grading Process" from `CONTRIBUTING.md` as the benchmark for your assessment.**
 
@@ -139,12 +106,12 @@ To ensure the highest levels of software quality, **verifiable ethics**, and to 
 **--- LLM INSTRUCTION: USER ACTIONABLE STEPS ---**
 **LLM INSTRUCTION: Generate a numbered list of "User Actionable Steps" that the user needs to perform to implement and verify your proposed solution.  These steps should include:**
 
-1.  **Specific code modifications:**  Provide code snippets or diffs if applicable.
-2.  **Testing instructions:**  Commands to run tests (e.g., `pytest tests/integration/test_api_mvp_endpoint.py`).
-3.  **Code quality checks:**  Commands to run `flake8`.
-4.  **Security checks:**  Instructions to run ZAP scan (if relevant to the task).
-5.  **Ethical governance checks:**  Steps to manually review or automatically check ethical policy compliance (if applicable).
-6.  **Documentation updates:**  Instructions to update relevant documentation files (e.g., `docs/api/api-endpoints.md`, `README.md`).
+1.  Specific code modifications: Provide code snippets or diffs if applicable.
+2.  Testing instructions: Commands to run tests (e.g., `pytest tests/integration/test_api_mvp_endpoint.py`).
+3.  Code quality checks: Commands to run `flake8`.
+4.  Security checks: Instructions to run ZAP scan (if relevant to the task).
+5.  Ethical governance checks: Steps to manually review or automatically check ethical policy compliance (if applicable).
+6.  Documentation updates: Instructions to update relevant documentation files (e.g., `docs/api/api-endpoints.md`, `README.md`).
 
 **Ensure the steps are clear, concise, and actionable for a developer to follow.  These steps are crucial for the user to *actually* implement and *verify* your proposed solution, ensuring it aligns with the project's standards.  Note that some of these steps, like running `flake8` or ZAP scans, could potentially be automated further in future iterations as part of the project's self-bootstrapping capabilities.**
 **--- END LLM INSTRUCTION ---**

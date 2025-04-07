@@ -1,5 +1,8 @@
 **Metamorphic Software Genesis Ecosystem - Phase 1 MVP Internal Release (v0.1.0-internal-mvp) - QUICK START GUIDE**
 
+**Roadmap Update - Prioritizing Workflow Automation:** <--- UPDATED SECTION HEADING
+Following the internal MVP release, we are now prioritizing **Phase 1.5: Workflow Automation Side Project** before proceeding to Phase 2 feature development. This is a strategic decision to invest in our development process and build a more efficient and streamlined workflow for the Metamorphic project itself.  See [ROADMAP.md](ROADMAP.md) for the updated roadmap and details on Phase 1.5.
+
 **Purpose of this Release:** Internal testing and feedback on core functionality (Ethical Governance Engine, Flake8 Code Quality).
 
 **Key Features (MVP Highlights):**

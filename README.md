@@ -2,11 +2,12 @@
 
 [![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
-[![Roadmap Status](https://img.shields.io/badge/Roadmap-See_ROADMAP.md_for_Phase_2_and_Beyond-yellow)](ROADMAP.md)
+[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.5_Workflow_Automation_Focus-yellow)](ROADMAP.md)
+[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.5_Workflow_Automation_Focus-yellow)](ROADMAP.md)  <-- UPDATED BADGE TEXT
 
-**🎯 CURRENT FOCUS: PHASE 2 ITERATION 1 - Enhancements & Feature Expansion (Weeks 7-9)**
+**🎯 CURRENT FOCUS: PHASE 1.5 - Workflow Automation Side Project (Weeks 7-8) - PRIORITIZED TO SIGNIFICANTLY ACCELERATE FUTURE DEVELOPMENT 🚀**
 
-Phase 1 MVP is complete! We are now in Phase 2 Iteration 1, focusing on enhancing test generation, integrating security scans, and improving API documentation. See the [Roadmap](#further-documentation) for details.
+Phase 1 MVP is complete! We are now prioritizing **Phase 1.5: Workflow Automation Side Project** to streamline and accelerate development for Phase 2 and beyond. See the [Roadmap](#further-documentation) for details.
 
 ---
 
@@ -19,6 +20,7 @@ Phase 1 MVP is complete! We are now in Phase 2 Iteration 1, focusing on enhancin
     *   [Running the API Server](#running_the_api_server)
     *   [Quickstart Guide](#quickstart_guide)
     *   [System Requirements](#system-requirements)
+    *   [Quickstart Guide to Markdown-Only Automation](#quickstart-guide-to-markdown-only-automation)
 *   [Workflow and Use Case Example](#workflow-use-case-example)
 *   [Core API Endpoints](#core-api-endpoints)
 *   [Contributing](#contributing)
@@ -130,6 +132,19 @@ Examine the JSON response for `code_quality` and `ethical_analysis` sections.
 -   **RAM:** 8GB RAM minimum, 16GB+ recommended for LLM features.
 -   **Disk Space:** 2GB free disk space or more.
 
+### <a name="quickstart-guide-to-markdown-only-automation"></a>Quickstart Guide to Markdown-Only Automation
+
+For a streamlined, AI-driven development experience with minimal manual prompting, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and the augmented `.md` documentation to guide an LLM to autonomously drive development tasks.
+
+**Quickstart Steps:**
+
+1.  **Prepare your `.md` files and codebase text** as described in the [Full Guide](docs/workflows/markdown_automation.md).
+2.  **Copy the "Ready-to-Use "Ideal" Self-Driving Prompt"** from [docs/workflows/markdown_automation.md](docs/workflows/markdown_automation.md).
+3.  **Paste the prompt into your LLM interface, replacing the placeholders** with your codebase and `.md` file content.
+4.  **Review the LLM's output, implement "User Actionable Steps," and provide confirmation** to proceed to the next task.
+
+**For detailed instructions and the full "Ideal Self-Driving Prompt" text, please refer to the [Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md).**
+
 ## <a name="workflow-use-case-example"></a>Workflow and Use Case Example
 
 The Metamorphic Software Genesis Ecosystem aims to automate software development from specification to deployment.  Consider generating software for an **Autonomous Drone Package Delivery System**. This example showcases the framework's ability to handle complexity, security, ethics, and hardware interaction.
@@ -183,6 +198,7 @@ Contributions are welcome!  Please align with the current [Phase 2 Iteration 1 f
 -   **[Competitive Landscape Analysis](COMPETITIVE_LANDSCAPE.md)**
 -   **[API Documentation (Placeholder - In Progress)](docs/api/api-endpoints.md)** - *Detailed API documentation for the `/genesis/analyze-ethical` endpoint will be available here by the end of Phase 2 Iteration 1 (Week 9).*
 -   **[Contribution Guidelines](CONTRIBUTING.md)**
+-   **[Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md)**  **(NEW - Recommended for streamlined AI-driven development)**
 
 ## <a name="troubleshooting"></a>Troubleshooting
 

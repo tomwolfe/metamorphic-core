@@ -79,9 +79,9 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
 3.  **For each dimension, assign a probability percentage grade (0-100%) and provide actionable feedback (as if you were giving feedback to a developer, focusing on concrete steps to improve the grade).**
 4.  **Calculate an "Overall Percentage Grade" based on the dimension-specific grades (consider using a weighted average if certain dimensions are more critical for this specific task).**
 5.  **Generate a structured "Grade Report" in markdown format, designed for developer actionability. The report should include:**
-    *   **Overall Percentage Grade**
-    *   **Dimension-Specific Probability Percentages:** For each dimension, state the percentage grade and provide a clear justification for this grade, referencing specific aspects of the hypothetical contribution.
-    *   **Actionable Feedback for each dimension:** Provide concrete, step-by-step feedback for each dimension, explaining *how* the developer can improve their contribution to increase the probability percentage and reach a 100% overall grade.  This feedback should be directly linked to the quality dimensions and the "Iterative Grading Process".
+    *   Overall Percentage Grade
+    *   Dimension-Specific Probability Percentages: For each dimension, state the percentage grade and provide a clear justification for this grade, referencing specific aspects of the hypothetical contribution.
+    *   Actionable Feedback for each dimension: Provide concrete, step-by-step feedback for each dimension, explaining *how* the developer can improve their contribution to increase the probability percentage and reach a 100% overall grade.  This feedback should be directly linked to the quality dimensions and the "Iterative Grading Process".
 
 **This "Grade Report" is the key output of your review. It must be detailed, actionable, and focused on guiding the developer towards meeting the high quality standards of the Metamorphic project, as defined by the Iterative Grading Process.**
 

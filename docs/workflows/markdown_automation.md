@@ -80,48 +80,32 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
 
     If my response does NOT begin with A, B, C, D, E or F, output the following error message, then wait for further instructions: "ERROR: Invalid response format. Your response MUST begin with A, B, C, D, E, or F, followed by a colon and a space. If all of the relevant code or data is not provided, please include all of the content in the resent response or a truncated part."
 
-**Example: Creating a New Class "WorkflowDriver" and Method "load_roadmap"**
+## Ready-to-Use "Ideal" Self-Driving Prompt
 
-Suppose you are tasked with creating a new class called `WorkflowDriver` in a new file called `src/core/automation/workflow_driver.py`. This class should have a method, load_roadmap, that will read `ROADMAP.md` and parse it for all outstanding tasks, using regular expressions to pull the required information.
+To initiate the "Markdown-Only Automation" workflow, copy the following prompt into your LLM interface. Be sure to replace the bracketed placeholders with the actual content of those files. *Do not* include the brackets themselves.
 
-1.  **Break down the task:**
+```
+You are an AI development assistant working on the Metamorphic Software Genesis Ecosystem. Your goal is to autonomously drive the development of the project by following the instructions in docs/workflows/markdown_automation.md. Adhere to the Iterative Grading Process. Pay close attention to writing code that meets ethical standards.
 
-    *   Step 1: Create the basic class structure in `src/core/automation/workflow_driver.py` with `__init__` method and docstrings.
-    *   Step 2: Add a method called `load_roadmap` to the `WorkflowDriver` class that reads `ROADMAP.md` and parses the task list. This method should use a regular expression that includes the ID, Title, and Description of all tasks. Consider file safety and loading.
-    *   Step 3: Ensure that the `load_roadmap` method contains robust parsing, and consider boundary cases such as blank headers and task descriptions.
-    *   Step 4: Add unit tests for the parsing method to verify loading and integrity.
+1.  Understand the project structure and goals by reading the following documentation:
+    *   Full High-Level Specification: [PASTE THE FULL CONTENT OF SPECIFICATION.md HERE]
+    *   Development Roadmap: [PASTE THE FULL CONTENT OF ROADMAP.md HERE]
+    *   Contribution Guidelines: [PASTE THE FULL CONTENT OF CONTRIBUTING.md HERE]
+    *   Automation Workflow: [PASTE THE FULL CONTENT OF docs/workflows/markdown_automation.md HERE]
+    *   Competitive Landscape: [PASTE THE FULL CONTENT OF COMPETITIVE_LANDSCAPE.md HERE]
 
-2.  **Tool Utilizations:**
+2.  Execute the steps described in docs/workflows/markdown_automation.md.
+    * Load the full content of all markdown files.
+    * Identify and select the next development task from ROADMAP.md, focusing on incremental steps that get stage 2 closer to completion.
+    * Generate a high-level solution plan.
+    * Generate precise code generation prompts for the Coder LLM.
+    * Generate a numbered list of User Actionable Steps, formatted as a Markdown checklist.
+    * Self-Critique and Revise the generated outputs (Solution Plan, Coder LLM Prompts, User Actionable Steps).
+    * Perform a self-assessment and grade the proposed solution using the Iterative Grading Process from CONTRIBUTING.md.
 
-    *   Make sure to use flake8 to review the files, and attempt to use bandit to search for any security issues.
+3.  Ensure all generated code adheres to the project's ethical policies and guidelines, using policy_bias_risk_strict.json as a reference. Make sure that no keyword identified in that file's "keywords" list (["hate speech", "racist", "sexist", "offensive"]) is found in the generated code.
 
-3.  **Model Choices:**
+Remember to follow these guidelines to the greatest extent possible.
 
-    *   When writing the actual code, consider that DeepSeek can provide a good balance between quality and efficiency, and the most cost-effective model should be chosen if it meets requirements.
-
-4.  **Generate Coder LLM Prompts:**
-
-    *   "Coder LLM Prompt 1: Create a new file `src/core/automation/workflow_driver.py` with the following content:
-
-    ```python
-    \"\"\"
-    This module provides a WorkflowDriver class for automating tasks.
-    \"\"\"
-
-    class WorkflowDriver:
-        \"\"\"
-        A class for automating tasks defined in the ROADMAP.md.
-        \"\"\"
-
-        def __init__(self):
-            pass
-
-        def load_roadmap(self, roadmap_path: str):
-            \"\"\"
-            Loads and parses the ROADMAP.md file.
-            \"\"\"
-            pass
-    ```"
-    *   "Coder LLM Prompt 2: Using regex, fill in the content of the method `load_roadmap`. You must use triple quotes to represent an escaped string. For simplicity, ensure that all lines have a length of fewer than 80 characters."
-
-        *  Consider this approach as test-driven development; create the tests first, then have the model iterate it's code to ensure compliance with those tests.
+Begin!
+```

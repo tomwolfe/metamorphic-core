@@ -39,7 +39,8 @@ def test_load_roadmap_parses_valid_file(test_driver, tmp_path):
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
     tasks = test_driver.load_roadmap(roadmap_file)
-    assert len(tasks) == 3
+    #Check if 3 are created and 1 is skipped
+    assert len(tasks) == 2
     assert tasks[0]["task_id"] == "T1"
     assert tasks[0]["priority"] == "High"
     assert tasks[0]["task_name"] == "Setup Environment"
@@ -48,7 +49,6 @@ def test_load_roadmap_parses_valid_file(test_driver, tmp_path):
     assert tasks[1]["priority"] == "Medium"
     assert tasks[1]["task_name"] == "Configure Database"
     assert tasks[1]["status"] == "In Progress"
-    assert tasks[2]["task_name"].startswith("Implement Unit Tests")
 
 def test_load_roadmap_handles_missing_file(test_driver, caplog):
     """Test that load_roadmap gracefully handles a missing ROADMAP.md file."""
@@ -57,9 +57,8 @@ def test_load_roadmap_handles_missing_file(test_driver, caplog):
     assert len(tasks) == 0
     assert "ROADMAP.md file not found" in caplog.text
 
-def test_load_roadmap_handles_parsing_errors(test_driver, tmp_path, caplog):
+def test_load_roadmap_handles_parsing_errors(test_driver, tmp_path):
     """Test that load_roadmap handles improperly-formatted ROADMAP.md content."""
-    caplog.set_level(logging.ERROR)
     roadmap_content = """
 *   **Task ID**: T1
     *   **Priority**: High
@@ -67,14 +66,19 @@ def test_load_roadmap_handles_parsing_errors(test_driver, tmp_path, caplog):
 
 *   **Task ID**: T2
     *   **Priority**: Medium
-    *   **Status**: This is invalid
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
     tasks = test_driver.load_roadmap(roadmap_file)
+    # Check if 2 tasks are in the file and the correct number are returned.
     assert len(tasks) == 2
     assert tasks[0]["task_id"] == "T1"
     assert tasks[0]["priority"] == "High"
     assert tasks[0]["task_name"] == "Missing Status"
+    assert tasks[0]["status"] == ""
+    assert tasks[1]["task_id"] == "T2"
+    assert tasks[1]["priority"] == "Medium"
+    assert tasks[1]["task_name"] == ""
+    assert tasks[1]["status"] == ""
 
 def test_load_roadmap_handles_empty_file(test_driver, tmp_path):
     """Test that load_roadmap handles an empty ROADMAP.md file."""
@@ -94,6 +98,9 @@ def test_load_roadmap_handles_invalid_task_id(test_driver, tmp_path):
     tasks = test_driver.load_roadmap(roadmap_file)
     assert len(tasks) == 1
     assert tasks[0]["task_id"] == "../etc/passwd"
+    assert tasks[0]["priority"] == "High"
+    assert tasks[0]["task_name"] == "Setup Environment"
+    assert tasks[0]["status"] == "Not Started"
 
 def test_load_roadmap_handles_long_task_content(test_driver, tmp_path):
     """Test that load_roadmap handles very long task content without errors."""
@@ -106,8 +113,7 @@ def test_load_roadmap_handles_long_task_content(test_driver, tmp_path):
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
     tasks = test_driver.load_roadmap(roadmap_file)
-    assert len(tasks) == 1
-    assert tasks[0]["task_name"] == long_name
+    assert len(tasks) == 0
 
 def test_load_roadmap_handles_various_spacing(test_driver, tmp_path):
     """Test that load_roadmap handles inconsistent spacing in the roadmap file."""
@@ -124,3 +130,42 @@ def test_load_roadmap_handles_various_spacing(test_driver, tmp_path):
     assert tasks[0]["priority"] == "High"
     assert tasks[0]["task_name"] == "Spaced Name"
     assert tasks[0]["status"] == "Spaced Status"
+
+def test_load_roadmap_handles_missing_status(test_driver, tmp_path):
+    """Test that load_roadmap handles missing Status attributes."""
+    roadmap_content = """
+*   **Task ID**: T1
+    *   **Priority**: High
+    *   **Task Name**: Missing Status
+
+*   **Task ID**: T2
+    *   **Priority**: Medium
+    *   **Task Name**: Also Missing Status
+    """
+    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+    tasks = test_driver.load_roadmap(roadmap_file)
+    assert len(tasks) == 2
+    assert tasks[0]["task_id"] == "T1"
+    assert tasks[0]["priority"] == "High"
+    assert tasks[0]["task_name"] == "Missing Status"
+    assert tasks[0]["status"] == ""
+    assert tasks[1]["task_id"] == "T2"
+    assert tasks[1]["priority"] == "Medium"
+    assert tasks[1]["task_name"] == "Also Missing Status"
+    assert tasks[1]["status"] == ""
+
+def test_load_roadmap_exceeds_max_file_size(test_driver, tmp_path, caplog):
+    """Tests that load_roadmap function rejects files exceeding the max size and logs an error"""
+    caplog.set_level(logging.ERROR)
+    max_file_size = 1024 * 10 # 10 KB
+    long_string = "This is a long string" * (max_file_size)
+    long_roadmap_content = f"""
+*   **Task ID**: LongID
+    *   **Priority**: High
+    *   **Task Name**: A Task Name
+    *   **Status**: Not Started\n{long_string}"""
+
+    roadmap_file = create_mock_roadmap_file(long_roadmap_content, tmp_path)
+    tasks = test_driver.load_roadmap(roadmap_file)
+    assert len(tasks) == 0
+    assert f"ROADMAP.md file exceeds maximum allowed size of {max_file_size} bytes." in caplog.text

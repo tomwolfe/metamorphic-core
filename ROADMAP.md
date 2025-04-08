@@ -14,8 +14,9 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
 
 **Success Metrics for Phase 1.5:**
 *   Level 1 Documentation Complete: ✅ COMPLETE: `docs/workflows/markdown_automation.md` file created and populated with detailed documentation of the "Markdown-Only Automation Workflow," including the "Ideal Self-Driving Prompt" and usage guide. (Week 7)
-*   Level 2 Workflow Driver Component Implemented: `src/core/automation/workflow_driver.py` component implemented, including core functionalities for prompt generation, LLM interaction, basic output parsing, and a command-line interface in `run_genesis.py`. (Week 8)
-*   Basic Workflow Tested and Functional: The "Markdown-Only Automation Workflow" (using the implemented `WorkflowDriver` component) is tested and shown to be functional for at least one representative development task (e.g., Task 1.1 from Phase 2 Iteration 1).
+*   Level 2 Workflow Driver Component Partially Implemented: `src/core/automation/workflow_driver.py` component partially implemented, including core functionalities for prompt generation, LLM interaction, basic output parsing, and a command-line interface in `run_genesis.py`. (Week 8)
+*   Basic Workflow Driver Tests Implemented: Some unit tests exist for `WorkflowDriver`.
+*   Command-Line Interface and `list_files` method - INCOMPLETE: `run_genesis.py` is not yet created and `list_files` method is still empty.
 
 **Phase 1.5 Focus (Weeks 7-8):**
 
@@ -43,47 +44,49 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
         *   Priority: High
         *   Task ID: task_2_1
         *   Relevant Files: src/core/automation/workflow_driver.py, docs/workflows/markdown_automation.md
-        *   Implement `workflow_driver.py` with prompt generation, LLM interaction, and basic output parsing. **IN PROGRESS**
+        *   Implement `workflow_driver.py` with prompt generation, LLM interaction, and basic output parsing. **PARTIALLY IMPLEMENTED**
         *   **Entry Criteria:** `docs/workflows/markdown_automation.md` is complete. Basic project structure is set up.
         *   **Success Criteria:** `workflow_driver.py` contains a `WorkflowDriver` class with the following methods:
             *   `__init__(self)`: Initializes the class (can be empty).
-            *   `load_roadmap(self, roadmap_path: str)`: Reads and parses `ROADMAP.md` into a usable data structure (e.g., a list of dictionaries).
+            *   `load_roadmap(self, roadmap_path: str)`: Reads and parses `ROADMAP.md` into a usable data structure (e.g., a list of dictionaries). **IMPLEMENTED - HARDCODED OUTPUT**
             *    Implements basic file loading, using only safe libraries.
-            *  Includes the `list_files` commands.
+            *  Includes the `list_files` command. **NOT IMPLEMENTED - EMPTY METHOD**
             *   `__repr__(self)` - This will ensure easier output for logging to ensure that the models read the data correctly.
-        *   **Expected Grade Outcome:** 80% (Basic functionality, initial tests). Requires basic framework for calling LLMs.
+        *   **Expected Grade Outcome:** 60% (Basic class structure and hardcoded `load_roadmap` implemented, no file IO, `list_files` empty.)
         *   **Decomposition Hints:**
-            * Sub-task 1: Create initial unit tests for core `WorkflowDriver` functionality.
+            * Sub-task 1: Implement reading ROADMAP.md into a dictionary of tasks.
             * Sub-task 2: Implement logging to aid debugging.
             * Sub-task 3: Add basic error handling for potential exceptions.
+            * Sub-task 4: Implement the `list_files` method (can be basic initial implementation).
    * **Task 2.2 (Week 8 - 2 days):**
         *   Priority: High
         *   Task ID: task_2_2
         *   Relevant Files: run_genesis.py, src/core/automation/workflow_driver.py
-        *   Implement command-line interface in `run_genesis.py` to execute `WorkflowDriver` and display output.
+        *   Implement command-line interface in `run_genesis.py` to execute `WorkflowDriver` and display output. **NOT STARTED**
         *   **Entry Criteria:** `WorkflowDriver` class exists with `load_roadmap` method.
         *   **Success Criteria:** `run_genesis.py` can:
             *   Instantiate `WorkflowDriver`.
             *   Call `load_roadmap` and display the parsed task list in a human-readable format.
-            * Has `list_files` functionality.
+            * Has `list_files` functionality (calls and prints results).
             * Has appropriate doc strings.
-        *   **Expected Grade Outcome:** 85%. Must load basic functions, but it doesn't have to run.
+        *   **Expected Grade Outcome:** 0%.
    * **Task 2.3 (Week 8 - 1 day):**
         *   Priority: Medium
         *   Task ID: task_2_3
         *   Relevant Files: src/core/automation/workflow_driver.py, tests/test_workflow_driver.py
-        *   Basic testing and debugging of the "Markdown-Only Automation Workflow" using `WorkflowDriver` for a representative task.
+        *   Basic testing and debugging of the "Markdown-Only Automation Workflow" using `WorkflowDriver` for a representative task.  **PARTIALLY IMPLEMENTED**
         *   **Entry Criteria:** `WorkflowDriver` has basic functionality and a command-line interface.
         *   **Success Criteria:**
-            *   Unit tests exist for `load_roadmap` and other core methods.
-            *   The `WorkflowDriver` can successfully load and parse `ROADMAP.md`.
+            *   Unit tests exist for `load_roadmap` and other core methods.  **IMPLEMENTED - BASIC TESTS ONLY**
+            *   The `WorkflowDriver` can successfully load and parse `ROADMAP.md` **NOT YET - HARDCODED OUTPUT ONLY**
             *   Code is verified that it doesn't have any problems, especially security problems and potential code injection, to help verify that this doesn't have any potential problems.
         *   **Decomposition Hints:**
             * Sub-task 1: Create initial unit tests for core `WorkflowDriver` functionality.
             * Sub-task 2: Implement logging to aid debugging.
             * Sub-task 3: Add basic error handling for potential exceptions.
-        * **Expected Grade Outcome:** 80% (Basic tests passing, but edge cases not fully covered).
-   * **Target Deliverable:** Functional `workflow_driver.py` component with basic command-line interface, capable of executing the "Markdown-Only Automation Workflow" for simple tasks.
+            * Sub-task 4:  Add tests for file reading functionality
+        * **Expected Grade Outcome:** 40% (Some tests implemented for hardcoded output; file i/o not yet tested).
+   * **Target Deliverable:** Partially functional `workflow_driver.py` component with initial testing. Command-line interface *NOT YET IMPLEMENTED*.
 
 3. **Review & Sign-off (End of Week 8 - 1 day):**
    * **Task 3.1 (Week 8 - 1 day):**
@@ -97,6 +100,7 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
    * **Target Deliverable:** Sign-off for completion of Phase 1.5.
 
 ---
+
 
 ## High-Level Roadmap: Phase 2 and Beyond (Weeks 10+) <a name="high-level-roadmap-phase-2-and-beyond"></a> 🔭
 

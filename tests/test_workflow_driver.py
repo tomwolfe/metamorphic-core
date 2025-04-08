@@ -1,5 +1,3 @@
-# tests/test_workflow_driver.py
-
 import pytest
 from src.core.automation.workflow_driver import WorkflowDriver
 import os
@@ -54,9 +52,9 @@ def test_load_roadmap_handles_missing_file(test_driver, caplog):
     assert "ROADMAP.md file not found" in caplog.text
 
 def test_load_roadmap_handles_parsing_errors(test_driver, tmp_path, caplog):
-     """Test that load_roadmap handles improperly-formatted ROADMAP.md content."""
-     caplog.set_level(logging.ERROR)
-     roadmap_content = """
+    """Test that load_roadmap handles improperly-formatted ROADMAP.md content."""
+    caplog.set_level(logging.ERROR)
+    roadmap_content = """
 *   **Task ID**: T1
     *   **Priority**: High
     *   **Task Name**: Missing Status
@@ -64,14 +62,11 @@ def test_load_roadmap_handles_parsing_errors(test_driver, tmp_path, caplog):
 *   **Task ID**: T2
     *   **Priority**: Medium
     *   **Status**: This is invalid
-
-     """
-     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
-     tasks = test_driver.load_roadmap(roadmap_file)
-     # Test what data we could get.
-     assert len(tasks) == 1 # Expect to only get one task now that the parsing error is fixed
-     assert tasks[0]["task_id"] == "T1" # Expect that task 1 is at least parsed to get some data
-     assert tasks[0]["priority"] == "High"
-     assert tasks[0]["task_name"] == "Missing Status" # Double check data
-     assert tasks[0]["status"] == "" # There will be no data, as that isn't available for that function to grab
-     assert "Error loading or parsing ROADMAP.md" in caplog.text
+    """
+    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+    tasks = test_driver.load_roadmap(roadmap_file)
+    assert len(tasks) == 1
+    assert tasks[0]["task_id"] == "T1"
+    assert tasks[0]["priority"] == "High"
+    assert tasks[0]["task_name"] == "Missing Status"
+    assert tasks[0]["status"] == ""

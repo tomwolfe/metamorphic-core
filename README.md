@@ -11,6 +11,7 @@ Phase 1 MVP is complete! We are now prioritizing **Phase 1.5: Workflow Automatio
 ---
 
 **Table of Contents**
+
 *   [About the Metamorphic Software Genesis Ecosystem](#about)
 *   [Getting Started](#getting-started)
     *   [Prerequisites](#prerequisites)
@@ -37,11 +38,11 @@ The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to
 
 **Key Objectives:**
 
--   **Autonomous Generation:**  Create functional applications from natural language or structured specifications.
--   **Ethical Governance:**  Enforce configurable ethical policies throughout development.
--   **Automated Quality & Security:**  Integrate continuous testing, code review, and formal verification.
--   **Self-Improving Development Process:**  Optimize its own development using AI-driven planning.
--   **Self-Improvement:**  Learn from analysis, feedback, and metrics to enhance its core capabilities.
+*   **Autonomous Generation:**  Create functional applications from natural language or structured specifications.
+*   **Ethical Governance:**  Enforce configurable ethical policies throughout development.
+*   **Automated Quality & Security:**  Integrate continuous testing, code review, and formal verification.
+*   **Self-Improving Development Process:**  Optimize its own development using AI-driven planning.
+*   **Self-Improvement:**  Learn from analysis, feedback, and metrics to enhance its core capabilities.
 
 *(For the full detailed vision and architecture, see [**SPECIFICATION.md**](SPECIFICATION.md))*
 
@@ -49,10 +50,10 @@ The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to
 
 ### <a name="prerequisites"></a>Prerequisites
 
--   **Python Version:** Python 3.11+. Verify with `python --version`.
--   **Docker:** Docker Desktop (optional, for Redis/ZAP). See [Troubleshooting](#troubleshooting) for Docker issues.
--   **API Keys:** Required API keys (see [.env Configuration & API Keys](#env-configuration-api-keys)).
--   **Git:** Git installed on your system.
+*   **Python Version:** Python 3.11+. Verify with `python --version`.
+*   **Docker:** Docker Desktop (optional, for Redis/ZAP). See [Troubleshooting](#troubleshooting) for Docker issues.
+*   **API Keys:** Required API keys (see [.env Configuration & API Keys](#env-configuration-api-keys)).
+*   **Git:** Git installed on your system.
 
 ### <a name="installation"></a>Installation
 
@@ -92,13 +93,16 @@ The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to
 
 1.  **Create `.env` File:** Copy `.env.example` to `.env`: `cp .env.example .env`
 2.  **Set Required Gemini API Key:**
-    -   Edit `.env` and set `GEMINI_API_KEY=your_gemini_api_key` with your Gemini API key from [Google AI Studio](https://ai.google.dev/). **This is required for the core functionality.**
+
+    *   Edit `.env` and set `GEMINI_API_KEY=your_gemini_api_key` with your Gemini API key from [Google AI Studio](https://ai.google.dev/). **This is required for the core functionality.**
 3.  **Configure Optional API Keys (in `.env`):**
-    -   `HUGGING_FACE_API_KEY`: For Hugging Face models (from [Hugging Face](https://huggingface.co/settings/tokens)).
-    -   `YOUR_GITHUB_API_KEY`: For future GitHub integrations (from [GitHub](https://github.com/settings/tokens)).
-    -   `ZAP_API_KEY`: For local ZAP security scans (advanced, optional) - default is `changeme`.
+
+    *   `HUGGING_FACE_API_KEY`: For Hugging Face models (from [Hugging Face](https://huggingface.co/settings/tokens)).
+    *   `YOUR_GITHUB_API_KEY`: For future GitHub integrations (from [GitHub](https://github.com/settings/tokens)).
+    *   `ZAP_API_KEY`: For local ZAP security scans (advanced, optional) - default is `changeme`.
 4.  **Optional Settings (in `.env`):**
-    -   `LLM_PROVIDER`, `LLM_MAX_RETRIES`, `LLM_TIMEOUT`, `HUGGING_FACE_MODEL`, `DOCKERHUB_USERNAME` (see `.env.example` for details).
+
+    *   `LLM_PROVIDER`, `LLM_MAX_RETRIES`, `LLM_TIMEOUT`, `HUGGING_FACE_MODEL`, `DOCKERHUB_USERNAME` (see `.env.example` for details).
 5.  **Security Note:** **Never commit your `.env` file** to version control. Ensure `.env` is in `.gitignore`.
 
 ### <a name="running_the_api_server"></a>Running the API Server
@@ -125,11 +129,11 @@ Examine the JSON response for `code_quality` and `ethical_analysis` sections.
 
 ### <a name="system-requirements"></a>System Requirements
 
--   **Operating System:** Linux (Ubuntu recommended), macOS, Windows (Windows 10/11 tested).
--   **Python Version:** Python 3.11+ (required).
--   **Docker:** Optional (recommended for services). See [Troubleshooting](#troubleshooting) for Docker issues.
--   **RAM:** 8GB RAM minimum, 16GB+ recommended for LLM features.
--   **Disk Space:** 2GB free disk space or more.
+*   **Operating System:** Linux (Ubuntu recommended), macOS, Windows (Windows 10/11 tested).
+*   **Python Version:** Python 3.11+ (required).
+*   **Docker:** Optional (recommended for services). See [Troubleshooting](#troubleshooting) for Docker issues.
+*   **RAM:** 8GB RAM minimum, 16GB+ recommended for LLM features.
+*   **Disk Space:** 2GB free disk space or more.
 
 ### <a name="quickstart-guide-to-markdown-only-automation"></a>Quickstart Guide to Markdown-Only Automation
 
@@ -141,6 +145,7 @@ For a streamlined, AI-driven development experience with minimal manual promptin
 2.  **Copy the "Ready-to-Use "Ideal" Self-Driving Prompt"** from [docs/workflows/markdown_automation.md](docs/workflows/markdown_automation.md).
 3.  **Paste the prompt into your LLM interface, replacing the placeholders** with your codebase and `.md` file content.
 4.  **Review the LLM's output, implement "User Actionable Steps," and provide confirmation** to proceed to the next task. **Continue to iterate based on the provided Grade Report, until your proposed solution achieves a 100% Overall Percentage Grade. When providing feedback, use one of the following options, formatted as described in `docs/workflows/markdown_automation.md`:**
+
     *   **`B: [Detailed test output showing failing tests]`**
     *   **`C: [Missing File(s): list of missing files]`**
     *   **`D: [Your question to the LLM]`**
@@ -156,24 +161,26 @@ The Metamorphic Software Genesis Ecosystem aims to automate software development
 **Conceptual Workflow:**
 
 1.  **Input:** Provide a high-level software description and detailed ethical policies/constraints.
+
     *   Example Spec: "Develop software for a drone delivery system..."
     *   Policy Files (JSON): `safety_policy.json`, `privacy_policy.json`, `security_policy.json`
 2.  **Refinement:** AI clarifies requirements using the `SpecificationAnalysisAgent`.
 3.  **Design:** AI generates a software architecture, stored in the Knowledge Graph (KG).
 4.  **Generation:** `CodeGenerationAgent` creates code (Python, Go, etc.) using LLMs orchestrated by `LLMOrchestrator`.
 5.  **Validation (Iterative Loop):**
-    -   **Checks:** Code Quality (`CodeReviewAgent` - Flake8), Ethical Assessment (`EthicalGovernanceEngine`), Security Scans (`SecurityAgent`), Testing (`TestGenAgent`), Formal Verification (`FormalVerificationEngine`).
-    -   **Feedback & Regeneration:** Validation results drive code regeneration until all checks pass.
+
+    *   **Checks:** Code Quality (`CodeReviewAgent` - Flake8), Ethical Assessment (`EthicalGovernanceEngine`), Security Scans (`SecurityAgent`), Testing (`TestGenAgent`), Formal Verification (`FormalVerificationEngine`).
+    *   **Feedback & Regeneration:** Validation results drive code regeneration until all checks pass.
 6.  **Integration:** Validated code is integrated via Git and CI/CD pipelines.
 7.  **Improvement:** `ContinuousLearningCore` analyzes performance and feedback to refine agents and processes.
 
 **End Products:**
 
--   Ready-to-deploy software (Cloud Backend, ESP32 Firmware).
--   Comprehensive test suites (including Hardware-in-the-Loop).
--   Configuration/policy files.
--   Formal verification artifacts.
--   MSGE Reports: Ethical Compliance, Security Analysis, Test Coverage, Formal Verification.
+*   Ready-to-deploy software (Cloud Backend, ESP32 Firmware).
+*   Comprehensive test suites (including Hardware-in-the-Loop).
+*   Configuration/policy files.
+*   Formal verification artifacts.
+*   MSGE Reports: Ethical Compliance, Security Analysis, Test Coverage, Formal Verification.
 
 ## <a name="core-api-endpoints"></a>Core API Endpoints
 
@@ -197,62 +204,69 @@ Contributions are welcome!  Please align with the current [Phase 2 Iteration 1 f
 
 ## <a name="further-documentation"></a>Further Documentation
 
--   **[Full High-Level Specification (Detailed Vision)](SPECIFICATION.md)**
--   **[Development Roadmap (MVP & Beyond)](ROADMAP.md)**
--   **[Competitive Landscape Analysis](COMPETITIVE_LANDSCAPE.md)**
--   **[API Documentation (Placeholder - In Progress)](docs/api/api-endpoints.md)** - *Detailed API documentation for the `/genesis/analyze-ethical` endpoint will be available here by the end of Phase 2 Iteration 1 (Week 9).*
--   **[Contribution Guidelines](CONTRIBUTING.md)**
--   **[Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md)**  **(NEW - Recommended for streamlined AI-driven development)**
+*   **[Full High-Level Specification (Detailed Vision)](SPECIFICATION.md)**
+*   **[Development Roadmap (MVP & Beyond)](ROADMAP.md)**
+*   **[Competitive Landscape Analysis](COMPETITIVE_LANDSCAPE.md)**
+*   **[API Documentation (Placeholder - In Progress)](docs/api/api-endpoints.md)** - *Detailed API documentation for the `/genesis/analyze-ethical` endpoint will be available here by the end of Phase 2 Iteration 1 (Week 9).*
+*   **[Contribution Guidelines](CONTRIBUTING.md)**
+*   **[Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md)**  **(NEW - Recommended for streamlined AI-driven development)**
 
 ## <a name="troubleshooting"></a>Troubleshooting
 
 ### LLM API Key Errors
--   **Verify API Keys in `.env`:** Ensure API keys are correct in `.env`.
--   **Check `LLM_PROVIDER`:** Verify `LLM_PROVIDER` is set correctly in `.env` (`gemini` or `huggingface`).
--   **Key Validity:** Check API key validity in your provider's console.
--   **Typographical Errors:** Double-check for typos in `.env`.
+
+*   **Verify API Keys in `.env`:** Ensure API keys are correct in `.env`.
+*   **Check `LLM_PROVIDER`:** Verify `LLM_PROVIDER` is set correctly in `.env` (`gemini` or `huggingface`).
+*   **Key Validity:** Check API key validity in your provider's console.
+*   **Typographical Errors:** Double-check for typos in `.env`.
 
 ### Docker Compose Issues (Redis/ZAP)
--   **Ensure Docker Desktop is Running:** Verify Docker Desktop is running.
--   **Check Container Status:** Use `docker ps` to check container status. Use `docker-compose logs redis` or `docker-compose logs zap` for errors.
--   **Port Conflicts:** Check for port conflicts (`docker ps -a`).
--   **`docker-compose.yml` Existence:** Ensure `docker-compose.yml` exists in the project root.
--   **Restart Docker:** Try restarting Docker Desktop.
+
+*   **Ensure Docker Desktop is Running:** Verify Docker Desktop is running.
+*   **Check Container Status:** Use `docker ps` to check container status. Use `docker-compose logs redis` or `docker-compose logs zap` for errors.
+*   **Port Conflicts:** Check for port conflicts (`docker ps -a`).
+*   **`docker-compose.yml` Existence:** Ensure `docker-compose.yml` exists in the project root.
+*   **Restart Docker:** Try restarting Docker Desktop.
 
 ### Python Dependency Errors
--   **Verify Python Version:**  `python --version` (must be 3.11+).
--   **Virtual Environment Activation:** Ensure `venv` is activated (`(venv)` in prompt).
--   **Upgrade pip:** `pip install --upgrade pip`.
--   **Re-install Dependencies:** `pip install -r requirements/base.txt` and `pip install -r requirements/dev.txt`.
--   **`flake8` Installation:** Verify `flake8` is installed (`pip install -r requirements/dev.txt`).
--   **Cache Issues:** `pip cache purge` and reinstall dependencies.
+
+*   **Verify Python Version:**  `python --version` (must be 3.11+).
+*   **Virtual Environment Activation:** Ensure `venv` is activated (`(venv)` in prompt).
+*   **Upgrade pip:** `pip install --upgrade pip`.
+*   **Re-install Dependencies:** `pip install -r requirements/base.txt` and `pip install -r requirements/dev.txt`.
+*   **`flake8` Installation:** Verify `flake8` is installed (`pip install -r requirements/dev.txt`).
+*   **Cache Issues:** `pip cache purge` and reinstall dependencies.
 
 ### API Connection Errors
--   **Flask Server Running:** Run `python src/api/server.py`.
--   **Host and Port:** Check server address (`http://127.0.0.1:5000`).
--   **Docker Container Ports:** Verify port mappings in `docker-compose.yml` (5000:5000).
--   **Firewall:** Check firewall rules blocking port 5000.
+
+*   **Flask Server Running:** Run `python src/api/server.py`.
+*   **Host and Port:** Check server address (`http://127.0.0.1:5000`).
+*   **Docker Container Ports:** Verify port mappings in `docker-compose.yml` (5000:5000).
+*   **Firewall:** Check firewall rules blocking port 5000.
 
 ### Ethical Policy Errors
--   **Policy File Existence:** Ensure policy files (`.json`) are in `policies/`.
--   **File Paths:** Verify file paths in `src/api/routes/ethical_endpoints.py`.
--   **JSON Syntax:** Validate policy files for correct JSON.
--   **Schema Compliance:** Ensure policies match `ethical_policy_schema.json`.
+
+*   **Policy File Existence:** Ensure policy files (`.json`) are in `policies/`.
+*   **File Paths:** Verify file paths in `src/api/routes/ethical_endpoints.py`.
+*   **JSON Syntax:** Validate policy files for correct JSON.
+*   **Schema Compliance:** Ensure policies match `ethical_policy_schema.json`.
 
 ### Code Quality Issues Not Reported
--   **`flake8` Installation:** Verify `flake8` is installed (`pip install -r requirements/dev.txt`).
--   **Server Logs:** Check Flask server logs for `CodeReviewAgent` or `flake8` errors.
--   **API Response Structure:** Verify `code_quality` section in API response JSON.
--   **Flake8 Executable Path:** Ensure `flake8` is in your system's PATH or venv's `bin`.
+
+*   **`flake8` Installation:** Verify `flake8` is installed (`pip install -r requirements/dev.txt`).
+*   **Server Logs:** Check Flask server logs for `CodeReviewAgent` or `flake8` errors.
+*   **API Response Structure:** Verify `code_quality` section in API response JSON.
+*   **Flake8 Executable Path:** Ensure `flake8` is in your system's PATH or venv's `bin`.
 
 ### Known Issues
 
 #### ZAP Service (Local `docker-compose.yml`) Issue
--   **Local ZAP Unreliable in MVP:** Local ZAP service in `docker-compose.yml` may not be reliable for local security scans in this MVP release.
--   **CI Pipeline ZAP Scans Reliable:** Rely on ZAP Baseline Scan reports in CI pipeline runs for security vulnerability assessments.
--   **Local ZAP Scans Not Reliable for MVP:** Local ZAP scans via `docker-compose up` are not currently reliable.
--   **Resolution Planned Post-MVP:** Resolution for local ZAP service is planned for a future release.
--   **Note:** Code quality reporting via Flake8 is verified and functional for both local and CI pipeline use.
+
+*   **Local ZAP Unreliable in MVP:** Local ZAP service in `docker-compose.yml` may not be reliable for local security scans in this MVP release.
+*   **CI Pipeline ZAP Scans Reliable:** Rely on ZAP Baseline Scan reports in CI pipeline runs for security vulnerability assessments.
+*   **Local ZAP Scans Not Reliable for MVP:** Local ZAP scans via `docker-compose up` are not currently reliable.
+*   **Resolution Planned Post-MVP:** Resolution for local ZAP service is planned for a future release.
+*   **Note:** Code quality reporting via Flake8 is verified and functional for both local and CI pipeline use.
 
 ## <a name="license"></a>License
 

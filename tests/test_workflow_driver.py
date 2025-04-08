@@ -1,106 +1,104 @@
 import pytest
 from src.core.automation.workflow_driver import WorkflowDriver
 import os
+from unittest.mock import patch, mock_open
+import logging
 
-def test_load_roadmap_basic(tmp_path, mocker):
-    mock_content = """Phase 1.5 Level 2: Workflow Driver Component (Week 7-8 - 5 days) - CURRENT FOCUS:
-    **Task ID**: T1
-    **Priority**: High
-    **Task Name**: Setup Environment
-    **Status**: Not Started
+# Set up logging for tests
+logging.basicConfig(level=logging.INFO)  # Or whatever level you prefer
+logger = logging.getLogger(__name__)
 
-    **Task ID**: T2
-    **Priority**: Medium
-    **Task Name**: Configure Database
-    **Status**: In Progress"""
+@pytest.fixture
+def test_driver():
+    """Fixture to create a WorkflowDriver instance."""
+    return WorkflowDriver()
 
-    roadmap_file = tmp_path / "roadmap.md"
-    roadmap_file.write_text(mock_content)
+def create_mock_roadmap_file(content, tmp_path):
+    """Helper to create a temporary ROADMAP.md file with specified content."""
+    roadmap_file = tmp_path / "ROADMAP.md"
+    roadmap_file.write_text(content)
+    return str(roadmap_file)
 
-    mock_open = mocker.patch('builtins.open')
-    mock_open.return_value.read.return_value = mock_content
-    mock_open.return_value.__enter__.return_value = mock_open.return_value
+def test_load_roadmap_parses_valid_file(test_driver, tmp_path):
+    """Test that load_roadmap correctly parses a valid ROADMAP.md file."""
+    roadmap_content = """
+*   **Task ID**: T1
+    *   **Priority**: High
+    *   **Task Name**: Setup Environment
+    *   **Status**: Not Started
 
-    driver = WorkflowDriver()
-    tasks = driver.load_roadmap(str(roadmap_file))
-
+*   **Task ID**: T2
+    *   **Priority**: Medium
+    *   **Task Name**: Configure Database
+    *   **Status**: In Progress
+    """
+    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+    tasks = test_driver.load_roadmap(roadmap_file)
     assert len(tasks) == 2
+    assert tasks[0]["task_id"] == "T1"
+    assert tasks[0]["priority"] == "High"
+    assert tasks[0]["task_name"] == "Setup Environment"
+    assert tasks[0]["status"] == "Not Started"
+    assert tasks[1]["task_id"] == "T2"
+    assert tasks[1]["priority"] == "Medium"
+    assert tasks[1]["task_name"] == "Configure Database"
+    assert tasks[1]["status"] == "In Progress"
 
-    expected_tasks = [
-        {
-            "task_id": "T1",
-            "priority": "High",
-            "task_name": "Setup Environment",
-            "status": "Not Started",
-        },
-        {
-            "task_id": "T2",
-            "priority": "Medium",
-            "task_name": "Configure Database",
-            "status": "In Progress",
-        },
-    ]
+def test_load_roadmap_handles_missing_file(test_driver, caplog):
+    """Test that load_roadmap gracefully handles a missing ROADMAP.md file."""
+    caplog.set_level(logging.ERROR)
+    tasks = test_driver.load_roadmap("nonexistent_file.md")
+    assert len(tasks) == 0
+    assert "ROADMAP.md file not found" in caplog.text
 
-    for expected in expected_tasks:
-        match = next(
-            (
-                task
-                for task in tasks
-                if task["task_id"] == expected["task_id"]
-                and task["priority"] == expected["priority"]
-                and task["task_name"] == expected["task_name"]
-                and task["status"] == expected["status"]
-            ),
-            None,
-        )
-        assert match is not None
+def test_load_roadmap_handles_parsing_errors(test_driver, tmp_path, caplog):
+     """Test that load_roadmap handles improperly-formatted ROADMAP.md content."""
+     caplog.set_level(logging.ERROR)
+     roadmap_content = """
+ *   **Task ID**: T1
+     *   **Priority**: High
+     *   **Task Name**: Missing Status
 
-def test_load_roadmap_file_not_found(mocker):
-    mock_open = mocker.patch('builtins.open')
-    mock_open.side_effect = FileNotFoundError
+ *   **Task ID**: T2
+     *   **Priority**: Medium
+     *   **Status**: This is invalid
 
-    driver = WorkflowDriver()
-    tasks = driver.load_roadmap("nonexistent_path")
+     """
+     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+     tasks = test_driver.load_roadmap(roadmap_file)
+     # Test what data we could get.
+     assert len(tasks) == 2
+     assert tasks[0]["task_name"] == "Missing Status"
+     assert tasks[1]["priority"] == "Medium"
+     assert "Error loading or parsing ROADMAP.md" in caplog.text
 
-    assert len(tasks) == 2
+def test_list_files_returns_python_files(test_driver, tmp_path):
+    """Test that list_files returns the correct Python files."""
+    # Create some dummy files
+    py_file = tmp_path / "test_file.py"
+    py_file.write_text("print('hello')")
+    txt_file = tmp_path / "test_file.txt"
+    txt_file.write_text("Not a python file")
+    os.chdir(tmp_path)  # Change current directory to tmp_path
+    files = test_driver.list_files()
+    assert "test_file.py" in files
+    assert "test_file.txt" not in files
+    # Verify file exists
+    assert os.path.exists("test_file.py")
 
-def test_load_roadmap_phase_not_found(mocker):
-    mock_content = """Phase 2.0 Level 3:
-    - **Task ID**: T3
-    **Priority**: Low
-    **Task Name**: Cleanup
-    **Status**: Completed"""
-    mock_open = mocker.patch('builtins.open')
-    mock_open.return_value.read.return_value = mock_content
+def test_list_files_handles_no_files(test_driver, tmp_path):
+    """Test that list_files handles the case where there are no files."""
+    os.chdir(tmp_path) # Change current directory to tmp_path, to make sure there are no files here.
+    files = test_driver.list_files()
+    assert files == [] # Assert empty file, as there were not any to add.
 
-    driver = WorkflowDriver()
-    tasks = driver.load_roadmap("some_path")
-
-    assert len(tasks) == 2
-
-def test_load_roadmap_malformed_task(mocker):
-    mock_content = """Phase 1.5 Level 2: Workflow Driver Component (Week 7-8 - 5 days) - CURRENT FOCUS:
-    - **Task ID**: T1
-    **Priority**: High
-    **Task Name**: Setup
-    **Status**: Not Started
-    - **Task ID**: T2
-    **Priority**: Medium
-    **Task Name**: Configure Database
-    **Status**: In Progress  # missing Task Name"""
-    mock_open = mocker.patch('builtins.open')
-    mock_open.return_value.read.return_value = mock_content
-
-    driver = WorkflowDriver()
-    tasks = driver.load_roadmap("some_path")
-
-    assert len(tasks) <= 2
-    if len(tasks) > 0:
-        assert tasks[0]['task_id'] == "T1"
-
-def test_list_files_returns_empty_list(mocker):
-    mock_exists = mocker.patch('os.path.exists')
-    mock_exists.return_value = False
-    driver = WorkflowDriver()
-    result = driver.list_files()
-    assert result == []
+def test_list_files_handles_directory_error(test_driver, caplog, tmp_path):
+    """Test that list_files handles directory listing errors gracefully."""
+    # Change the current directory, to handle the check
+    os.chdir(tmp_path)
+    caplog.set_level(logging.ERROR)
+    # Create a mock that gives permission error
+    with patch('os.listdir', side_effect=PermissionError("Mocked Permission Error")):
+        files = test_driver.list_files()
+    assert files == []
+    assert "Error listing files" in caplog.text

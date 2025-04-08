@@ -15,12 +15,18 @@ class WorkflowDriver:
                 content = f.read()
                 tasks = []
                 task_pattern = re.compile(
-                    r'\*\s+\*\*Task ID\*\*\:\s*(?P<task_id>[^\n]+?)\n'
-                    r'\s*\*\s+\*\*Priority\*\*\:\s*(?P<priority>[^\n]+?)\n'
-                    r'\s*\*\s+\*\*Task Name\*\*\:\s*(?P<task_name>[^\n]+?)\n'
-                    r'(?:\s*\*\s+\*\*Status\*\*\:\s*(?P<status>[^\n]+?)\n)?'  # Status is now optional
-                    r'(?:\n|$)',
-                    re.DOTALL
+                    r"""
+                    ^\s*\*\s+\*\*Task ID\*\*\:\s*(?P<task_id>[^\n]+?)\n
+                    \s*\*\s+\*\*Priority\*\*\:\s*(?P<priority>[^\n]+?)\n
+                    \s*\*\s+\*\*Task Name\*\*\:\s*(?P<task_name>[^\n]+?)\n
+                    (?:
+                        \s*\*\s+\*\*Status\*\*\:\s*(?P<status>[^\n]+?)\n
+                    )?
+                    (?=
+                        \n\s*\*|\Z
+                    )
+                    """,
+                    re.DOTALL | re.MULTILINE | re.VERBOSE
                 )
                 for match in task_pattern.finditer(content):
                     task = {
@@ -36,4 +42,3 @@ class WorkflowDriver:
             return []
         except Exception as e:
             logging.exception(f"Error loading or parsing ROADMAP.md: {e}")
-            return []

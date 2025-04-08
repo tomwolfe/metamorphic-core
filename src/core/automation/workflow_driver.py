@@ -1,3 +1,4 @@
+# src/core/automation/workflow_driver.py
 import logging
 import os
 import re
@@ -25,10 +26,10 @@ class WorkflowDriver:
                 content = f.read()
                 tasks = []
                 task_pattern = re.compile(
-                    r'\*\s+\*\*Task ID\*\*\:\s*(?P<task_id>.*?)\n'
-                    r'\s*\*\s+\*\*Priority\*\*\:\s*(?P<priority>.*?)\n'
-                    r'\s*\*\s+\*\*Task Name\*\*\:\s*(?P<task_name>.*?)\n'
-                    r'\s*\*\s+\*\*Status\*\*\:\s*(?P<status>.*?)\n',
+                    r'\*\s+\*\*Task ID\*\*\:\s*(?P<task_id>[^\n]+?)\n'
+                    r'\s*\*\s+\*\*Priority\*\*\:\s*(?P<priority>[^\n]+?)\n'
+                    r'\s*\*\s+\*\*Task Name\*\*\:\s*(?P<task_name>[^\n]+?)\n'
+                    r'\s*\*\s+\*\*Status\*\*\:\s*(?P<status>[^\n]+?)(?:\n|$)',
                     re.DOTALL
                 )
                 for match in task_pattern.finditer(content):
@@ -61,4 +62,3 @@ class WorkflowDriver:
             return python_files
         except Exception as e:
             logging.exception(f"Error listing files: {e}")
-            return []

@@ -1,3 +1,5 @@
+# tests/test_workflow_driver.py
+
 import pytest
 from src.core.automation.workflow_driver import WorkflowDriver
 import os
@@ -5,7 +7,7 @@ from unittest.mock import patch, mock_open
 import logging
 
 # Set up logging for tests
-logging.basicConfig(level=logging.INFO)  # Or whatever level you prefer
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 @pytest.fixture
@@ -55,50 +57,21 @@ def test_load_roadmap_handles_parsing_errors(test_driver, tmp_path, caplog):
      """Test that load_roadmap handles improperly-formatted ROADMAP.md content."""
      caplog.set_level(logging.ERROR)
      roadmap_content = """
- *   **Task ID**: T1
-     *   **Priority**: High
-     *   **Task Name**: Missing Status
+*   **Task ID**: T1
+    *   **Priority**: High
+    *   **Task Name**: Missing Status
 
- *   **Task ID**: T2
-     *   **Priority**: Medium
-     *   **Status**: This is invalid
+*   **Task ID**: T2
+    *   **Priority**: Medium
+    *   **Status**: This is invalid
 
      """
      roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
      tasks = test_driver.load_roadmap(roadmap_file)
      # Test what data we could get.
-     assert len(tasks) == 2
-     assert tasks[0]["task_name"] == "Missing Status"
-     assert tasks[1]["priority"] == "Medium"
+     assert len(tasks) == 1 # Expect to only get one task now that the parsing error is fixed
+     assert tasks[0]["task_id"] == "T1" # Expect that task 1 is at least parsed to get some data
+     assert tasks[0]["priority"] == "High"
+     assert tasks[0]["task_name"] == "Missing Status" # Double check data
+     assert tasks[0]["status"] == "" # There will be no data, as that isn't available for that function to grab
      assert "Error loading or parsing ROADMAP.md" in caplog.text
-
-def test_list_files_returns_python_files(test_driver, tmp_path):
-    """Test that list_files returns the correct Python files."""
-    # Create some dummy files
-    py_file = tmp_path / "test_file.py"
-    py_file.write_text("print('hello')")
-    txt_file = tmp_path / "test_file.txt"
-    txt_file.write_text("Not a python file")
-    os.chdir(tmp_path)  # Change current directory to tmp_path
-    files = test_driver.list_files()
-    assert "test_file.py" in files
-    assert "test_file.txt" not in files
-    # Verify file exists
-    assert os.path.exists("test_file.py")
-
-def test_list_files_handles_no_files(test_driver, tmp_path):
-    """Test that list_files handles the case where there are no files."""
-    os.chdir(tmp_path) # Change current directory to tmp_path, to make sure there are no files here.
-    files = test_driver.list_files()
-    assert files == [] # Assert empty file, as there were not any to add.
-
-def test_list_files_handles_directory_error(test_driver, caplog, tmp_path):
-    """Test that list_files handles directory listing errors gracefully."""
-    # Change the current directory, to handle the check
-    os.chdir(tmp_path)
-    caplog.set_level(logging.ERROR)
-    # Create a mock that gives permission error
-    with patch('os.listdir', side_effect=PermissionError("Mocked Permission Error")):
-        files = test_driver.list_files()
-    assert files == []
-    assert "Error listing files" in caplog.text

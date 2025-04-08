@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 
 class WorkflowDriver:
     def __init__(self):
@@ -22,27 +23,22 @@ class WorkflowDriver:
         try:
             with open(roadmap_path, 'r') as f:
                 content = f.read()
-                # Implement parsing logic here based on the structure of your ROADMAP.md
-                # This is a basic placeholder; you'll need to adapt it to your specific format.
                 tasks = []
-                lines = content.splitlines()
-                for line in lines:
-                    if line.startswith("*   **Task ID**"):
-                        task_id = line.split(":")[1].strip()
-                        priority_line = next((l for l in lines if lines.index(l) > lines.index(line) and l.startswith("*   **Priority**")), None)
-                        task_name_line = next((l for l in lines if lines.index(l) > lines.index(line) and l.startswith("*   **Task Name**")), None)
-                        status_line = next((l for l in lines if lines.index(l) > lines.index(line) and l.startswith("*   **Status**")), None)
-
-                        priority = priority_line.split(":")[1].strip() if priority_line else ""
-                        task_name = task_name_line.split(":")[1].strip() if task_name_line else ""
-                        status = status_line.split(":")[1].strip() if status_line else ""
-                        task = {
-                            "task_id": task_id,
-                            "priority": priority,
-                            "task_name": task_name,
-                            "status": status,
-                        }
-                        tasks.append(task)
+                task_pattern = re.compile(
+                    r'\*\s+\*\*Task ID\*\*\:\s*(?P<task_id>.*?)\n'
+                    r'\s*\*\s+\*\*Priority\*\*\:\s*(?P<priority>.*?)\n'
+                    r'\s*\*\s+\*\*Task Name\*\*\:\s*(?P<task_name>.*?)\n'
+                    r'\s*\*\s+\*\*Status\*\*\:\s*(?P<status>.*?)\n',
+                    re.DOTALL
+                )
+                for match in task_pattern.finditer(content):
+                    task = {
+                        "task_id": match.group("task_id").strip(),
+                        "priority": match.group("priority").strip(),
+                        "task_name": match.group("task_name").strip(),
+                        "status": match.group("status").strip(),
+                    }
+                    tasks.append(task)
 
                 return tasks
         except FileNotFoundError:

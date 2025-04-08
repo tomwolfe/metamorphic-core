@@ -2,11 +2,11 @@
 
 [![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
-[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.5_Workflow_Automation_Focus-yellow)](ROADMAP.md)
+[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.5_COMPLETED-brightgreen)](ROADMAP.md)
 
-**🎯 CURRENT FOCUS: PHASE 1.5 - Workflow Automation Side Project (Weeks 7-8) - PRIORITIZED TO SIGNIFICANTLY ACCELERATE FUTURE DEVELOPMENT 🚀**
+**🎯 CURRENT FOCUS: TRANSITION TO PHASE 2 - Initial Autonomous Workflow Engine 🚀**
 
-Phase 1 MVP is complete! We are now prioritizing **Phase 1.5: Workflow Automation Side Project** to streamline and accelerate development for Phase 2 and beyond. See the [Roadmap](#further-documentation) for details.
+Phase 1 MVP is complete! We are now transitioning into Phase 2, beginning the initial implementation of a limited autonomous workflow engine. Phase 1.5, workflow automation project, is now complete! See the [Roadmap](#further-documentation) for details.
 
 ---
 
@@ -137,7 +137,7 @@ Examine the JSON response for `code_quality` and `ethical_analysis` sections.
 
 ### <a name="quickstart-guide-to-markdown-only-automation"></a>Quickstart Guide to Markdown-Only Automation
 
-For a streamlined, AI-driven development experience with minimal manual prompting, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and the augmented `.md` documentation to guide an LLM to autonomously drive development tasks.
+For a streamlined, AI-driven development experience with minimal manual prompting, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and the augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the completion of Task 2.2, the system now includes a command-line interface for improved automation and testing.**
 
 **Quickstart Steps:**
 

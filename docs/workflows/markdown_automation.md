@@ -60,8 +60,6 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
 
         **Your response MUST begin with one of the letters above (A, B, C, D, E, or F) followed by a colon and a space, then your message.** For example: "B: Test test_my_function failed with assertion error..."
 
-        **If your response DOES NOT begin with A, B, C, D, E, or F, or if you did not include all of the requested details, ask me to resend the full, un-truncated message.**
-
 10.  After providing the above output, WAIT for my confirmation before proceeding to any further tasks. Do not automatically move to the next task until I explicitly confirm implementation of the current solution AND the ROADMAP.md update. I will respond with one of the following options:
 
     *   **"A: [Optional message if all tests passed, and implementing changes]"**

@@ -3,7 +3,6 @@
 [![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
 [![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.5_Workflow_Automation_Focus-yellow)](ROADMAP.md)
-[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.5_Workflow_Automation_Focus-yellow)](ROADMAP.md)  <-- UPDATED BADGE TEXT
 
 **🎯 CURRENT FOCUS: PHASE 1.5 - Workflow Automation Side Project (Weeks 7-8) - PRIORITIZED TO SIGNIFICANTLY ACCELERATE FUTURE DEVELOPMENT 🚀**
 

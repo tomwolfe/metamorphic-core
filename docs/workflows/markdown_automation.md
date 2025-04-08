@@ -55,11 +55,10 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
         *   **(F) Regenerate:** If you want the current task regenerated, include a very short prompt to explain why. **Example: `F: This code could be greatly simplified.`**
  
          **Important: Ensure all generated code adheres to the project's ethical policies and guidelines. For example, if the "BiasRisk" threshold is 0.1, make sure that no keyword identified in `policies/policy_bias_risk_strict.json` (["hate speech", "racist", "sexist", "offensive"]) is found in the generated code.**
--+        **"You must include the complete Grade Report in this response, in the proper section. The grade report needs to be included as a JSON object, to allow for easy readability."**
+-        **"You must include the complete Grade Report in this response, in the proper section. The grade report needs to be included as a JSON object, to allow for easy readability."**
          **Your response MUST begin with one of the letters above (A, B, C, D, E, or F) followed by a colon and a space, then your message.** For example: "B: Test test_my_function failed with assertion error..."
--+        **"The Grade Report should be copied, pasted, and then converted to JSON, to allow for more accurate review."**
-+
-+
+-        **"The Grade Report should be copied, pasted, and then converted to JSON, to allow for more accurate review."**
+
          **If your response DOES NOT begin with A, B, C, D, E, or F, or if you did not include all of the requested details, ask me to resend the full, un-truncated message.**
  
          (Waiting for user confirmation to implement changes and proceed to the next task)

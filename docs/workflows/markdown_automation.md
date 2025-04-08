@@ -60,25 +60,38 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
 
         **Your response MUST begin with one of the letters above (A, B, C, D, E, or F) followed by a colon and a space, then your message.** For example: "B: Test test_my_function failed with assertion error..."
 
-10.  After providing the above output, WAIT for my confirmation before proceeding to any further tasks. Do not automatically move to the next task until I explicitly confirm implementation of the current solution AND the ROADMAP.md update. I will respond with one of the following options:
+## ROADMAP.md Format
 
-    *   **"A: [Optional message if all tests passed, and implementing changes]"**
-    *   **"B: [Detailed test output showing failing tests]"**
-    *   **"C: [Detailed output of list_files tool]"**
-    *   **"D: [Your question to the LLM]"**
-    *   **"E: [Describe a code issue you've found]"**
-    *   **"F: [Reason for regenerating, e.g., 'Tests are too basic' or 'Code is inefficient']"**
+To ensure proper parsing and automation, the `ROADMAP.md` file must adhere to a specific format. Each task entry should be structured as follows:
 
-    Your response to my message should depend on the option I choose. Also, ensure all generated code adheres to ethical standards, guided by the `policies/policy_bias_risk_strict.json` example provided. If the "BiasRisk" threshold is 0.1, make sure that no keyword identified in that file's "keywords" list (["hate speech", "racist", "sexist", "offensive"]) is found in the generated code:
+```markdown
+*   **Task ID**: [Unique identifier for the task]
+    *   **Priority**: [High, Medium, or Low]
+    *   **Task Name**: [Short description of the task]
+    *   **Status**: [Not Started, In Progress, Completed, Blocked]
+```
 
-    *   If I respond with "A:", proceed to the next task as usual, after updating the ROADMAP.md. If the response was unusually long or had issues with code, summarize the most important aspects.
-    *   If I respond with "B:", analyze the provided test output and revise the code to fix the failing tests. Re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".
-    *   If I respond with "C:", analyze the provided test output and revise the code to fix the failing tests. Re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".
-    *   If I respond with "D:", answer my question clearly and concisely. Do not proceed to the next task after answering. Simply wait for a new prompt from me. If the response from me seems incomplete, ask me to provide the complete message again or re-send just the important data.
-    *   If I respond with "E:", analyze the code issue, revise the code to address the issue. Re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".
-    *   If I respond with "F:", regenerate the solution from scratch. Incorporate the reason for regeneration into your solution generation process. Re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".
+**Field Descriptions:**
 
-    If my response does NOT begin with A, B, C, D, E or F, output the following error message, then wait for further instructions: "ERROR: Invalid response format. Your response MUST begin with A, B, C, D, E, or F, followed by a colon and a space. If all of the relevant code or data is not provided, please include all of the content in the resent response or a truncated part."
+*   `**Task ID**`: A unique identifier for each task. This should be a simple string (e.g., "task_2_3").
+*   `**Priority**`: Indicates the importance of the task. Allowed values: `High`, `Medium`, or `Low`.
+*   `**Task Name**`: A concise description of the task (under 150 characters).
+*   `**Status**`: Indicates the current state of the task. Allowed values: `Not Started`, `In Progress`, `Completed`, or `Blocked`.
+
+**Example Task Entry:**
+
+```markdown
+*   **Task ID**: task_2_3
+    *   **Priority**: High
+    *   **Task Name**: Implement file existence check.
+    *   **Status**: In Progress
+```
+
+**Important Notes:**
+
+*   Use the specified formatting (e.g., `**` for bolding labels, colons after labels).
+*   Ensure each task entry is separated by a blank line for correct parsing.
+*   Task names should be relatively short to avoid parsing issues.
 
 ## Ready-to-Use "Ideal" Self-Driving Prompt
 

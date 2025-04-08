@@ -174,3 +174,8 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
 
         *   *Actionable Feedback: Review module X to verify test validity.*
 </div>
+
+### File Format Considerations
+*   `ROADMAP.md` - see `docs/workflows/markdown_automation.md` for file format and formatting requirements.
+    * It's important to follow the requirements for task id, priority, task name, and status; with the fields `High`, `Medium`, or `Low` to be values for priority, and `Not Started`, `In Progress`, `Completed`, or `Blocked` to be values for Status.
+*   Ethical policies (JSON) - see `ethical_policy_schema.json` for valid keys.

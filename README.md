@@ -140,8 +140,7 @@ For a streamlined, AI-driven development experience with minimal manual promptin
 1.  **Prepare your `.md` files and codebase text** as described in the [Full Guide](docs/workflows/markdown_automation.md).
 2.  **Copy the "Ready-to-Use "Ideal" Self-Driving Prompt"** from [docs/workflows/markdown_automation.md](docs/workflows/markdown_automation.md).
 3.  **Paste the prompt into your LLM interface, replacing the placeholders** with your codebase and `.md` file content.
-4.  **Review the LLM's output, implement "User Actionable Steps," and provide confirmation** to proceed to the next task. **When providing confirmation, use one of the following options, formatted as described in `docs/workflows/markdown_automation.md`:**
-    *   **`A: [Optional message if all tests passed, and implementing changes]`**
+4.  **Review the LLM's output, implement "User Actionable Steps," and provide confirmation** to proceed to the next task. **Continue to iterate based on the provided Grade Report, until your proposed solution achieves a 100% Overall Percentage Grade. When providing feedback, use one of the following options, formatted as described in `docs/workflows/markdown_automation.md`:**
     *   **`B: [Detailed test output showing failing tests]`**
     *   **`C: [Missing File(s): list of missing files]`**
     *   **`D: [Your question to the LLM]`**

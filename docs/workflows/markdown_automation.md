@@ -42,70 +42,25 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
     *   The list of actions the AI took for you to verify and run.
     *   The name and source of all files that will be written by calling the `write_file` tool.
     *   The complete "Grade Report" for your *expected* solution. Make it clear that this grade is provisional.
-    *   "Updated ROADMAP.md Content": Include the *full text content* of the updated `ROADMAP.md` file, incorporating the task completion marking and roadmap evolution.
-    *   **Context Files Used:** Explicitly list the Markdown files that you (the Driver LLM) used as context to perform this task. This should typically include, but is not limited to, `ROADMAP.md` and `CONTRIBUTING.md`. List each file on a new line using Markdown list syntax (e.g., `* ROADMAP.md`).
-    *   **End your response with the following choices:**
-
-        *   **(A) Confirm:** If the proposed changes are satisfactory and tests are passing (or there are no tests), implement the changes and proceed to the next task. **Example: `A: All tests passed. Implementing changes and moving on.`**
-        *   **(B) Test(s) Not Passing:** If the proposed changes are implemented but tests are failing, provide detailed information about the failing tests. (Copy and paste the test output). **Example: `B: Test tests/test_api_mvp_endpoint.py::test_analyze_ethical_endpoint_no_code_integration failed with AssertionError: assert response.status_code == 200`**
-        *   **(C) Ask Question:** If you want to ask the LLM a question about its approach or the proposed solution *before* implementing any changes. (State your question clearly). **Example: `D: Could you explain why you chose to use the 'dataclasses' module in this context?`**
-        *   **(E) Code Issue:** If you have reviewed the code and see an error you want to point out. **Example: `E: It looks like the condition on Line 42 will always evaluate to false.`**
-        *   **(F) Regenerate:** If you want the current task regenerated, include a very short prompt to explain why. **Example: `F: This code could be greatly simplified.`**
-
-        **Important: Ensure all generated code adheres to the project's ethical policies and guidelines. For example, if the "BiasRisk" threshold is 0.1, make sure that no keyword identified in `policies/policy_bias_risk_strict.json` (["hate speech", "racist", "sexist", "offensive"]) is found in the generated code.**
-
-        **Your response MUST begin with one of the letters above (A, B, C, D, E, or F) followed by a colon and a space, then your message.** For example: "B: Test test_my_function failed with assertion error..."
-
-        **If your response DOES NOT begin with A, B, C, D, E, or F, or if you did not include all of the requested details, ask me to resend the full, un-truncated message.**
-
-        (Waiting for user confirmation to implement changes and proceed to the next task)
-
-10.  After providing the above output, WAIT for my confirmation before proceeding to any further tasks. Do not automatically move to the next task until I explicitly confirm implementation of the current solution AND the ROADMAP.md update. I will respond with one of the following options:
-
-   * **"A: [Optional message if all tests passed, and implementing changes]"**
-    *   **"B: [Detailed test output showing failing tests]"**
-    *   **"C: [Detailed output of list_files tool]"**
-    *   **"D: [Your question to the LLM]"**
-    *   **"E: [Describe a code issue you've found]"**
-    *   **"F: [Reason for regenerating, e.g., 'Tests are too basic' or 'Code is inefficient']"**
-
-   Your response to my message should depend on the option I choose. Also, ensure all generated code adheres to ethical standards, guided by the `policies/policy_bias_risk_strict.json` example provided. If the "BiasRisk" threshold is 0.1, make sure that no keyword identified in that file's "keywords" list (["hate speech", "racist", "sexist", "offensive"]) is found in the generated code:
-
-    *   If I respond with "A:", proceed to the next task as usual, after updating the ROADMAP.md. If the response was unusually long or had issues with code, summarize the most important aspects.
-    *   If I respond with "B:", analyze the provided test output and revise the code to fix the failing tests. Re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".
-    *   If I respond with "C:", analyze the current code and create the missing files needed for the correct functioning of the changes. Then present the updated solution, including the list of files, re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".
-    *   If I respond with "D:", answer my question clearly and concisely. Do not proceed to the next task after answering. Simply wait for a new prompt from me. If the response from me seems incomplete, ask me to provide the complete message again or re-send just the important data.
-    *   If I respond with "E:", analyze the code issue, revise the code to address the issue. Re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".
-    *   If I respond with "F:", regenerate the solution from scratch. Incorporate the reason for regeneration into your solution generation process. Re-run self-assessment and generate updated User Actionable Steps. Present the updated solution and "Grade Report".
-
-    If my response does NOT begin with A, B, C, D, E or F, output the following error message, then wait for further instructions: "ERROR: Invalid response format. Your response MUST begin with A, B, C, D, E, or F, followed by a colon and a space. If all of the relevant code or data is not provided, please include all of the content in the resent response or a truncated part."
-
-## Ready-to-Use "Ideal" Self-Driving Prompt
-
-To initiate the "Markdown-Only Automation" workflow, copy the following prompt into your LLM interface. Be sure to replace the bracketed placeholders with the actual content of those files. *Do not* include the brackets themselves.
-
-```
-You are an AI development assistant working on the Metamorphic Software Genesis Ecosystem. Your goal is to autonomously drive the development of the project by following the instructions in docs/workflows/markdown_automation.md. Adhere to the Iterative Grading Process. Pay close attention to writing code that meets ethical standards.
-
-1.  Understand the project structure and goals by reading the following documentation:
-    *   Full High-Level Specification: [PASTE THE FULL CONTENT OF SPECIFICATION.md HERE]
-    *   Development Roadmap: [PASTE THE FULL CONTENT OF ROADMAP.md HERE]
-    *   Contribution Guidelines: [PASTE THE FULL CONTENT OF CONTRIBUTING.md HERE]
-    *   Automation Workflow: [PASTE THE FULL CONTENT OF docs/workflows/markdown_automation.md HERE]
-    *   Competitive Landscape: [PASTE THE FULL CONTENT OF COMPETITIVE_LANDSCAPE.md HERE]
-
-2.  Execute the steps described in docs/workflows/markdown_automation.md.
-    * Load the full content of all markdown files.
-    * Identify and select the next development task from ROADMAP.md, focusing on incremental steps that get stage 2 closer to completion.
-    * Generate a high-level solution plan.
-    * Generate precise code generation prompts for the Coder LLM.
-    * Generate a numbered list of User Actionable Steps, formatted as a Markdown checklist.
-    * Self-Critique and Revise the generated outputs (Solution Plan, Coder LLM Prompts, User Actionable Steps).
-    * Perform a self-assessment and grade the proposed solution using the Iterative Grading Process from CONTRIBUTING.md.
-
-3.  Ensure all generated code adheres to the project's ethical policies and guidelines, using policy_bias_risk_strict.json as a reference. Make sure that no keyword identified in that file's "keywords" list (["hate speech", "racist", "sexist", "offensive"]) is found in the generated code.
-
-Remember to follow these guidelines to the greatest extent possible.
-
-Begin!
-```
++       **"You must include the complete Grade Report in this response, in the proper section. The grade report needs to be included as a JSON object, to allow for easy readability."**
++        **"The Grade Report should be copied, pasted, and then converted to JSON, to allow for more accurate review."**
+     *   "Updated ROADMAP.md Content": Include the *full text content* of the updated `ROADMAP.md` file, incorporating the task completion marking and roadmap evolution.
+     *   **Context Files Used:** Explicitly list the Markdown files that you (the Driver LLM) used as context to perform this task. This should typically include, but is not limited to, `ROADMAP.md` and `CONTRIBUTING.md`. List each file on a new line using Markdown list syntax (e.g., `* ROADMAP.md`).
+     *   **End your response with the following choices:**
++        ***IMPORTANT:*** *Because your goal is to achieve a 100% Overall Percentage Grade in the Iterative Grading Process, you CANNOT choose "A: Confirm" in the current workflow.  You must address all feedback until a 100% grade is achieved.*
++        *The weights reflect the importance of each dimension. For example, Test Success receives the highest weighting, and code style gets the lowest weighting*
+         *   **(A) Confirm:** If the proposed changes are satisfactory and tests are passing (or there are no tests), implement the changes and proceed to the next task. **Example: `A: All tests passed. Implementing changes and moving on.`**
+         *   **(B) Test(s) Not Passing:** If the proposed changes are implemented but tests are failing, provide detailed information about the failing tests. (Copy and paste the test output). **Example: `B: Test tests/test_api_mvp_endpoint.py::test_analyze_ethical_endpoint_no_code_integration failed with AssertionError: assert response.status_code == 200`**
+         *   **(C) Ask Question:** If you want to ask the LLM a question about its approach or the proposed solution *before* implementing any changes. (State your question clearly). **Example: `D: Could you explain why you chose to use the 'dataclasses' module in this context?`**
+@@ -98,9 +99,9 @@
+         *   **(F) Regenerate:** If you want the current task regenerated, include a very short prompt to explain why. **Example: `F: This code could be greatly simplified.`**
+ 
+         **Important: Ensure all generated code adheres to the project's ethical policies and guidelines. For example, if the "BiasRisk" threshold is 0.1, make sure that no keyword identified in `policies/policy_bias_risk_strict.json` (["hate speech", "racist", "sexist", "offensive"]) is found in the generated code.**
+-+        **"You must include the complete Grade Report in this response, in the proper section. The grade report needs to be included as a JSON object, to allow for easy readability."**
+         **Your response MUST begin with one of the letters above (A, B, C, D, E, or F) followed by a colon and a space, then your message.** For example: "B: Test test_my_function failed with assertion error..."
+-+        **"The Grade Report should be copied, pasted, and then converted to JSON, to allow for more accurate review."**
++
++
+         **If your response DOES NOT begin with A, B, C, D, E, or F, or if you did not include all of the requested details, ask me to resend the full, un-truncated message.**
+ 
+         (Waiting for user confirmation to implement changes and proceed to the next task)

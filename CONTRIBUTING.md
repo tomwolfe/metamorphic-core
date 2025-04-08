@@ -66,7 +66,10 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
 
 *   **Multi-Dimensional Quality and Risk Assessment:** Your contribution will be rigorously assessed across multiple quality dimensions: Probability of Non-Regression, Probability of Test Success, Code Style Compliance Probability, Ethical Policy Compliance Probability, and Probability of Security Soundness.
 *   **Probability Percentage Grades & Feedback:** For each dimension, a probability percentage grade will be assigned, reflecting the estimated confidence in that aspect of the contribution. You will receive an **Iterative Grading Report** with:
-    *   **Overall Percentage Grade:** A combined grade reflecting overall quality and confidence. This value will be weighted as follows:
+    *   **Overall Percentage Grade:** A combined grade reflecting overall quality and confidence. ***IMPORTANT:*** *Your goal is to achieve a 100% Overall Percentage Grade. Any grade below 100% indicates that further iteration and refinement are REQUIRED.  You must use the dimension-specific feedback to improve your contribution and resubmit for review.*
+        *The weights reflect the importance of each dimension. For example, Test Success receives the highest weighting, and code style gets the lowest weighting*
+        *Therefore, if you are only able to achieve small gains in code style, but can achieve moderate gains in test success rate, you should focus on increasing the testing success rate.
+
         *   Probability of Non-Regression: 20%
         *   Probability of Test Success: 30%
         *   Code Style Compliance Probability: 10%
@@ -135,71 +138,13 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
 
 4.  **Calculate an "Overall Percentage Grade" based on the dimension-specific grades (consider using a weighted average if certain dimensions are more critical for this specific task). Weights are defined in the "Probability Percentage Grades & Feedback" section.**
 5.  **Generate a structured "Grade Report" in markdown format, designed for developer actionability. The report should include:**
-    *   Overall Percentage Grade
-    *   Dimension-Specific Probability Percentages: For each dimension, state the percentage grade and provide a clear justification for this grade, referencing specific aspects of the hypothetical contribution.
-    *   Actionable Feedback for each dimension: Provide concrete, step-by-step feedback for each dimension, explaining *how* the developer can improve their contribution to increase the probability percentage and reach a 100% overall grade. This feedback should be directly linked to the quality dimensions and the "Iterative Grading Process".
-
-**Example Grade Report:**
-*   Overall Percentage Grade: 92%
-    *   Probability of Non-Regression: 90% - Excellent test coverage for core logic. Potential impact on module X needs further review.
-        *   *Actionable Feedback: Review module X to verify test validity.*
-    *   Probability of Test Success: 95% - All unit tests pass. Consider adding more integration tests.
-        *   *Actionable Feedback: Add tests to close to 100% coverage.*
-    *   Code Style Compliance Probability: 85% - Address minor Flake8 warnings related to line length and unused variables.
-        *   *Actionable Feedback: Format all code to adhere to PEP8 standards.*
-    *   Ethical Policy Compliance Probability: 100% - Ethical Policy checks passed for all configured policies.
-        *   *Actionable Feedback: Adhering to these standards must always be followed.*
-    *   Probability of Security Soundness: 90% - Code review identified one potential security vulnerability related to input validation. This has been addressed.
-        *   *Actionable Feedback: Ensure no potential security problems are apparent to get this grade to 100%.*
-
-**Checklist for Reviewing LLM-Generated Code:**
-When acting as a reviewer, use the following checklist to ensure the quality of the LLM-generated code:
- * Is the code syntactically correct and free of errors?
- * Does the code adhere to the project's coding style guidelines?
- * Does the code include clear and concise docstrings?
- * Does the code have sufficient unit tests to ensure proper functionality?
- * Does the code adhere to the project's ethical policies and guidelines?
- * Does the code avoid any known security vulnerabilities?
- * Does the code follow good software engineering practices?
- * Is the code easily understandable and maintainable?
-
-**Ethical Considerations:**
-
-When reviewing LLM-generated code, pay particular attention to the following ethical considerations:
-
-1. **Bias:** Does the code introduce or perpetuate any biases?
-2. **Fairness:** Does the code treat all users fairly and equitably?
-3. **Transparency:** Is the code transparent and explainable?
-4. **Accountability:** Is it possible to hold someone accountable if the code causes harm?
-5. **Privacy:** Does the code protect user privacy?
-6. **Security:** Is the code secure and resistant to attack?
-7. **Verifiability:** Is the code verified with the tests created with the code?
-8. **Model Choices:** Choose the cheapest, more compliant models to complete tasks.
-9. **Tool Utilization:** Be familiar with potential tools, and use appropriate tool to validate any task.
-
-By understanding and participating in this Iterative Grading Process, you directly contribute to the high standards of the Metamorphic project.
-""
-
-By understanding and participating in this Iterative Grading Process, you directly contribute to the high standards of the Metamorphic project.
-By following these steps to meet the standards of the iterative review process, we can be sure to meet high security standards.
-
-**File List Generation:**
-    When requested to find a list of files:
-    * Use `list_files`.
-    * List the purpose for each file, and the impact this file will have to the system.
-    * Include what the files do for the system.
-    * Be extra cautious and verify the file names, as these will cause errors that are hard to debug otherwise.
-
-**Contribution Checklist (Before Submitting a PR):**
-
-*   [ ] I have reviewed the [ROADMAP.md](ROADMAP.md) and [SPECIFICATION.md].
-*   [ ] I have checked for existing issues and discussed my contribution plan (if applicable).
-*   [ ] I have forked the repository and created a dedicated branch.
-*   [ ] My code follows PEP 8 style guidelines and is Flake8 compliant.
-*   [ ] My code is well-commented and easy to understand.
-*   [ ] I have included unit and/or integration tests (if adding code).
-*   [ ] I have added documentation (if adding new features or changing existing functionality).
-*   [ ] I have submitted a pull request to the `main` branch with a clear description.
-";
-
-By understanding and participating in this Iterative Grading Process, you directly contribute to the high standards of the Metamorphic project.
++*   ***IMPORTANT:*** *Any Grade Report that is not 100% requires that you use these findings to generate updated code. Ensure that your next call to write_file contains the code with these revisions. You must also include the Grade Report in the generated output as a JSON object.*
+     *   Overall Percentage Grade
+     *   Dimension-Specific Probability Percentages: For each dimension, state the percentage grade and provide a clear justification for this grade, referencing specific aspects of the hypothetical contribution.
+     *   Actionable Feedback for each dimension: Provide concrete, step-by-step feedback for each dimension, explaining *how* the developer can improve their contribution to increase the probability percentage and reach a 100% overall grade. This feedback should be directly linked to the quality dimensions and the "Iterative Grading Process".
+ 
+ **Example Grade Report:**
++***IMPORTANT:*** *Any Grade Report that is not 100% requires that you use these findings to generate updated code. Ensure that your next call to write_file contains the code with these revisions.*
+ *   Overall Percentage Grade: 92%
+     *   Probability of Non-Regression: 90% - Excellent test coverage for core logic. Potential impact on module X needs further review.
+         *   *Actionable Feedback: Review module X to verify test validity.*

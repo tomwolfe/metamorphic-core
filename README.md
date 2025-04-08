@@ -2,11 +2,11 @@
 
 [![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
-[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.5_COMPLETED-brightgreen)](ROADMAP.md)
+[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.5_IN_PROGRESS-yellow)](ROADMAP.md)
 
-**🎯 CURRENT FOCUS: TRANSITION TO PHASE 2 - Initial Autonomous Workflow Engine 🚀**
+**🎯 CURRENT FOCUS: PHASE 1.5 - Debugging Markdown Automation & Workflow Driver 🚀**
 
-Phase 1 MVP is complete! We are now transitioning into Phase 2, beginning the initial implementation of a limited autonomous workflow engine. Phase 1.5, workflow automation project, is now complete! See the [Roadmap](#further-documentation) for details.
+Phase 1 MVP is complete! We are now still working on remaining steps in the 1.5 development project, specifically addressing key issues that exist in the stability of the driver for deployment. Upon completion, we'll then be transitioning into Phase 2, beginning the initial implementation of a limited autonomous workflow engine. See the [Roadmap](#further-documentation) for details.
 
 ---
 

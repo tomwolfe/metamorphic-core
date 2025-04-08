@@ -41,8 +41,8 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
         *   **Expected Grade Outcome:** 100%
    * **Target Deliverable:** Complete documentation for "Markdown-Only Automation Workflow" in `docs/workflows/markdown_automation.md` and updated `README.md`. **✅ COMPLETE**
 
-6. **Level 2: Workflow Driver Component (Week 7-8 - 5 days) - CURRENT FOCUS:**
-   * **Task 2.1 (Week 7 - 2 days):**
+6. **Level 2: Workflow Driver Component (Week 7-8 - 5 days):**
+   * **Task 2.1 (Week 7 - 2 days):** ✅ **COMPLETE**
         *   Priority: High
         *   Task ID: task_2_1
         *   Relevant Files: src/core/automation/workflow_driver.py, docs/workflows/markdown_automation.md
@@ -52,15 +52,15 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
             *   `__init__(self)`: Initializes the class (can be empty).
             *   `load_roadmap(self, roadmap_path: str)`: Reads and parses `ROADMAP.md` into a usable data structure (e.g., a list of dictionaries). **IMPLEMENTED - HARDCODED OUTPUT**
             *    Implements basic file loading, using only safe libraries.
-            *  Includes the `list_files` command. **✅ COMPLETE - returns empty list.**
+            *   Includes the `list_files` command. **✅ COMPLETE - returns empty list.**
             *   `__repr__(self)` - This will ensure easier output for logging to ensure that the models read the data correctly.
-        *   **Expected Grade Outcome:** 60% (Basic class structure and hardcoded `load_roadmap` implemented, no file IO, `list_files` empty.)
+        *   **Expected Grade Outcome:** 100% (Basic class structure and hardcoded `load_roadmap` implemented, no file IO, `list_files` empty, and tests passing.)
         *   **Decomposition Hints:**
             * Sub-task 1: Implement reading ROADMAP.md into a dictionary of tasks.
             * Sub-task 2: Implement logging to aid debugging.
             * Sub-task 3: Add basic error handling for potential exceptions.
             * Sub-task 4: Implement the `list_files` method (can be basic initial implementation). **✅ COMPLETE - BASIC IMPLEMENTATION**
-   * **Task 2.2 (Week 8 - 2 days):**
+   * **Task 2.2 (Week 8 - 2 days) - CURRENT FOCUS:**
         *   Priority: High
         *   Task ID: task_2_2
         *   Relevant Files: run_genesis.py, src/core/automation/workflow_driver.py
@@ -71,7 +71,7 @@ Phase 1 MVP is complete! **Phase 1.5 Level 1: Documentation - COMPLETED ✅** We
             *   Call `load_roadmap` and display the parsed task list in a human-readable format.  **✅ COMPLETE**
             * Has `list_files` functionality (calls and prints results). **✅ COMPLETE**
             * Has appropriate doc strings.
-        *   **Expected Grade Outcome:** 20% (Basic script that can load and run WorkflowDriver with basic output. Requires more functionality and docstrings.).
+        *   **Expected Grade Outcome:** 60% (Basic script that can load and run WorkflowDriver with basic output. Requires more functionality and docstrings.).
    * **Task 2.3 (Week 8 - 1 day):**
         *   Priority: Medium
         *   Task ID: task_2_3

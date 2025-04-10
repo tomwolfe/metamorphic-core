@@ -63,7 +63,7 @@ class WorkflowDriver:
             # Provide default status if missing
                 status = task.get('status', '').strip()
             # Sanitize description
-                description = html.escape(task.get('description', '').strip())
+                description = html.escape(task.get('description', '')) # Escape HTML to prevent XSS
                 tasks.append({
                     'task_id': task_id,
                     'priority': task['priority'],

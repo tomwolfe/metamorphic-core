@@ -1,19 +1,15 @@
+# src/core/automation/workflow_driver.py
 import logging
 import os
 import json
 import html
-
 class Context:  # Added Context class
     def __init__(self, root_dir):
         self.root_dir = root_dir
-
 class WorkflowDriver:
     def __init__(self, context): # Modified constructor
         self.context = context
-
-    def init(self):
-        pass
-    def repr(self):
+    def __repr__(self):
         return f"<{self.__class__.__name__} instance>"
     def load_roadmap(self, roadmap_path):
         tasks = []
@@ -82,10 +78,8 @@ class WorkflowDriver:
         except Exception as e:
             logging.exception(f"Error loading roadmap: {e}")
             return []
-
     def file_exists(self, file_path: str) -> bool:
         return os.path.exists(file_path)
-
     def list_files(self):
         entries = os.listdir(self.context.root_dir)
         result = []

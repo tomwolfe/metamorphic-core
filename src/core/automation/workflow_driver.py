@@ -2,7 +2,15 @@ import logging
 import os
 import json
 import html
+
+class Context:  # Added Context class
+    def __init__(self, root_dir):
+        self.root_dir = root_dir
+
 class WorkflowDriver:
+    def __init__(self, context): # Modified constructor
+        self.context = context
+
     def init(self):
         pass
     def repr(self):
@@ -79,11 +87,12 @@ class WorkflowDriver:
         return os.path.exists(file_path)
 
     def list_files(self):
-        entries = os.listdir()
+        entries = os.listdir(self.context.root_dir)
         result = []
         for entry in entries:
-            if os.path.isfile(entry):
+            full_path = os.path.join(self.context.root_dir, entry)
+            if os.path.isfile(full_path):
                 result.append({'name': entry, 'status': 'file'})
-            elif os.path.isdir(entry):
+            elif os.path.isdir(full_path):
                 result.append({'name': entry, 'status': 'directory'})
         return result

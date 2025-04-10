@@ -1,5 +1,5 @@
 import pytest
-from src.core.automation.workflow_driver import WorkflowDriver
+from src.core.automation.workflow_driver import WorkflowDriver, Context # Import Context
 import os
 from unittest.mock import patch, mock_open
 import logging
@@ -11,9 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
-def test_driver():
-    return WorkflowDriver()
-
+def test_driver(tmp_path):
+    context = Context(str(tmp_path)) # Create context with tmp_path
+    return WorkflowDriver(context) # Pass context to WorkflowDriver
 
 def create_mock_roadmap_file(content, tmp_path, is_json=True):
     """Creates a mock roadmap file in the temporary directory."""
@@ -234,7 +234,7 @@ def test_load_roadmap_task_name_too_long(test_driver, tmp_path, caplog):
 
 
 def test_load_roadmap_handles_js_vulnerability_for_description(test_driver, tmp_path, caplog):
-    """Tests if the load_roadmap function handles potential json injection attacks in description field to ensure no code can run"""
+    """Tests if the load_roadmap function handles potential javascript injection attacks in description field to ensure no code can run"""
     caplog.set_level(logging.ERROR)
     roadmap_content = f"""
     {{
@@ -276,4 +276,7 @@ def test_list_files(test_driver, tmp_path):
     (subdir / "file_in_subdir.txt").write_text("content")
     entries = test_driver.list_files()
     expected = [{'name': 'file1.txt', 'status': 'file'}, {'name': 'file2.txt', 'status': 'file'}, {'name': 'subdir', 'status': 'directory'}]
-    assert any(d in expected for d in entries)
+
+    entries_set = {tuple(sorted(d.items())) for d in entries}
+    expected_set = {tuple(sorted(d.items())) for d in expected}
+    assert entries_set == expected_set

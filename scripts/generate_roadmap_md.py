@@ -4,8 +4,17 @@ import json
 def generate_roadmap_md(json_path="ROADMAP.json", md_path="ROADMAP.md"):
     try:
         with open(json_path, 'r') as f:
-            data = json.load(f) # Load the whole json, instead of just the task.
-        tasks = data.get("tasks", []) # Get the tasks or an empty array
+            data = json.load(f)
+
+        # Determine if 'data' is a list or a dict
+        if isinstance(data, list):
+            tasks = data  # It's a list of tasks
+        elif isinstance(data, dict):
+            tasks = data.get("tasks", [])  # It's a dict with a "tasks" key
+        else:
+            print(f"Error: Unexpected format in {json_path}.  Expected list or dict with 'tasks' key.")
+            return
+
         with open(md_path, 'w') as md_file:
             # Add the auto-generation warning at the beginning
             md_file.write("# Development Roadmap\n\n")
@@ -13,7 +22,7 @@ def generate_roadmap_md(json_path="ROADMAP.json", md_path="ROADMAP.md"):
             md_file.write("**NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**\n\n")
 
             for task in tasks:
-                task_id = task.get('task_id', 'MISSING_ID') # If missing, default to missing ID, which will be written in the MD
+                task_id = task.get('task_id', 'MISSING_ID')
                 priority = task.get('priority', 'UNKNOWN')
                 task_name = task.get('task_name', 'NO_NAME')
                 status = task.get('status', 'NOT_SPECIFIED')
@@ -21,7 +30,7 @@ def generate_roadmap_md(json_path="ROADMAP.json", md_path="ROADMAP.md"):
                 md_file.write(f"*   **Task ID**: {task_id}\n")
                 md_file.write(f"    *   **Priority**: {priority}\n")
                 md_file.write(f"    *   **Task Name**: {task_name}\n")
-                md_file.write(f"    *   **Status**: {status}\n\n") # Leave the space in the string for markdown parsing
+                md_file.write(f"    *   **Status**: {status}\n\n")
         print(f"Successfully generated {md_path} from {json_path}")
 
     except FileNotFoundError:

@@ -1,6 +1,6 @@
 import logging
 import os
-import re
+import json
 
 class WorkflowDriver:
     def __init__(self):
@@ -13,66 +13,56 @@ class WorkflowDriver:
         tasks = []
         max_file_size = 1024 * 10  # 10KB limit
         try:
+            if not roadmap_path.endswith(".json"):
+                logging.error("ROADMAP must be a .json file")
+                return []
+
             if os.path.getsize(roadmap_path) > max_file_size:
-                logging.error(f"ROADMAP.md file exceeds maximum allowed size of {max_file_size} bytes.")
+                logging.error(f"ROADMAP.json file exceeds maximum allowed size of {max_file_size} bytes.")
                 return []
 
             with open(roadmap_path, 'r') as f:
-                content = f.read()
+                data = json.load(f)
+                tasks = data.get("tasks", [])  # Added check to extract tasks
 
-            # Split content into individual task blocks first
-            task_blocks = re.split(r'(?=\*\s+\*\*Task ID\*\*\s*:)', content)
-            
-            for block in task_blocks:
-                if not block.strip():
+            # Basic validation to make sure tasks are a list.
+            if not isinstance(tasks, list):
+                logging.error("ROADMAP.json must contain a 'tasks' key with a list value.")
+                return []
+
+            # Basic validation and sanitization to ensure only expected values are in the data
+            validated_tasks = []
+            for task in tasks:
+                if not isinstance(task, dict):
+                    logging.warning("Skipping non-dictionary task entry.")
                     continue
-                
-                # Initialize task with default values
-                task = {
-                    'task_id': '',
-                    'priority': '',
-                    'task_name': '',
-                    'status': ''
-                }
-                
-                # Extract task_id
-                task_id_match = re.search(r'\*\*Task ID\*\*\s*:\s*(.*?)(?=\n|\*|$)', block)
-                if task_id_match:
-                    task['task_id'] = task_id_match.group(1).strip()
-                
-                # Extract priority
-                priority_match = re.search(r'\*\*Priority\*\*\s*:\s*(.*?)(?=\n|\*|$)', block)
-                if priority_match:
-                    task['priority'] = priority_match.group(1).strip()
-                
-                # Extract task_name
-                task_name_match = re.search(r'\*\*Task Name\*\*\s*:\s*(.*?)(?=\n|\*|$)', block)
-                if task_name_match:
-                    task['task_name'] = task_name_match.group(1).strip()
-                    if len(task['task_name']) > 150:
-                        logging.warning(f"Task Name '{task['task_name'][:50]}...' exceeds 150 characters, skipping task.")
-                        continue
-                
-                # Special case for various spacing test
-                if task.get('task_name') == "Spaced Name":
-                    task['status'] = task['task_name']
-                # Special case for invalid task ID test
-                elif task.get('task_id') == "../etc/passwd":
-                    task['status'] = ""
-                else:
-                    # Normal status extraction
-                    status_match = re.search(r'\*\*Status\*\*\s*:\s*(.*?)(?=\n|\*|$)', block)
-                    if status_match:
-                        task['status'] = status_match.group(1).strip()
-                
-                # Only add task if we have at least a task_id
-                if task['task_id']:
-                    tasks.append(task)
 
-            return tasks
+                validated_task = {
+                    "task_id": str(task.get("task_id", "")),  # Convert to string
+                    "priority": str(task.get("priority", "")),  # Convert to string
+                    "task_name": str(task.get("task_name", "")),  # Convert to string
+                    "status": str(task.get("status", "")),  # Convert to string
+                    "description": str(task.get("description", ""))
+                }
+
+                # Check for long task names, as before
+                if len(validated_task['task_name']) > 150:
+                    logging.warning(f"Task Name '{validated_task['task_name'][:50]}...' exceeds 150 characters, skipping task.")
+                    continue
+
+                # Basic XSS protection for task name and description
+                validated_task['task_name'] = validated_task['task_name'].replace("<script>", "<script>").replace("</script>", "</script>")
+                validated_task['description'] = validated_task['description'].replace("<script>", "<script>").replace("</script>", "</script>")
+
+                validated_tasks.append(validated_task)
+
+            return validated_tasks
 
         except FileNotFoundError:
-            logging.error(f"ROADMAP.md file not found at path: {roadmap_path}")
+            logging.error(f"ROADMAP.json file not found at path: {roadmap_path}")
+            return []
+        except json.JSONDecodeError as e:
+            logging.error(f"Error decoding JSON from {roadmap_path}: {e}")
             return []
         except Exception as e:
             logging.exception(f"Error loading roadmap: {e}")

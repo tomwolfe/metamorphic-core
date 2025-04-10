@@ -5,8 +5,26 @@ name: CI
 on: [push, pull_request]
 
 jobs:
+  generate-roadmap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements/base.txt
+
+      - name: Generate ROADMAP.md
+        run: python scripts/generate_roadmap_md.py
+
   integration-test:
     runs-on: ubuntu-latest
+    needs: generate-roadmap  # Ensure generation runs first
     services:
       redis:
         image: redis:latest

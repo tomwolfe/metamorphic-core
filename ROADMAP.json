@@ -1,0 +1,49 @@
+[
+  {
+    "phase": "Phase 1.5 - Workflow Automation Side Project",
+    "phase_goal": "Implement Level 1 and Level 2 of the Markdown-Only Automation Workflow to enhance development efficiency for Phase 2 and beyond.",
+    "success_metrics": [
+      "Level 1 Documentation Complete",
+      "Level 2 Workflow Driver Component Implemented",
+      "Basic Workflow Driver Tests Implemented",
+      "Command-Line Interface and list_files method"
+    ],
+    "tasks": [
+      {
+        "task_id": "task_1_1",
+        "priority": "High",
+        "task_name": "Create docs/workflows/markdown_automation.md",
+        "description": "The markdown file that outlines the workflow process",
+        "status": "COMPLETE"
+      },
+      {
+        "task_id": "task_1_2",
+        "priority": "High",
+        "task_name": "Update README.md with quickstart guide",
+        "description": "Update the starting place with information on how to use this system",
+        "status": "COMPLETE"
+      },
+      {
+        "task_id": "task_2_3",
+        "priority": "High",
+        "task_name": "Implement file existence check",
+        "description": "Implements logic that ensures that the files are in the code, are not overwriting any previous work, and ensuring that they are safe",
+        "status": "In Progress"
+      },
+      {
+        "task_id": "task_3_1",
+        "priority": "High",
+        "task_name": "Review all deliverables for Phase 1.5",
+        "description": "test run",
+        "status": "Not Started"
+      }
+    ],
+    "next_phase_actions": [
+      "Set `status`: `complete` on all Level 1.5 tasks",
+      "Remove all Level 1.5 tasks from the json config",
+      "Set 🎯 CURRENT FOCUS to `Transition to Phase 2",
+      "Add Phase 2 description, which starts with Iteration 2 (Enhanced Agents & Knowledge Graph)",
+      "Add tasks from Iteration 2 (Enhanced Agents & Knowledge Graph)"
+    ]
+  }
+]

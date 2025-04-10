@@ -74,5 +74,16 @@ class WorkflowDriver:
         except Exception as e:
             logging.exception(f"Error loading roadmap: {e}")
             return []
+
+    def file_exists(self, file_path: str) -> bool:
+        return os.path.exists(file_path)
+
     def list_files(self):
-        return []
+        entries = os.listdir()
+        result = []
+        for entry in entries:
+            if os.path.isfile(entry):
+                result.append({'name': entry, 'status': 'file'})
+            elif os.path.isdir(entry):
+                result.append({'name': entry, 'status': 'directory'})
+        return result

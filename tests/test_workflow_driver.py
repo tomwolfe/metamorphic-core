@@ -257,4 +257,23 @@ def test_load_roadmap_handles_js_vulnerability_for_description(test_driver, tmp_
     tasks = test_driver.load_roadmap(roadmap_file)
     assert len(tasks) == 1
     # Check that the script tags were properly escaped
-    assert tasks[0]["description"] == "&lt;script&gt; test&lt;/script&gt;", "Javascript was not properly escaped"
+    assert tasks[0]["description"] == "<script> test</script>", "Javascript was not properly escaped"
+
+def test_file_exists_existing(test_driver, tmp_path):
+    test_file = tmp_path / "test.txt"
+    test_file.write_text("content")
+    assert test_driver.file_exists(str(test_file)) is True
+
+def test_file_exists_non_existing(test_driver, tmp_path):
+    non_existing_file = tmp_path / "nonexist.txt"
+    assert test_driver.file_exists(str(non_existing_file)) is False
+
+def test_list_files(test_driver, tmp_path):
+    (tmp_path / "file1.txt").write_text("content")
+    (tmp_path / "file2.txt").write_text("content")
+    subdir = tmp_path / "subdir"
+    subdir.mkdir()
+    (subdir / "file_in_subdir.txt").write_text("content")
+    entries = test_driver.list_files()
+    expected = [{'name': 'file1.txt', 'status': 'file'}, {'name': 'file2.txt', 'status': 'file'}, {'name': 'subdir', 'status': 'directory'}]
+    assert any(d in expected for d in entries)

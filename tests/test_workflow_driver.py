@@ -9,60 +9,25 @@ import json
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+
 @pytest.fixture
 def test_driver():
-    """Fixture to create a WorkflowDriver instance."""
     return WorkflowDriver()
 
-def create_mock_roadmap_file(content, tmp_path, is_json=False):
-    """Helper to create a temporary roadmap file with specified content."""
-    roadmap_file = tmp_path / ("ROADMAP.json" if is_json else "ROADMAP.md") # Flexible naming
+
+def create_mock_roadmap_file(content, tmp_path, is_json=True):
+    """Creates a mock roadmap file in the temporary directory."""
     if is_json:
-        roadmap_file.write_text(json.dumps(content)) # JSON dump
+        file_path = tmp_path / "ROADMAP.json"
     else:
-        roadmap_file.write_text(content)
-    return str(roadmap_file)
+        file_path = tmp_path / "ROADMAP.txt"  # or any other extension
+    with open(file_path, "w") as f:
+        f.write(content)
+    return str(file_path)
 
-def test_load_roadmap_parses_valid_json_file(test_driver, tmp_path):
-    """Test that load_roadmap correctly parses a valid ROADMAP.json file."""
-    roadmap_content = {
-        "phase": "Test Phase",
-        "phase_goal": "Goal",
-        "success_metrics": [],
-        "tasks": [
-            {"task_id": "T1", "priority": "High", "task_name": "Setup Environment", "status": "Not Started", "description": "A basic description"},
-            {"task_id": "T2", "priority": "Medium", "task_name": "Configure Database", "status": "In Progress", "description": "A description of what to do"},
-            {"task_id": "T3", "priority": "Low", "task_name": "Implement Unit Tests.  This is a very long task name to ensure the parsing works correctly even with lots of text. And even more text. AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "status": "Completed",  "description": "what to do"}
-        ],
-      "next_phase_actions": []
-    }
-    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
-    tasks = test_driver.load_roadmap(roadmap_file)
-    #Check if 3 are created and 1 is skipped
-    assert len(tasks) == 2
-    assert tasks[0]["task_id"] == "T1"
-    assert tasks[0]["priority"] == "High"
-    assert tasks[0]["task_name"] == "Setup Environment"
-    assert tasks[0]["status"] == "Not Started"
-    assert tasks[0]["description"] == "A basic description"
 
-    assert tasks[1]["task_id"] == "T2"
-    assert tasks[1]["priority"] == "Medium"
-    assert tasks[1]["task_name"] == "Configure Database"
-    assert tasks[1]["status"] == "In Progress"
-    assert tasks[1]["description"] == "A description of what to do"
-
-def test_load_roadmap_handles_missing_file(test_driver, caplog):
-    """Test that load_roadmap gracefully handles a missing ROADMAP.json file."""
-    caplog.set_level(logging.ERROR)
-    tasks = test_driver.load_roadmap("nonexistent_file.json")
-    assert len(tasks) == 0
-    assert "ROADMAP.json file not found" in caplog.text
-
-def test_load_roadmap_handles_parsing_errors(test_driver, tmp_path, caplog):
-    """Test that load_roadmap handles improperly-formatted ROADMAP.json content."""
-    caplog.set_level(logging.ERROR) # Set level for caplog
-
+def test_load_roadmap_valid_json(test_driver, tmp_path):
+    """Tests loading a valid JSON roadmap file."""
     roadmap_content = """
     {
         "phase": "Test Phase",
@@ -70,167 +35,226 @@ def test_load_roadmap_handles_parsing_errors(test_driver, tmp_path, caplog):
         "success_metrics": [],
         "tasks": [
             {
-                "task_id": "T1",
+                "task_id": "Task1",
                 "priority": "High",
-                "task_name": "Missing Status",
-                "description": "What the task will do"
-            },
-            {
-                "task_id": "T2",
-                "priority": "Medium"
+                "task_name": "Test Task",
+                "status": "Not Started",
+                "description": "A test task description."
             }
         ],
-    "next_phase_actions": []
+        "next_phase_actions": []
     }
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
     tasks = test_driver.load_roadmap(roadmap_file)
-    # Check if errors are logged and only well-formed tasks loaded
     assert len(tasks) == 1
-    assert tasks[0]["task_id"] == "T1"
+    assert tasks[0]["task_id"] == "Task1"
     assert tasks[0]["priority"] == "High"
-    assert tasks[0]["task_name"] == "Missing Status"
-    assert tasks[0]["status"] == ""
-    assert tasks[0]["description"] == "What the task will do"
+    assert tasks[0]["task_name"] == "Test Task"
+    assert tasks[0]["status"] == "Not Started"
+    assert tasks[0]["description"] == "A test task description."
 
 
-    # Ensure that the parsing error has been logged
-    assert "ROADMAP.json must contain a list of tasks." not in caplog.text and "Error decoding JSON from " not in caplog.text  # Removed unnessary logging check
+def test_load_roadmap_file_not_found(test_driver, tmp_path, caplog):
+    """Tests the scenario where the roadmap file is not found."""
+    caplog.set_level(logging.ERROR)
+    non_existent_file = tmp_path / "NON_EXISTENT_ROADMAP.json"
+    tasks = test_driver.load_roadmap(str(non_existent_file))
+    assert len(tasks) == 0
+    assert "ROADMAP.json file not found" in caplog.text
 
-def test_load_roadmap_handles_empty_file(test_driver, tmp_path):
-    """Test that load_roadmap handles an empty ROADMAP.json file."""
-    roadmap_file = create_mock_roadmap_file("{}", tmp_path, is_json=True)
+
+def test_load_roadmap_invalid_json(test_driver, tmp_path, caplog):
+    """Tests loading an invalid JSON roadmap file."""
+    caplog.set_level(logging.ERROR)
+    roadmap_content = "This is not a valid JSON file."
+    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
     tasks = test_driver.load_roadmap(roadmap_file)
     assert len(tasks) == 0
+    assert "Invalid JSON in roadmap file" in caplog.text
 
-def test_load_roadmap_handles_invalid_task_id(test_driver, tmp_path):
-    """Test that load_roadmap handles a ROADMAP.json file with a malformed Task ID."""
-    roadmap_content = """
- {
+
+def test_load_roadmap_file_size_limit(test_driver, tmp_path, caplog):
+    """Tests the roadmap file size limit."""
+    caplog.set_level(logging.ERROR)
+    long_string = "A" * 11000  # Create a string longer than 10KB
+    roadmap_content = f"""
+    {{
         "phase": "Test Phase",
         "phase_goal": "Goal",
         "success_metrics": [],
         "tasks": [
-          {
-            "task_id": "../etc/passwd",
-            "priority": "High",
-            "task_name": "Setup Environment",
-            "status": "Not Started",
-              "description": "A description"
-          }
+            {{
+                "task_id": "Task1",
+                "priority": "High",
+                "task_name": "Test Task",
+                "status": "Not Started",
+                "description": "{long_string}"
+            }}
         ],
         "next_phase_actions": []
- }
-    """
-    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
-    tasks = test_driver.load_roadmap(roadmap_file)
-    assert len(tasks) == 1
-    assert tasks[0]["task_id"] == "../etc/passwd"
-    assert tasks[0]["priority"] == "High"
-    assert tasks[0]["task_name"] == "Setup Environment"
-    assert tasks[0]["status"] == "Not Started"
-    assert tasks[0]["description"] == "A description"
-
-
-def test_load_roadmap_handles_long_task_content(test_driver, tmp_path):
-    """Test that load_roadmap handles very long task content without errors."""
-    long_name = "A" * 200  # Create a long task name
-    roadmap_content = f"""
-{{
-    "phase": "Test Phase",
-    "phase_goal": "Goal",
-    "success_metrics": [],
-    "tasks": [
-        {{
-            "task_id": "LongTask",
-            "priority": "High",
-            "task_name": "{long_name}",
-            "status": "Not Started",
-            "description": "What the what"
-        }}
-    ],
-    "next_phase_actions": []
-}}
+    }}
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
     tasks = test_driver.load_roadmap(roadmap_file)
     assert len(tasks) == 0
+    assert "file exceeds maximum allowed size" in caplog.text
 
-def test_load_roadmap_handles_invalid_json_type(test_driver, tmp_path, caplog):
-    """Tests that load_roadmap function rejects file if not JSON"""
+
+def test_load_roadmap_missing_tasks_key(test_driver, tmp_path, caplog):
+    """Tests loading a roadmap with a missing 'tasks' key."""
     caplog.set_level(logging.ERROR)
     roadmap_content = """
-*   **Task ID**: Test
-    *   **Priority**: High
-    *   **Task Name**: A Task Name
-    *   **Status**: Not Started
+    {
+        "phase": "Test Phase",
+        "phase_goal": "Goal",
+        "success_metrics": [],
+        "next_phase_actions": []
+    }
     """
-
-    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=False) # MD content
-    tasks = test_driver.load_roadmap(roadmap_file)
-    assert len(tasks) == 0
-    assert "ROADMAP must be a .json file" in caplog.text
-
-def test_load_roadmap_handles_non_list_json(test_driver, tmp_path, caplog):
-    """Tests if the load_roadmap function correctly handles if the file is valid json, but not of list type"""
-    caplog.set_level(logging.ERROR)
-    roadmap_content = """{"test": "test"}""" # non list object
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
     tasks = test_driver.load_roadmap(roadmap_file)
     assert len(tasks) == 0
-    assert "ROADMAP.json must contain a list of tasks" in caplog.text
+    assert "ROADMAP.json must contain a 'tasks' list" in caplog.text
 
-def test_load_roadmap_handles_js_vulnerability(test_driver, tmp_path, caplog):
-    """Tests if the load_roadmap function handles potential json injection attacks to ensure no code can run"""
+
+def test_load_roadmap_tasks_not_a_list(test_driver, tmp_path, caplog):
+    """Tests loading a roadmap where 'tasks' is not a list."""
     caplog.set_level(logging.ERROR)
-    long_name = "A" * 200  # Create a long task name
+    roadmap_content = """
+    {
+        "phase": "Test Phase",
+        "phase_goal": "Goal",
+        "success_metrics": [],
+        "tasks": "not a list",
+        "next_phase_actions": []
+    }
+    """
+    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
+    tasks = test_driver.load_roadmap(roadmap_file)
+    assert len(tasks) == 0
+    assert "'tasks' must be a list" in caplog.text
+
+
+def test_load_roadmap_invalid_task_format(test_driver, tmp_path, caplog):
+    """Tests loading a roadmap with an invalid task (not a dictionary)."""
+    caplog.set_level(logging.WARNING)
+    roadmap_content = """
+    {
+        "phase": "Test Phase",
+        "phase_goal": "Goal",
+        "success_metrics": [],
+        "tasks": [
+            "not a dictionary"
+        ],
+        "next_phase_actions": []
+    }
+    """
+    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
+    tasks = test_driver.load_roadmap(roadmap_file)
+    assert len(tasks) == 0
+    assert "Skipping invalid task (not a dictionary)" in caplog.text
+
+
+def test_load_roadmap_missing_required_keys(test_driver, tmp_path, caplog):
+    """Tests loading a roadmap with tasks missing required keys."""
+    caplog.set_level(logging.WARNING)
+    roadmap_content = """
+    {
+        "phase": "Test Phase",
+        "phase_goal": "Goal",
+        "success_metrics": [],
+        "tasks": [
+            {
+                "task_name": "Test Task",
+                "status": "Not Started",
+                "description": "A test task description."
+            }
+        ],
+        "next_phase_actions": []
+    }
+    """
+    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
+    tasks = test_driver.load_roadmap(roadmap_file)
+    assert len(tasks) == 0
+    assert "Task missing required keys" in caplog.text
+
+
+def test_load_roadmap_invalid_task_id(test_driver, tmp_path, caplog):
+    """Tests loading a roadmap with an invalid task_id."""
+    caplog.set_level(logging.WARNING)
+    roadmap_content = """
+    {
+        "phase": "Test Phase",
+        "phase_goal": "Goal",
+        "success_metrics": [],
+        "tasks": [
+            {
+                "task_id": "Invalid/Task",
+                "priority": "High",
+                "task_name": "Test Task",
+                "status": "Not Started",
+                "description": "A test task description."
+            }
+        ],
+        "next_phase_actions": []
+    }
+    """
+    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
+    tasks = test_driver.load_roadmap(roadmap_file)
+    assert len(tasks) == 0
+    assert "Invalid task_id" in caplog.text
+
+
+def test_load_roadmap_task_name_too_long(test_driver, tmp_path, caplog):
+    """Tests loading a roadmap with a task name that's too long."""
+    caplog.set_level(logging.WARNING)
+    long_task_name = "A" * 151
     roadmap_content = f"""
-{{
-    "phase": "Test Phase",
-    "phase_goal": "Goal",
-    "success_metrics": [],
-    "tasks": [
-        {{
-            "task_id": "LongTask",
-            "priority": "High",
-            "task_name": "{long_name}<script> test</script>",
-            "status": "Not Started",
-            "description": "test"
-        }}
-    ],
-    "next_phase_actions": []
-}}
+    {{
+        "phase": "Test Phase",
+        "phase_goal": "Goal",
+        "success_metrics": [],
+        "tasks": [
+            {{
+                "task_id": "LongTask",
+                "priority": "High",
+                "task_name": "{long_task_name}",
+                "status": "Not Started",
+                "description": "A test task description."
+            }}
+        ],
+        "next_phase_actions": []
+    }}
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
     tasks = test_driver.load_roadmap(roadmap_file)
-    assert len(tasks) == 0 or "test" not in tasks[0]["task_name"]  # This should always fail on the long, or clear of the test to test for html issues as an invalid
+    assert len(tasks) == 0
+    assert "Task Name" in caplog.text and "exceeds 150 characters" in caplog.text
+
 
 def test_load_roadmap_handles_js_vulnerability_for_description(test_driver, tmp_path, caplog):
     """Tests if the load_roadmap function handles potential json injection attacks in description field to ensure no code can run"""
     caplog.set_level(logging.ERROR)
     roadmap_content = f"""
-{{
-    "phase": "Test Phase",
-    "phase_goal": "Goal",
-    "success_metrics": [],
-    "tasks": [
-        {{
-            "task_id": "LongTask",
-            "priority": "High",
-            "task_name": "Test Name",
-            "status": "Not Started",
-            "description": "<script> test</script>"
-        }}
-    ],
-    "next_phase_actions": []
-}}
+    {{
+        "phase": "Test Phase",
+        "phase_goal": "Goal",
+        "success_metrics": [],
+        "tasks": [
+            {{
+                "task_id": "LongTask",
+                "priority": "High",
+                "task_name": "Test Name",
+                "status": "Not Started",
+                "description": "<script> test</script>"
+            }}
+        ],
+        "next_phase_actions": []
+    }}
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path, is_json=True)
     tasks = test_driver.load_roadmap(roadmap_file)
-    if len(tasks) > 0:
-        assert "<script>" not in tasks[0]["description"], "Javascript was not properly sanitized"
-
-    
-def test_list_files(test_driver):
-    """Test that list_files function was implemented"""
-    tasks = test_driver.list_files()
+    assert len(tasks) == 1
+    # Check that the script tags were properly escaped
+    assert tasks[0]["description"] == "&lt;script&gt; test&lt;/script&gt;", "Javascript was not properly escaped"

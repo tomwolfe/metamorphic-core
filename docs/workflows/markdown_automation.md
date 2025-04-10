@@ -6,7 +6,7 @@ This document describes the "Markdown-Only Automation" workflow for developing t
 
 The "Markdown-Only Automation" workflow streamlines development by enabling a **Driver LLM** to:
 
-1.  **Identify and select the next development task** from the project's [ROADMAP.md](ROADMAP.md) file.
+1.  **Identify and select the next development task** from the project's `ROADMAP.json` file.  The `ROADMAP.md` file is now automatically generated *from* `ROADMAP.json`.
 2.  **Generate a high-level solution plan** for the selected task.
 3.  **Generate precise code generation prompts** for the **Coder LLM.**
 4.  **Generate a numbered list of "User Actionable Steps"** to guide the user. Format these steps as a Markdown checklist to enhance readability and trackability. Each step should start with a numbered list item, followed by a Markdown checklist syntax ` - [ ] ` and then the step description. For example:
@@ -46,7 +46,7 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
     *   The list of actions the AI took for you to verify and run.
     *   The name and source of all files that will be written by calling the `write_file` tool.
     *   The complete "Grade Report" for your *expected* solution. Make it clear that this grade is provisional.
-    *   "Updated ROADMAP.md Content": Include the *full text content* of the updated `ROADMAP.md` file, incorporating the task completion marking and roadmap evolution.
+    *   "Updated ROADMAP.md Content": Include the *full text content* of the updated `ROADMAP.md` file, incorporating the task completion marking and roadmap evolution.  Note that this file is now generated automatically, so the provided content should be a reflection of the changes made in `ROADMAP.json`.
     *   **Context Files Used:** Explicitly list the Markdown files that you (the Driver LLM) used as context to perform this task. This should typically include, but is not limited to, `ROADMAP.md` and `CONTRIBUTING.md`. List each file on a new line using Markdown list syntax (e.g., `* ROADMAP.md`).
     *   **End your response with the following choices:**
 
@@ -60,37 +60,44 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
 
         **Your response MUST begin with one of the letters above (A, B, C, D, E, or F) followed by a colon and a space, then your message.** For example: "B: Test test_my_function failed with assertion error..."
 
-## ROADMAP.md Format
+## ROADMAP.json Format
 
-To ensure proper parsing and automation, the `ROADMAP.md` file must adhere to a specific format. Each task entry should be structured as follows:
+To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to a specific format. Each task entry should be structured as follows:
 
-```markdown
-*   **Task ID**: [Unique identifier for the task]
-    *   **Priority**: [High, Medium, or Low]
-    *   **Task Name**: [Short description of the task]
-    *   **Status**: [Not Started, In Progress, Completed, Blocked]
+```json
+{
+    "phase": "Phase Name",
+    "phase_goal": "Goal of the Phase",
+    "success_metrics": [],
+    "tasks": [
+        {
+            "task_id": "task_1_1",
+            "priority": "High",
+            "task_name": "Example Task",
+            "description": "Details of the task",
+            "status": "Not Started"
+        }
+    ],
+    "next_phase_actions": []
+}
 ```
 
 **Field Descriptions:**
 
-*   `**Task ID**`: A unique identifier for each task. This should be a simple string (e.g., "task_2_3").
-*   `**Priority**`: Indicates the importance of the task. Allowed values: `High`, `Medium`, or `Low`.
-*   `**Task Name**`: A concise description of the task (under 150 characters).
-*   `**Status**`: Indicates the current state of the task. Allowed values: `Not Started`, `In Progress`, `Completed`, or `Blocked`.
-
-**Example Task Entry:**
-
-```markdown
-*   **Task ID**: task_2_3
-    *   **Priority**: High
-    *   **Task Name**: Implement file existence check.
-    *   **Status**: In Progress
-```
+*   `"phase"`: The name of the development phase.
+*   `"phase_goal"`: A brief description of the phase's objective.
+*   `"success_metrics"`: A list of metrics to measure the phase's success.
+*   `"tasks"`: An array of tasks within the phase. Each task is a JSON object with the following keys:
+    *   `"task_id"`: A unique identifier for the task. This should be a simple string (e.g., "task_2_3").
+    *   `"priority"`: Indicates the importance of the task. Allowed values: `"High"`, `"Medium"`, or `"Low"`.
+    *   `"task_name"`: A concise description of the task (under 150 characters).
+    *   `"description"`: A detailed description of the task.
+    *   `"status"`: Indicates the current state of the task. Allowed values: `"Not Started"`, `"In Progress"`, `"Completed"`, or `"Blocked"`.
+* `"next_phase_actions"`:A list of actions to take before transitioning to the next phase.
 
 **Important Notes:**
 
-*   Use the specified formatting (e.g., `**` for bolding labels, colons after labels).
-*   Ensure each task entry is separated by a blank line for correct parsing.
+*   Use the specified JSON formatting.
 *   Task names should be relatively short to avoid parsing issues.
 
 ## Ready-to-Use "Ideal" Self-Driving Prompt
@@ -102,14 +109,14 @@ You are an AI development assistant working on the Metamorphic Software Genesis 
 
 1.  Understand the project structure and goals by reading the following documentation:
     *   Full High-Level Specification: [PASTE THE FULL CONTENT OF SPECIFICATION.md HERE]
-    *   Development Roadmap: [PASTE THE FULL CONTENT OF ROADMAP.md HERE]
+    *   Development Roadmap: [PASTE THE FULL CONTENT OF ROADMAP.md HERE] *NOTE: Roadmap is autogenerated from ROADMAP.json, so paste the ROADMAP.json content here instead*
     *   Contribution Guidelines: [PASTE THE FULL CONTENT OF CONTRIBUTING.md HERE]
     *   Automation Workflow: [PASTE THE FULL CONTENT OF docs/workflows/markdown_automation.md HERE]
     *   Competitive Landscape: [PASTE THE FULL CONTENT OF COMPETITIVE_LANDSCAPE.md HERE]
 
 2.  Execute the steps described in docs/workflows/markdown_automation.md.
     *   Load the full content of all markdown files.
-    *   Identify and select the next development task from ROADMAP.md, focusing on incremental steps that get stage 2 closer to completion.
+    *   Identify and select the next development task from ROADMAP.json, focusing on incremental steps that get stage 2 closer to completion.
     *   Generate a high-level solution plan.
     *   Generate precise code generation prompts for the Coder LLM.
     *   Generate a numbered list of User Actionable Steps, formatted as a Markdown checklist.
@@ -117,6 +124,7 @@ You are an AI development assistant working on the Metamorphic Software Genesis 
     *   Perform a self-assessment and grade the proposed solution using the Iterative Grading Process from CONTRIBUTING.md.
 
 3.  Ensure all generated code adheres to the project's ethical policies and guidelines, using policy_bias_risk_strict.json as a reference. Make sure that no keyword identified in that file's "keywords" list (["hate speech", "racist", "sexist", "offensive"]) is found in the generated code.
+  * Use santitization and code injections to ensure the code follows secure requirements
 
 Remember to follow these guidelines to the greatest extent possible.
 

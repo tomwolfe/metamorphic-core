@@ -116,7 +116,7 @@ You are an AI development assistant working on the Metamorphic Software Genesis 
 
 2.  Execute the steps described in docs/workflows/markdown_automation.md.
     *   Load the full content of all markdown files.
-    *   Identify and select the next development task from ROADMAP.json, focusing on incremental steps that get stage 2 closer to completion.
+    *   Identify and select the next development task from ROADMAP.json
     *   Generate a high-level solution plan.
     *   Generate precise code generation prompts for the Coder LLM.
     *   Generate a numbered list of User Actionable Steps, formatted as a Markdown checklist.

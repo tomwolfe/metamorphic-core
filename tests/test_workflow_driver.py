@@ -5,6 +5,8 @@ import os
 from unittest.mock import patch, mock_open
 import logging
 import json
+from scripts.generate_roadmap_md import generate_roadmap_md
+import html
 
 # Set up logging for tests
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -236,7 +238,7 @@ def test_load_roadmap_handles_js_vulnerability_for_description(test_driver, tmp_
     tasks = test_driver.load_roadmap(roadmap_file)
     assert len(tasks) == 1
     # Expect the escaped HTML version
-    expected_description = "&lt;script&gt; test&lt;/script&gt;"
+    expected_description = html.escape("<script> test</script>")
     assert tasks[0]["description"] == expected_description, f"Expected escaped version of '<script> test</script>', got '{tasks[0]['description']}'"
 
 def test_file_exists_existing(test_driver, tmp_path):
@@ -263,3 +265,30 @@ def test_list_files(test_driver, tmp_path):
     entries_set = {tuple(sorted(d.items())) for d in entries}
     expected_set = {tuple(sorted(d.items())) for d in expected}
     assert entries_set == expected_set
+
+def test_load_roadmap_missing_task_id(test_driver, tmp_path, caplog):
+    """Test handling of a missing 'task_id' in ROADMAP.json and verify ROADMAP.md content."""
+    caplog.set_level(logging.INFO)
+    roadmap_content = """
+    {
+        "phase": "Test Phase",
+        "phase_goal": "Goal",
+        "success_metrics": [],
+        "tasks": [
+            {
+                "priority": "High",
+                "task_name": "Test Task",
+                "status": "Not Started",
+                "description": "A test task description."
+            }
+        ],
+        "next_phase_actions": []
+    }
+    """
+    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+    tasks = test_driver.load_roadmap(roadmap_file)
+    assert len(tasks) == 0, f"Tasks should be empty because task_id is required" # There should be no tasks, since we remove them
+    generate_roadmap_md(roadmap_file, str(tmp_path / "ROADMAP.md"))
+    with open(str(tmp_path / "ROADMAP.md"), 'r') as f:
+        content = f.read()
+    assert "**NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**" in content # Verify road map has notes about bad data.

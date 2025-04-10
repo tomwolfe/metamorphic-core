@@ -4,7 +4,7 @@
     "phase_goal": "Implement Level 1 and Level 2 of the Markdown-Only Automation Workflow to enhance development efficiency for Phase 2 and beyond.",
     "success_metrics": [
       "Level 1 Documentation Complete",
-      "Level 2 Workflow Driver Component Implemented",
+      "Level 2 Workflow Driver Component Implemented: `WorkflowDriver` class constructor updated to accept `Context`; `file_exists` and `list_files` methods implemented and unit tested.",  
       "Basic Workflow Driver Tests Implemented",
       "Command-Line Interface and list_files method"
     ],
@@ -28,7 +28,42 @@
         "priority": "High",
         "task_name": "Implement file existence check",
         "description": "Implements logic that ensures that the files are in the code, are not overwriting any previous work, and ensuring that they are safe",
-        "status": "In Progress"
+        "status": "COMPLETE"  
+      },
+      {
+        "task_id": "task_2_4",
+        "priority": "High",
+        "task_name": "Implement User Actionable Steps Generation in `WorkflowDriver`",
+        "description": "Implement logic in `WorkflowDriver` to generate a numbered list of 'User Actionable Steps' in markdown checklist format, as described in `docs/workflows/markdown_automation.md`. **Expected Output:** The `WorkflowDriver` should be able to generate a markdown-formatted string containing user steps. **Files to modify:** `src/core/automation/workflow_driver.py`. Implement code sanitization and highly secure injection checks to ensure compliance and high security.",
+        "status": "Not Started"
+      },
+      {
+        "task_id": "task_2_5",
+        "priority": "High",
+        "task_name": "Implement Coder LLM Prompt Generation in `WorkflowDriver`",
+        "description": "Implement logic in `WorkflowDriver` to generate precise code generation prompts for the Coder LLM, based on the selected task and solution plan, as described in `docs/workflows/markdown_automation.md`. **Expected Output:** The `WorkflowDriver` should produce well-formatted prompts ready to be given to the Coder LLM. **Files to modify:** `src/core/automation/workflow_driver.py`. Implement code sanitization and highly secure injection checks to ensure compliance and high security.",
+        "status": "Not Started"
+      },
+      {
+        "task_id": "task_2_6",
+        "priority": "High",
+        "task_name": "Implement Basic Task Selection Logic in `WorkflowDriver`",
+        "description": "Implement basic logic in `WorkflowDriver` to select the next 'Not Started' task from the roadmap, based on priority or task ID order, as described in `docs/workflows/markdown_automation.md`. **Expected Output:** `WorkflowDriver` should correctly identify and return the next task to be processed. **Files to modify:** `src/core/automation/workflow_driver.py`. Implement code sanitization and highly secure injection checks to ensure compliance and high security.",
+        "status": "Not Started"
+      },
+      {
+        "task_id": "task_2_7",
+        "priority": "High",
+        "task_name": "Implement `write_file` Tool Integration in `WorkflowDriver`",
+        "description": "Integrate the `write_file` tool (placeholder for now - will need to be created in a separate task) into `WorkflowDriver` to enable writing code to files, following the workflow in `docs/workflows/markdown_automation.md`. Include checks to prevent accidental overwrites and verify file paths. **Expected Output:** `WorkflowDriver` should be able to call a `write_file` function (to be created) to write content to specified files. **Files to modify:** `src/core/automation/workflow_driver.py`, potentially create `src/core/automation/tools/write_file.py` (in a separate task). Implement code sanitization and highly secure injection checks to ensure compliance and high security.",
+        "status": "Not Started"
+      },
+      {
+        "task_id": "task_2_8",
+        "priority": "High",
+        "task_name": "Implement Basic Command-Line Interface for Workflow Execution",
+        "description": "Enhance `run_genesis.py` or create a new script to provide a basic command-line interface for executing the `WorkflowDriver` and initiating the markdown automation workflow (Level 2). **Expected Output:** `run_genesis.py` (or a new script) should allow running the `WorkflowDriver` from the command line and display workflow output. **Files to modify:** `src/run_genesis.py` (or create new script). Implement code sanitization and highly secure injection checks to ensure compliance and high security.",
+        "status": "Not Started"
       },
       {
         "task_id": "task_3_1",
@@ -44,6 +79,7 @@
       "Set 🎯 CURRENT FOCUS to `Transition to Phase 2",
       "Add Phase 2 description, which starts with Iteration 2 (Enhanced Agents & Knowledge Graph)",
       "Add tasks from Iteration 2 (Enhanced Agents & Knowledge Graph)"
-    ]
+    ],
+        "current_focus": "🎯 CURRENT FOCUS (Week [Current Week Number] - Continuing Phase 1.5 Level 2): Implementing Core Workflow Automation Logic in `WorkflowDriver` (User Steps, Prompt Generation, Task Selection, File Writing) 🚀 The Context class also can hold other environment details. However ensure that you make sure it has the required keys!"
   }
 ]

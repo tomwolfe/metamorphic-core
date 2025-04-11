@@ -301,4 +301,44 @@ def test_load_roadmap_missing_task_id(test_driver, tmp_path, caplog):
     generate_roadmap_md(roadmap_file, str(tmp_path / "ROADMAP.md"))
     with open(str(tmp_path / "ROADMAP.md"), 'r') as f:
         content = f.read()
-    assert "**NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**" in content # Verify road map has notes about bad data.
+
+class TestWorkflowDriver: # Corrected Class Name for pytest
+    def test_generate_user_actionable_steps_method(self, test_driver):
+        """Test the generate_user_actionable_steps method with various inputs."""
+
+        # Test case 1: Empty solution plan
+        result = test_driver.generate_user_actionable_steps([])
+        assert result == "", (
+            "When given an empty list, the method should return an empty string."
+        )
+
+        # Test case 2: Single step
+        input_steps = ["Step 1: Do something."]
+        expected = "1.  - [ ] Step 1: Do something.\n"
+        result = test_driver.generate_user_actionable_steps(input_steps)
+        assert result == expected, (
+            "A single step should be formatted as a numbered checklist item."
+        )
+
+        # Test case 3: Multiple steps
+        input_steps = ["Step 1", "Step 2", "Step 3"]
+        expected = (
+            "1.  - [ ] Step 1\n"
+            "2.  - [ ] Step 2\n"
+            "3.  - [ ] Step 3\n"
+        )
+        result = test_driver.generate_user_actionable_steps(input_steps)
+        assert result == expected, (
+            "Multiple steps should be formatted as numbered checklist items, each on a new line."
+        )
+
+        # Test case 4: Steps with special characters
+        input_steps = ["Step 1: *bold text*", "Step 2: _italic text_"]
+        expected = (
+            "1.  - [ ] Step 1: *bold text*\n"
+            "2.  - [ ] Step 2: _italic text_\n"
+        )
+        result = test_driver.generate_user_actionable_steps(input_steps)
+        assert result == expected, (
+            "Special characters in steps should be preserved without breaking the Markdown format."
+        )

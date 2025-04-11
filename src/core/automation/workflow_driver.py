@@ -82,7 +82,11 @@ class WorkflowDriver:
     def file_exists(self, file_path: str) -> bool:
         return os.path.exists(file_path)
     def list_files(self):
-        entries = os.listdir(self.context.root_dir)
+        try:
+            entries = os.listdir(self.context.root_dir)
+        except Exception as e:
+            logging.error(f"Error listing files in {self.context.root_dir}: {e}")
+            return None
         result = []
         for entry in entries:
             full_path = os.path.join(self.context.root_dir, entry)
@@ -96,3 +100,28 @@ class WorkflowDriver:
                 # Optionally, add a default status
                 # result.append({'name': entry, 'status': 'unknown'}) # OPTIONAL append for all unknown entries
         return result
+
+    def generate_user_actionable_steps(self, solution_plan):
+        """Formats each step in the solution plan into a numbered Markdown checklist.
+
+        Args:
+            solution_plan (list of str): A list of steps to be formatted into a checklist.
+
+        Returns:
+            str: A single string containing the formatted checklist with each step as a numbered item.
+
+        Raises:
+            TypeError: If the input is not a list of strings.
+        """
+        # Validate input type to prevent code injection and ensure correctness
+        if not isinstance(solution_plan, list) or not all(isinstance(step, str) for step in solution_plan):
+            raise TypeError("Input must be a list of strings")
+
+        formatted_steps = []
+        for index, step in enumerate(solution_plan, 1):
+            # Safely format each step with numbered checklist syntax
+            formatted_step = f"{index}.  - [ ] {step}"
+            formatted_steps.append(formatted_step)
+
+        # Join all formatted steps into a single string with newlines
+        return "\n".join(formatted_steps)

@@ -22,6 +22,7 @@ class WorkflowDriver:
             if os.path.getsize(roadmap_path) > max_file_size:
                 logging.error(f"ROADMAP.json file exceeds maximum allowed size of {max_file_size} bytes.")
                 return []
+
             with open(roadmap_path, 'r') as f:
                 content = f.read()
             try:
@@ -35,7 +36,7 @@ class WorkflowDriver:
                 return []
             # Validate 'tasks' exists and is a list
             if 'tasks' not in data:
-                logging.error("ROADMAP.json must contain a 'tasks' list")
+                logging.error("ROADMAP.json must contain a 'tasks' key")
                 return []
             if not isinstance(data['tasks'], list):
                 logging.error("'tasks' must be a list")
@@ -89,4 +90,3 @@ class WorkflowDriver:
                 result.append({'name': entry, 'status': 'file'})
             elif os.path.isdir(full_path):
                 result.append({'name': entry, 'status': 'directory'})
-        return result

@@ -42,7 +42,8 @@ def test_load_roadmap_valid_json(test_driver, tmp_path):
                 "description": "A test task description."
             }
         ],
-        "next_phase_actions": []
+        "next_phase_actions": [],
+        "current_focus": "Test focus"
     }
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
@@ -86,7 +87,8 @@ def test_load_roadmap_file_size_limit(test_driver, tmp_path, caplog):
                 "description": "{long_string}"
             }}
         ],
-        "next_phase_actions": []
+        "next_phase_actions": [],
+        "current_focus": "Test focus"
     }}
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
@@ -101,13 +103,14 @@ def test_load_roadmap_missing_tasks_key(test_driver, tmp_path, caplog):
         "phase": "Test Phase",
         "phase_goal": "Goal",
         "success_metrics": [],
-        "next_phase_actions": []
+        "next_phase_actions": [],
+        "current_focus": "Test focus"
     }
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
     tasks = test_driver.load_roadmap(roadmap_file)
     assert len(tasks) == 0
-    assert "ROADMAP.json must contain a 'tasks' list" in caplog.text
+    assert "ROADMAP.json must contain a 'tasks' key" in caplog.text
 
 def test_load_roadmap_tasks_not_a_list(test_driver, tmp_path, caplog):
     caplog.set_level(logging.ERROR)
@@ -117,7 +120,8 @@ def test_load_roadmap_tasks_not_a_list(test_driver, tmp_path, caplog):
         "phase_goal": "Goal",
         "success_metrics": [],
         "tasks": "not a list",
-        "next_phase_actions": []
+        "next_phase_actions": [],
+        "current_focus": "Test focus"
     }
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
@@ -135,7 +139,8 @@ def test_load_roadmap_invalid_task_format(test_driver, tmp_path, caplog):
         "tasks": [
             "not a dictionary"
         ],
-        "next_phase_actions": []
+        "next_phase_actions": [],
+        "current_focus": "Test focus"
     }
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
@@ -157,7 +162,8 @@ def test_load_roadmap_missing_required_keys(test_driver, tmp_path, caplog):
                 "description": "A test task description."
             }
         ],
-        "next_phase_actions": []
+        "next_phase_actions": [],
+        "current_focus": "Test focus"
     }
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
@@ -181,7 +187,8 @@ def test_load_roadmap_invalid_task_id(test_driver, tmp_path, caplog):
                 "description": "A test task description."
             }
         ],
-        "next_phase_actions": []
+        "next_phase_actions": [],
+        "current_focus": "Test focus"
     }
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
@@ -206,7 +213,8 @@ def test_load_roadmap_task_name_too_long(test_driver, tmp_path, caplog):
                 "description": "A test task description."
             }}
         ],
-        "next_phase_actions": []
+        "next_phase_actions": [],
+        "current_focus": "Test focus"
     }}
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
@@ -231,7 +239,8 @@ def test_load_roadmap_handles_js_vulnerability_for_description(test_driver, tmp_
                 "description": "<script> test</script>"
             }}
         ],
-        "next_phase_actions": []
+        "next_phase_actions": [],
+        "current_focus": "Test focus"
     }}
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
@@ -282,7 +291,8 @@ def test_load_roadmap_missing_task_id(test_driver, tmp_path, caplog):
                 "description": "A test task description."
             }
         ],
-        "next_phase_actions": []
+        "next_phase_actions": [],
+        "current_focus": "Test focus"
     }
     """
     roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)

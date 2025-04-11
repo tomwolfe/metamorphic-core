@@ -78,7 +78,8 @@ To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to 
             "status": "Not Started"
         }
     ],
-    "next_phase_actions": []
+    "next_phase_actions": [],
+    "current_focus": "🎯 CURRENT FOCUS: [Concise description of current focus]"
 }
 ```
 
@@ -94,6 +95,7 @@ To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to 
     *   `"description"`: A detailed description of the task.
     *   `"status"`: Indicates the current state of the task. Allowed values: `"Not Started"`, `"In Progress"`, `"Completed"`, or `"Blocked"`.
 * `"next_phase_actions"`:A list of actions to take before transitioning to the next phase.
+* `"current_focus"`:A concise description of the team's current work tasks.
 
 **Important Notes:**
 

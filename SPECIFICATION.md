@@ -165,16 +165,6 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
     *   *Metric:* Cloud compute/memory/storage usage (vs. baseline), API latency, Error rates, System uptime/availability.
     *   *Baseline:* Resource consumption of comparable manual development + deployment pipelines, historical system uptime.
 
-**IV. Long-Term Sustainability & Community Growth:**
-
-1.  **Community-Driven Open Source:**
-    *   **Vibrant Community Contribution:** Actively fostering and managing contributions from developers, ethicists, researchers, and users is paramount. This collective effort drives innovation and maintenance.
-    *   **Resourceful Efficiency:** A core design principle. Optimizing algorithms (e.g., efficient graph traversals), infrastructure (e.g., serverless functions where appropriate, Kubernetes resource limits), and LLM usage (e.g., model cascading, caching) ensures long-term viability and minimizes operational costs.
-    *   **Shared Infrastructure Potential:** Exploring partnerships or community donations for computing resources (CI runners, hosting) as the project scales.
-    *   **AI-Driven Process Optimization:** Continuously improve MSGE's own development processes using AI-driven planning, risk assessment, and iterative refinement, as demonstrated in the roadmap development process itself, to ensure project success and efficient resource utilization.
-    *   **Open Knowledge and Empowerment:** Creating comprehensive documentation, tutorials, and examples lowers the barrier to entry for contributors and users, ensuring knowledge is shared and the project is maintainable.
-    *   **Ethical Foundation as a Magnet:** The strong commitment to verifiable ethics attracts contributors passionate about responsible AI, fostering a dedicated and value-aligned community crucial for long-term health.
-
 **V. Future Evolution (Beyond Version 1.0):**
 
 *(Roadmap for future phases - examples)*
@@ -185,4 +175,29 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
 
 ---
 
-**End of Specification Document**
+**VI. Phase 5: Sustaining - Continuous Improvement & Evolution**
+
+*Goal:* To ensure the long-term viability, security, ethical alignment, and performance of the Metamorphic Software Genesis Ecosystem through continuous monitoring, automated analysis, and community-driven contributions.
+
+*Key Principles:*
+
+    *   **Data-Driven Evolution:** Base all improvements on measurable KPIs and empirical data, leveraging telemetry and user feedback.
+    *   **Proactive Threat Mitigation:** Continuously monitor for emerging security threats and ethical risks, implementing proactive countermeasures.
+    *   **Community-Centric Innovation:** Foster a vibrant community of contributors to drive innovation and address evolving needs.
+    *    **Formal Ethics Review and Grading:** The ethical values should have been tested, and verified.
+
+*Key Components (New/Enhanced):*
+
+    *   **Enhanced KPI Monitoring Subsystem:** Integrates Prometheus (or similar) to collect and visualize key performance indicators related to code quality, security, ethical compliance, and resource efficiency.  Configurable alerts trigger automated responses when KPIs deviate from defined thresholds.
+    *   **Automated Backlog Management Module:** Prioritizes items based on quantifiable impact on KPIs (e.g., weighted scoring based on severity of KPI deviation, potential resource savings, ethical impact)
+    *   **Community Contribution Platform (Enhanced):** Streamlines the process for community members to propose and contribute improvements, bug fixes, and new features, providing clear guidance on coding standards, ethical considerations, and testing requirements.
+    *   **Iterative Grading Process Integration (Enhanced):** Applies the Iterative Grading Process to *all* code contributions, regardless of source (AI-generated or human-submitted), ensuring consistent adherence to quality and ethical standards.  Automated tooling generates "Grade Reports" with actionable feedback for developers.
+    *    **Access controls that writes to files:** Make sure access controls limits to code and also has proper review.
+    *     **Auditing for malicious code:** Double check to make sure code is tested and valid.
+
+*KPI Targets (Examples):*
+    *   Reduce average API latency by 10% (vs. Phase 4 baseline)
+    *   Achieve 99.999% system uptime
+    *   Resolve all high-priority security vulnerabilities within 30 days
+    *   Improve transparency score by 5%
+    *Implement code review by others.

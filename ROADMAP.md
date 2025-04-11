@@ -4,8 +4,48 @@
 
 **NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**
 
-*   **Task ID**: MISSING_ID
-    *   **Priority**: UNKNOWN
-    *   **Task Name**: NO_NAME
-    *   **Status**: NOT_SPECIFIED
+*   **Task ID**: task_1_1
+    *   **Priority**: High
+    *   **Task Name**: Create docs/workflows/markdown_automation.md
+    *   **Status**: COMPLETE
+
+*   **Task ID**: task_1_2
+    *   **Priority**: High
+    *   **Task Name**: Update README.md with quickstart guide
+    *   **Status**: COMPLETE
+
+*   **Task ID**: task_2_3
+    *   **Priority**: High
+    *   **Task Name**: Implement file existence check
+    *   **Status**: COMPLETE
+
+*   **Task ID**: task_2_4
+    *   **Priority**: High
+    *   **Task Name**: Implement User Actionable Steps Generation in `WorkflowDriver`
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_5
+    *   **Priority**: High
+    *   **Task Name**: Implement Coder LLM Prompt Generation in `WorkflowDriver`
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_6
+    *   **Priority**: High
+    *   **Task Name**: Implement Basic Task Selection Logic in `WorkflowDriver`
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_7
+    *   **Priority**: High
+    *   **Task Name**: Implement `write_file` Tool Integration in `WorkflowDriver`
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_8
+    *   **Priority**: High
+    *   **Task Name**: Implement Basic Command-Line Interface for Workflow Execution
+    *   **Status**: Not Started
+
+*   **Task ID**: task_3_1
+    *   **Priority**: High
+    *   **Task Name**: Review all deliverables for Phase 1.5
+    *   **Status**: Not Started
 

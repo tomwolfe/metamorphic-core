@@ -14,10 +14,14 @@ Phase 1 MVP is complete! We are now still working on remaining steps in the 1.5 
 
 Phase 1.5 focuses on implementing a Markdown-Only Automation Workflow to enhance the efficiency and consistency of our development process. While immediate speed improvements may be modest, our goal is to create a robust foundation for significant acceleration and improved quality in later phases. This focus on refining our *own* development processes aligns with our core ethical principles of transparency, continuous improvement, and efficient resource utilization. This also supports more robust and reliable AI-driven code generation and validation.
 
+**Two-Stage Approach to Markdown-Only Automation:**
+
+Phase 1.5 is being implemented in two key stages. Stage 1 established the fundamental markdown automation workflow and CLI driver. Stage 2 continues to enhance the workflow driver with key functionalities like secure file handling, LLM prompt generation and integration, and well-defined, actionable steps. The benefits from stages 1 and 2, and synergy with MSGE:
+
 **Estimated Potential Benefits (Long-Term, Full Integration):**
 
 *   **MSGE (Without Phase 1.5):** Represents a baseline system with manual operations and loosely coupled components, delivering a starting-point project success likelihood of 65%.
-*   **Phase 1.5 (Separate):** Aims to automate key routine workflow operations, improving developer experience by an estimated 85% in those specific tasks.
+*   **Phase 1.5 (Separate):** Aims to automate key routine workflow operations, improving developer experience by an estimated 85% in those specific tasks once fully integrated.
 *   **MSGE (With Phase 1.5):** The long-term objective is a fully integrated system achieving up to a 95% grade in overall developer efficiency. Faster iteration cycles and more consistent code quality are expected. Successful execution of the Markdown-Only Automation Workflow is intended to enhance adherence to evolving ethical standards.
 
 ---
@@ -46,15 +50,15 @@ Phase 1.5 focuses on implementing a Markdown-Only Automation Workflow to enhance
 
 ## <a name="about"></a>About the Metamorphic Software Genesis Ecosystem
 
-The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications.  It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision is the implementation of Phase 1.5. Phase 1.5 focuses on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system, and not the individual parts**.
+The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications. It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision is the implementation of Phase 1.5. Phase 1.5 focuses on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system, and not the individual parts. Phase 1.5 is broken down into two critical stages of which this current iteration represents the stage 2, which will provide the system with the core abilities to execute all test requirements.**
 
 **Key Objectives:**
 
-*   **Autonomous Generation:**  Create functional applications from natural language or structured specifications.
-*   **Ethical Governance:**  Enforce configurable ethical policies throughout development.
-*   **Automated Quality & Security:**  Integrate continuous testing, code review, and formal verification.
-*   **Self-Improving Development Process:**  Optimize its own development using AI-driven planning.
-*   **Self-Improvement:**  Learn from analysis, feedback, and metrics to enhance its core capabilities.
+*   **Autonomous Generation:** Create functional applications from natural language or structured specifications.
+*   **Ethical Governance:** Enforce configurable ethical policies throughout development.
+*   **Automated Quality & Security:** Integrate continuous testing, code review, and formal verification.
+*   **Self-Improving Development Process:** Optimize its own development using AI-driven planning.
+*   **Self-Improvement:** Learn from analysis, feedback, and metrics to enhance its core capabilities.
 
 *(For the full detailed vision and architecture, see [**SPECIFICATION.md**](SPECIFICATION.md))*
 
@@ -149,7 +153,7 @@ Examine the JSON response for `code_quality` and `ethical_analysis` sections.
 
 ### <a name="quickstart-guide-to-markdown-only-automation"></a>Quickstart Guide to Markdown-Only Automation
 
-For a streamlined, AI-driven development experience with minimal manual prompting, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the completion of Task 2.2, the system now includes a command-line interface for improved automation and testing.**
+For a streamlined, AI-driven development experience with minimal manual prompting, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the completion of Phase 1.5, the system now includes a command-line interface for improved automation and testing. The core of the automation is dependent on both stage 1 and stage 2, which involves well-defined and actionable steps.**
 
 **Quickstart Steps:**
 
@@ -164,11 +168,11 @@ For a streamlined, AI-driven development experience with minimal manual promptin
     *   **`E: [Describe a code issue you've found]`**
     *   **`F: [Reason for regenerating, e.g., 'Tests are too basic' or 'Code is inefficient']`**
 
-**For detailed instructions and the full "Ideal Self-Driving Prompt" text, please refer to the [Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md).**  Note that the `ROADMAP.md` file is now autogenerated from `ROADMAP.json`.
+**For detailed instructions and the full "Ideal Self-Driving Prompt" text, please refer to the [Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md).** Note that the `ROADMAP.md` file is now autogenerated from `ROADMAP.json`.
 
 ## <a name="workflow-use-case-example"></a>Workflow and Use Case Example
 
-The Metamorphic Software Genesis Ecosystem aims to automate software development from specification to deployment.  Consider generating software for an **Autonomous Drone Package Delivery System**. This example showcases the framework's ability to handle complexity, security, ethics, and hardware interaction.
+The Metamorphic Software Genesis Ecosystem aims to automate software development from specification to deployment. Consider generating software for an **Autonomous Drone Package Delivery System**. This example showcases the framework's ability to handle complexity, security, ethics, and hardware interaction.
 
 **Conceptual Workflow:**
 
@@ -212,7 +216,7 @@ The Metamorphic Software Genesis Ecosystem aims to automate software development
 
 ## <a name="contributing"></a>Contributing
 
-Contributions are welcome!  Please align with the current [Phase 2 Iteration 1 focus](ROADMAP.md) and see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines (basic guidelines currently, enhanced guidelines planned for Phase 2 Iteration 2).
+Contributions are welcome! Please align with the current [Phase 2 Iteration 1 focus](ROADMAP.md) and see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines (basic guidelines currently, enhanced guidelines planned for Phase 2 Iteration 2).
 
 ## <a name="further-documentation"></a>Further Documentation
 
@@ -221,7 +225,7 @@ Contributions are welcome!  Please align with the current [Phase 2 Iteration 1 f
 *   **[Competitive Landscape Analysis](COMPETITIVE_LANDSCAPE.md)**
 *   **[API Documentation (Placeholder - In Progress)](docs/api/api-endpoints.md)** - *Detailed API documentation for the `/genesis/analyze-ethical` endpoint will be available here by the end of Phase 2 Iteration 1 (Week 9).*
 *   **[Contribution Guidelines](CONTRIBUTING.md)**
-*   **[Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md)**  **(NEW - Recommended for streamlined AI-driven development)**
+*   **[Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md)** **(NEW - Recommended for streamlined AI-driven development)**
 
 ## <a name="troubleshooting"></a>Troubleshooting
 
@@ -242,7 +246,7 @@ Contributions are welcome!  Please align with the current [Phase 2 Iteration 1 f
 
 ### Python Dependency Errors
 
-*   **Verify Python Version:**  `python --version` (must be 3.11+).
+*   **Verify Python Version:** `python --version` (must be 3.11+).
 *   **Virtual Environment Activation:** Ensure `venv` is activated (`(venv)` in prompt).
 *   **Upgrade pip:** `pip install --upgrade pip`.
 *   **Re-install Dependencies:** `pip install -r requirements/base.txt` and `pip install -r requirements/dev.txt`.

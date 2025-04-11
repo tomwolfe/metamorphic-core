@@ -24,6 +24,11 @@
     *   **Task Name**: Implement User Actionable Steps Generation in `WorkflowDriver`
     *   **Status**: In Progress
 
+*   **Task ID**: task_2_9
+    *   **Priority**: High
+    *   **Task Name**: Update README.md with phase 1.5 and stage 2 impact
+    *   **Status**: COMPLETE
+
 *   **Task ID**: task_2_5
     *   **Priority**: High
     *   **Task Name**: Implement Coder LLM Prompt Generation in `WorkflowDriver`

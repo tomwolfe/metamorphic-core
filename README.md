@@ -10,6 +10,18 @@ Phase 1 MVP is complete! We are now still working on remaining steps in the 1.5 
 
 ---
 
+**Strategic Impact of Phase 1.5:**
+
+Phase 1.5 focuses on implementing a Markdown-Only Automation Workflow to enhance the efficiency and consistency of our development process. While immediate speed improvements may be modest, our goal is to create a robust foundation for significant acceleration and improved quality in later phases. This focus on refining our *own* development processes aligns with our core ethical principles of transparency, continuous improvement, and efficient resource utilization. This also supports more robust and reliable AI-driven code generation and validation.
+
+**Estimated Potential Benefits (Long-Term, Full Integration):**
+
+*   **MSGE (Without Phase 1.5):** Represents a baseline system with manual operations and loosely coupled components, delivering a starting-point project success likelihood of 65%.
+*   **Phase 1.5 (Separate):** Aims to automate key routine workflow operations, improving developer experience by an estimated 85% in those specific tasks.
+*   **MSGE (With Phase 1.5):** The long-term objective is a fully integrated system achieving up to a 95% grade in overall developer efficiency. Faster iteration cycles and more consistent code quality are expected. Successful execution of the Markdown-Only Automation Workflow is intended to enhance adherence to evolving ethical standards.
+
+---
+
 **Table of Contents**
 
 *   [About the Metamorphic Software Genesis Ecosystem](#about)
@@ -34,7 +46,7 @@ Phase 1 MVP is complete! We are now still working on remaining steps in the 1.5 
 
 ## <a name="about"></a>About the Metamorphic Software Genesis Ecosystem
 
-The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications.  It continuously refines its capabilities through feedback and self-improvement.
+The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications.  It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision is the implementation of Phase 1.5. Phase 1.5 focuses on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system, and not the individual parts**.
 
 **Key Objectives:**
 

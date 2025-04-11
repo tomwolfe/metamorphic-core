@@ -22,7 +22,7 @@
 *   **Task ID**: task_2_4
     *   **Priority**: High
     *   **Task Name**: Implement User Actionable Steps Generation in `WorkflowDriver`
-    *   **Status**: Not Started
+    *   **Status**: In Progress
 
 *   **Task ID**: task_2_5
     *   **Priority**: High

@@ -90,3 +90,9 @@ class WorkflowDriver:
                 result.append({'name': entry, 'status': 'file'})
             elif os.path.isdir(full_path):
                 result.append({'name': entry, 'status': 'directory'})
+            else:
+                # Handle other types (e.g., symlinks, character devices)
+                logging.warning(f"Skipping unknown file type: {entry}")
+                # Optionally, add a default status
+                # result.append({'name': entry, 'status': 'unknown'}) # OPTIONAL append for all unknown entries
+        return result

@@ -55,7 +55,7 @@
       "priority": "High",
       "task_name": "Implement Basic Command-Line Interface (CLI) - Initial Setup",
       "description": "Create the basic structure for the CLI (argument parsing, help messages).",
-      "status": "Not Started"
+      "status": "COMPLETE"
     },
     {
       "task_id": "task_2_7a",

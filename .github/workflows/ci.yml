@@ -1,5 +1,3 @@
-# .github/workflows/ci.yml
-
 name: CI
 
 on: [push, pull_request]
@@ -21,6 +19,22 @@ jobs:
 
       - name: Generate ROADMAP.md
         run: python scripts/generate_roadmap_md.py
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      - name: Commit changes
+        run: |
+          git add ROADMAP.md
+          git commit -m "Update ROADMAP.md via CI" || echo "No changes to commit"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@v1.6.0
+        with:
+          github_token: ${{ secrets.YOUR_GITHUB_API_KEY }}
+          branch: ${{ github.ref }}
 
   integration-test:
     runs-on: ubuntu-latest
@@ -194,3 +208,4 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/metamorphic-core:latest
           cache-from: type=gha
+          cache-to: type=gha,mode=max

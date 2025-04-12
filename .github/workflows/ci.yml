@@ -1,6 +1,13 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main  # Or whatever branch you want the updates to be pushed to
+  pull_request:
+
+permissions:
+  contents: write
 
 jobs:
   generate-roadmap:
@@ -33,8 +40,8 @@ jobs:
       - name: Push changes
         uses: ad-m/github-push-action@v0.8.0
         with:
-          github_token: ${{ secrets.YOUR_GITHUB_API_KEY }}  # Use the PAT stored as a secret
-          branch: ${{ github.ref }}  # Or 'main' if you always want to push to main
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
 
   integration-test:
     runs-on: ubuntu-latest

@@ -3,14 +3,19 @@ import logging
 import os
 import json
 import html
+from typing import List  # Added this line
+
 class Context:  # Added Context class
     def __init__(self, root_dir):
         self.root_dir = root_dir
+
 class WorkflowDriver:
-    def __init__(self, context): # Modified constructor
+    def __init__(self, context):  # Modified constructor
         self.context = context
+
     def __repr__(self):
         return f"<{self.__class__.__name__} instance>"
+
     def load_roadmap(self, roadmap_path):
         tasks = []
         max_file_size = 1024 * 10  # 10KB limit
@@ -61,10 +66,10 @@ class WorkflowDriver:
                 if len(task_name) > 150:
                     logging.warning(f"Task Name '{task_name[:50]}...' exceeds 150 characters, skipping task.")
                     continue
-            # Provide default status if missing
+                # Provide default status if missing
                 status = task.get('status', '').strip()
-            # Sanitize description
-                description = html.escape(task.get('description', '')) # Escape HTML to prevent XSS
+                # Sanitize description
+                description = html.escape(task.get('description', ''))  # Escape HTML to prevent XSS
                 tasks.append({
                     'task_id': task_id,
                     'priority': task['priority'],
@@ -79,8 +84,10 @@ class WorkflowDriver:
         except Exception as e:
             logging.exception(f"Error loading roadmap: {e}")
             return []
+
     def file_exists(self, file_path: str) -> bool:
         return os.path.exists(file_path)
+
     def list_files(self):
         try:
             entries = os.listdir(self.context.root_dir)
@@ -98,10 +105,10 @@ class WorkflowDriver:
                 # Handle other types (e.g., symlinks, character devices)
                 logging.warning(f"Skipping unknown file type: {entry}")
                 # Optionally, add a default status
-                # result.append({'name': entry, 'status': 'unknown'}) # OPTIONAL append for all unknown entries
+                # result.append({'name': entry, 'status': 'unknown'})  # OPTIONAL append for all unknown entries
         return result
 
-    def generate_user_actionable_steps(self, solution_plan):
+    def generate_user_actionable_steps(self, solution_plan: List[str]) -> str:
         """Formats each step in the solution plan into a numbered Markdown checklist.
 
         Args:
@@ -117,14 +124,52 @@ class WorkflowDriver:
         if not isinstance(solution_plan, list) or not all(isinstance(step, str) for step in solution_plan):
             raise TypeError("Input must be a list of strings")
 
-        if not solution_plan: # Added check for empty list
+        if not solution_plan:  # Added check for empty list
             return ""
 
         formatted_steps = []
         for index, step in enumerate(solution_plan, 1):
             # Safely format each step with numbered checklist syntax
-            formatted_step = f"{index}.  - [ ] {step}\n"
+            formatted_step = f"{index}.  - [ ] {html.escape(step)}\n"
             formatted_steps.append(formatted_step)
 
         # Join all formatted steps into a single string with newlines
         return "".join(formatted_steps)
+
+    def generate_coder_llm_prompts(self, task: dict, solution_plan: list) -> List[str]:
+        """
+        Generates precise code generation prompts for the Coder LLM based on the task and solution plan.
+
+        Args:
+            task (dict): A dictionary containing the task details (task_name, description, etc.).
+            solution_plan (list): A list of strings representing the high-level solution plan.
+
+        Returns:
+            List[str]: A list containing the generated Coder LLM prompts (currently a list with a single prompt).
+
+        Raises:
+            TypeError: If inputs are not of the correct type.
+            ValueError: If task dictionary is missing required keys.
+        """
+        if not isinstance(task, dict):
+            raise TypeError("Input 'task' must be a dictionary")
+        if not isinstance(solution_plan, list) or not all(isinstance(item, str) for item in solution_plan):
+            raise TypeError("Input 'solution_plan' must be a list of strings")
+        if 'task_name' not in task or 'description' not in task:
+            raise ValueError("Task dictionary must contain 'task_name' and 'description' keys")
+
+        task_name = task['task_name']
+        task_description = task['description']
+
+        prompt_header = f"You are a Coder LLM expert in Python, asked to implement code for the following task:\\n\\n"
+        prompt_task_details = f"Task Name: {task_name}\\nTask Description: {task_description}\\n\\n"
+        prompt_plan_intro = "Solution Plan:\\n"
+        prompt_plan_steps = "\\n".join([f"- {step}" for step in solution_plan])
+        prompt_requirements = "\\n\\nRequirements:\\n- Write secure and well-documented Python code.\\n- Follow best practices for code quality and style.\\n- Prioritize security, and prevent code injection vulnerabilities.\\n"
+
+        full_prompt = prompt_header + prompt_task_details + prompt_plan_intro + prompt_plan_steps + prompt_requirements
+
+        # Basic sanitization - for demonstration, can be improved
+        sanitized_prompt = html.escape(full_prompt) # Escape HTML characters for safety
+
+        return [sanitized_prompt] # Return prompt as a list

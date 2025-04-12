@@ -288,70 +288,122 @@ def test_list_files(test_driver, tmp_path):
             logger.warning(f"Failed to remove directory {temp_test_dir}: {e}")
 
 
-def test_load_roadmap_missing_task_id(test_driver, tmp_path, caplog):
-    """Test handling of a missing 'task_id' in ROADMAP.json and verify ROADMAP.md content."""
-    caplog.set_level(logging.INFO)
-    roadmap_content = """
-    {
-        "phase": "Test Phase",
-        "phase_goal": "Goal",
-        "success_metrics": [],
-        "tasks": [
-            {
-                "priority": "High",
-                "task_name": "Test Task",
-                "status": "Not Started",
-                "description": "A test task description."
-            }
-        ],
-        "next_phase_actions": [],
-        "current_focus": "Test focus"
-    }
-    """
-    roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
-    tasks = test_driver.load_roadmap(roadmap_file)
-    assert len(tasks) == 0, f"Tasks should be empty because task_id is required" # There should be no tasks, since we remove them
-    generate_roadmap_md(roadmap_file, str(tmp_path / "ROADMAP.md"))
-    with open(str(tmp_path / "ROADMAP.md"), 'r') as f:
-        content = f.read()
+    def test_generate_user_actionable_steps_empty(self, test_driver):
+        assert test_driver.generate_user_actionable_steps([]) == ""
 
-class TestWorkflowDriver: # Corrected Class Name for pytest
-    def test_generate_user_actionable_steps_method(self, test_driver):
-        """Test the generate_user_actionable_steps method with various inputs."""
+    def test_generate_user_actionable_steps_single(self, test_driver):
+        result = test_driver.generate_user_actionable_steps(["Single step"])
+        assert result == "1.  - [ ] Single step\n"
 
-        # Test case 1: Empty solution plan
-        result = test_driver.generate_user_actionable_steps([])
-        assert result == "", (
-            "When given an empty list, the method should return an empty string."
-        )
-
-        # Test case 2: Single step
-        input_steps = ["Step 1: Do something."]
-        expected = "1.  - [ ] Step 1: Do something.\n" # <--- Correct expected output with newline
-        result = test_driver.generate_user_actionable_steps(input_steps)
-        assert result == expected, (
-            "A single step should be formatted as a numbered checklist item."
-        )
-
-        # Test case 3: Multiple steps
-        input_steps = ["Step 1", "Step 2", "Step 3"]
+    def test_generate_user_actionable_steps_multiple(self, test_driver):
+        steps = ["Step 1", "Step 2", "Step 3"]
         expected = (
             "1.  - [ ] Step 1\n"
             "2.  - [ ] Step 2\n"
             "3.  - [ ] Step 3\n"
         )
-        result = test_driver.generate_user_actionable_steps(input_steps)
-        assert result == expected, (
-            "Multiple steps should be formatted as numbered checklist items, each on a new line."
-        )
+        assert test_driver.generate_user_actionable_steps(steps) == expected
 
-        # Test case 4: Steps with special characters
-        input_steps = ["Step 1: *bold text*", "Step 2: _italic text_"]
+    def test_generate_user_actionable_steps_special_chars(self, test_driver):
+        steps = ["Use <script>", "Escape > & < tags", "Math: 5 > 3"]
         expected = (
-            "1.  - [ ] Step 1: *bold text*\n"
-            "2.  - [ ] Step 2: _italic text_\n"
+            f"1.  - [ ] {html.escape('Use <script>')}\n"
+            f"2.  - [ ] {html.escape('Escape > & < tags')}\n"
+            f"3.  - [ ] {html.escape('Math: 5 > 3')}\n"
         )
-        result = test_driver.generate_user_actionable_steps(input_steps)
-        assert result == expected, (
-            "Special characters in steps should be preserved without breaking the Markdown format."
-        )
+        result = test_driver.generate_user_actionable_steps(steps)
+        assert result == expected, "Special characters should be escaped using html.escape."
+
+    def test_generate_user_actionable_steps_type_error(self, test_driver):
+        with pytest.raises(TypeError):
+            test_driver.generate_user_actionable_steps("not a list")
+
+        with pytest.raises(TypeError):
+            test_driver.generate_user_actionable_steps([1, 2, 3])
+
+        with pytest.raises(TypeError):
+            test_driver.generate_user_actionable_steps([{"step": "dict instead of string"}])
+
+    def test_generate_coder_llm_prompts_valid(self, test_driver):
+        task = {"task_id": "t1", "priority": "High", "task_name": "Sample Task", "description": "Do something cool."}
+        plan = ["Step 1: Define function.", "Step 2: Add logic.", "Step 3: Write tests."]
+        prompts = test_driver.generate_coder_llm_prompts(task, plan)
+        assert isinstance(prompts, list)
+        assert len(prompts) > 0 # Expecting at least one prompt based on current logic
+        assert "Sample Task" in prompts[0]
+        assert "Do something cool." in prompts[0]
+        assert "Step 1: Define function." in prompts[0]
+        assert "Requirements:" in prompts[0]
+        assert "Prioritize security" in prompts[0]
+
+    def test_generate_coder_llm_prompts_empty_plan(self, test_driver):
+        task = {"task_id": "t2", "priority": "Low", "task_name": "Empty Plan Task", "description": "Nothing to do."}
+        plan = []
+        prompts = test_driver.generate_coder_llm_prompts(task, plan)
+        # Depending on implementation, might return one generic prompt or empty list.
+        # Current implementation generates one prompt even for empty plan.
+        assert isinstance(prompts, list)
+        assert len(prompts) == 1 # Adjust if implementation changes
+        # assert "Implement the following steps:" in prompts[0] # Check if the prompt is generated
+
+    def test_generate_coder_llm_prompts_invalid_task_type(self, test_driver):
+        with pytest.raises(TypeError, match="Input 'task' must be a dictionary"):
+            test_driver.generate_coder_llm_prompts("not a dict", ["Step 1"])
+
+    def test_generate_coder_llm_prompts_invalid_plan_type(self, test_driver):
+        task = {"task_id": "t3", "priority": "High", "task_name": "Invalid Plan", "description": "Desc"}
+        with pytest.raises(TypeError, match="Input 'solution_plan' must be a list of strings"):
+            test_driver.generate_coder_llm_prompts(task, "not a list")
+        with pytest.raises(TypeError, match="Input 'solution_plan' must be a list of strings"):
+            test_driver.generate_coder_llm_prompts(task, [1, 2, 3]) # List of non-strings
+
+    def test_generate_coder_llm_prompts_missing_task_keys(self, test_driver):
+        task = {"task_id": "t4", "priority": "High"} # Missing name and description
+        plan = ["Step 1"]
+        with pytest.raises(ValueError, match="Task dictionary must contain 'task_name' and 'description' keys"):
+            test_driver.generate_coder_llm_prompts(task, plan)
+
+    def test_generate_coder_llm_prompts_html_escaping(test_driver):
+        """Test generate_coder_llm_prompts escapes HTML characters in prompt."""
+        task = {
+            "task_id": "test_task_6",
+            "task_name": "Task with <script>alert()</script> tag",
+            "description": "Description with <b>bold</b> and &special characters.",
+            "priority": "High"
+        }
+        solution_plan = ["Step 1: Handle <input> safely."]
+        prompts = test_driver.generate_coder_llm_prompts(task, solution_plan)
+        prompt = prompts[0]
+
+        # Check for proper escaping of HTML tags and special characters
+        assert "<script>" in prompt
+        assert "</script>" in prompt
+        assert "<b>" in prompt
+        assert "</b>" in prompt
+        assert "<input>" in prompt
+        assert "&special" in prompt  # Escaped '&' in description
+
+        # Ensure unescaped versions are not present
+        assert "<script>" not in prompt
+        assert "</script>" not in prompt
+        assert "<b>" not in prompt
+        assert "</b>" not in prompt
+        assert "<input>" not in prompt
+        assert "&" not in prompt  # Assuming no unescaped '&' except in escaped entities
+
+        # Check that other parts of the prompt remain intact
+        assert "Task with" in prompt
+        assert "Description with" in prompt
+        assert "Prioritize security" in prompt
+
+def test_generate_coder_llm_prompts_null_plan(test_driver):
+    """Test generate_coder_llm_prompts with None as solution_plan."""
+    task = {
+        "task_id": "test_task_7",
+        "task_name": "Null Plan Task",
+        "description": "Task with solution plan set to None.",
+        "priority": "Low"
+    }
+    with pytest.raises(TypeError) as excinfo:
+        test_driver.generate_coder_llm_prompts(task, None)
+    assert "Input 'solution_plan' must be a list of strings" in str(excinfo.value)

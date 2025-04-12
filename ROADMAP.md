@@ -44,14 +44,14 @@
     *   **Task Name**: Implement `write_file` Tool - Create `write_file.py`
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_7b
-    *   **Priority**: High
-    *   **Task Name**: Implement `write_file` Tool - File Writing Logic
-    *   **Status**: Not Started
-
 *   **Task ID**: task_2_6
     *   **Priority**: High
     *   **Task Name**: Implement Basic Task Selection Logic in `WorkflowDriver`
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_7b
+    *   **Priority**: High
+    *   **Task Name**: Implement `write_file` Tool - File Writing Logic
     *   **Status**: Not Started
 
 *   **Task ID**: task_2_7c

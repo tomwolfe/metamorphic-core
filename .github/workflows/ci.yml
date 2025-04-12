@@ -22,8 +22,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config --global user.name "Thomas Wolfe"
-          git config --global user.email "tomwolfe@gmail.com"
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
 
       - name: Commit changes
         run: |
@@ -33,7 +33,7 @@ jobs:
       - name: Push changes
         uses: ad-m/github-push-action@v0.8.0
         with:
-          github_token: ${{ secrets.YOUR_GITHUB_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref }}
 
   integration-test:

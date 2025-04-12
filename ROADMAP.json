@@ -51,6 +51,27 @@
       "status": "COMPLETE"
     },
     {
+      "task_id": "task_2_8a",
+      "priority": "High",
+      "task_name": "Implement Basic Command-Line Interface (CLI) - Initial Setup",
+      "description": "Create the basic structure for the CLI (argument parsing, help messages).",
+      "status": "Not Started"
+    },
+    {
+      "task_id": "task_2_7a",
+      "priority": "High",
+      "task_name": "Implement `write_file` Tool - Create `write_file.py`",
+      "description": "Create the basic `write_file.py` module with a placeholder function.",
+      "status": "Not Started"
+    },
+   {
+      "task_id": "task_2_7b",
+      "priority": "High",
+      "task_name": "Implement `write_file` Tool - File Writing Logic",
+      "description": "Implement the core file writing logic in `write_file.py`.",
+      "status": "Not Started"
+    },
+    {
       "task_id": "task_2_6",
       "priority": "High",
       "task_name": "Implement Basic Task Selection Logic in `WorkflowDriver`",
@@ -58,19 +79,20 @@
       "status": "Not Started"
     },
     {
-      "task_id": "task_2_7",
+      "task_id": "task_2_7c",
       "priority": "High",
-      "task_name": "Implement `write_file` Tool Integration in `WorkflowDriver`",
-      "description": "Integrate the `write_file` tool (placeholder for now - will need to be created in a separate task) into `WorkflowDriver` to enable writing code to files, following the workflow in `docs/workflows/markdown_automation.md`. Include checks to prevent accidental overwrites and verify file paths. **Expected Output:** `WorkflowDriver` should be able to call a `write_file` function (to be created) to write content to specified files. **Files to modify:** `src/core/automation/workflow_driver.py`, potentially create `src/core/automation/tools/write_file.py` (in a separate task). Implement code sanitization and highly secure injection checks to ensure compliance and high security.",
+      "task_name": "Implement `write_file` Tool Integration",
+      "description": "Integrate the `write_file` tool into `WorkflowDriver` and add overwrite checks.",
       "status": "Not Started"
     },
     {
-      "task_id": "task_2_8",
+      "task_id": "task_2_8b",
       "priority": "High",
-      "task_name": "Implement Basic Command-Line Interface for Workflow Execution",
-      "description": "Enhance `run_genesis.py` or create a new script to provide a basic command-line interface for executing the `WorkflowDriver` and initiating the markdown automation workflow (Level 2). **Expected Output:** `run_genesis.py` (or a new script) should allow running the `WorkflowDriver` from the command line and display workflow output. **Files to modify:** `src/run_genesis.py` (or create new script). Implement code sanitization and highly secure injection checks to ensure compliance and high security.",
+      "task_name": "Implement Basic Command-Line Interface - Integrate with WorkflowDriver",
+      "description": "Connect the CLI to the WorkflowDriver to initiate the automation workflow.",
       "status": "Not Started"
     },
+
     {
       "task_id": "task_3_1",
       "priority": "High",

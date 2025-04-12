@@ -7,6 +7,7 @@ import logging
 import json
 from scripts.generate_roadmap_md import generate_roadmap_md
 import html
+import shutil  # Import shutil for directory removal
 
 # Set up logging for tests
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -260,20 +261,28 @@ def test_file_exists_non_existing(test_driver, tmp_path):
     assert test_driver.file_exists(str(non_existing_file)) is False
 
 def test_list_files(test_driver, tmp_path):
-    (tmp_path / "file1.txt").write_text("content")
-    (tmp_path / "file2.txt").write_text("content")
-    subdir = tmp_path / "subdir"
-    subdir.mkdir()
-    (subdir / "file_in_subdir.txt").write_text("content")
-    entries = test_driver.list_files()
-    expected = [
-        {'name': 'file1.txt', 'status': 'file'},
-        {'name': 'file2.txt', 'status': 'file'},
-        {'name': 'subdir', 'status': 'directory'}
-    ]
-    entries_set = {tuple(sorted(d.items())) for d in entries}
-    expected_set = {tuple(sorted(d.items())) for d in expected}
-    assert entries_set == expected_set
+    temp_test_dir = tmp_path / "test_list_files_temp_dir"  # Create a unique temp dir for this test
+    temp_test_dir.mkdir()
+    try:
+        (temp_test_dir / "file1.txt").write_text("content")
+        (temp_test_dir / "file2.txt").write_text("content")
+        subdir = temp_test_dir / "subdir"
+        subdir.mkdir()
+        (subdir / "file_in_subdir.txt").write_text("content")
+
+        context = Context(str(temp_test_dir)) # Use the unique temp dir in context
+        driver = WorkflowDriver(context)
+        entries = driver.list_files()
+        expected = [
+            {'name': 'file1.txt', 'status': 'file'},
+            {'name': 'file2.txt', 'status': 'file'},
+            {'name': 'subdir', 'status': 'directory'}
+        ]
+        entries_set = {tuple(sorted(d.items())) for d in entries}
+        expected_set = {tuple(sorted(d.items())) for d in expected}
+        assert entries_set == expected_set
+    finally:
+        shutil.rmtree(str(temp_test_dir)) # Cleanup the unique temp dir
 
 def test_load_roadmap_missing_task_id(test_driver, tmp_path, caplog):
     """Test handling of a missing 'task_id' in ROADMAP.json and verify ROADMAP.md content."""
@@ -314,7 +323,7 @@ class TestWorkflowDriver: # Corrected Class Name for pytest
 
         # Test case 2: Single step
         input_steps = ["Step 1: Do something."]
-        expected = "1.  - [ ] Step 1: Do something.\n"
+        expected = "1.  - [ ] Step 1: Do something.\n" # <--- Correct expected output with newline
         result = test_driver.generate_user_actionable_steps(input_steps)
         assert result == expected, (
             "A single step should be formatted as a numbered checklist item."

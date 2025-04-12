@@ -120,8 +120,8 @@ class WorkflowDriver:
         formatted_steps = []
         for index, step in enumerate(solution_plan, 1):
             # Safely format each step with numbered checklist syntax
-            formatted_step = f"{index}.  - [ ] {step}"
+            formatted_step = f"{index}.  - [ ] {step}\n"
             formatted_steps.append(formatted_step)
 
         # Join all formatted steps into a single string with newlines
-        return "\n".join(formatted_steps)
+        return "".join(formatted_steps)

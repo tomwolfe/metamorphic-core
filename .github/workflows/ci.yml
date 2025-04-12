@@ -33,8 +33,8 @@ jobs:
       - name: Push changes
         uses: ad-m/github-push-action@v0.8.0
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
+          github_token: ${{ secrets.YOUR_GITHUB_API_KEY }}  # Use the PAT stored as a secret
+          branch: ${{ github.ref }}  # Or 'main' if you always want to push to main
 
   integration-test:
     runs-on: ubuntu-latest
@@ -167,8 +167,7 @@ jobs:
 
           # Generate tests and store them in KG (and write to file)
           # Using a simple function for predictable test generation name
-          python -c "from src.core.agents.test_generator import TestGeneratorAgent; \
-          TestGeneratorAgent().generate_tests('def square(n):\\n    return n * n', {}, 'generated_tests/generated_tests.py')" # Updated class name
+          python -c "from src.core.agents.test_generator import TestGeneratorAgent().generate_tests('def square(n):\\n    return n * n', {}, 'generated_tests/generated_tests.py')" # Updated class name
 
           # Verify the file exists (still a good sanity check)
           ls -l generated_tests

@@ -7,7 +7,7 @@ import logging
 import json
 from scripts.generate_roadmap_md import generate_roadmap_md
 import html
-import shutil  # Import shutil for directory removal
+import shutil
 
 # Set up logging for tests
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -282,7 +282,11 @@ def test_list_files(test_driver, tmp_path):
         expected_set = {tuple(sorted(d.items())) for d in expected}
         assert entries_set == expected_set
     finally:
-        shutil.rmtree(str(temp_test_dir)) # Cleanup the unique temp dir
+        try:
+            shutil.rmtree(str(temp_test_dir)) # Cleanup the unique temp dir
+        except OSError as e:
+            logger.warning(f"Failed to remove directory {temp_test_dir}: {e}")
+
 
 def test_load_roadmap_missing_task_id(test_driver, tmp_path, caplog):
     """Test handling of a missing 'task_id' in ROADMAP.json and verify ROADMAP.md content."""

@@ -117,6 +117,9 @@ class WorkflowDriver:
         if not isinstance(solution_plan, list) or not all(isinstance(step, str) for step in solution_plan):
             raise TypeError("Input must be a list of strings")
 
+        if not solution_plan: # Added check for empty list
+            return ""
+
         formatted_steps = []
         for index, step in enumerate(solution_plan, 1):
             # Safely format each step with numbered checklist syntax

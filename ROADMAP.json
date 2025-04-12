@@ -64,18 +64,18 @@
       "description": "Create the basic `write_file.py` module with a placeholder function.",
       "status": "Not Started"
     },
-   {
-      "task_id": "task_2_7b",
-      "priority": "High",
-      "task_name": "Implement `write_file` Tool - File Writing Logic",
-      "description": "Implement the core file writing logic in `write_file.py`.",
-      "status": "Not Started"
-    },
     {
       "task_id": "task_2_6",
       "priority": "High",
       "task_name": "Implement Basic Task Selection Logic in `WorkflowDriver`",
       "description": "Implement basic logic in `WorkflowDriver` to select the next 'Not Started' task from the roadmap, based on priority or task ID order, as described in `docs/workflows/markdown_automation.md`. **Expected Output:** `WorkflowDriver` should correctly identify and return the next task to be processed. **Files to modify:** `src/core/automation/workflow_driver.py`. Implement code sanitization and highly secure injection checks to ensure compliance and high security.",
+      "status": "Not Started"
+    },
+    {
+      "task_id": "task_2_7b",
+      "priority": "High",
+      "task_name": "Implement `write_file` Tool - File Writing Logic",
+      "description": "Implement the core file writing logic in `write_file.py`.",
       "status": "Not Started"
     },
     {
@@ -92,12 +92,11 @@
       "description": "Connect the CLI to the WorkflowDriver to initiate the automation workflow.",
       "status": "Not Started"
     },
-
     {
       "task_id": "task_3_1",
       "priority": "High",
       "task_name": "Review all deliverables for Phase 1.5",
-      "description": "test run",
+      "description": "Review all deliverables for Phase 1.5, including: \n\n* Subjective assessment of workflow improvements resulting from Markdown-Only Automation implementation.\n* Consider basic time tracking for future roadmap phases to empirically measure the impact of similar process optimizations.\n* Verify that all Level 2 Workflow Driver components are implemented as per the specification.\n* Ensure all documentation is updated to reflect the changes in Phase 1.5 Stage 2.\n",
       "status": "Not Started"
     }
   ],
@@ -108,5 +107,5 @@
     "Add Phase 2 description, which starts with Iteration 2 (Enhanced Agents & Knowledge Graph)",
     "Add tasks from Iteration 2 (Enhanced Agents & Knowledge Graph)"
   ],
-    "current_focus": "🎯 CURRENT FOCUS (Week [Current Week Number] - Continuing Phase 1.5 Level 2): Implementing Core Workflow Automation Logic in `WorkflowDriver` (User Steps, Prompt Generation, Task Selection, File Writing) 🚀 The Context class also can hold other environment details. However ensure that you make sure it has the required keys!"
+    "current_focus": "🎯 CURRENT FOCUS (Week [Current Week Number] - Continuing Phase 1.5 Level 2): Implementing Core Workflow Automation Logic (File Writing Tool, Task Selection, CLI Integration) to improve development efficiency and transparency. 🚀 The Context class also can hold other environment details. However ensure that you make sure it has the required keys!"
 }

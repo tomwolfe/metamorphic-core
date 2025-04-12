@@ -22,7 +22,7 @@
 *   **Task ID**: task_2_4
     *   **Priority**: High
     *   **Task Name**: Implement User Actionable Steps Generation in `WorkflowDriver`
-    *   **Status**: In Progress
+    *   **Status**: COMPLETE
 
 *   **Task ID**: task_2_9
     *   **Priority**: High
@@ -32,6 +32,21 @@
 *   **Task ID**: task_2_5
     *   **Priority**: High
     *   **Task Name**: Implement Coder LLM Prompt Generation in `WorkflowDriver`
+    *   **Status**: COMPLETE
+
+*   **Task ID**: task_2_8a
+    *   **Priority**: High
+    *   **Task Name**: Implement Basic Command-Line Interface (CLI) - Initial Setup
+    *   **Status**: COMPLETE
+
+*   **Task ID**: task_2_7a
+    *   **Priority**: High
+    *   **Task Name**: Implement `write_file` Tool - Create `write_file.py`
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_7b
+    *   **Priority**: High
+    *   **Task Name**: Implement `write_file` Tool - File Writing Logic
     *   **Status**: Not Started
 
 *   **Task ID**: task_2_6
@@ -39,14 +54,14 @@
     *   **Task Name**: Implement Basic Task Selection Logic in `WorkflowDriver`
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_7
+*   **Task ID**: task_2_7c
     *   **Priority**: High
-    *   **Task Name**: Implement `write_file` Tool Integration in `WorkflowDriver`
+    *   **Task Name**: Implement `write_file` Tool Integration
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_8
+*   **Task ID**: task_2_8b
     *   **Priority**: High
-    *   **Task Name**: Implement Basic Command-Line Interface for Workflow Execution
+    *   **Task Name**: Implement Basic Command-Line Interface - Integrate with WorkflowDriver
     *   **Status**: Not Started
 
 *   **Task ID**: task_3_1

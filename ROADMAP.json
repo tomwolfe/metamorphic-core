@@ -34,7 +34,7 @@
       "priority": "High",
       "task_name": "Implement User Actionable Steps Generation in `WorkflowDriver`",
       "description": "Implement logic in `WorkflowDriver` to generate a numbered list of 'User Actionable Steps' in markdown checklist format, as described in `docs/workflows/markdown_automation.md`. **Expected Output:** The `WorkflowDriver` should be able to generate a markdown-formatted string containing user steps. **Files to modify:** `src/core/automation/workflow_driver.py`. Implement code sanitization and highly secure injection checks to ensure compliance and high security.",
-      "status": "COMPLETE"  // <-----  MARK AS COMPLETE
+      "status": "Completed"
     },
    {
       "task_id": "task_2_9",

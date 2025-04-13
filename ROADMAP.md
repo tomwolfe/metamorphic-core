@@ -4,64 +4,64 @@
 
 **NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**
 
-*   **Task ID**: task_1_1
+*   **Task ID**: task_2_7a1
     *   **Priority**: High
-    *   **Task Name**: Create docs/workflows/markdown_automation.md
-    *   **Status**: COMPLETE
-
-*   **Task ID**: task_1_2
-    *   **Priority**: High
-    *   **Task Name**: Update README.md with quickstart guide
-    *   **Status**: COMPLETE
-
-*   **Task ID**: task_2_3
-    *   **Priority**: High
-    *   **Task Name**: Implement file existence check
-    *   **Status**: COMPLETE
-
-*   **Task ID**: task_2_4
-    *   **Priority**: High
-    *   **Task Name**: Implement User Actionable Steps Generation in `WorkflowDriver`
-    *   **Status**: COMPLETE
-
-*   **Task ID**: task_2_9
-    *   **Priority**: High
-    *   **Task Name**: Update README.md with phase 1.5 and stage 2 impact
-    *   **Status**: COMPLETE
-
-*   **Task ID**: task_2_5
-    *   **Priority**: High
-    *   **Task Name**: Implement Coder LLM Prompt Generation in `WorkflowDriver`
-    *   **Status**: COMPLETE
-
-*   **Task ID**: task_2_8a
-    *   **Priority**: High
-    *   **Task Name**: Implement Basic Command-Line Interface (CLI) - Initial Setup
-    *   **Status**: COMPLETE
-
-*   **Task ID**: task_2_7a
-    *   **Priority**: High
-    *   **Task Name**: Implement `write_file` Tool - Create `write_file.py`
+    *   **Task Name**: Create `write_file.py` with placeholder function
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_6
+*   **Task ID**: task_2_7a2
     *   **Priority**: High
-    *   **Task Name**: Implement Basic Task Selection Logic in `WorkflowDriver`
+    *   **Task Name**: Unit test `write_file.py` placeholder function
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_7b
+*   **Task ID**: task_2_6a
     *   **Priority**: High
-    *   **Task Name**: Implement `write_file` Tool - File Writing Logic
+    *   **Task Name**: Implement Task Selection: Load tasks into `WorkflowDriver` Class
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_7c
+*   **Task ID**: task_2_6b
     *   **Priority**: High
-    *   **Task Name**: Implement `write_file` Tool Integration
+    *   **Task Name**: Implement Task Selection: Select first 'Not Started' task
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_8b
+*   **Task ID**: task_2_6c
     *   **Priority**: High
-    *   **Task Name**: Implement Basic Command-Line Interface - Integrate with WorkflowDriver
+    *   **Task Name**: Unit test Task Selection Logic
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_7b1
+    *   **Priority**: High
+    *   **Task Name**: Implement `write_file` - Core File Writing Logic
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_7b2
+    *   **Priority**: High
+    *   **Task Name**: Implement `write_file` - Overwrite checks
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_7b3
+    *   **Priority**: High
+    *   **Task Name**: Unit test `write_file` - File Writing
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_7c1
+    *   **Priority**: High
+    *   **Task Name**: Integrate `write_file` into `WorkflowDriver`
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_8b1
+    *   **Priority**: High
+    *   **Task Name**: Implement CLI - Integrate with WorkflowDriver: Argument Parsing
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_8b2
+    *   **Priority**: High
+    *   **Task Name**: Implement CLI - Integrate with WorkflowDriver: Task Execution
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_8b3
+    *   **Priority**: High
+    *   **Task Name**: Implement CLI - Unit Tests
     *   **Status**: Not Started
 
 *   **Task ID**: task_3_1

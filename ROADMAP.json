@@ -10,10 +10,10 @@
   "tasks": [
     {
       "task_id": "task_2_7a1",
-      "priority": "Critical",  // <--- Changed to Critical
-      "task_name": "Create `write_file.py` (placeholder)", // <--- More Concise
+      "priority": "Critical",
+      "task_name": "Create `write_file.py` (placeholder)",
       "description": "Fast-path: Create `src/cli/write_file.py` placeholder `write_file()` function (`pass`). Minimal initial impl. Unblocks dependent tasks.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "`write_file.py` exists, valid Python, `write_file()` with `pass`, Flake8 clean.",
       "Potential Risks": "Syntax, signature mismatch.",
       "Mitigation": "Flake8, signature review, type hints.",
@@ -22,9 +22,9 @@
     {
       "task_id": "task_2_7a2",
       "priority": "High",
-      "task_name": "Unit test `write_file.py` (placeholder)", // <--- More Concise
+      "task_name": "Unit test `write_file.py` (placeholder)",
       "description": "Quickly add unit test for placeholder `write_file()`. Test existence, callability, no exceptions. Trivial pass for fast iteration.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "Test `test_write_file_placeholder_exists` in `test_workflow_driver.py`, tests `write_file()` placeholder, passes pytest.",
       "Potential Risks": "Test setup, assertion logic, exceptions.",
       "Mitigation": "Pytest docs, pytest run, output check.",
@@ -34,9 +34,9 @@
     {
       "task_id": "task_2_6a",
       "priority": "High",
-      "task_name": "Load tasks in `WorkflowDriver` Init", // <--- More Concise
+      "task_name": "Load tasks in `WorkflowDriver` Init",
       "description": "Implement: `WorkflowDriver.__init__` loads tasks from `ROADMAP.json` into `self.tasks`. Verify `load_roadmap()` call in `__init__`. Modify `src/core/automation/workflow_driver.py`.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "`WorkflowDriver` init no errors, `self.tasks` populated, `load_roadmap()` called once.",
       "Potential Risks": "Scope, path, load errors.",
       "Mitigation": "`load_roadmap()` call verification, inspect `self.tasks`, logging.",
@@ -46,9 +46,9 @@
     {
       "task_id": "task_2_6b",
       "priority": "High",
-      "task_name": "Implement `select_next_task()` Logic", // <--- More Concise
+      "task_name": "Implement `select_next_task()` Logic",
       "description": "Implement `WorkflowDriver.select_next_task()`: returns 1st 'Not Started' task, or `None`. Handle empty `self.tasks`.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "`select_next_task()` returns correct task/None, handles empty list.",
       "Potential Risks": "Iteration logic, off-by-one, status check, empty list.",
       "Mitigation": "Detailed unit tests, debugger, status comparison.",
@@ -70,7 +70,7 @@
     {
       "task_id": "task_2_7b1",
       "priority": "High",
-      "task_name": "Impl. `write_file()` - Core Write Logic", // <--- More Concise
+      "task_name": "Impl. `write_file()` - Core Write Logic",
       "description": "Implement core file writing in `write_file.py`: write `content`, handle `FileNotFoundError`, `PermissionError` (logging). Return `True`/`False`.",
       "status": "Not Started",
       "Success Criteria": "`write_file()` writes, catches/logs exceptions, returns `True`/`False`.",
@@ -82,7 +82,7 @@
     {
       "task_id": "task_2_7b2",
       "priority": "High",
-      "task_name": "Impl. `write_file()` - Overwrite Checks", // <--- More Concise
+      "task_name": "Impl. `write_file()` - Overwrite Checks",
       "description": "Enhance `write_file.py`: `overwrite=False` (default), check exists, `FileExistsError`. `overwrite=True` overwrites. `file_exists(filepath)` helper.",
       "status": "Not Started",
       "Success Criteria": "`write_file(overwrite=False)` raises `FileExistsError`, `overwrite=True` overwrites, `file_exists()` works, documented.",
@@ -92,9 +92,9 @@
       "Time Saving Strategy": "Iterative enhancement, focused overwrite safety."
     },
     {
-      "task_id": "task_2_7b3a",  // <--- Split Unit Test Task - Part 1
+      "task_id": "task_2_7b3a",
       "priority": "High",
-      "task_name": "Unit test `write_file()` - Success & Exceptions", // <--- More Granular
+      "task_name": "Unit test `write_file()` - Success & Exceptions",
       "description": "Unit tests in `tests/test_workflow_driver.py` for `write_file()`: successful write, `FileNotFoundError`, `PermissionError` handling.",
       "status": "Not Started",
       "Success Criteria": "Tests for success/exceptions pass, assertions verify behavior, temp files.",
@@ -104,9 +104,9 @@
       "Time Saving Strategy": "Focused testing of core writing and exception paths."
     },
     {
-      "task_id": "task_2_7b3b", // <--- Split Unit Test Task - Part 2
+      "task_id": "task_2_7b3b",
       "priority": "High",
-      "task_name": "Unit test `write_file()` - Overwrite & `file_exists()`", // <--- More Granular
+      "task_name": "Unit test `write_file()` - Overwrite & `file_exists()`",
       "description": "Unit tests in `tests/test_workflow_driver.py` for `write_file()`: `FileExistsError` (overwrite=False), overwrite=True, `file_exists()` tests. Coverage goal.",
       "status": "Not Started",
       "Success Criteria": "Tests for overwrite/file_exists pass, assertions verify behavior, coverage goal achieved.",
@@ -124,7 +124,7 @@
       "Success Criteria": "`WorkflowDriver` has `_write_output_file()`, calls `write_file()`, no errors on instantiation/call.",
       "Potential Risks": "Import errors, function call errors, `WorkflowDriver` complexity, integration.",
       "Mitigation": "Import checks, signature verification, simple method, basic integration test.",
-      "Dependencies": ["task_2_7b3b","task_2_6c"], // <--- Dependency changed to 2_7b3b
+      "Dependencies": ["task_2_7b3b","task_2_6c"],
       "Time Saving Strategy": "Focused integration, simple linking method."
     },
     {
@@ -183,5 +183,5 @@
     "Add Phase 2 description, which starts with Iteration 2 (Enhanced Agents & Knowledge Graph)",
     "Add tasks from Iteration 2 (Enhanced Agents & Knowledge Graph)"
   ],
-  "current_focus": "🎯 CURRENT FOCUS (Week [Current Week Number] - Continuing Phase 1.5 Level 2): Workflow Automation Logic (File Write, Task Select, CLI) for efficient dev. 🚀"
+  "current_focus": "🎯 CURRENT FOCUS: Phase 1.5 Stage 2 - Completing Integration of File Write & CLI  🚀"
 }

@@ -1,168 +1,179 @@
 {
-  "phase": "Phase 1.5 - Workflow Automation Side Project",
-  "phase_goal": "Implement Level 1 and Level 2 of the Markdown-Only Automation Workflow to enhance development efficiency for Phase 2 and beyond.",
+  "phase": "Phase 1.5 - Workflow Automation Side Project (Stage 2)",
+  "phase_goal": "Implement Level 2 Markdown Automation Workflow: File Writing, Task Selection, CLI Integration - efficiently and securely.",
   "success_metrics": [
-    "Level 1 Documentation Complete",
-    "Level 2 Workflow Driver Component Implemented: `WorkflowDriver` class constructor updated to accept `Context`; `file_exists` and `list_files` methods implemented and unit tested.",
-    "Basic Workflow Driver Tests Implemented",
-    "Command-Line Interface and list_files method"
+    "Level 2 Workflow Driver components fully implemented & tested (write_file, task selection, CLI integration)",
+    "Unit tests passing for all new components (100% coverage goal for critical modules)",
+    "CLI tool functional for basic workflow execution",
+    "Phase 1.5 review document completed"
   ],
   "tasks": [
     {
       "task_id": "task_2_7a1",
-      "priority": "High",
-      "task_name": "Create `write_file.py` with placeholder function",
-      "description": "Create the `src/cli/write_file.py` module with a basic placeholder `write_file(filepath, content)` function that currently does nothing (just a `pass` statement).",
+      "priority": "Critical",  // <--- Changed to Critical
+      "task_name": "Create `write_file.py` (placeholder)", // <--- More Concise
+      "description": "Fast-path: Create `src/cli/write_file.py` placeholder `write_file()` function (`pass`). Minimal initial impl. Unblocks dependent tasks.",
       "status": "Not Started",
-      "Success Criteria": "File `src/cli/write_file.py` exists and is valid Python. It contains a function `write_file(filepath, content)` that accepts two arguments and only executes a `pass` statement. Syntax check passes with Flake8.",
-      "Potential Risks": "Syntax errors in new file, incorrect function signature.",
-      "Mitigation": "Run Flake8 on `write_file.py` to ensure syntax validity. Double-check function signature against task description. Use type hints for function arguments.",
-      "Dependencies": [],
-      "Future Automation": "Automated code generation for initial file structure, automated unit test generation."
+      "Success Criteria": "`write_file.py` exists, valid Python, `write_file()` with `pass`, Flake8 clean.",
+      "Potential Risks": "Syntax, signature mismatch.",
+      "Mitigation": "Flake8, signature review, type hints.",
+      "Time Saving Strategy": "Minimal placeholder for parallel work."
     },
     {
       "task_id": "task_2_7a2",
       "priority": "High",
-      "task_name": "Unit test `write_file.py` placeholder function",
-      "description": "Create a unit test in `tests/test_workflow_driver.py` for the placeholder `write_file` function. Ensure the test confirms the function exists, is callable, and does not raise any exceptions when called with arbitrary `filepath` and `content` arguments. Test should pass trivially.",
+      "task_name": "Unit test `write_file.py` (placeholder)", // <--- More Concise
+      "description": "Quickly add unit test for placeholder `write_file()`. Test existence, callability, no exceptions. Trivial pass for fast iteration.",
       "status": "Not Started",
-      "Success Criteria": "A new test function `test_write_file_placeholder_exists` is added to `tests/test_workflow_driver.py`. This test function calls `write_file()` without arguments and asserts that no exceptions are raised. Test runs and passes in pytest. Coverage report shows increased coverage for `src/cli/write_file.py`.",
-      "Potential Risks": "Test setup errors, incorrect assertion logic, test failing due to unexpected exceptions.",
-      "Mitigation": "Review pytest documentation for basic test structure. Use `pytest` to run tests locally and verify pass/fail. Check test output and logs for any errors.  Ensure test targets correct file path.",
+      "Success Criteria": "Test `test_write_file_placeholder_exists` in `test_workflow_driver.py`, tests `write_file()` placeholder, passes pytest.",
+      "Potential Risks": "Test setup, assertion logic, exceptions.",
+      "Mitigation": "Pytest docs, pytest run, output check.",
       "Dependencies": ["task_2_7a1"],
-      "Future Automation": "Automated unit test generation and execution in CI pipeline, coverage reporting in CI."
+      "Time Saving Strategy": "Simple test for fast function validation."
     },
     {
       "task_id": "task_2_6a",
       "priority": "High",
-      "task_name": "Implement Task Selection: Load tasks into `WorkflowDriver` Class",
-      "description": "Modify `WorkflowDriver.__init__` to load tasks from the roadmap JSON during class instantiation and store them as a class attribute (e.g., `self.tasks`). Verify correct `load_roadmap` function call within `__init__`. File to modify: `src/core/automation/workflow_driver.py`",
+      "task_name": "Load tasks in `WorkflowDriver` Init", // <--- More Concise
+      "description": "Implement: `WorkflowDriver.__init__` loads tasks from `ROADMAP.json` into `self.tasks`. Verify `load_roadmap()` call in `__init__`. Modify `src/core/automation/workflow_driver.py`.",
       "status": "Not Started",
-      "Success Criteria": "`WorkflowDriver` instantiation no longer throws errors. `WorkflowDriver` instance has a `tasks` attribute that is a list and is not empty (assuming `ROADMAP.json` is not empty). `load_roadmap` function is called once during `WorkflowDriver` init.",
-      "Potential Risks": "Incorrect scope, path errors, load errors",
-      "Mitigation": "Verify the `load_roadmap` function is called within `__init__`. Inspect the `tasks` attribute after instantiation to confirm it's populated correctly. Add logging to `load_roadmap` to trace execution.",
+      "Success Criteria": "`WorkflowDriver` init no errors, `self.tasks` populated, `load_roadmap()` called once.",
+      "Potential Risks": "Scope, path, load errors.",
+      "Mitigation": "`load_roadmap()` call verification, inspect `self.tasks`, logging.",
       "Dependencies": [],
-      "Future Automation": "Automated integration tests to verify data flow through `WorkflowDriver`."
+      "Time Saving Strategy": "Direct implementation, clear criteria."
     },
     {
       "task_id": "task_2_6b",
       "priority": "High",
-      "task_name": "Implement Task Selection: Select first 'Not Started' task",
-      "description": "Implement logic in `WorkflowDriver` in a new method `select_next_task()` to iterate through `self.tasks` and select the *first* task with the status 'Not Started'. Return the selected task (as a dictionary). If no 'Not Started' tasks exist, return `None`. File to modify: `src/core/automation/workflow_driver.py`",
+      "task_name": "Implement `select_next_task()` Logic", // <--- More Concise
+      "description": "Implement `WorkflowDriver.select_next_task()`: returns 1st 'Not Started' task, or `None`. Handle empty `self.tasks`.",
       "status": "Not Started",
-      "Success Criteria": "`select_next_task()` method returns the first task with status 'Not Started' when such tasks exist in `self.tasks`. Returns `None` if no 'Not Started' tasks are present. Function handles empty `self.tasks` list gracefully (returns `None`).",
-      "Potential Risks": "Incorrect iteration logic, off-by-one errors, incorrect status checking, handling empty task list.",
-      "Mitigation": "Write detailed unit tests covering various scenarios: tasks list with one 'Not Started' task, multiple 'Not Started' tasks, no 'Not Started' tasks, empty task list. Use debugger to step through the iteration logic. Ensure correct comparison of task status strings.",
+      "Success Criteria": "`select_next_task()` returns correct task/None, handles empty list.",
+      "Potential Risks": "Iteration logic, off-by-one, status check, empty list.",
+      "Mitigation": "Detailed unit tests, debugger, status comparison.",
       "Dependencies": ["task_2_6a"],
-      "Future Automation": "Property-based testing to automatically generate various task list scenarios and verify selection logic."
+      "Time Saving Strategy": "TDD, comprehensive tests for logic robustness."
     },
-   {
+    {
       "task_id": "task_2_6c",
       "priority": "High",
-      "task_name": "Unit test Task Selection Logic",
-      "description": "Create unit tests in `tests/test_workflow_driver.py` for the `select_next_task()` method in `WorkflowDriver`. Cover cases: 'Not Started' task exists (at beginning, middle, end of task list), no 'Not Started' tasks exist, empty task list. Validate the *correct* task is returned in each scenario and that `None` is returned when appropriate. Ensure tests are independent and clearly named.",
+      "task_name": "Unit test Task Selection",
+      "description": "Unit tests for `select_next_task()` in `tests/test_workflow_driver.py`. Scenarios: 'Not Started' tasks (start, middle, end), none, empty list.",
       "status": "Not Started",
-       "Success Criteria": "New unit tests added to `tests/test_workflow_driver.py` for `select_next_task()`. All unit tests for task selection pass. Tests cover all specified scenarios (see description). Assertions verify that the *correct* task is returned or `None` as expected. Test names are descriptive (e.g., `test_select_next_task_not_started_task_exists_beginning`).",
-      "Potential Risks": "Incomplete test coverage, incorrect assertions, tests not properly isolated, test data setup errors.",
-      "Mitigation": "Write tests *before* implementing the task selection logic (test-driven development). Review test coverage to ensure all scenarios are covered. Double-check assertions against expected behavior. Use clear and descriptive test data and names.",
+      "Success Criteria": "Unit tests in `tests/test_workflow_driver.py`, all pass, scenarios covered, task/None assertions.",
+      "Potential Risks": "Incomplete coverage, assertions, test isolation, data setup.",
+      "Mitigation": "TDD, coverage review, assertion checks, clear test data.",
       "Dependencies": ["task_2_6b"],
-      "Future Automation": "Mutation testing to assess the quality and coverage of the unit tests, automated test execution in CI."
+      "Time Saving Strategy": "TDD for focused dev, clear tests for validation."
     },
     {
       "task_id": "task_2_7b1",
       "priority": "High",
-      "task_name": "Implement `write_file` - Core File Writing Logic",
-      "description": "Implement the core file writing logic in `write_file.py`. The function should take a `filepath` and `content` as input, and write the `content` to the specified file. Handle basic file I/O exceptions (`FileNotFoundError`, `PermissionError`) using `try...except` blocks and log relevant error messages using `logging.error`.",
+      "task_name": "Impl. `write_file()` - Core Write Logic", // <--- More Concise
+      "description": "Implement core file writing in `write_file.py`: write `content`, handle `FileNotFoundError`, `PermissionError` (logging). Return `True`/`False`.",
       "status": "Not Started",
-      "Success Criteria": "`write_file(filepath, content)` function successfully writes `content` to `filepath` for valid filepaths. Function catches `FileNotFoundError` and `PermissionError` and logs error messages using `logging.error`. Function returns `True` on successful write, `False` on exception.",
-      "Potential Risks": "File I/O errors not handled correctly, incorrect exception handling, logging errors, path injection vulnerabilities, overwrite vulnerabilities.",
-      "Mitigation": "Use `try...except` blocks for `FileNotFoundError` and `PermissionError`. Implement robust logging with `logging.error`. Sanitize `filepath` input to prevent path injection (basic sanitization for now, more robust in later phases). Implement overwrite protection in next task. Review file I/O code for security best practices.",
-       "Dependencies": ["task_2_7a1", "task_2_7a2"],
-      "Future Automation": "Automated security vulnerability scanning (Bandit, Semgrep) on `write_file.py`, integration testing of file writing functionality."
+      "Success Criteria": "`write_file()` writes, catches/logs exceptions, returns `True`/`False`.",
+      "Potential Risks": "File I/O errors, exception handling, logging, path injection, overwrite.",
+      "Mitigation": "`try...except`, logging, basic path sanitization, defer overwrite.",
+      "Dependencies": ["task_2_7a1", "task_2_7a2"],
+      "Time Saving Strategy": "Core logic first, defer overwrite checks."
     },
     {
       "task_id": "task_2_7b2",
       "priority": "High",
-      "task_name": "Implement `write_file` - Overwrite checks",
-      "description": "Enhance `write_file.py` to include overwrite checks. Add an `overwrite=False` argument to the `write_file` function. When `overwrite=False` (default), the function should check if the specified `filepath` already exists and raise a `FileExistsError` if so. If `overwrite=True`, the function should overwrite existing files. Create a separate helper function `file_exists(filepath)` within `write_file.py` to check for file existence.",
+      "task_name": "Impl. `write_file()` - Overwrite Checks", // <--- More Concise
+      "description": "Enhance `write_file.py`: `overwrite=False` (default), check exists, `FileExistsError`. `overwrite=True` overwrites. `file_exists(filepath)` helper.",
       "status": "Not Started",
-      "Success Criteria": "`write_file(filepath, content, overwrite=False)` raises `FileExistsError` if `filepath` exists. `write_file(filepath, content, overwrite=True)` overwrites existing files. `file_exists(filepath)` function correctly returns `True` or `False` based on file existence. Overwrite behavior is clearly documented in function docstring.",
-      "Potential Risks": "Incorrect overwrite logic, file existence checks failing, exceptions not raised correctly, potential race conditions if file existence check and write are not atomic.",
-      "Mitigation": "Implement overwrite logic with clear conditional statements. Use `os.path.exists()` for file existence checks. Test both `overwrite=True` and `overwrite=False` cases extensively in unit tests. Consider using file locking mechanisms for more robust overwrite protection in future iterations.",
-       "Dependencies": ["task_2_7b1"],
-      "Future Automation": "Formal verification of file overwrite logic, security testing for race conditions."
+      "Success Criteria": "`write_file(overwrite=False)` raises `FileExistsError`, `overwrite=True` overwrites, `file_exists()` works, documented.",
+      "Potential Risks": "Overwrite logic, file checks, exceptions, race conditions.",
+      "Mitigation": "Conditional logic, `os.path.exists()`, test overwrite, file locking (future).",
+      "Dependencies": ["task_2_7b1"],
+      "Time Saving Strategy": "Iterative enhancement, focused overwrite safety."
     },
     {
-      "task_id": "task_2_7b3",
+      "task_id": "task_2_7b3a",  // <--- Split Unit Test Task - Part 1
       "priority": "High",
-      "task_name": "Unit test `write_file` - File Writing",
-      "description": "Create comprehensive unit tests in `tests/test_workflow_driver.py` for the `write_file` function. Cover: successful file write, `FileNotFoundError` and `PermissionError` exceptions (mock these scenarios), `FileExistsError` when `overwrite=False` and file exists, successful overwrite when `overwrite=True`, `file_exists()` helper function tests. Ensure high code coverage for `write_file.py`.",
+      "task_name": "Unit test `write_file()` - Success & Exceptions", // <--- More Granular
+      "description": "Unit tests in `tests/test_workflow_driver.py` for `write_file()`: successful write, `FileNotFoundError`, `PermissionError` handling.",
       "status": "Not Started",
-      "Success Criteria": "Unit tests added to `tests/test_workflow_driver.py` cover all scenarios described in the task description. All unit tests for `write_file` pass. Test coverage for `write_file.py` is 100% (or as close as practically achievable). Assertions accurately verify file writing behavior, exception raising, and overwrite flag functionality. Test setup uses temporary files and directories to avoid modifying actual project files.",
-      "Potential Risks": "Incomplete test coverage, tests not accurately simulating error conditions, assertions not verifying correct behavior, tests polluting the file system.",
-      "Mitigation": "Use pytest fixtures and temporary directories (`tmp_path` fixture) for isolated testing. Review test coverage reports to identify gaps. Write tests using test-driven development principles. Peer review test code for completeness and correctness. Consider property-based testing to generate a wider range of test inputs.",
-       "Dependencies": ["task_2_7b2"],
-      "Future Automation": "Automated test execution in CI, automated coverage reporting, integration with mutation testing tools."
+      "Success Criteria": "Tests for success/exceptions pass, assertions verify behavior, temp files.",
+      "Potential Risks": "Incomplete coverage, error simulation, assertions.",
+      "Mitigation": "Pytest fixtures, temp dirs, coverage reports, TDD.",
+      "Dependencies": ["task_2_7b2"],
+      "Time Saving Strategy": "Focused testing of core writing and exception paths."
+    },
+    {
+      "task_id": "task_2_7b3b", // <--- Split Unit Test Task - Part 2
+      "priority": "High",
+      "task_name": "Unit test `write_file()` - Overwrite & `file_exists()`", // <--- More Granular
+      "description": "Unit tests in `tests/test_workflow_driver.py` for `write_file()`: `FileExistsError` (overwrite=False), overwrite=True, `file_exists()` tests. Coverage goal.",
+      "status": "Not Started",
+      "Success Criteria": "Tests for overwrite/file_exists pass, assertions verify behavior, coverage goal achieved.",
+      "Potential Risks": "Incomplete coverage, assertions, file pollution.",
+      "Mitigation": "Pytest fixtures, temp dirs (`tmp_path`), coverage reports, peer review tests.",
+      "Dependencies": ["task_2_7b2"],
+      "Time Saving Strategy": "Focused testing of overwrite and helper function."
     },
     {
       "task_id": "task_2_7c1",
       "priority": "High",
-      "task_name": "Integrate `write_file` into `WorkflowDriver`",
-      "description": "Modify the `WorkflowDriver` to use the `write_file` tool (specifically the `write_file` function from `src/cli/write_file.py`) when it needs to write a file. Add a new method to `WorkflowDriver` (e.g., `_write_output_file(filepath, content)`) that encapsulates the call to `write_file`. For now, this integration doesn't need to be used in any specific workflow logic, just ensure the integration is in place and callable.",
+      "task_name": "Integrate `write_file()` in `WorkflowDriver`",
+      "description": "Integrate `write_file()` in `WorkflowDriver` via `_write_output_file()`. Test callable, no workflow logic yet.",
       "status": "Not Started",
-      "Success Criteria": "`WorkflowDriver` class includes a new method `_write_output_file(filepath, content)`. This method successfully calls the `write_file` function with the provided `filepath` and `content`. No import errors or runtime exceptions occur when instantiating `WorkflowDriver` and calling `_write_output_file` (even if it's not used in a workflow yet).",
-      "Potential Risks": "Import errors, incorrect function calls, `WorkflowDriver` class becoming too complex, integration issues between modules.",
-      "Mitigation": "Double-check import statements. Verify function signature when calling `write_file`. Keep the `_write_output_file` method simple and focused on integration. Write a basic integration test to call `_write_output_file` and ensure it runs without errors.",
-       "Dependencies": ["task_2_7b3","task_2_6c"],
-      "Future Automation": "Integration tests to verify full data flow and workflow execution with `write_file`."
+      "Success Criteria": "`WorkflowDriver` has `_write_output_file()`, calls `write_file()`, no errors on instantiation/call.",
+      "Potential Risks": "Import errors, function call errors, `WorkflowDriver` complexity, integration.",
+      "Mitigation": "Import checks, signature verification, simple method, basic integration test.",
+      "Dependencies": ["task_2_7b3b","task_2_6c"], // <--- Dependency changed to 2_7b3b
+      "Time Saving Strategy": "Focused integration, simple linking method."
     },
     {
       "task_id": "task_2_8b1",
       "priority": "High",
-      "task_name": "Implement CLI - Integrate with WorkflowDriver: Argument Parsing",
-      "description": "Integrate the CLI (`src/cli/main.py`) with the `WorkflowDriver`. Use `argparse` in `cli_entry_point()` to add command-line arguments for specifying the roadmap file path (`--roadmap`) and output directory (`--output-dir`).  Implement basic validation for these arguments (e.g., check if roadmap path exists, output dir is a valid path). Use `try...except` blocks for error handling and provide informative error messages to the user.",
+      "task_name": "CLI Argument Parsing",
+      "description": "CLI (`src/cli/main.py`): `argparse` for `--roadmap`, `--output-dir`. Basic validation, error handling, user errors.",
       "status": "Not Started",
-      "Success Criteria": "CLI `cli_entry_point()` function correctly parses `--roadmap` and `--output-dir` arguments using `argparse`.  CLI displays help messages correctly when `--help` is used or arguments are missing/invalid. CLI validates roadmap path (exists) and output directory (valid path). Informative error messages are shown for invalid arguments or missing roadmap file. CLI returns exit code 0 for valid arguments, non-zero for invalid arguments.",
-      "Potential Risks": "Incorrect argument parsing logic, validation errors, unclear error messages, CLI not user-friendly.",
-      "Mitigation": "Use `argparse` for robust argument parsing. Implement validation logic with clear error messages. Test CLI with various valid and invalid argument combinations. Follow CLI best practices for user-friendliness (clear help messages, consistent argument naming).",
-       "Dependencies": ["task_2_6c"],
-      "Future Automation": "Automated CLI integration tests, usage analytics for CLI commands."
+      "Success Criteria": "CLI parses args, help correct, path validation, error messages, exit codes.",
+      "Potential Risks": "Parsing logic, validation errors, unclear errors, CLI usability.",
+      "Mitigation": "`argparse`, clear errors, test valid/invalid args, CLI practices.",
+      "Dependencies": ["task_2_6c"],
+      "Time Saving Strategy": "Robust arg parsing for user-friendly CLI."
     },
     {
       "task_id": "task_2_8b2",
       "priority": "High",
-      "task_name": "Implement CLI - Integrate with WorkflowDriver: Task Execution",
-      "description": "Connect the CLI to the `WorkflowDriver`'s task selection logic in `cli_entry_point()`. When the CLI is run (without a specific task ID for now), it should instantiate `WorkflowDriver`, load the roadmap, and call `select_next_task()` to get the next task. For now, simply print a message to the console indicating the selected task's name and ID (or 'No tasks to execute' if `None` is returned).",
+      "task_name": "CLI Task Execution Link",
+      "description": "CLI: link to `WorkflowDriver` task select. CLI runs, instantiates `WorkflowDriver`, calls `select_next_task()`, prints task/none.",
       "status": "Not Started",
-      "Success Criteria": "Running the CLI (without task ID) instantiates `WorkflowDriver`, loads roadmap, calls `select_next_task()`. CLI prints the name and ID of the selected task to the console if a task is returned by `select_next_task()`. If `select_next_task()` returns `None`, CLI prints 'No tasks to execute.' CLI runs without errors for valid roadmap path.",
-      "Potential Risks": "Incorrect `WorkflowDriver` instantiation, errors in calling `select_next_task()`, incorrect output formatting, CLI failing to run due to integration issues.",
-      "Mitigation": "Verify `WorkflowDriver` is instantiated correctly with the correct `Context`. Double-check function calls and argument passing. Use f-strings for clear and formatted console output. Add basic logging to CLI to trace execution flow.",
-       "Dependencies": ["task_2_8b1"],
-      "Future Automation": "End-to-end integration tests for CLI workflow execution, logging and monitoring of CLI usage."
+      "Success Criteria": "CLI runs, `WorkflowDriver` init, `select_next_task()` call, console output, no errors.",
+      "Potential Risks": "`WorkflowDriver` init, `select_next_task()` errors, output, CLI errors.",
+      "Mitigation": "`WorkflowDriver` check, function call checks, clear output, CLI logging.",
+      "Dependencies": ["task_2_8b1"],
+      "Time Saving Strategy": "Direct linking, basic console output validation."
     },
     {
       "task_id": "task_2_8b3",
       "priority": "High",
-      "task_name": "Implement CLI - Unit Tests",
-      "description": "Create unit tests in a new file `tests/test_cli.py` for the CLI (`src/cli/main.py`). Cover: argument parsing (roadmap path, output dir - valid and invalid inputs), CLI execution without errors for valid roadmap, CLI output when tasks are selected and when no tasks are selected. Mock `WorkflowDriver` interactions to isolate CLI unit tests.",
+      "task_name": "CLI Unit Tests",
+      "description": "Unit tests in `tests/test_cli.py` for CLI: arg parsing, workflow, task select/none. Mock `WorkflowDriver`.",
       "status": "Not Started",
-      "Success Criteria": "New unit test file `tests/test_cli.py` created. Unit tests cover argument parsing and basic CLI workflow execution as described. Tests use mocking (`unittest.mock` or `pytest-mock`) to isolate CLI from `WorkflowDriver` implementation. Assertions verify correct argument parsing, CLI output, and handling of different scenarios (tasks selected, no tasks selected).",
-      "Potential Risks": "Incomplete test coverage, tests not properly mocking dependencies, assertions not verifying correct CLI behavior, test setup errors.",
-      "Mitigation": "Write tests using test-driven development principles. Use mocking effectively to isolate CLI unit tests. Review test coverage to ensure all aspects of CLI functionality are covered. Double-check assertions against expected CLI behavior. Run tests frequently during development.",
-       "Dependencies": ["task_2_8b2"],
-      "Future Automation": "Automated CLI test execution in CI pipeline, integration with UI testing frameworks in future phases."
+      "Success Criteria": "Unit tests in `tests/test_cli.py`, cover arg parsing/workflow, mocking, assertions for CLI.",
+      "Potential Risks": "Incomplete coverage, mocking errors, assertions, test setup.",
+      "Mitigation": "TDD, mocking, coverage review, assertion checks, run tests.",
+      "Dependencies": ["task_2_8b2"],
+      "Time Saving Strategy": "Focused unit tests for robust CLI, mocking."
     },
     {
       "task_id": "task_3_1",
       "priority": "High",
-      "task_name": "Review all deliverables for Phase 1.5",
-      "description": "Review all deliverables for Phase 1.5, including: \n\n* Subjective assessment of workflow improvements resulting from Markdown-Only Automation implementation.\n* Consider basic time tracking for future roadmap phases to empirically measure the impact of similar process optimizations.\n* Verify that all Level 2 Workflow Driver components are implemented as per the specification.\n* Ensure all documentation is updated to reflect the changes in Phase 1.5 Stage 2.\nCreate a review document summarizing findings and next steps.",
+      "task_name": "Phase 1.5 Stage 2 Review",
+      "description": "Review Phase 1.5 Stage 2: deliverables, workflow, Level 2 components, docs. Review doc: findings, Phase 2 next steps.",
       "status": "Not Started",
-      "Success Criteria": "A review document is created (e.g., `docs/phase_1.5_stage_2_review.md`) summarizing Phase 1.5 Stage 2 deliverables, subjective assessment of workflow improvements, basic time tracking considerations, verification of Level 2 Workflow Driver components, and documentation updates. Document includes clear next steps and recommendations for Phase 2.",
-      "Potential Risks": "Incomplete review, superficial assessment, lack of actionable insights in review document, review process taking too long.",
-      "Mitigation": "Allocate sufficient time for review. Use a review checklist to ensure all deliverables are assessed. Involve multiple team members in the review process for diverse perspectives. Focus on actionable insights and concrete recommendations for future phases. Set a clear deadline for review completion.",
-       "Dependencies": ["task_2_7c1","task_2_8b3"],
-      "Future Automation": "AI-assisted report generation, automated metric collection for performance assessment, integration with project management tools for tracking review progress."
+      "Success Criteria": "Review doc (`docs/phase_1.5_stage_2_review.md`) summarizes deliverables, workflow, Level 2, docs, next steps.",
+      "Potential Risks": "Incomplete review, superficial assessment, slow review.",
+      "Mitigation": "Allocate review time, checklist, team review, actionable insights, deadlines.",
+      "Dependencies": ["task_2_7c1","task_2_8b3"],
+      "Time Saving Strategy": "Structured review, actionable outcomes focus."
     }
   ],
   "next_phase_actions": [
@@ -172,5 +183,5 @@
     "Add Phase 2 description, which starts with Iteration 2 (Enhanced Agents & Knowledge Graph)",
     "Add tasks from Iteration 2 (Enhanced Agents & Knowledge Graph)"
   ],
-    "current_focus": "🎯 CURRENT FOCUS (Week [Current Week Number] - Continuing Phase 1.5 Level 2): Implementing Core Workflow Automation Logic (File Writing Tool, Task Selection, CLI Integration) to improve development efficiency and transparency. 🚀 The Context class also can hold other environment details. However ensure that you make sure it has the required keys!"
+  "current_focus": "🎯 CURRENT FOCUS (Week [Current Week Number] - Continuing Phase 1.5 Level 2): Workflow Automation Logic (File Write, Task Select, CLI) for efficient dev. 🚀"
 }

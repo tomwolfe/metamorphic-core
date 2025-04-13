@@ -69,8 +69,28 @@
     *   **Task Name**: CLI Unit Tests
     *   **Status**: Not Started
 
-*   **Task ID**: task_3_1
+*   **Task ID**: task_3_1a
     *   **Priority**: High
-    *   **Task Name**: Phase 1.5 Stage 2 Review
+    *   **Task Name**: Review Phase 1.5 Stage 2 (Initial Implementation)
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_9a
+    *   **Priority**: High
+    *   **Task Name**: Automate Coder LLM Invocation
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_9b
+    *   **Priority**: High
+    *   **Task Name**: Update Documentation for Automated Coder LLM
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_9c
+    *   **Priority**: High
+    *   **Task Name**: Test Automated Coder LLM Workflow
+    *   **Status**: Not Started
+
+*   **Task ID**: task_3_1b
+    *   **Priority**: High
+    *   **Task Name**: Review Phase 1.5 Stage 2 (Coder LLM Automation)
     *   **Status**: Not Started
 

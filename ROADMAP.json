@@ -164,15 +164,62 @@
       "Time Saving Strategy": "Focused unit tests for robust CLI, mocking."
     },
     {
-      "task_id": "task_3_1",
+      "task_id": "task_3_1a",
       "priority": "High",
-      "task_name": "Phase 1.5 Stage 2 Review",
-      "description": "Review Phase 1.5 Stage 2: deliverables, workflow, Level 2 components, docs. Review doc: findings, Phase 2 next steps.",
+      "task_name": "Review Phase 1.5 Stage 2 (Initial Implementation)",
+      "description": "Review Phase 1.5 Stage 2 deliverables (before Coder LLM automation): deliverables, workflow, Level 2 components, docs.",
       "status": "Not Started",
-      "Success Criteria": "Review doc (`docs/phase_1.5_stage_2_review.md`) summarizes deliverables, workflow, Level 2, docs, next steps.",
+      "Success Criteria": "Review doc summarizes deliverables, workflow, Level 2 components, docs up to initial implementation.",
       "Potential Risks": "Incomplete review, superficial assessment, slow review.",
       "Mitigation": "Allocate review time, checklist, team review, actionable insights, deadlines.",
       "Dependencies": ["task_2_7c1","task_2_8b3"],
+      "Time Saving Strategy": "Structured review, actionable outcomes focus."
+    },
+    {
+      "task_id": "task_2_9a",
+      "priority": "High",
+      "task_name": "Automate Coder LLM Invocation",
+      "description": "Modify WorkflowDriver to directly invoke LLMOrchestrator (Coder LLM) instead of requiring manual copy-paste.",
+      "status": "Not Started",
+      "Success Criteria": "WorkflowDriver automatically invokes Coder LLM, developer no longer needs to copy-paste prompts.",
+      "Potential Risks": "Introduction of javascript injection without proper security checks. Ensure a high barrier to cross vm changes by introducing multiple step authentication to ensure a high standard to cross this barrier.",
+      "Mitigation": "Prioritize code refactoring for direct LLM calls. Validate the code to prevent javascript injection. Limit all untrusted code to be used within VM only. Introduce multiple signoffs to allow code to jump VMs.",
+      "Dependencies": ["task_2_7c1", "task_2_8b3"]
+    },
+    {
+      "task_id": "task_2_9b",
+      "priority": "High",
+      "task_name": "Update Documentation for Automated Coder LLM",
+      "description": "Revise docs/workflows/markdown_automation.md and README.md to reflect the new automated workflow.",
+      "status": "Not Started",
+      "Success Criteria": "Documentation accurately describes the new workflow and removes references to manual Coder LLM interaction.",
+      "Potential Risks": "Ensure all manual steps have been successfully removed. Any changes must be compliant.",
+      "Mitigation": "Create a checklist and review updated documentation line by line to ensure content is accurate.",
+      "Dependencies": ["task_2_9a"],
+      "Time Saving Strategy": "Make sure documentation matches the code. Add more tests to prevent documentation to drift away from real code."
+    },
+    {
+      "task_id": "task_2_9c",
+      "priority": "High",
+      "task_name": "Test Automated Coder LLM Workflow",
+      "description": "Create new test cases or modify existing ones to verify the automated Coder LLM interaction is working correctly.",
+      "status": "Not Started",
+      "Success Criteria": "Test cases cover key scenarios and demonstrate that the end-to-end workflow is functional. The tests should check for both success and failure cases.",
+      "Potential Risks": "Ensure ethical code compliance in the new system. Enforce strict adherence to guidelines and verify through dedicated framework to verify compliance.",
+      "Mitigation": "Run automated tests, ethical tests, unit tests and integration tests. Use the appropriate policy to verify ethical compliance.",
+      "Dependencies": ["task_2_9a"],
+      "Time Saving Strategy": "Update as many tests as possible to catch both errors and security/ethical problems."
+    },
+    {
+      "task_id": "task_3_1b",
+      "priority": "High",
+      "task_name": "Review Phase 1.5 Stage 2 (Coder LLM Automation)",
+      "description": "Review Phase 1.5 Stage 2 changes related to automated Coder LLM interaction and updated documentation.",
+      "status": "Not Started",
+      "Success Criteria": "Review doc summarizes changes for Coder LLM automation and ensures documentation is accurate.",
+      "Potential Risks": "Superficial review.",
+      "Mitigation": "Allocate review time, checklist, team review, actionable insights, deadlines.",
+      "Dependencies": ["task_2_9c"],
       "Time Saving Strategy": "Structured review, actionable outcomes focus."
     }
   ],

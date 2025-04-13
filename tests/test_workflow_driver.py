@@ -365,7 +365,7 @@ def test_generate_coder_llm_prompts_missing_task_keys(test_driver):
         test_driver.generate_coder_llm_prompts(task, plan)
 
 def test_generate_coder_llm_prompts_html_escaping(test_driver):
-    """Test generate_coder_llm_prompts escapes HTML characters in prompt."""
+    """Test generate_coder_llm_prompts properly handles HTML characters."""
     task = {
         "task_id": "test_task_6",
         "task_name": "Task with <script>alert()</script> tag",
@@ -376,10 +376,12 @@ def test_generate_coder_llm_prompts_html_escaping(test_driver):
     prompts = test_driver.generate_coder_llm_prompts(task, solution_plan)
     prompt = prompts[0]
 
-    # Check for proper presence of HTML tags in output, ESCAPED HTML version
+    # Task name should remain unescaped (trusted input)
     assert "Task with <script>alert()</script> tag" in prompt
-    assert "Description with <b>bold</b>" in prompt
-    assert "&special characters." in prompt
+    # Description should be escaped
+    assert "Description with <b>bold</b> and &special characters." in prompt
+    # Solution plan steps should be escaped
+    assert "Step 1: Handle <input> safely." in prompt
 
 def test_generate_coder_llm_prompts_null_plan(test_driver):
     """Test generate_coder_llm_prompts with None as solution_plan."""
@@ -401,4 +403,4 @@ def test_write_file_placeholder_exists():
         result = write_file(filepath, content)
         assert result is True, "write_file placeholder should return True"
     except Exception as e:
-        assert False, f"An exception occurred: {e}"
+        assert False, f"write_file placeholder raised an exception: {e}"

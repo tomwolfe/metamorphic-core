@@ -159,7 +159,8 @@ class WorkflowDriver:
             raise ValueError("Task dictionary must contain 'task_name' and 'description' keys")
 
         task_name = task['task_name']
-        task_description = task['description']
+        task_description = html.escape(task['description'])
+        solution_plan = [html.escape(step) for step in solution_plan]
 
         prompt_header = f"You are a Coder LLM expert in Python, asked to implement code for the following task:\\n\\n"
         prompt_task_details = f"Task Name: {task_name}\\nTask Description: {task_description}\\n\\n"
@@ -169,7 +170,4 @@ class WorkflowDriver:
 
         full_prompt = prompt_header + prompt_task_details + prompt_plan_intro + prompt_plan_steps + prompt_requirements
 
-        # Basic sanitization - for demonstration, can be improved
-        sanitized_prompt = html.escape(full_prompt) # Escape HTML characters for safety
-
-        return [sanitized_prompt] # Return prompt as a list
+        return [full_prompt]

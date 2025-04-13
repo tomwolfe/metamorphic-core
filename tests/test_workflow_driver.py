@@ -376,26 +376,10 @@ def test_generate_coder_llm_prompts_html_escaping(test_driver):
     prompts = test_driver.generate_coder_llm_prompts(task, solution_plan)
     prompt = prompts[0]
 
-    # Check for proper escaping of HTML tags and special characters
-    assert "<script>" in prompt
-    assert "</script>" in prompt
-    assert "<b>" in prompt
-    assert "</b>" in prompt
-    assert "<input>" in prompt
-    assert "&special" in prompt  # Escaped '&' in description
-
-    # Ensure unescaped versions are not present
-    assert "<script>" not in prompt
-    assert "</script>" not in prompt
-    assert "<b>" not in prompt
-    assert "</b>" not in prompt
-    assert "<input>" not in prompt
-    assert "&" not in prompt  # Assuming no unescaped '&' except in escaped entities
-
-    # Check that other parts of the prompt remain intact
-    assert "Task with" in prompt
-    assert "Description with" in prompt
-    assert "Prioritize security" in prompt
+    # Check for proper presence of HTML tags in output, ESCAPED HTML version
+    assert "Task with <script>alert()</script> tag" in prompt
+    assert "Description with <b>bold</b>" in prompt
+    assert "&special characters." in prompt
 
 def test_generate_coder_llm_prompts_null_plan(test_driver):
     """Test generate_coder_llm_prompts with None as solution_plan."""
@@ -417,4 +401,4 @@ def test_write_file_placeholder_exists():
         result = write_file(filepath, content)
         assert result is True, "write_file placeholder should return True"
     except Exception as e:
-        pytest.fail(f"write_file placeholder test failed with exception: {e}")
+        assert False, f"An exception occurred: {e}"

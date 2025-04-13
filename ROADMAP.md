@@ -5,67 +5,72 @@
 **NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**
 
 *   **Task ID**: task_2_7a1
-    *   **Priority**: High
-    *   **Task Name**: Create `write_file.py` with placeholder function
-    *   **Status**: Not Started
+    *   **Priority**: Critical
+    *   **Task Name**: Create `write_file.py` (placeholder)
+    *   **Status**: Completed
 
 *   **Task ID**: task_2_7a2
     *   **Priority**: High
-    *   **Task Name**: Unit test `write_file.py` placeholder function
-    *   **Status**: Not Started
+    *   **Task Name**: Unit test `write_file.py` (placeholder)
+    *   **Status**: Completed
 
 *   **Task ID**: task_2_6a
     *   **Priority**: High
-    *   **Task Name**: Implement Task Selection: Load tasks into `WorkflowDriver` Class
-    *   **Status**: Not Started
+    *   **Task Name**: Load tasks in `WorkflowDriver` Init
+    *   **Status**: Completed
 
 *   **Task ID**: task_2_6b
     *   **Priority**: High
-    *   **Task Name**: Implement Task Selection: Select first 'Not Started' task
-    *   **Status**: Not Started
+    *   **Task Name**: Implement `select_next_task()` Logic
+    *   **Status**: Completed
 
 *   **Task ID**: task_2_6c
     *   **Priority**: High
-    *   **Task Name**: Unit test Task Selection Logic
+    *   **Task Name**: Unit test Task Selection
     *   **Status**: Not Started
 
 *   **Task ID**: task_2_7b1
     *   **Priority**: High
-    *   **Task Name**: Implement `write_file` - Core File Writing Logic
+    *   **Task Name**: Impl. `write_file()` - Core Write Logic
     *   **Status**: Not Started
 
 *   **Task ID**: task_2_7b2
     *   **Priority**: High
-    *   **Task Name**: Implement `write_file` - Overwrite checks
+    *   **Task Name**: Impl. `write_file()` - Overwrite Checks
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_7b3
+*   **Task ID**: task_2_7b3a
     *   **Priority**: High
-    *   **Task Name**: Unit test `write_file` - File Writing
+    *   **Task Name**: Unit test `write_file()` - Success & Exceptions
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_7b3b
+    *   **Priority**: High
+    *   **Task Name**: Unit test `write_file()` - Overwrite & `file_exists()`
     *   **Status**: Not Started
 
 *   **Task ID**: task_2_7c1
     *   **Priority**: High
-    *   **Task Name**: Integrate `write_file` into `WorkflowDriver`
+    *   **Task Name**: Integrate `write_file()` in `WorkflowDriver`
     *   **Status**: Not Started
 
 *   **Task ID**: task_2_8b1
     *   **Priority**: High
-    *   **Task Name**: Implement CLI - Integrate with WorkflowDriver: Argument Parsing
+    *   **Task Name**: CLI Argument Parsing
     *   **Status**: Not Started
 
 *   **Task ID**: task_2_8b2
     *   **Priority**: High
-    *   **Task Name**: Implement CLI - Integrate with WorkflowDriver: Task Execution
+    *   **Task Name**: CLI Task Execution Link
     *   **Status**: Not Started
 
 *   **Task ID**: task_2_8b3
     *   **Priority**: High
-    *   **Task Name**: Implement CLI - Unit Tests
+    *   **Task Name**: CLI Unit Tests
     *   **Status**: Not Started
 
 *   **Task ID**: task_3_1
     *   **Priority**: High
-    *   **Task Name**: Review all deliverables for Phase 1.5
+    *   **Task Name**: Phase 1.5 Stage 2 Review
     *   **Status**: Not Started
 

@@ -1,5 +1,7 @@
 # Markdown-Only Automation Workflow for Metamorphic Genesis Ecosystem (Dual LLM)
 
+**Note:** The current workflow involves manually copying prompts to a Coder LLM and pasting the results back. The *intended future workflow* is to automate this interaction, allowing the Driver LLM to directly invoke the Coder LLM.
+
 This document describes the "Markdown-Only Automation" workflow for developing the Metamorphic Software Genesis Ecosystem, leveraging a dual-LLM architecture. This workflow uses specially crafted prompts and augmented `.md` documentation files (ROADMAP.md, CONTRIBUTING.md) to guide an orchestrator (Driver LLM) to autonomously drive development tasks, relying on a secondary model (Coder LLM) to generate code snippets. It enforces a strong emphasis on user oversight and security.
 
 ## Overview of the Workflow
@@ -23,6 +25,8 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
     *Note*: Before calling the `write_file` tool, the LLM should output the `list_files` and double check that all the changes are made correctly.
 6.  Call the `write_file` tool, to write all code to file.
     * Ensure you check if the file will be overwriting code. Before writing all files that should be created or replaced, verify with the user if this step is correct.
+
+**Future Enhancement:** Steps 3-6 currently involve generating steps to call on a separate LLM and review the new code and are steps expected to use the `write_file` tool. In a future version, this interaction will be fully automated.
 
 7.  **Self-Critique and Revise Output:** Before proceeding to self-assessment, take a moment to review your generated output from steps 1-6. Specifically:
 

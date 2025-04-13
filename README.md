@@ -155,6 +155,8 @@ Examine the JSON response for `code_quality` and `ethical_analysis` sections.
 
 For a streamlined, AI-driven development experience with minimal manual prompting, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the completion of Phase 1.5, the system now includes a command-line interface for improved automation and testing. The core of the automation is dependent on both stage 1 and stage 2, which involves well-defined and actionable steps.**
 
+**(Currently, the workflow requires manually copying and pasting prompts to a Coder LLM. The *intended future state* is direct, automated interaction with the Coder LLM, which will streamline the process.)**
+
 **Quickstart Steps:**
 
 1.  **Prepare your `ROADMAP.json` and codebase text** as described in the [Full Guide](docs/workflows/markdown_automation.md). The roadmap is now managed in `ROADMAP.json`, not `ROADMAP.md`.
@@ -295,5 +297,3 @@ tomwolfe@gmail.com
 ## <a name="disclaimer"></a>Disclaimer
 
 **MVP Development Phase:** This project is in MVP development and not intended for production use. APIs and formats may change. Core functionality is integrated but undergoing final polish and internal testing.
-
----

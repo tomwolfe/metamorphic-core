@@ -381,7 +381,7 @@ def test_generate_coder_llm_prompts_html_escaping(test_driver):
     # Description should be escaped
     assert "Description with <b>bold</b> and &special characters." in prompt
     # Solution plan steps should be escaped
-    assert "Step 1: Handle <input> safely." in prompt
+    assert html.escape("Step 1: Handle <input> safely.") in prompt
 
 def test_generate_coder_llm_prompts_null_plan(test_driver):
     """Test generate_coder_llm_prompts with None as solution_plan."""

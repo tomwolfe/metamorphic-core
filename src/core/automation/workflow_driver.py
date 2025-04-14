@@ -16,6 +16,20 @@ class WorkflowDriver:
     def __init__(self, context: Context):
         self.context = context
 
+    def select_next_task(self, tasks: list) -> dict | None:
+        """Selects the next task with status 'Not Started' from the list.
+
+        Args:
+            tasks: A list of task dictionaries. Each task must contain a 'status' key.
+
+        Returns:
+            The first task dictionary with a status of 'Not Started', or None if no such task exists or the list is empty.
+        """
+        for task in tasks:
+            if task['status'] == 'Not Started':
+                return task
+        return None
+
     def generate_coder_llm_prompts(self, task, solution_plan):
         if not isinstance(task, dict):
             raise TypeError("Input 'task' must be a dictionary")

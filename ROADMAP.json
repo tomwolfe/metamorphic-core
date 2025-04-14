@@ -60,7 +60,7 @@
       "priority": "High",
       "task_name": "Unit test Task Selection",
       "description": "Unit tests for `select_next_task()` in `tests/test_workflow_driver.py`. Scenarios: 'Not Started' tasks (start, middle, end), none, empty list.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "Unit tests in `tests/test_workflow_driver.py`, all pass, scenarios covered, task/None assertions.",
       "Potential Risks": "Incomplete coverage, assertions, test isolation, data setup.",
       "Mitigation": "TDD, coverage review, assertion checks, clear test data.",

@@ -404,3 +404,48 @@ def test_write_file_placeholder_exists():
         assert result is True, "write_file placeholder should return True"
     except Exception as e:
         assert False, f"write_file placeholder raised an exception: {e}"
+
+def test_select_next_task_not_started_at_beginning(test_driver):
+    """Test that select_next_task returns the first task when it's 'Not Started'."""
+    tasks = [
+        {'task_id': 'task1', 'status': 'Not Started', 'priority': 'High', 'task_name': 'Test', 'description': 'Test'},
+        {'task_id': 'task2', 'status': 'In Progress', 'priority': 'Medium', 'task_name': 'Test', 'description': 'Test'},
+        {'task_id': 'task3', 'status': 'Completed', 'priority': 'Low', 'task_name': 'Test', 'description': 'Test'}
+    ]
+    next_task = test_driver.select_next_task(tasks)
+    assert next_task == tasks[0], "Should return the first 'Not Started' task"
+
+def test_select_next_task_not_started_in_middle(test_driver):
+    """Test that select_next_task returns the first 'Not Started' task in the middle."""
+    tasks = [
+        {'task_id': 'task1', 'status': 'Completed', 'priority': 'High', 'task_name': 'Test', 'description': 'Test'},
+        {'task_id': 'task2', 'status': 'Not Started', 'priority': 'Medium', 'task_name': 'Test', 'description': 'Test'},
+        {'task_id': 'task3', 'status': 'In Progress', 'priority': 'Low', 'task_name': 'Test', 'description': 'Test'}
+    ]
+    next_task = test_driver.select_next_task(tasks)
+    assert next_task == tasks[1], "Should return the middle 'Not Started' task"
+
+def test_select_next_task_not_started_at_end(test_driver):
+    """Test that select_next_task returns the last task when it's the only 'Not Started'."""
+    tasks = [
+        {'task_id': 'task1', 'status': 'Completed', 'priority': 'High', 'task_name': 'Test', 'description': 'Test'},
+        {'task_id': 'task2', 'status': 'In Progress', 'priority': 'Medium', 'task_name': 'Test', 'description': 'Test'},
+        {'task_id': 'task3', 'status': 'Not Started', 'priority': 'Low', 'task_name': 'Test', 'description': 'Test'}
+    ]
+    next_task = test_driver.select_next_task(tasks)
+    assert next_task == tasks[2], "Should return the last 'Not Started' task"
+
+def test_select_next_task_no_not_started_tasks(test_driver):
+    """Test that select_next_task returns None when no tasks are 'Not Started'."""
+    tasks = [
+        {'task_id': 'task1', 'status': 'Completed', 'priority': 'High', 'task_name': 'Test', 'description': 'Test'},
+        {'task_id': 'task2', 'status': 'In Progress', 'priority': 'Medium', 'task_name': 'Test', 'description': 'Test'},
+        {'task_id': 'task3', 'status': 'Blocked', 'priority': 'Low', 'task_name': 'Test', 'description': 'Test'}
+    ]
+    next_task = test_driver.select_next_task(tasks)
+    assert next_task is None, "Should return None when no tasks are 'Not Started'"
+
+def test_select_next_task_empty_list(test_driver):
+    """Test that select_next_task returns None when the task list is empty."""
+    next_task = test_driver.select_next_task([])
+    assert next_task is None, "Should return None for empty task list"

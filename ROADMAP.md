@@ -27,7 +27,7 @@
 *   **Task ID**: task_2_6c
     *   **Priority**: High
     *   **Task Name**: Unit test Task Selection
-    *   **Status**: Not Started
+    *   **Status**: Completed
 
 *   **Task ID**: task_2_7b1
     *   **Priority**: High

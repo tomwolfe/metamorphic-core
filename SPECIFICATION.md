@@ -133,8 +133,25 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
 
 **III. Technical Specifications & KPIs (Initial)**
 
+**Expected Phase Improvements**
+
+The following table summarizes the anticipated cumulative improvements in key areas for each phase of the Metamorphic Software Genesis Ecosystem. Note that these are ballpark estimates and are subject to change.
+
+| Feature                           | Phase 1 (MVP) | Phase 2 (Enhanced Intelligence) | Phase 3 (Cyber-Physical Systems) | Phase 4 (Quantum) | Phase 5 (Sustaining) |
+| --------------------------------- | ------------- | ------------------------------- | ------------------------------- | --------------- | -------------------- |
+| Development Efficiency/Speed      | 5-10%         | 30-40%                          | 40-55%                          | 50-70%          | 60-80%              |
+| Software Quality (Bugs/Vulnerabilities) | 5-10%         | 30-40%                          | 50-70%                          | 70-90%          | 80-98%              |
+| Ethical Compliance                | 10-20%        | 40-60%                          | 60-80%                          | 80-95%          | 90-99%              |
+| Resource Efficiency               | Negligible    | 5-10%                           | 15-25%                          | 20-35%          | 30-45%              |
+
+**Important Notes:**
+
+*   All percentages are cumulative.
+*   These are "ballpark" estimates only and are subject to significant uncertainty.
+*   Actual improvements will depend on successful implementation, domain specificity, data availability, and human factors.
+
 *   **Core Tech Stack:** Python (primary), Go (concurrency/API), Rust (safety-critical), JavaScript/TypeScript (UI - planned), Coq/Isabelle/Z3 (formal methods).
-*   **LLM Providers:** Gemini (default in MVP), Hugging Face (via Inference Endpoints), OpenAI (future).
+*   **LLM Providers:** Gemini (default in MVP), Hugging Face (via `InferenceClient`, OpenAI (future).
 *   **Knowledge Graph:** Neo4j (planned), initially in-memory Python dict for MVP.
 *   **Security Scanning:** OWASP ZAP (DAST - integrated in CI for MVP), Bandit, Semgrep (SAST - post-MVP).
 *   **Testing Frameworks:** pytest (unit, integration), Hypothesis (property-based).
@@ -142,30 +159,6 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
 *   **Monitoring & Telemetry:** Prometheus (planned), basic logging in MVP.
 *   **Ethical Policy Format:** JSON, schema-validated (`ethical_policy_schema.json`).
 *   **Formal Specification Language:** Natural language (constraints), Coq/Isabelle/Z3 (formal proofs).
-
-**Key Performance Indicators (KPIs) - Version 1.0 Targets:**
-
-*(Baseline: Manual Software Development Process)*
-
-1.  **Software Quality & Security**:
-    *   *Target:* 99.99% bug-free code (measured by formal verification + extended test coverage metrics).
-    *   *Metric:* Defects per KLOC (thousand lines of code), Security Vulnerability Density (ZAP, SAST reports), Formal Verification Coverage (percentage of critical code formally verified).
-    *   *Baseline:* Industry average defect density, manual security audit findings.
-
-2.  **Development Efficiency & Speed**:
-    *   *Target:* 5x faster development cycles for complex applications.
-    *   *Metric:* Time from spec to deployable software, Lines of code generated per developer-hour, Feature delivery frequency.
-    *   *Baseline:* Historical project timelines, industry benchmarks for similar projects.
-
-3.  **Ethical Compliance & Transparency**:
-    *   *Target:* 100% adherence to defined ethical policies; 90% transparency/explainability score.
-    *   *Metric:* Ethical policy violation rate (automated checks), Transparency Score (automated metrics + human review), Audit log completeness, User trust surveys (future).
-    *   *Baseline:* Manual ethical review checklists (MVP), subjective assessments of transparency in current AI systems.
-
-4.  **Resource Efficiency & Resilience**:
-    *   *Target:* 25% reduction in cloud resource consumption; 99.99% system uptime.
-    *   *Metric:* Cloud compute/memory/storage usage (vs. baseline), API latency, Error rates, System uptime/availability.
-    *   *Baseline:* Resource consumption of comparable manual development + deployment pipelines, historical system uptime.
 
 **V. Future Evolution (Beyond Version 1.0):**
 
@@ -202,4 +195,3 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
     *   Achieve 99.999% system uptime
     *   Resolve all high-priority security vulnerabilities within 30 days
     *   Improve transparency score by 5%
-    *Implement code review by others.

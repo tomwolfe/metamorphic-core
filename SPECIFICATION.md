@@ -133,11 +133,11 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
 
 **III. Technical Specifications & KPIs (Initial)**
 
-**Expected Phase Improvements**
+### **Expected Phase Improvements**
 
 The following table summarizes the anticipated cumulative improvements in key areas for each phase of the Metamorphic Software Genesis Ecosystem. Note that these are ballpark estimates and are subject to change.
 
-| Feature                           | Phase 1 (MVP) | Phase 2 (Enhanced Intelligence) | Phase 3 (Cyber-Physical Systems) | Phase 4 (Quantum) | Phase 5 (Sustaining) |
+| Feature                           | Phase 1.5 (Workflow Automation) | Phase 2 (Enhanced Intelligence) | Phase 3 (Cyber-Physical Systems) | Phase 4 (Quantum) | Phase 5 (Sustaining) |
 | --------------------------------- | ------------- | ------------------------------- | ------------------------------- | --------------- | -------------------- |
 | Development Efficiency/Speed      | 5-10%         | 30-40%                          | 40-55%                          | 50-70%          | 60-80%              |
 | Software Quality (Bugs/Vulnerabilities) | 5-10%         | 30-40%                          | 50-70%                          | 70-90%          | 80-98%              |
@@ -180,15 +180,6 @@ The following table summarizes the anticipated cumulative improvements in key ar
     *   **Proactive Threat Mitigation:** Continuously monitor for emerging security threats and ethical risks, implementing proactive countermeasures.
     *   **Community-Centric Innovation:** Foster a vibrant community of contributors to drive innovation and address evolving needs.
     *    **Formal Ethics Review and Grading:** The ethical values should have been tested, and verified.
-
-*Key Components (New/Enhanced):*
-
-    *   **Enhanced KPI Monitoring Subsystem:** Integrates Prometheus (or similar) to collect and visualize key performance indicators related to code quality, security, ethical compliance, and resource efficiency.  Configurable alerts trigger automated responses when KPIs deviate from defined thresholds.
-    *   **Automated Backlog Management Module:** Prioritizes items based on quantifiable impact on KPIs (e.g., weighted scoring based on severity of KPI deviation, potential resource savings, ethical impact)
-    *   **Community Contribution Platform (Enhanced):** Streamlines the process for community members to propose and contribute improvements, bug fixes, and new features, providing clear guidance on coding standards, ethical considerations, and testing requirements.
-    *   **Iterative Grading Process Integration (Enhanced):** Applies the Iterative Grading Process to *all* code contributions, regardless of source (AI-generated or human-submitted), ensuring consistent adherence to quality and ethical standards.  Automated tooling generates "Grade Reports" with actionable feedback for developers.
-    *    **Access controls that writes to files:** Make sure access controls limits to code and also has proper review.
-    *     **Auditing for malicious code:** Double check to make sure code is tested and valid.
 
 *KPI Targets (Examples):*
     *   Reduce average API latency by 10% (vs. Phase 4 baseline)

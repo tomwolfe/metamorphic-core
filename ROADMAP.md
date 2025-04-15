@@ -42,7 +42,7 @@
 *   **Task ID**: task_2_7b3a
     *   **Priority**: High
     *   **Task Name**: Unit test `write_file()` - Success & Exceptions
-    *   **Status**: Not Started
+    *   **Status**: Completed
 
 *   **Task ID**: task_2_7b3b
     *   **Priority**: High

@@ -47,7 +47,7 @@
 *   **Task ID**: task_2_7b3b
     *   **Priority**: High
     *   **Task Name**: Unit test `write_file()` - Overwrite & `file_exists()`
-    *   **Status**: Not Started
+    *   **Status**: Completed
 
 *   **Task ID**: task_2_7c1
     *   **Priority**: High

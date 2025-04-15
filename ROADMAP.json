@@ -72,7 +72,7 @@
       "priority": "High",
       "task_name": "Impl. `write_file()` - Core Write Logic",
       "description": "Implement core file writing in `write_file.py`: write `content`, handle `FileNotFoundError`, `PermissionError` (logging). Return `True`/`False`.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "`write_file()` writes, catches/logs exceptions, returns `True`/`False`.",
       "Potential Risks": "File I/O errors, exception handling, logging, path injection, overwrite.",
       "Mitigation": "`try...except`, logging, basic path sanitization, defer overwrite.",

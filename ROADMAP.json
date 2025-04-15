@@ -84,7 +84,7 @@
       "priority": "High",
       "task_name": "Impl. `write_file()` - Overwrite Checks",
       "description": "Enhance `write_file.py`: `overwrite=False` (default), check exists, `FileExistsError`. `overwrite=True` overwrites. `file_exists(filepath)` helper.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "`write_file(overwrite=False)` raises `FileExistsError`, `overwrite=True` overwrites, `file_exists()` works, documented.",
       "Potential Risks": "Overwrite logic, file checks, exceptions, race conditions.",
       "Mitigation": "Conditional logic, `os.path.exists()`, test overwrite, file locking (future).",

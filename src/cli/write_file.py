@@ -1,9 +1,27 @@
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-def write_file(filepath, content, overwrite=False):
+
+def file_exists(filepath: str) -> bool:
+    """
+    Check if a file exists at the given filepath after sanitizing the path.
+
+    Args:
+        filepath (str): The path to check.
+
+    Returns:
+        bool: True if the file exists, False otherwise.
+    """
+    sanitized_path = Path(filepath).resolve()
+    return os.path.exists(sanitized_path)
+
+
+def write_file(
+    filepath: str, content: str, overwrite: bool = False
+) -> bool:
     """
     Write content to a file, handling exceptions and logging.
 
@@ -15,17 +33,21 @@ def write_file(filepath, content, overwrite=False):
 
     Returns:
         bool: True if the file was written successfully, False otherwise.
+
+    Raises:
+        FileExistsError: If the file exists and overwrite is False.
     """
-    # Sanitize the file path to prevent path traversal
     sanitized_path = Path(filepath).resolve()
 
     # Check if the file exists and we shouldn't overwrite it
-    if not overwrite and sanitized_path.exists():
-        return False
+    if not overwrite and file_exists(filepath):
+        raise FileExistsError(
+            f"File {sanitized_path} already exists and overwrite is False"
+        )
 
     try:
         # Attempt to open the file in write mode ('w')
-        with open(sanitized_path, 'w') as file:
+        with open(sanitized_path, "w") as file:
             file.write(content)
     except (FileNotFoundError, PermissionError) as e:
         # Log the error and return False

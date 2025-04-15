@@ -32,7 +32,7 @@
 *   **Task ID**: task_2_7b1
     *   **Priority**: High
     *   **Task Name**: Impl. `write_file()` - Core Write Logic
-    *   **Status**: Not Started
+    *   **Status**: Completed
 
 *   **Task ID**: task_2_7b2
     *   **Priority**: High

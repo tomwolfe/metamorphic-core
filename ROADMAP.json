@@ -108,7 +108,7 @@
       "priority": "High",
       "task_name": "Unit test `write_file()` - Overwrite & `file_exists()`",
       "description": "Unit tests in `tests/test_workflow_driver.py` for `write_file()`: `FileExistsError` (overwrite=False), overwrite=True, `file_exists()` tests. Coverage goal.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "Tests for overwrite/file_exists pass, assertions verify behavior, coverage goal achieved.",
       "Potential Risks": "Incomplete coverage, assertions, file pollution.",
       "Mitigation": "Pytest fixtures, temp dirs (`tmp_path`), coverage reports, peer review tests.",

@@ -16,7 +16,7 @@ def file_exists(filepath: str) -> bool:
         bool: True if the file exists, False otherwise.
     """
     sanitized_path = Path(filepath).resolve()
-    return os.path.exists(sanitized_path)
+    return os.path.isfile(sanitized_path)
 
 
 def write_file(
@@ -49,11 +49,9 @@ def write_file(
         # Attempt to open the file in write mode ('w')
         with open(sanitized_path, "w") as file:
             file.write(content)
+        logger.info(f"Successfully wrote to {sanitized_path}")
+        return True
     except (FileNotFoundError, PermissionError) as e:
         # Log the error and return False
         logger.error(f"Error writing to {sanitized_path}: {str(e)}")
         return False
-
-    # Log success and return True
-    logger.info(f"Successfully wrote to {sanitized_path}")
-    return True

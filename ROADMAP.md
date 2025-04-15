@@ -37,7 +37,7 @@
 *   **Task ID**: task_2_7b2
     *   **Priority**: High
     *   **Task Name**: Impl. `write_file()` - Overwrite Checks
-    *   **Status**: Not Started
+    *   **Status**: Completed
 
 *   **Task ID**: task_2_7b3a
     *   **Priority**: High

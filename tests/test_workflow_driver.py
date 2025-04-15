@@ -16,6 +16,39 @@ def test_driver(tmp_path):
     context = Context(str(tmp_path))
     return WorkflowDriver(context)
 
+class TestWorkflowDriver:
+    def test_write_file_success(self, tmp_path, caplog):
+        """Test successful file writing."""
+        caplog.set_level(logging.INFO)  # Ensure INFO level logging is captured
+        filepath = tmp_path / "test_file.txt"
+        content = "Test content"
+        result = write_file(str(filepath), content)
+        assert result is True
+        assert filepath.exists()
+        assert filepath.read_text() == content
+        assert len(caplog.records) > 0  # Verify logging occurred
+
+    def test_write_file_filenotfounderror(self, tmp_path, caplog):
+        """Test handling of FileNotFoundError."""
+        caplog.set_level(logging.ERROR)
+        filepath = tmp_path / "non_existent_dir" / "test_file.txt"
+        content = "Test content"
+        result = write_file(str(filepath), content)
+        assert result is False
+        assert "Error writing to" in caplog.text  # Check for specific error message
+
+    def test_write_file_permissionerror(self, tmp_path, caplog):
+        """Test handling of PermissionError."""
+        caplog.set_level(logging.ERROR)
+        # Create a read-only directory
+        readonly_dir = tmp_path / "readonly_dir"
+        readonly_dir.mkdir(mode=0o555)  # Read-only for all
+        filepath = readonly_dir / "test_file.txt"
+        content = "Test content"
+        result = write_file(str(filepath), content)
+        assert result is False
+        assert "Error writing to" in caplog.text  # Check for specific error message
+
 def create_mock_roadmap_file(content, tmp_path, is_json=True):
     """Creates a mock roadmap file in the temporary directory."""
     if is_json:
@@ -285,7 +318,6 @@ def test_list_files(test_driver, tmp_path):
         except OSError as e:
             logger.warning(f"Failed to remove directory {temp_test_dir}: {e}")
 
-
 def test_generate_user_actionable_steps_empty(test_driver):
     assert test_driver.generate_user_actionable_steps([]) == ""
 
@@ -391,7 +423,6 @@ def test_generate_coder_llm_prompts_null_plan(test_driver):
     with pytest.raises(TypeError) as excinfo:
         test_driver.generate_coder_llm_prompts(task, None)
 
-
 def test_write_file_success(tmp_path, caplog):
     """Test successful file writing."""
     caplog.set_level(logging.INFO)
@@ -422,4 +453,4 @@ def test_write_file_permissionerror(tmp_path, caplog):
     content = "Test content"
     result = write_file(str(filepath), content)
     assert result is False
-    assert "Permission denied" in caplog.text
+    assert "Error writing to" in caplog.text

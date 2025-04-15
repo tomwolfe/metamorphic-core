@@ -96,7 +96,7 @@
       "priority": "High",
       "task_name": "Unit test `write_file()` - Success & Exceptions",
       "description": "Unit tests in `tests/test_workflow_driver.py` for `write_file()`: successful write, `FileNotFoundError`, `PermissionError` handling.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "Tests for success/exceptions pass, assertions verify behavior, temp files.",
       "Potential Risks": "Incomplete coverage, error simulation, assertions.",
       "Mitigation": "Pytest fixtures, temp dirs, coverage reports, TDD.",

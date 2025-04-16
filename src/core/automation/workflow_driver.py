@@ -1,8 +1,13 @@
-import os
-import json
-import logging
-import html
+# src/core/automation/workflow_driver.py
 
+from src.cli.write_file import write_file  # Import the utility function for writing files
+import logging  # Import the logging module for logging messages
+import html
+import os
+import json # Import JSON
+from pathlib import Path
+
+# Configure the logger
 logger = logging.getLogger(__name__)
 
 class Context:
@@ -14,6 +19,7 @@ class Context:
 
 class WorkflowDriver:
     def __init__(self, context: Context):
+        # Initialize the WorkflowDriver with a given context
         self.context = context
 
     def select_next_task(self, tasks: list) -> dict | None:
@@ -155,3 +161,54 @@ Requirements:
             elif os.path.isdir(full_path):
                 entries.append({'name': name, 'status': 'directory'})
         return entries
+
+    def _write_output_file(self, filepath, content, overwrite=False):
+        """
+        Writes content to a file using the write_file utility function.
+
+        Args:
+            filepath (str): The path to the file.
+            content (str): The content to write.
+            overwrite (bool): Whether to overwrite existing files. Defaults to False.
+
+        Returns:
+            bool: True if file writing was successful, False otherwise.
+
+        Raises:
+            FileExistsError: If overwrite is False and the file already exists.
+        """
+        sanitized_filepath = str(Path(filepath).resolve()) # Sanitize the filepath
+        if not sanitized_filepath.startswith(self.context.base_path):
+             logger.error(f"Attempt to write outside base path: {filepath} (Sanitized: {sanitized_filepath})")
+             return False
+
+        try:
+            # Call the write_file function with the provided parameters
+            result = write_file(sanitized_filepath, content, overwrite=overwrite)
+            
+            # If write_file succeeds, log an info message and return True
+            if result:
+                logger.info(f"Successfully wrote to file: {sanitized_filepath}")
+                return True
+            
+            # If write_file returns False, propagate the failure
+            return False
+
+        except FileExistsError as e:
+            # Propagate FileExistsError to allow the caller to handle it
+            raise e
+
+        except FileNotFoundError as e:
+            # Log an error message for FileNotFoundError
+            logger.error(f"File not found error when writing to {filepath}: {e}", exc_info=True) #Include exception
+            return False
+
+        except PermissionError as e:
+            # Log an error message for PermissionError
+            logger.error(f"Permission error when writing to {filepath}: {e}", exc_info=True) #Include exception
+            return False
+
+        except Exception as e:
+            # Log any unexpected exceptions
+            logger.error(f"Unexpected error writing to {filepath}: {e}", exc_info=True) #Include exception
+            return False

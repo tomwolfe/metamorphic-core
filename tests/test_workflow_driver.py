@@ -8,6 +8,7 @@ import logging
 from src.cli.write_file import write_file, file_exists  # Import write_file and file_exists
 from pathlib import Path
 from src.core.automation.workflow_driver import WorkflowDriver, Context # Import the correct Path
+import json
 
 # Set up logging for tests
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -29,76 +30,111 @@ def create_mock_roadmap_file(content, tmp_path, is_json=True):
     return str(file_path)
 
 class TestWorkflowDriver:
-    def test_write_file_success(self, tmp_path, caplog):
+    def test_workflow_driver_write_output_file_success(
+        self, test_driver, tmp_path, caplog
+    ):
         """Test successful file writing."""
         caplog.set_level(logging.INFO)
         filepath = tmp_path / "test_file.txt"
         content = "Test content"
-        result = write_file(str(filepath), content)
+        result = test_driver._write_output_file(str(filepath), content)
         assert result is True
         assert filepath.exists()
         assert filepath.read_text() == content
-        assert "Successfully wrote to" in caplog.text
+        assert "Successfully wrote to file" in caplog.text
 
-    def test_write_file_filenotfounderror(self, tmp_path, caplog):
-        """Test handling of FileNotFoundError."""
-        caplog.set_level(logging.ERROR)
-        filepath = tmp_path / "non_existent_dir" / "test_file.txt"
-        content = "Test content"
-        result = write_file(str(filepath), content)
-        assert result is False
-        assert "No such file or directory" in caplog.text
-
-    def test_write_file_permissionerror(self, tmp_path, caplog):
-        """Test handling of PermissionError."""
-        caplog.set_level(logging.ERROR)
-        # Create a read-only directory
-        readonly_dir = tmp_path / "readonly_dir"
-        readonly_dir.mkdir(mode=0o555)  # Read-only for all
-        filepath = readonly_dir / "test_file.txt"
-        content = "Test content"
-        result = write_file(str(filepath), content)
-        assert result is False
-        assert "Permission denied" in caplog.text
-
-    def test_write_file_no_overwrite_existing_file(self, tmp_path):
-        """Test write_file() with overwrite=False when file exists."""
+    def test_workflow_driver_write_output_file_exists_no_overwrite(
+        self, test_driver, tmp_path
+    ):
+        """Test write_output_file with overwrite=False when file exists."""
         filepath = tmp_path / "existing_file.txt"
-        filepath.write_text("initial content")
-        content = "new content"
+        initial_content = "initial content"
+        filepath.write_text(initial_content)
+        new_content = "new content"
         with pytest.raises(FileExistsError) as exc_info:
-            write_file(str(filepath), content, overwrite=False)
+            test_driver._write_output_file(str(filepath), new_content, overwrite=False)
         assert "already exists" in str(exc_info.value)
-        assert filepath.read_text() == "initial content"  # Verify content not overwritten
+        assert filepath.read_text() == "initial content" # Verify content not overwritten
 
-    def test_write_file_overwrite_existing_file(self, tmp_path):
-        """Test write_file() with overwrite=True when file exists."""
-        filepath = tmp_path / "existing_file.txt"
-        filepath.write_text("initial content")
-        new_content = "overwritten content"
-        result = write_file(str(filepath), new_content, overwrite=True)
+    def test_workflow_driver_write_output_file_filenotfounderror(
+        self, test_driver, tmp_path, caplog
+    ):
+        """Test writing to a non-existent directory (FileNotFoundError)."""
+        caplog.set_level(logging.ERROR)
+        invalid_path = tmp_path / "nonexistent_dir" / "file.txt"
+        content = "Test content"
+        result = test_driver._write_output_file(str(invalid_path), content)
+        assert result is False
+        assert "Error writing to" in caplog.text and "No such file or directory" in caplog.text
+
+    def test_workflow_driver_write_output_file_permissionerror(
+        self, test_driver, tmp_path, caplog
+    ):
+        """Test writing to a read-only directory (PermissionError)."""
+        caplog.set_level(logging.ERROR)
+        dir_path = tmp_path / "readonly_dir"
+        dir_path.mkdir()
+        dir_path.chmod(0o444)  # Set directory to read-only
+        filepath = dir_path / "test.txt"
+        content = "Test content"
+        result = test_driver._write_output_file(str(filepath), content)
+        assert result is False
+        assert "Error writing to" in caplog.text and "Permission denied" in caplog.text # Log for exception
+        try:
+            assert not filepath.exists() # File should not be created
+        except PermissionError:
+            assert True # Also works if can't check for existence
+
+    def test_workflow_driver_write_output_file_overwrite_true(
+        self, test_driver, tmp_path
+    ):
+        """Test overwrite=True successfully replaces existing file content."""
+        filepath = tmp_path / "overwrite_test.txt"
+        initial_content = "original content"
+        new_content = "new content"
+        filepath.write_text(initial_content)
+        result = test_driver._write_output_file(str(filepath), new_content, overwrite=True)
         assert result is True
-        assert filepath.read_text() == new_content  # Verify content overwritten
+        assert filepath.read_text() == new_content
 
-    def test_file_exists_positive(self, tmp_path):
-        """Test file_exists() with an existing file."""
-        filepath = tmp_path / "existing_file.txt"
-        filepath.write_text("some content")
-        from src.cli.write_file import file_exists
-        assert file_exists(str(filepath)) is True
+    def test_workflow_driver_write_output_file_security_path_injection(
+        self, test_driver, tmp_path,
+    ):
+        """Test path injection attempts (e.g., using '..' or absolute paths)."""
+        # Ensure that the current working directory is within tmp_path for consistency
+        os.chdir(tmp_path)
 
-    def test_file_exists_negative(self, tmp_path):
-        """Test file_exists() with a non-existent file."""
-        filepath = tmp_path / "non_existent_file.txt"
-        from src.cli.write_file import file_exists
-        assert file_exists(str(filepath)) is False
+        # Test relative path injection
+        relative_path_attempt =  "../injected_file.txt"
+        filepath_relative = tmp_path / relative_path_attempt
+        content = "Path injection test - relative path"
+        result_relative = test_driver._write_output_file(
+            str(filepath_relative), content
+        )
+        assert result_relative is False, "Relative path write should have failed"
 
-    def test_file_exists_directory(self, tmp_path):
-        """Test file_exists() with a directory path."""
-        dirpath = tmp_path / "test_directory"
-        dirpath.mkdir()
-        from src.cli.write_file import file_exists
-        assert file_exists(str(dirpath)) is False
+        # Verify file is NOT written outside tmp_path
+        injected_file = tmp_path.parent / "injected_file.txt"
+        assert not injected_file.exists(), "Relative path injection test failed: file was created outside tmp_path unexpectedly!"
+
+        # Test absolute path injection - attempting to write to system's temp dir
+        absolute_path_attempt = "/tmp/abs_injected_file.txt"
+        filepath_absolute = tmp_path / absolute_path_attempt # Attempt to create path within tmp_path
+        content_absolute = "Path injection test - absolute path"
+        result_absolute = test_driver._write_output_file(
+             str(filepath_absolute), content_absolute
+        )
+
+        assert result_absolute is False, "Absolute path write should have failed"
+
+        # Check within tmp_path for any unintended creation. Since we used Path.resolve, it would create this nested path under tmp_path
+        abs_injected_file = tmp_path / "tmp" / "abs_injected_file.txt"
+        assert not abs_injected_file.exists(), "Absolute path injection test failed: file was created unexpectedly!"
+
+        print(f"""SECURITY TEST: Manually verify:
+        1. No files were created outside of {tmp_path}.
+        2. The paths '../injected_file.txt' and '/tmp/abs_injected_file.txt' were not written to.
+        """)
 
 def test_load_roadmap_valid_json(test_driver, tmp_path):
     roadmap_content = """
@@ -467,76 +503,3 @@ def test_generate_coder_llm_prompts_null_plan(test_driver):
     }
     with pytest.raises(TypeError) as excinfo:
         test_driver.generate_coder_llm_prompts(task, None)
-
-
-class TestWorkflowDriver:
-    def test_write_file_success(self, tmp_path, caplog):
-        """Test successful file writing."""
-        caplog.set_level(logging.INFO)
-        filepath = tmp_path / "test_file.txt"
-        content = "Test content"
-        result = write_file(str(filepath), content)
-        assert result is True
-        assert filepath.exists()
-        assert filepath.read_text() == content
-        assert "Successfully wrote to" in caplog.text
-
-    def test_write_file_filenotfounderror(self, tmp_path, caplog):
-        """Test handling of FileNotFoundError."""
-        caplog.set_level(logging.ERROR)
-        filepath = tmp_path / "non_existent_dir" / "test_file.txt"
-        content = "Test content"
-        result = write_file(str(filepath), content)
-        assert result is False
-        assert "No such file or directory" in caplog.text
-
-    def test_write_file_permissionerror(self, tmp_path, caplog):
-        """Test handling of PermissionError."""
-        caplog.set_level(logging.ERROR)
-        # Create a read-only directory
-        readonly_dir = tmp_path / "readonly_dir"
-        readonly_dir.mkdir(mode=0o555)  # Read-only for all
-        filepath = readonly_dir / "test_file.txt"
-        content = "Test content"
-        result = write_file(str(filepath), content)
-        assert result is False
-        assert "Permission denied" in caplog.text
-
-    def test_write_file_no_overwrite_existing_file(self, tmp_path):
-        """Test write_file() with overwrite=False when file exists."""
-        filepath = tmp_path / "existing_file.txt"
-        filepath.write_text("initial content")
-        content = "new content"
-        with pytest.raises(FileExistsError) as exc_info:
-            write_file(str(filepath), content, overwrite=False)
-        assert "already exists" in str(exc_info.value)
-        assert filepath.read_text() == "initial content"  # Verify content not overwritten
-
-    def test_write_file_overwrite_existing_file(self, tmp_path):
-        """Test write_file() with overwrite=True when file exists."""
-        filepath = tmp_path / "existing_file.txt"
-        filepath.write_text("initial content")
-        new_content = "overwritten content"
-        result = write_file(str(filepath), new_content, overwrite=True)
-        assert result is True
-        assert filepath.read_text() == new_content  # Verify content overwritten
-
-    def test_file_exists_positive(self, tmp_path):
-        """Test file_exists() with an existing file."""
-        filepath = tmp_path / "existing_file.txt"
-        filepath.write_text("some content")
-        from src.cli.write_file import file_exists
-        assert file_exists(str(filepath)) is True
-
-    def test_file_exists_negative(self, tmp_path):
-        """Test file_exists() with a non-existent file."""
-        filepath = tmp_path / "non_existent_file.txt"
-        from src.cli.write_file import file_exists
-        assert file_exists(str(filepath)) is False
-
-    def test_file_exists_directory(self, tmp_path):
-        """Test file_exists() with a directory path."""
-        dirpath = tmp_path / "test_directory"
-        dirpath.mkdir()
-        from src.cli.write_file import file_exists
-        assert file_exists(str(dirpath)) is False

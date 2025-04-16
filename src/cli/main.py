@@ -6,6 +6,10 @@ It provides argument parsing with validation for roadmap files and output direct
 
 import argparse
 import os
+import logging
+from src.core.automation.workflow_driver import WorkflowDriver, Context
+
+logger = logging.getLogger(__name__)
 
 
 def _validate_roadmap_path(value):
@@ -87,6 +91,20 @@ def cli_entry_point():
     # Display validated paths for verification
     print(f"Using roadmap: {args.roadmap}")
     print(f"Using output directory: {args.output_dir}")
+
+    # New logic starts here
+    context = Context(os.getcwd())
+    driver = WorkflowDriver(context)
+
+    try:
+        tasks = driver.load_roadmap(args.roadmap)
+        next_task = driver.select_next_task(tasks)
+        if next_task:
+            logger.info(f"Next task selected: ID={next_task['task_id']}, Name={next_task['task_name']}")
+        else:
+            logger.info("No tasks available in 'Not Started' status.")
+    except Exception as e:
+        logger.error(f"An error occurred during workflow execution: {e}", exc_info=True)
 
 
 if __name__ == "__main__":

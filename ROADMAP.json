@@ -144,7 +144,7 @@
       "priority": "High",
       "task_name": "CLI Task Execution Link",
       "description": "CLI: link to `WorkflowDriver` task select. CLI runs, instantiates `WorkflowDriver`, calls `select_next_task()`, prints task/none.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "CLI runs, `WorkflowDriver` init, `select_next_task()` call, console output, no errors.",
       "Potential Risks": "`WorkflowDriver` init, `select_next_task()` errors, output, CLI errors.",
       "Mitigation": "`WorkflowDriver` check, function call checks, clear output, CLI logging.",

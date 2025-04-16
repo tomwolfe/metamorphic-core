@@ -132,7 +132,7 @@
       "priority": "High",
       "task_name": "CLI Argument Parsing",
       "description": "CLI (`src/cli/main.py`): `argparse` for `--roadmap`, `--output-dir`. Basic validation, error handling, user errors.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "CLI parses args, help correct, path validation, error messages, exit codes.",
       "Potential Risks": "Parsing logic, validation errors, unclear errors, CLI usability.",
       "Mitigation": "`argparse`, clear errors, test valid/invalid args, CLI practices.",
@@ -230,5 +230,5 @@
     "Add Phase 2 description, which starts with Iteration 2 (Enhanced Agents & Knowledge Graph)",
     "Add tasks from Iteration 2 (Enhanced Agents & Knowledge Graph)"
   ],
-  "current_focus": "🎯 CURRENT FOCUS: Phase 1.5 Stage 2 - Completing Integration of File Write & CLI  🚀"
+  "current_focus": "🎯 CURRENT FOCUS: Transition to Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph 🚀"
 }

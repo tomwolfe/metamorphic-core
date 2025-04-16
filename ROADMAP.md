@@ -67,7 +67,7 @@
 *   **Task ID**: task_2_8b3
     *   **Priority**: High
     *   **Task Name**: CLI Unit Tests
-    *   **Status**: Not Started
+    *   **Status**: Completed
 
 *   **Task ID**: task_3_1a
     *   **Priority**: High

@@ -1,5 +1,7 @@
+# src/cli/main.py
 """
-This module serves as the command-line interface (CLI) entry point for the Metamorphic Software Genesis Ecosystem. It provides basic argument parsing and placeholder functionality for future expansion.
+This module serves as the command-line interface (CLI) entry point for the Metamorphic Software Genesis Ecosystem.
+It provides argument parsing with validation for roadmap files and output directories.
 """
 
 import argparse
@@ -7,30 +9,56 @@ import os
 
 
 def _validate_roadmap_path(value):
+    """Validate the provided roadmap file path.
+
+    Args:
+        value (str): Path to the roadmap file
+
+    Returns:
+        str: Validated absolute path if validation passes
+
+    Raises:
+        argparse.ArgumentTypeError: If path doesn't exist or isn't a file
+    """
     if not os.path.exists(value):
         raise argparse.ArgumentTypeError(f"Roadmap file {value} does not exist")
-    return value
+    if not os.path.isfile(value):
+        raise argparse.ArgumentTypeError(f"{value} is not a valid file")
+    return os.path.abspath(value)
 
 
 def _validate_output_dir(value):
+    """Validate the provided output directory path.
+
+    Args:
+        value (str): Path to the output directory
+
+    Returns:
+        str: Validated absolute path if validation passes
+
+    Raises:
+        argparse.ArgumentTypeError: If path doesn't exist or isn't a directory
+    """
     if not os.path.exists(value):
         raise argparse.ArgumentTypeError(f"Output directory {value} does not exist")
     if not os.path.isdir(value):
         raise argparse.ArgumentTypeError(f"{value} is not a directory")
-    return value
+    return os.path.abspath(value)
 
 
 def cli_entry_point():
     """
     Main entry point function for the CLI.
 
-    Sets up the argument parser, handles version checks, and provides placeholder execution logic.
+    Sets up the argument parser with roadmap and output directory arguments,
+    handles validation, and executes the main logic.
     """
     parser = argparse.ArgumentParser(
-        description="Metamorphic Software Genesis Ecosystem CLI"
+        description="Metamorphic Software Genesis Ecosystem CLI",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    # Add version argument to display the current version and exit
+    # Version argument
     parser.add_argument(
         "--version",
         action="version",
@@ -38,25 +66,25 @@ def cli_entry_point():
         help="Show the version number and exit",
     )
 
-    # Add roadmap argument with validation
+    # Roadmap file argument
     parser.add_argument(
         "--roadmap",
         type=_validate_roadmap_path,
         default="ROADMAP.json",
-        help="Path to the roadmap JSON file.",
+        help="Path to the roadmap JSON file",
     )
 
-    # Add output directory argument with validation
+    # Output directory argument
     parser.add_argument(
         "--output-dir",
         type=_validate_output_dir,
         default="./output",
-        help="Path to the output directory.",
+        help="Path to the output directory",
     )
 
     args = parser.parse_args()
 
-    # Print parsed arguments for verification
+    # Display validated paths for verification
     print(f"Using roadmap: {args.roadmap}")
     print(f"Using output directory: {args.output_dir}")
 

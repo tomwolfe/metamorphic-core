@@ -57,7 +57,7 @@
 *   **Task ID**: task_2_8b1
     *   **Priority**: High
     *   **Task Name**: CLI Argument Parsing
-    *   **Status**: Not Started
+    *   **Status**: Completed
 
 *   **Task ID**: task_2_8b2
     *   **Priority**: High

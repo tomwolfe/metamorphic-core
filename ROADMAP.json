@@ -156,7 +156,7 @@
       "priority": "High",
       "task_name": "CLI Unit Tests",
       "description": "Unit tests in `tests/test_cli.py` for CLI: arg parsing, workflow, task select/none. Mock `WorkflowDriver`.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "Unit tests in `tests/test_cli.py`, cover arg parsing/workflow, mocking, assertions for CLI.",
       "Potential Risks": "Incomplete coverage, mocking errors, assertions, test setup.",
       "Mitigation": "TDD, mocking, coverage review, assertion checks, run tests.",

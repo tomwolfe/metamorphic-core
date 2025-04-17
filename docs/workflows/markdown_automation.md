@@ -2,7 +2,7 @@
 
 **Note:** The current workflow involves manually copying prompts to a Coder LLM and pasting the results back. The *intended future workflow* is to automate this interaction, allowing the Driver LLM to directly invoke the Coder LLM.
 
-This document describes the "Markdown-Only Automation" workflow for developing the Metamorphic Software Genesis Ecosystem, leveraging a dual-LLM architecture. This workflow uses specially crafted prompts and augmented `.md` documentation files (ROADMAP.md, CONTRIBUTING.md) to guide an orchestrator (Driver LLM) to autonomously drive development tasks, relying on a secondary model (Coder LLM) to generate code snippets. It enforces a strong emphasis on user oversight and security.
+This document describes the "Markdown-Only Automation" workflow for developing the Metamorphic Genesis Ecosystem, leveraging a dual-LLM architecture. This workflow uses specially crafted prompts and augmented `.md` documentation files (ROADMAP.md, CONTRIBUTING.md) to guide an orchestrator (Driver LLM) to autonomously drive development tasks, relying on a secondary model (Coder LLM) to generate code snippets. It enforces a strong emphasis on user oversight and security.
 
 ## Overview of the Workflow
 
@@ -106,11 +106,99 @@ To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to 
 *   Use the specified JSON formatting.
 *   Task names should be relatively short to avoid parsing issues.
 
+## CLI Integration and Execution
+
+The Markdown-Only Automation Workflow can be executed via the command-line interface (CLI) provided in `src/cli/main.py`.  This CLI allows you to run the WorkflowDriver and initiate the task selection process.
+
+**Basic CLI Usage:**
+
+To run the workflow driver, navigate to the project root directory in your terminal and execute the following command:
+
+```bash
+python src/cli/main.py
+```
+
+This command will execute the `cli_entry_point()` function in `src/cli/main.py`. By default, it will:
+
+*   Load the roadmap from `ROADMAP.json` in the project root.
+*   Use the default output directory `./output`.
+*   Select the next task with "Not Started" status from the loaded roadmap.
+*   Print information about the selected task (or indicate if no tasks are available).
+
+**CLI Arguments:**
+
+The CLI supports the following arguments to customize its behavior:
+
+*   `--roadmap <path>`: Specifies the path to the `ROADMAP.json` file.  This allows you to use a roadmap file located elsewhere or with a different name.
+    *   **Example:** To run the CLI with a roadmap file located at `path/to/my_roadmap.json`, use:
+        ```bash
+        python src/cli/main.py --roadmap path/to/my_roadmap.json
+        ```
+
+*   `--output-dir <path>`: Specifies the path to the output directory where generated files (in future automated steps) would be written. Defaults to `./output` in the project root.
+    *   **Example:** To run the CLI and specify `my_output_directory` as the output directory, use:
+        ```bash
+        python src/cli/main.py --output-dir my_output_directory
+        ```
+
+**Combining Arguments:** You can use both arguments together:
+
+```bash
+python src/cli/main.py --roadmap path/to/my_roadmap.json --output-dir my_output_directory
+```
+
+**Example CLI Execution:**
+
+1.  **Open your terminal** and navigate to the root directory of the `metamorphic-core` project.
+2.  **Run the basic command:**
+
+    ```bash
+    python src/cli/main.py
+    ```
+
+    This will execute the workflow driver with default settings. You should see output similar to:
+
+    ```text
+    Using roadmap: /path/to/metamorphic-core/ROADMAP.json
+    Using output directory: /path/to/metamorphic-core/output
+    Next task selected: ID=task_3_1a, Name=Review Phase 1.5 Stage 2 (Initial Implementation)
+    ```
+
+    *If no tasks with "Not Started" status are found, you will see:*
+
+    ```text
+    Using roadmap: /path/to/metamorphic-core/ROADMAP.json
+    Using output directory: /path/to/metamorphic-core/output
+    No tasks available in 'Not Started' status.
+    ```
+
+3.  **Experiment with arguments:** Try running the CLI with different roadmap and output directory arguments to see how it changes the behavior:
+
+    ```bash
+    python src/cli/main.py --roadmap custom_roadmap.json --output-dir custom_output_dir
+    ```
+
+    *Ensure that `custom_roadmap.json` exists (or create a dummy one for testing) and `custom_output_dir` is a valid directory path.*
+
+**Troubleshooting CLI Issues:**
+
+If you encounter issues running the CLI, check the following:
+
+*   **"ROADMAP.json file not found" error:**
+    *   **Verify the path:** Ensure that the `ROADMAP.json` file exists at the default location (project root) or the path specified by the `--roadmap` argument is correct.
+    *   **File existence:** Double-check that the `ROADMAP.json` file has not been accidentally deleted or moved.
+
+*   **"Output directory not found" error:**
+    *   **Verify the path:** Ensure that the output directory path specified by the `--output-dir` argument is correct and that the directory exists.
+    *   **Create directory:** If you intend to use a new output directory, make sure to create it manually before running the CLI, or use a path to an existing directory.
+
+*   **"Argument parsing errors" or unexpected behavior:**
+    *   **Check command syntax:** Review the CLI command you are using for any typos or incorrect argument names.
+    *   **Refer to help message:** Run `python src/cli/main.py --help` to display the CLI help message and verify the correct syntax and available arguments.
+    *   **Environment setup:** Ensure you are running the command from the project root directory and that your Python environment is correctly set up (virtual environment activated if used).
+
 ## Ready-to-Use "Ideal" Self-Driving Prompt
 
-To initiate the "Markdown-Only Automation" workflow, copy the following prompt into your LLM interface. Be sure to replace the bracketed placeholders with the actual content of those files. *Do not* include the brackets themselves.
-
-```
 You are an AI development assistant working on the Metamorphic Software Genesis Ecosystem. Your goal is to autonomously drive the development of the project by following the instructions in docs/workflows/markdown_automation.md. Adhere to the Iterative Grading Process. Pay close attention to writing code that meets ethical standards. Before writing any files, and doing any action, be sure to read and understand them and verify the content is correct and ethical. Never write anything with overwriting files unless it's required.
 
 **IMPORTANT CONTEXT FOR THIS DEVELOPMENT ITERATION:**
@@ -142,6 +230,7 @@ You MUST select a Task ID from the ROADMAP.json file to work on, and explicitly 
     *   Generate precise code generation prompts for the Coder LLM. Ensure generated code follows PEP 8 style guidelines and explain how each line adheres to these guidelines.
     *   Generate precise code generation prompts for the Coder LLM. When generating code, implement sanitization and code injection techniques to address potential vulnerabilities. Then, explain how this was used for the security vulnerability
         *   Output your testing methodology for vulnerability concerns, and how you test.
+        *   Output your testing methodology for vulnerability concerns, and how you test.
     *   Generate a numbered list of User Actionable Steps, formatted as a Markdown checklist.
     *   Self-Critique and Revise the generated outputs (Solution Plan, Coder LLM Prompts, User Actionable Steps).
     *   Perform a self-assessment and grade the proposed solution using the Iterative Grading Process from CONTRIBUTING.md.
@@ -151,4 +240,45 @@ You MUST select a Task ID from the ROADMAP.json file to work on, and explicitly 
 
 Remember to follow these guidelines to the greatest extent possible. Await human confirmation before commencing any additional tasks or stages.
 
-Begin!
+## ROADMAP.json Format
+
+```json
+{
+    "phase": "Phase Name",
+    "phase_goal": "Goal of the Phase",
+    "success_metrics": [],
+    "tasks": [
+        {
+            "task_id": "task_1_1",
+            "priority": "High",
+            "task_name": "Example Task",
+            "description": "Details of the task",
+            "status": "Not Started"
+        }
+    ],
+    "next_phase_actions": [],
+    "current_focus": "🎯 CURRENT FOCUS: [Concise description of current focus]"
+}
+```
+
+**Field Requirements:**
+
+*   The top-level structure *must* be a JSON object (dictionary).
+*   The object *must* contain a `"tasks"` key.
+*   The value associated with the `"tasks"` key *must* be a JSON array.
+*   Each element in the `"tasks"` array *must* be a JSON object (dictionary) representing a single task.
+*   Each task object *must* contain the following keys:
+    *   `"task_id"`:  A unique string identifying the task (e.g., `"task_2_3"`).  This *cannot* contain `/` or `..` sequences (to prevent path traversal vulnerabilities).
+    *   `"priority"`:  A string indicating the task's priority. Allowed values: `"High"`, `"Medium"`, or `"Low"`.
+    *   `"task_name"`:  A concise string description of the task (150 characters or less).
+    *   `"status"`: A string indicating the task's current status. Allowed values: `"Not Started"`, `"In Progress"`, `"Completed"`, or `"Blocked"`.
+    *   `"description"`: A string providing a more detailed description of the task.  HTML characters in this field will be automatically escaped to prevent XSS vulnerabilities.
+*   The `"phase"`, `"phase_goal"`, `"success_metrics"`, `"next_phase_actions"`, and `"current_focus"` fields are also required at the top level.
+
+**Validation:**
+
+*   Before submitting a pull request that modifies `ROADMAP.json`, please ensure that your changes are valid JSON and conform to the structure described above. You can use a JSON validator (many are available online) to check the syntax. The CI build includes similar validation, but it's always best to catch errors early.
+*   After modifying `ROADMAP.json`, run `python scripts/generate_roadmap_md.py` locally to generate the `ROADMAP.md` file and visually inspect the output for any formatting issues or errors.
+
+## File Format Considerations
+*   `ROADMAP.md` - see `docs/workflows/markdown_automation.md` for file format and formatting requirements. **The `ROADMAP.md` file is now automatically generated from `ROADMAP.json`.  DO NOT EDIT THIS FILE DIRECTLY!** All roadmap contributions must be made by editing `ROADMAP.json`. See `docs/workflows/markdown_automation.md` for details on the `ROADMAP.json` format and how to contribute to the roadmap.

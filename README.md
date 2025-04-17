@@ -14,9 +14,9 @@ Phase 1 MVP is complete! We are now still working on remaining steps in the 1.5 
 
 Phase 1.5 focuses on implementing a Markdown-Only Automation Workflow to enhance the efficiency and consistency of our development process. While immediate speed improvements may be modest, our goal is to create a robust foundation for significant acceleration and improved quality in later phases. This focus on refining our *own* development processes aligns with our core ethical principles of transparency, continuous improvement, and efficient resource utilization. This also supports more robust and reliable AI-driven code generation and validation.
 
-**Two-Stage Approach to Markdown-Only Automation:**
+**Three-Stage Approach to Markdown-Only Automation:**
 
-Phase 1.5 is being implemented in two key stages. Stage 1 established the fundamental markdown automation workflow and CLI driver. Stage 2 continues to enhance the workflow driver with key functionalities like secure file handling, LLM prompt generation and integration, and well-defined, actionable steps. The benefits from stages 1 and 2, and synergy with MSGE:
+Phase 1.5 is being implemented in three key stages. Stage 1 established the fundamental markdown automation workflow and CLI driver. Stage 2 continues to enhance the workflow driver with key functionalities like secure file handling, LLM prompt generation and integration, and well-defined, actionable steps. Stage 3 aims for full automation. The benefits from stages 1, 2 and 3, and synergy with MSGE:
 
 **Estimated Potential Benefits (Long-Term, Full Integration):**
 
@@ -50,7 +50,7 @@ Phase 1.5 is being implemented in two key stages. Stage 1 established the fundam
 
 ## <a name="about"></a>About the Metamorphic Software Genesis Ecosystem
 
-The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications. It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision is the implementation of Phase 1.5. Phase 1.5 focuses on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system, and not the individual parts. Phase 1.5 is broken down into two critical stages of which this current iteration represents the stage 2, which will provide the system with the core abilities to execute all test requirements.**
+The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications. It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision is the implementation of Phase 1.5. Phase 1.5 focuses on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system, and not the individual parts. Phase 1.5 is broken down into three critical stages. Stage 1 established the fundamental markdown automation workflow and CLI driver. Stage 2 continues to enhance the workflow driver with key functionalities like secure file handling, LLM prompt generation and integration, and well-defined, actionable steps. Stage 3 aims for full automation.**
 
 **Key Objectives:**
 
@@ -153,7 +153,7 @@ Examine the JSON response for `code_quality` and `ethical_analysis` sections.
 
 ### <a name="quickstart-guide-to-markdown-only-automation"></a>Quickstart Guide to Markdown-Only Automation
 
-For a streamlined, AI-driven development experience with minimal manual prompting, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the completion of Phase 1.5, the system now includes a command-line interface for improved automation and testing. The core of the automation is dependent on both stage 1 and stage 2, which involves well-defined and actionable steps.  Currently, the workflow still requires manual prompting of the Driver LLM, but Phase 1.5 Stage 3 will automate this prompting and create a fully autonomous Driver LLM loop.**
+For a streamlined, AI-driven development experience with minimal manual prompting, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the completion of Phase 1.5, the system now includes a command-line interface for improved automation and testing. The core of the automation is dependent on stages 1, 2 and 3, which involves well-defined and actionable steps.  Currently, the workflow still requires manual prompting of the Driver LLM, but Phase 1.5 Stage 3 will automate this prompting and create a fully autonomous Driver LLM loop.**
 
 **(Currently, the workflow requires manually copying and pasting prompts to a Coder LLM. The *intended future state* is direct, automated interaction with the Coder LLM, which will streamline the process.)**
 

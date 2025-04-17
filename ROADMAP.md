@@ -89,8 +89,3 @@
     *   **Task Name**: Test Automated Coder LLM Workflow
     *   **Status**: Not Started
 
-*   **Task ID**: task_3_1b
-    *   **Priority**: High
-    *   **Task Name**: Review Phase 1.5 Stage 2 (Coder LLM Automation)
-    *   **Status**: Not Started
-

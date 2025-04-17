@@ -509,35 +509,74 @@ class TestWorkflowDriver:
         with pytest.raises(TypeError) as excinfo:
             test_driver.generate_coder_llm_prompts(task, None)
 
-    def test_invoke_coder_llm_calls_generate_with_prompt(self, test_driver):
-        """Test that _invoke_coder_llm calls generate with the expected prompt."""
+    # --- New tests for _invoke_coder_llm ---
+    def test_invoke_coder_llm_success(self, test_driver):
+        """Test _invoke_coder_llm calls generate and returns stripped response."""
         test_prompt = "Test prompt for LLM"
+        # Mock generate to return a string with leading/trailing whitespace
+        test_driver.llm_orchestrator.generate.return_value = "  Generated code response  \n"
+
         response = test_driver._invoke_coder_llm(test_prompt)
 
+        # Assert generate was called with the correct prompt
         test_driver.llm_orchestrator.generate.assert_called_once_with(test_prompt)
-        assert response == "Test response"
-
-    def test_invoke_coder_llm_returns_response_correctly(self, test_driver):
-        """Test that _invoke_coder_llm returns the response from generate correctly."""
-        test_driver.llm_orchestrator.generate.return_value = "Generated code response"
-        response = test_driver._invoke_coder_llm("Any prompt")
-
+        # Assert the response is the stripped version of the mocked return value
         assert response == "Generated code response"
 
-    def test_invoke_coder_llm_handles_exceptions_gracefully(self, test_driver, caplog):
-        """Test that _invoke_coder_llm handles exceptions and returns None."""
-        test_driver.llm_orchestrator.generate.side_effect = Exception("Test exception")
-        caplog.set_level(logging.ERROR)
-        response = test_driver._invoke_coder_llm("Problematic prompt")
+    def test_invoke_coder_llm_empty_response(self, test_driver):
+        """Test _invoke_coder_llm handles empty response from LLM."""
+        test_prompt = "Test prompt for empty response"
+        # Mock generate to return an empty string
+        test_driver.llm_orchestrator.generate.return_value = ""
 
+        response = test_driver._invoke_coder_llm(test_prompt)
+
+        # Assert generate was called
+        test_driver.llm_orchestrator.generate.assert_called_once_with(test_prompt)
+        # Assert the method returns an empty string
+        assert response == ""
+
+    def test_invoke_coder_llm_llm_exception(self, test_driver, caplog):
+        """Test _invoke_coder_llm catches exceptions from LLM and returns None."""
+        test_prompt = "Test prompt for exception"
+        # Mock generate to raise an exception
+        test_driver.llm_orchestrator.generate.side_effect = Exception("Test LLM API error")
+        caplog.set_level(logging.ERROR) # Set logging level to capture errors
+
+        response = test_driver._invoke_coder_llm(test_prompt)
+
+        # Assert generate was called
+        test_driver.llm_orchestrator.generate.assert_called_once_with(test_prompt)
+        # Assert the method returns None
         assert response is None
+        # Assert an error message was logged
         assert "Error invoking Coder LLM" in caplog.text
-        assert "Test exception" in caplog.text
+        assert "Test LLM API error" in caplog.text # Check for the specific exception message
 
-    def test_invoke_coder_llm_strips_whitespace_from_response(self, test_driver):
-        """Test that _invoke_coder_llm strips whitespace from the response."""
-        test_driver.llm_orchestrator.generate.return_value = "  \nTest response with whitespace  \t\n"
+    # --- New integration test simulating a workflow step ---
+    @patch.object(WorkflowDriver, '_invoke_coder_llm') # Mock the method we are testing the call to
+    @patch.object(WorkflowDriver, 'generate_coder_llm_prompts') # Mock the method that generates the prompt
+    def test_workflow_step_calls_invoke_coder_llm(self, mock_generate_prompts, mock_invoke_coder_llm, test_driver):
+        """Test that a simulated workflow step correctly calls _invoke_coder_llm."""
+        # Define mock return values
+        mock_task = {"task_id": "mock_task", "task_name": "Mock Task", "description": "Mock description", "priority": "High"}
+        mock_plan = ["Mock step 1", "Mock step 2"]
+        mock_prompt = "Generated prompt for Coder LLM"
+        mock_generated_code = "def generated_code(): pass"
 
-        response = test_driver._invoke_coder_llm("Any prompt")
+        # Configure mocks
+        mock_generate_prompts.return_value = [mock_prompt] # generate_coder_llm_prompts returns a list of prompts
+        mock_invoke_coder_llm.return_value = mock_generated_code # _invoke_coder_llm returns the generated code
 
-        assert response == "Test response with whitespace"
+        # Simulate a workflow step (this logic needs to be part of WorkflowDriver later)
+        # For now, directly call the methods in sequence as they would be in a step
+        generated_prompts = test_driver.generate_coder_llm_prompts(mock_task, mock_plan)
+        if generated_prompts:
+            generated_code = test_driver._invoke_coder_llm(generated_prompts[0])
+        else:
+            generated_code = None
+
+        # Assertions
+        mock_generate_prompts.assert_called_once_with(mock_task, mock_plan)
+        mock_invoke_coder_llm.assert_called_once_with(mock_prompt)
+        assert generated_code == mock_generated_code # Verify the final result

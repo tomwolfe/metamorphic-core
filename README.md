@@ -153,7 +153,7 @@ Examine the JSON response for `code_quality` and `ethical_analysis` sections.
 
 ### <a name="quickstart-guide-to-markdown-only-automation"></a>Quickstart Guide to Markdown-Only Automation
 
-For a streamlined, AI-driven development experience with minimal manual prompting, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the completion of Phase 1.5, the system now includes a command-line interface for improved automation and testing. The core of the automation is dependent on both stage 1 and stage 2, which involves well-defined and actionable steps.**
+For a streamlined, AI-driven development experience with minimal manual prompting, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the completion of Phase 1.5, the system now includes a command-line interface for improved automation and testing. The core of the automation is dependent on both stage 1 and stage 2, which involves well-defined and actionable steps.  Currently, the workflow still requires manual prompting of the Driver LLM, but Phase 1.5 Stage 3 will automate this prompting and create a fully autonomous Driver LLM loop.**
 
 **(Currently, the workflow requires manually copying and pasting prompts to a Coder LLM. The *intended future state* is direct, automated interaction with the Coder LLM, which will streamline the process.)**
 

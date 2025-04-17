@@ -1,10 +1,10 @@
 {
-  "phase": "Phase 1.5 - Workflow Automation Side Project (Stage 2)",
-  "phase_goal": "Implement Level 2 Markdown Automation Workflow: File Writing, Task Selection, CLI Integration - efficiently and securely.",
+  "phase": "Phase 1.5 - Workflow Automation Side Project",
+  "phase_goal": "Implement Level 3 Markdown Automation Workflow: File Writing, Task Selection, CLI Integration - efficiently and securely. Fully Automate the Driver and Code LLMs in the loop.",
   "success_metrics": [
-    "Level 2 Workflow Driver components fully implemented & tested (write_file, task selection, CLI integration)",
+    "All Level 1.5 Workflow Driver components fully implemented & tested (write_file, task selection, CLI integration, automated LLM interaction)",
     "Unit tests passing for all new components (100% coverage goal for critical modules)",
-    "CLI tool functional for basic workflow execution",
+    "CLI tool fully functional for basic workflow execution",
     "Phase 1.5 review document completed"
   ],
   "tasks": [
@@ -209,26 +209,15 @@
       "Mitigation": "Run automated tests, ethical tests, unit tests and integration tests. Use the appropriate policy to verify ethical compliance.",
       "Dependencies": ["task_2_9a"],
       "Time Saving Strategy": "Update as many tests as possible to catch both errors and security/ethical problems."
-    },
-    {
-      "task_id": "task_3_1b",
-      "priority": "High",
-      "task_name": "Review Phase 1.5 Stage 2 (Coder LLM Automation)",
-      "description": "Review Phase 1.5 Stage 2 changes related to automated Coder LLM interaction and updated documentation.",
-      "status": "Not Started",
-      "Success Criteria": "Review doc summarizes changes for Coder LLM automation and ensures documentation is accurate.",
-      "Potential Risks": "Superficial review.",
-      "Mitigation": "Allocate review time, checklist, team review, actionable insights, deadlines.",
-      "Dependencies": ["task_2_9c"],
-      "Time Saving Strategy": "Structured review, actionable outcomes focus."
     }
   ],
   "next_phase_actions": [
-    "Set `status`: `complete` on all Level 1.5 tasks",
-    "Remove all Level 1.5 tasks from the json config",
-    "Set 🎯 CURRENT FOCUS to `Transition to Phase 2",
-    "Add Phase 2 description, which starts with Iteration 2 (Enhanced Agents & Knowledge Graph)",
+    "Add Phase 1.5 Stage 3 to ROADMAP.json with tasks for Driver LLM Automation",
+    "Set `status`: `complete` on all Level 1.5 Stage 2 tasks",
+    "Remove all Level 1.5 Stage 2 tasks from the json config",
+    "Set 🎯 CURRENT FOCUS to `Transition to Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph`",
+    "Update Phase 1.5 description to include Stage 3",
     "Add tasks from Iteration 2 (Enhanced Agents & Knowledge Graph)"
   ],
-  "current_focus": "🎯 CURRENT FOCUS: Transition to Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph 🚀"
+  "current_focus": "🎯 CURRENT FOCUS: Finishing Phase 1.5 Stage 2: Automating Coder LLM Invocation 🚀"
 }

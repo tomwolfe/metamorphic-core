@@ -1,6 +1,6 @@
 # Markdown-Only Automation Workflow for Metamorphic Genesis Ecosystem (Dual LLM)
 
-**Note:** The current workflow involves manually copying prompts to a Coder LLM and pasting the results back. The *intended future workflow* is to automate this interaction, allowing the Driver LLM to directly invoke the Coder LLM.
+**Note:** The current workflow involves manually copying prompts to a Coder LLM and pasting the results back. The *intended future workflow* is to automate this interaction, allowing the Driver LLM to directly invoke the Coder LLM.  **This document describes the workflow as it will be after Phase 1.5 Stage 3 is complete, achieving a fully automated Driver LLM loop.**  *Currently, Phase 1.5 Stage 2 is in progress, and some steps still require manual execution.*
 
 This document describes the "Markdown-Only Automation" workflow for developing the Metamorphic Genesis Ecosystem, leveraging a dual-LLM architecture. This workflow uses specially crafted prompts and augmented `.md` documentation files (ROADMAP.md, CONTRIBUTING.md) to guide an orchestrator (Driver LLM) to autonomously drive development tasks, relying on a secondary model (Coder LLM) to generate code snippets. It enforces a strong emphasis on user oversight and security.
 
@@ -10,7 +10,7 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
 
 1.  **Identify and select the next development task** from the project's `ROADMAP.json` file.  The `ROADMAP.md` file is now automatically generated *from* `ROADMAP.json`.
 2.  **Generate a high-level solution plan** for the selected task.
-3.  **Generate precise code generation prompts** for the **Coder LLM.**
+3.  **Generate precise code generation prompts** for the **Coder LLM.** *In Stage 3, this step will be fully automated. The Driver LLM will directly communicate with the Coder LLM.*
 4.  **Generate a numbered list of "User Actionable Steps"** to guide the user. Format these steps as a Markdown checklist to enhance readability and trackability. Each step should start with a numbered list item, followed by a Markdown checklist syntax ` - [ ] ` and then the step description. For example:
 
     ```markdown
@@ -26,7 +26,7 @@ The "Markdown-Only Automation" workflow streamlines development by enabling a **
 6.  Call the `write_file` tool, to write all code to file.
     * Ensure you check if the file will be overwriting code. Before writing all files that should be created or replaced, verify with the user if this step is correct.
 
-**Future Enhancement:** Steps 3-6 currently involve generating steps to call on a separate LLM and review the new code and are steps expected to use the `write_file` tool. In a future version, this interaction will be fully automated.
+**Future Enhancement (Phase 1.5 Stage 3):** *Steps 3-6 are currently implemented as instructions for the user to manually copy prompts to a Coder LLM and use the `write_file` tool.  The focus of Phase 1.5 Stage 3 is to fully automate these steps. The Driver LLM will be enhanced to directly invoke the Coder LLM and the `write_file` tool programmatically, removing the need for manual copy-pasting and tool execution. This will enable a truly autonomous, iterative development loop driven by the Driver LLM.*
 
 7.  **Self-Critique and Revise Output:** Before proceeding to self-assessment, take a moment to review your generated output from steps 1-6. Specifically:
 

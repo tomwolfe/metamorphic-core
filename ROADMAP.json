@@ -191,7 +191,7 @@
       "priority": "High",
       "task_name": "Update Documentation for Automated Coder LLM",
       "description": "Revise docs/workflows/markdown_automation.md and README.md to reflect the new automated workflow.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "Documentation accurately describes the new workflow and removes references to manual Coder LLM interaction.",
       "Potential Risks": "Ensure all manual steps have been successfully removed. Any changes must be compliant.",
       "Mitigation": "Create a checklist and review updated documentation line by line to ensure content is accurate.",

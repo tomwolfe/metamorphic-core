@@ -1,13 +1,12 @@
 # src/core/automation/workflow_driver.py
-
-from src.cli.write_file import write_file  # Import the utility function for writing files
-import logging  # Import the logging module for logging messages
+from src.cli.write_file import write_file
+import logging
 import html
 import os
-import json # Import JSON
+import json
 from pathlib import Path
+from src.core.llm_orchestration import EnhancedLLMOrchestrator  # Added import
 
-# Configure the logger
 logger = logging.getLogger(__name__)
 
 class Context:
@@ -21,6 +20,28 @@ class WorkflowDriver:
     def __init__(self, context: Context):
         # Initialize the WorkflowDriver with a given context
         self.context = context
+        self.llm_orchestrator = EnhancedLLMOrchestrator(
+            kg=None,  # Will be properly initialized in later phases
+            spec=None,  # Will be properly initialized in later phases
+            ethics_engine=None  # Will be properly initialized in later phases
+        )
+
+    def _invoke_coder_llm(self, coder_llm_prompt: str) -> str:
+        """
+        Invokes the Coder LLM (LLMOrchestrator) to generate code.
+
+        Args:
+            coder_llm_prompt: The prompt to send to the Coder LLM.
+
+        Returns:
+            The generated code from the Coder LLM, or None if there was an error.
+        """
+        try:
+            response = self.llm_orchestrator.generate(coder_llm_prompt)
+            return response.strip()  # Return the generated code, stripped of whitespace
+        except Exception as e:
+            logger.error(f"Error invoking Coder LLM: {e}", exc_info=True)
+            return None
 
     def select_next_task(self, tasks: list) -> dict | None:
         """Selects the next task with status 'Not Started' from the list.
@@ -135,7 +156,7 @@ Requirements:
                 'priority': task_data['priority'],
                 'task_name': task_name,
                 'status': task_data['status'],
-                'description': escaped_description, # Use escaped description here for roadmap loading
+                'description': escaped_description,
             }
             tasks.append(task)
         return tasks
@@ -185,12 +206,12 @@ Requirements:
         try:
             # Call the write_file function with the provided parameters
             result = write_file(sanitized_filepath, content, overwrite=overwrite)
-            
+
             # If write_file succeeds, log an info message and return True
             if result:
                 logger.info(f"Successfully wrote to file: {sanitized_filepath}")
                 return True
-            
+
             # If write_file returns False, propagate the failure
             return False
 
@@ -211,4 +232,3 @@ Requirements:
         except Exception as e:
             # Log any unexpected exceptions
             logger.error(f"Unexpected error writing to {filepath}: {e}", exc_info=True) #Include exception
-            return False

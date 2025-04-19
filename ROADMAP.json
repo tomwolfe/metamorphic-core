@@ -7,7 +7,10 @@
     "Driver LLM can autonomously invoke the Coder LLM and other necessary agents as per the plan",
     "Driver LLM can autonomously use the write_file and list_files tools as per the plan",
     "End-to-end autonomous workflow execution completes successfully for simple tasks",
-    "Comprehensive test suite for the autonomous loop passes (100% coverage goal for core loop logic)"
+    "Comprehensive test suite for the autonomous loop passes (100% coverage goal for core loop logic)",
+    "All unit tests in `tests/test_workflow_driver.py` related to plan generation pass, covering LLM call and parsing logic.",
+    "End-to-end test passes, showing autonomous loop with mocked task selection and plan generation.",
+    "The `generate_solution_plan` can extract a plan with multiple different task descriptions"
   ],
   "tasks": [
     {
@@ -62,7 +65,7 @@
       "priority": "High",
       "task_name": "Integrate solution planning into autonomous loop",
       "description": "Modify the Driver loop to automatically generate the solution plan using an LLM call for the selected task. The plan generation should use `generate_coder_llm_prompts()` to create prompts and `_invoke_coder_llm()` to call the LLM. For initial testing, you can mock the LLM response to return a predefined plan.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "`autonomous_loop()` calls LLM to generate solution plan using `generate_coder_llm_prompts()` and _invoke_coder_llm()`, logs the generated plan. Verify logged plan structure (list of strings).",
       "Potential Risks": "LLM call errors, incorrect prompt generation, plan not being used in subsequent steps, LLM prompt might be too generic or ineffective.",
       "Mitigation": "Mock LLM calls initially for testing (use `MagicMock` to simulate LLM response), verify prompt content and structure in logs, log generated plan for review, start with a well-defined, parameterized prompt template for plan generation.",

@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from src.core.llm_orchestration import EnhancedLLMOrchestrator  # Added import
 import re # Import regex for task_id validation
+from unittest.mock import MagicMock # Import MagicMock for placeholder initialization
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +26,14 @@ class WorkflowDriver:
         # This will be addressed in a later task. For now, assume self.tasks is available.
         self.tasks = [] # Placeholder - will be loaded by CLI or other mechanism
 
+        # Initialize LLM Orchestrator - Pass placeholder dependencies for now
+        # These will be properly initialized in later phases/tasks
         self.llm_orchestrator = EnhancedLLMOrchestrator(
-            kg=None,  # Will be properly initialized in later phases
-            spec=None,  # Will be properly initialized in later phases
-            ethics_engine=None  # Will be properly initialized in later phases
+            kg=MagicMock(),  # Mock KnowledgeGraph
+            spec=MagicMock(),  # Mock FormalSpecification
+            ethics_engine=MagicMock()  # Mock EthicalGovernanceEngine
         )
+
 
     def autonomous_loop(self):
         """
@@ -53,7 +57,8 @@ class WorkflowDriver:
                 logger.info(f'Selected task: ID={task_id}')
 
                 # Call generate_solution_plan and log the result
-                solution_plan = self.generate_solution_plan(next_task) # Call the placeholder method
+                # Now calls the LLM to generate the plan
+                solution_plan = self.generate_solution_plan(next_task)
                 logger.info(f'Generated plan: {solution_plan}') # Log the result
 
                 # --- Future steps will process this task (Task 15_3c, 15_3d, etc.) ---
@@ -71,34 +76,106 @@ class WorkflowDriver:
 
     def generate_solution_plan(self, task: dict) -> list[str]:
         """
-        Placeholder method to generate a solution plan for a given task.
+        Generates a step-by-step solution plan for a given task using the LLM.
 
         Args:
-            task: The task dictionary for which to generate a plan.
+            task: The task dictionary for which to generate a plan. Must contain
+                  'task_name' and 'description'.
 
         Returns:
-            A hardcoded list of strings representing a simple plan.
+            A list of strings representing the plan steps, or an empty list if
+            plan generation fails or returns an empty response.
         """
-        # This is a placeholder implementation. Actual plan generation
-        # using LLMs will be implemented in a later task (Task 15_3c).
-        logger.debug(f"Generating placeholder plan for task: {task.get('task_id', 'Unknown ID')}")
-        return ['Placeholder Step 1', 'Placeholder Step 2']
+        if not isinstance(task, dict) or 'task_name' not in task or 'description' not in task:
+             logger.error("Invalid task dictionary provided for plan generation.")
+             return [] # Return empty list for invalid input
+
+        task_name = task['task_name']
+        description = task['description']
+
+        # Construct the prompt for the LLM to generate a plan
+        planning_prompt = f"""You are an AI assistant specializing in software development workflows.
+Your task is to generate a step-by-step solution plan for the following development task from the Metamorphic Software Genesis Ecosystem roadmap.
+
+Task Name: {task_name}
+Task Description: {description}
+
+The plan should be a numbered list of concise steps (1-2 sentences each). Focus on the high-level actions needed to complete the task.
+
+Example Plan Format:
+1.  Analyze the requirements for X.
+2.  Modify the Y component.
+3.  Implement Z feature.
+4.  Write tests for the changes.
+5.  Update documentation.
+
+Please provide the plan as a numbered markdown list. Do not include any introductory or concluding remarks outside the list.
+"""
+
+        logger.debug(f"Sending planning prompt to LLM for task '{task_name}'.")
+
+        # Invoke the Coder LLM (via LLMOrchestrator) to generate the plan
+        llm_response = self._invoke_coder_llm(planning_prompt)
+
+        if not llm_response:
+            logger.warning(f"LLM returned empty response for plan generation for task '{task_name}'.")
+            return [] # Return empty list if LLM response is empty or None
+
+        # Parse the LLM's response to extract the numbered list items
+        plan_steps = []
+        # Regex to find numbered list items (e.g., "1. ", "2. ", etc.)
+        # This regex is simple and assumes standard markdown numbering.
+        # It extracts the text following the number and dot.
+        step_pattern = re.compile(r'^\s*\d+\.\s*(.*)$', re.MULTILINE)
+
+        current_step_text = None
+
+        for line in llm_response.splitlines():
+            match = step_pattern.match(line)
+            if match:
+                # If we were processing a previous step, add it to the list
+                if current_step_text is not None:
+                    plan_steps.append(current_step_text.strip())
+                # Start a new step
+                current_step_text = match.group(1).strip()
+            elif current_step_text is not None:
+                 # If a line doesn't match the pattern but we're inside a step,
+                 # assume it's a continuation.
+                 current_step_text += " " + line.strip()
+
+        # Add the last step if any
+        if current_step_text is not None:
+             plan_steps.append(current_step_text.strip())
+
+
+        # Basic sanitization on extracted steps (remove potential markdown formatting like bold/italics)
+        sanitized_steps = [re.sub(r'[*_`]', '', step).strip() for step in plan_steps]
+        # Remove empty strings resulting from sanitization or parsing issues
+        sanitized_steps = [step for step in sanitized_steps if step]
+
+        logger.debug(f"Parsed and sanitized plan steps: {sanitized_steps}")
+
+        return sanitized_steps
 
 
     def _invoke_coder_llm(self, coder_llm_prompt: str) -> str:
         """
-        Invokes the Coder LLM (LLMOrchestrator) to generate code.
+        Invokes the Coder LLM (LLMOrchestrator) to generate code or text.
 
         Args:
             coder_llm_prompt: The prompt to send to the Coder LLM.
 
         Returns:
-            The generated code from the Coder LLM, or None if there was an error.
+            Return the generated text from the LLM, or None if there was an error.
         """
         try:
             # Use the mocked or real llm_orchestrator instance
+            # The generate method is expected to return a string
             response = self.llm_orchestrator.generate(coder_llm_prompt)
-            return response.strip()  # Return the generated code, stripped of whitespace
+            if response is None: # Handle cases where generate might return None on error
+                 logger.error("LLM Orchestrator generate method returned None.")
+                 return None
+            return response.strip()  # Return the generated text, stripped of whitespace
         except Exception as e:
             logger.error(f"Error invoking Coder LLM: {e}", exc_info=True)
             return None
@@ -364,4 +441,3 @@ Requirements:
         except Exception as e:
             # Log any unexpected exceptions
             logger.error(f"Unexpected error in _write_output_file for {filepath}: {e}", exc_info=True)
-            return False

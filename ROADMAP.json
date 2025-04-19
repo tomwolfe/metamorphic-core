@@ -26,7 +26,7 @@
       "priority": "Critical",
       "task_name": "Implement task selection call in `autonomous_loop()`",
       "description": "Within `autonomous_loop()`, call `self.select_next_task(self.tasks)` to get the next task. Log the selected task ID (e.g., `logger.info(f'Selected task: {next_task['task_id']}')`) or 'No tasks available' (e.g., `logger.info('No tasks available in Not Started status.')`).",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "`autonomous_loop()` calls `select_next_task()`, logs task ID when task is found (e.g., 'Selected task: task_15_3a2') or 'No tasks available' when no task is found.",
       "Potential Risks": "`select_next_task()` might return None, incorrect handling of task/None, loop might not proceed correctly if no task is selected.",
       "Mitigation": "Add conditional logic to handle both task and None return values, add logging to verify task selection, test with empty and non-empty ROADMAP.json task lists.",
@@ -89,7 +89,7 @@
       "status": "Not Started",
       "Success Criteria": "`autonomous_loop()` calls `_write_output_file()` when the plan includes file writing steps. Verify log output for file write attempts (filepath logged).",
       "Potential Risks": "Incorrect file path handling, overwrite issues (though overwrite=False is default), errors in file I/O operations, loop might not correctly parse plan steps for file operations.",
-      "Mitigation": "Start with simple file operations in the plan (e.g., 'Write placeholder code to test_output.py'), use absolute paths within the temporary test directory for testing, add detailed logging for file operations (filepath, overwrite flag), test file writing in isolation before loop integration.",
+      "Mitigation": "Test file operations in isolation first, then integrate into the loop with simple file writing steps.",
       "Dependencies": ["task_15_3d"],
       "Time Saving Strategy": "Test file operations in isolation first, then integrate into the loop with simple file writing steps."
     },

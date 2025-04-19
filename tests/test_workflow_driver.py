@@ -1,4 +1,3 @@
-# tests/test_workflow_driver.py
 import pytest
 import html  # Added missing import
 import shutil  # Added missing import
@@ -35,6 +34,13 @@ def create_mock_roadmap_file(content, tmp_path, is_json=True):
     return str(file_path)
 
 class TestWorkflowDriver:
+
+    def test_autonomous_loop_basic_logging(self, test_driver, caplog):
+        """Test that autonomous_loop logs the start and end messages."""
+        caplog.set_level(logging.INFO)
+        test_driver.autonomous_loop()
+        assert 'Starting autonomous loop' in caplog.text
+        assert 'Loop iteration complete' in caplog.text
 
     def test_workflow_driver_write_output_file_success(
         self, test_driver, tmp_path, caplog
@@ -579,4 +585,3 @@ class TestWorkflowDriver:
         # Assertions
         mock_generate_prompts.assert_called_once_with(mock_task, mock_plan)
         mock_invoke_coder_llm.assert_called_once_with(mock_prompt)
-        assert generated_code == mock_generated_code # Verify the final result

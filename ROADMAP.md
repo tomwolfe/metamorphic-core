@@ -22,7 +22,7 @@
 *   **Task ID**: task_15_3b
     *   **Priority**: High
     *   **Task Name**: Integrate task selection into autonomous loop
-    *   **Status**: Not Started
+    *   **Status**: Completed
 
 *   **Task ID**: task_15_3c
     *   **Priority**: High

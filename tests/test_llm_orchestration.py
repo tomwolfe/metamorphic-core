@@ -33,7 +33,7 @@ def test_gemini_configuration(mock_get):
     assert orchestrator.config.provider == LLMProvider.GEMINI
     assert orchestrator.config.gemini_api_key == 'test_key'
     assert isinstance(orchestrator.client, google.genai.Client)
-    assert orchestrator.client.model == 'gemini-2.5-pro-exp-03-25' # <-- UPDATED HERE
+    assert orchestrator.client.model == 'gemini-2.5-flash-preview-04-17' # <-- UPDATED HERE
 
 @patch('src.utils.config.SecureConfig.get')
 def test_hf_configuration(mock_get):
@@ -124,7 +124,7 @@ def test_gemini_client_initialization():
         orchestrator = LLMOrchestrator()
         assert isinstance(orchestrator.client, google.genai.Client)
         assert orchestrator.client.api_key == 'test_key'
-        assert orchestrator.client.model == 'gemini-2.5-pro-exp-03-25' # <-- UPDATED HERE
+        assert orchestrator.client.model == 'gemini-2.5-flash-preview-04-17' # <-- UPDATED HERE
 
 @patch('src.core.llm_orchestration.EnhancedLLMOrchestrator._handle_large_context')
 def test_large_context_handling(mock_handle_large_context):

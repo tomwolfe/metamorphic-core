@@ -12,7 +12,7 @@
 *   **Task ID**: task_15_3a2
     *   **Priority**: Critical
     *   **Task Name**: Implement task selection call in `autonomous_loop()`
-    *   **Status**: Not Started
+    *   **Status**: Completed
 
 *   **Task ID**: task_15_3a3
     *   **Priority**: High

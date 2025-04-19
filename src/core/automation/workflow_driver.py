@@ -1,3 +1,4 @@
+# workflow_driver.py
 # src/core/automation/workflow_driver.py
 import logging
 import html
@@ -50,16 +51,30 @@ class WorkflowDriver:
                 logger.info(f'Generated plan: {solution_plan}')
 
                 # --- Task 15_3d: Integrate agent invocation based on the plan ---
+                # --- Task 15_3e: Integrate file management into autonomous loop ---
                 if solution_plan:
                     logger.info(f"Executing plan for task {task_id} with {len(solution_plan)} steps.")
                     for step_index, step in enumerate(solution_plan):
                         logger.info(f"Executing step {step_index + 1}/{len(solution_plan)}: {step}")
 
-                        # Simple heuristic to identify code generation steps
+                        step_lower = step.lower() # Convert step to lower once
                         code_generation_keywords = ["implement", "generate code", "write function", "modify file", "add logic to"]
-                        is_code_generation_step = any(keyword in step.lower() for keyword in code_generation_keywords)
+                        file_writing_keywords = ["write file", "create file", "save to file", "output file", "generate file"]
 
-                        if is_code_generation_step:
+                        needs_coder_llm = any(keyword in step_lower for keyword in code_generation_keywords)
+
+                        # Check for a file path match using the regex
+                        # Revised regex to be less strict with word boundaries and allow slashes/dots in the path part
+                        filepath_match = re.search(r'(\S+\.(py|md|json|txt|yml|yaml))', step, re.IGNORECASE) # <-- Updated regex
+                        has_filepath = filepath_match is not None
+                        filepath = filepath_match.group(1) if has_filepath else None # Extract filepath here if found
+
+                        # A step is considered a file writing step if it contains a file path OR file writing keywords
+                        is_file_writing_step = has_filepath or any(keyword in step_lower for keyword in file_writing_keywords)
+
+                        generated_output = None # Initialize generated_output for this step
+
+                        if needs_coder_llm:
                             logger.info(f"Step identified as potential code generation. Invoking Coder LLM for step: {step}")
                             # Construct a prompt specific to this step and the overall task
                             # NOTE: Task name and step are NOT sanitized here, potential prompt injection risk if roadmap is untrusted.
@@ -79,19 +94,44 @@ Please provide the Python code or necessary instructions to fulfill this step. F
 
                             if generated_output:
                                 logger.info(f"Coder LLM invoked for step {step_index + 1}. Generated output (first 100 chars): {generated_output[:100]}...")
-                                # Note: Handling the generated_output (e.g., writing to file) is deferred to Task 15_3e
                             else:
                                 logger.warning(f"Coder LLM invocation for step {step_index + 1} returned no output.")
-                        else:
-                            logger.info(f"Step not identified as code generation. Skipping agent invocation for step: {step}")
-                            # Future tasks will add logic for other step types (e.g., file write, test run, review)
+
+                        # --- File Writing Logic (Task 15_3e) ---
+                        if is_file_writing_step:
+                             logger.info(f"Step identified as file writing. Processing file operation for step: {step}")
+
+                             if filepath: # Proceed with writing ONLY if a filepath was found
+                                 content = None # Initialize content
+
+                                 if needs_coder_llm and generated_output:
+                                     content = generated_output
+                                     logger.info(f"Using generated code for file: {filepath}")
+                                 else:
+                                     content = f"// Placeholder content for step: {step}"
+                                     logger.info(f"Using placeholder content for file: {filepath}")
+
+                                 if content is not None:
+                                     logger.info(f"Attempting to write file: {filepath}")
+                                     try:
+                                         self._write_output_file(filepath, content, overwrite=False)
+                                     except FileExistsError:
+                                         logger.warning(f"File {filepath} already exists. Skipping write as overwrite=False.")
+                                     except Exception as e:
+                                         logger.error(f"Failed to write file {filepath}: {e}", exc_info=True)
+                                 else:
+                                     logger.warning(f"Content is None for file {filepath}. Skipping file write.")
+
+                             else:
+                                 logger.warning(f"Could not extract filepath from step '{step}'. Skipping file write.")
+
+
+                        # Log if *neither* code generation nor file writing was identified
+                        if not needs_coder_llm and not is_file_writing_step:
+                            logger.info(f"Step not identified as code generation or file writing. Skipping agent invocation/file write for step: {step}")
 
                 else:
                     logger.warning(f"No solution plan generated for task {task_id}.")
-
-                # Removed the unconditional break here
-                # The loop will now continue to the next iteration after processing a task
-                # A real implementation might update task status here and re-select.
 
             else:
                 logger.info('No tasks available in Not Started status. Exiting autonomous loop.')
@@ -125,14 +165,14 @@ Task Name: {task_name}
 Task Description:
 {description}
 
-The plan should be a numbered list of concise steps (1-2 sentences each). Focus on the high-level actions needed to complete the task.
+The plan should be a numbered list of concise steps (1-2 sentences each). Focus on the high-level actions needed to complete the task. Include steps for writing files where appropriate, explicitly mentioning the file path (e.g., "Write code to file src/module/new_file.py").
 
 Example Plan Format:
 1.  Analyze the requirements for X.
-2.  Modify the Y component.
+2.  Modify the Y component (src/component/y.py).
 3.  Implement Z feature.
-4.  Write tests for the changes.
-5.  Update documentation.
+4.  Write tests for the changes (tests/test_z_feature.py).
+5.  Update documentation (docs/feature_z.md).
 
 Please provide the plan as a numbered markdown list. Do not include any introductory or concluding remarks outside the list.
 """
@@ -168,6 +208,7 @@ Please provide the plan as a numbered markdown list. Do not include any introduc
         logger.debug(f"Parsed and sanitized plan steps: {sanitized_steps}")
 
         return sanitized_steps
+
 
     def _invoke_coder_llm(self, coder_llm_prompt: str) -> str:
         """
@@ -322,7 +363,9 @@ Requirements:
         """Validates task_id to ensure it only contains allowed characters and format."""
         if not isinstance(task_id, str):
             return False
+        # Allow alphanumeric, underscores, and hyphens, must start with alphanumeric
         return bool(re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_-]*$', task_id))
+
 
     def file_exists(self, relative_file_path):
         """Checks if a file exists in the workspace."""
@@ -367,9 +410,15 @@ Requirements:
         """Basic validation for filenames to prevent listing malicious names."""
         if not isinstance(filename, str):
             return False
+        # Disallow path traversal sequences and directory separators
         if '..' in filename or '/' in filename or '\\' in filename:
             return False
-        return True
+        # Allow alphanumeric, underscores, hyphens, dots (for extensions)
+        # Ensure it's not just a dot or dot-dot
+        if filename in ['.', '..']:
+            return False
+        return bool(re.fullmatch(r'^[a-zA-Z0-9_.-]+$', filename))
+
 
     def _write_output_file(self, filepath, content, overwrite=False):
         """
@@ -387,17 +436,21 @@ Requirements:
             FileExistsError: If overwrite is False and the file already exists.
         """
         try:
-            resolved_filepath = Path(filepath).resolve()
+            # Resolve the path relative to the base_path first, then resolve the full path
+            full_path = self.context.get_full_path(filepath)
+            resolved_filepath = Path(full_path).resolve()
         except Exception as e:
             logger.error(f"Error resolving filepath {filepath}: {e}", exc_info=True)
             return False
 
         resolved_base_path = Path(self.context.base_path).resolve()
+        # Ensure the resolved path is within the resolved base path
         if not str(resolved_filepath).startswith(str(resolved_base_path)):
              logger.error(f"Attempt to write outside base path: {filepath} (Resolved: {resolved_filepath})")
              return False
 
         try:
+            # Pass the resolved full path to write_file
             result = write_file(str(resolved_filepath), content, overwrite=overwrite)
             if result:
                 logger.info(f"Successfully wrote to file: {resolved_filepath}")
@@ -413,4 +466,5 @@ Requirements:
             logger.error(f"Permission error when writing to {filepath}: {e}", exc_info=True)
             return False
         except Exception as e:
-            logger.error(f"Unexpected error during file writing for {filepath}: {e}", exc_info=True)
+            logger.error(f"Unexpected error writing to {filepath}: {e}", exc_info=True)
+            return False

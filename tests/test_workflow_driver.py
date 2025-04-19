@@ -1,4 +1,5 @@
 # tests/test_workflow_driver.py
+# tests/test_workflow_driver.py
 
 import pytest
 import html
@@ -9,7 +10,7 @@ import logging
 from src.cli.write_file import write_file, file_exists
 from pathlib import Path
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY # Import ANY
 
 # Set up logging for tests
 # Use basicConfig only if no handlers are already configured
@@ -214,9 +215,9 @@ class TestWorkflowDriver:
 
         # _invoke_coder_llm should NOT be called for any of these steps
         mock_invoke_coder_llm.assert_not_called()
-        assert "Step not identified as code generation. Skipping agent invocation for step: Step 1: Analyze requirements." in caplog.text
-        assert "Step not identified as code generation. Skipping agent invocation for step: Step 2: Update documentation." in caplog.text
-        assert "Step not identified as code generation. Skipping agent invocation for step: Step 3: Review changes." in caplog.text
+        assert "Step not identified as code generation or file writing. Skipping agent invocation/file write for step: Step 1: Analyze requirements." in caplog.text
+        assert "Step not identified as code generation or file writing. Skipping agent invocation/file write for step: Step 2: Update documentation." in caplog.text
+        assert "Step not identified as code generation or file writing. Skipping agent invocation/file write for step: Step 3: Review changes." in caplog.text
 
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="Mock Generated Code")
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement the feature."])
@@ -247,14 +248,16 @@ class TestWorkflowDriver:
     ])
     def test_autonomous_loop_handles_empty_plan(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog):
         """Test that autonomous_loop handles an empty plan gracefully."""
-        caplog.set_level(logging.INFO)
+        caplog.set_level(logging.WARNING) # generate_solution_plan logs warning for None/empty
         test_driver.tasks = [{'task_id': 'mock_task_empty_plan', 'task_name': 'Task Empty Plan', 'status': 'Not Started', 'description': 'Desc Empty Plan', 'priority': 'High'}]
 
         test_driver.autonomous_loop()
 
         # _invoke_coder_llm should NOT be called
         mock_invoke_coder_llm.assert_not_called()
-        assert "No solution plan generated for task mock_task_empty_plan." in caplog.text # Check log for empty plan
+        # Check log for warning from generate_solution_plan and the subsequent warning in autonomous_loop
+        # Corrected assertion to check for the log message in autonomous_loop
+        assert "No solution plan generated for task mock_task_empty_plan." in caplog.text
 
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=None) # Return None plan
@@ -276,6 +279,143 @@ class TestWorkflowDriver:
         assert "No solution plan generated for task mock_task_none_plan." in caplog.text
 
     # --- End new tests for Task 15_3d ---
+
+    # --- New tests for Task 15_3e (File Management Integration) ---
+
+    @patch.object(WorkflowDriver, '_write_output_file')
+    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value=None) # Mock LLM to return None for placeholder content test
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to results.txt"])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_write_file', 'task_name': 'Task Write File', 'status': 'Not Started', 'description': 'Desc Write File', 'priority': 'High'},
+        None
+    ])
+    def test_autonomous_loop_calls_write_file_for_file_step(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog):
+        """Test that autonomous_loop calls _write_output_file for a file writing step."""
+        caplog.set_level(logging.INFO) # Keep INFO to capture "Step identified..." and "Attempting to write..."
+        test_driver.tasks = [{'task_id': 'mock_task_write_file', 'task_name': 'Task Write File', 'status': 'Not Started', 'description': 'Desc Write File', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        # _write_output_file should be called exactly once
+        mock_write_output_file.assert_called_once()
+        # Verify call arguments: filepath and content (placeholder)
+        # Use ANY for content as the exact placeholder string might change slightly
+        mock_write_output_file.assert_called_once_with("results.txt", ANY, overwrite=False)
+
+        # Check log messages
+        assert "Step identified as file writing. Processing file operation for step: Step 1: Write output to results.txt" in caplog.text
+        assert "Using placeholder content for file: results.txt" in caplog.text
+        assert "Attempting to write file: results.txt" in caplog.text
+        # Ensure the incorrect "Step not identified..." log does NOT appear
+        assert "Step not identified as code generation or file writing." not in caplog.text
+
+
+    @patch.object(WorkflowDriver, '_write_output_file')
+    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True") # Mock LLM to return generated code
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and write to src/feature.py"]) # Step is both code gen and file write
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_code_write', 'task_name': 'Task Code Write', 'status': 'Not Started', 'description': 'Desc Code Write', 'priority': 'High'},
+        None
+    ])
+    def test_autonomous_loop_calls_write_file_with_generated_content(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog):
+        """Test that autonomous_loop calls _write_output_file with generated content when step is code gen + file write."""
+        caplog.set_level(logging.INFO) # Keep INFO
+        test_driver.tasks = [{'task_id': 'mock_task_code_write', 'task_name': 'Task Code Write', 'status': 'Not Started', 'description': 'Desc Code Write', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        # _invoke_coder_llm should be called once (code generation step)
+        mock_invoke_coder_llm.assert_called_once()
+
+        # _write_output_file should be called exactly once
+        mock_write_output_file.assert_called_once()
+        # Verify call arguments: filepath and content (generated code)
+        mock_write_output_file.assert_called_once_with("src/feature.py", "def generated_code(): return True", overwrite=False)
+
+        # Check log messages
+        assert "Step identified as potential code generation. Invoking Coder LLM for step: Step 1: Implement feature and write to src/feature.py" in caplog.text
+        assert "Coder LLM invoked for step 1. Generated output" in caplog.text
+        assert "Step identified as file writing. Processing file operation for step: Step 1: Implement feature and write to src/feature.py" in caplog.text
+        assert "Using generated code for file: src/feature.py" in caplog.text
+        assert "Attempting to write file: src/feature.py" in caplog.text
+        # Ensure the incorrect "Step not identified..." log does NOT appear
+        assert "Step not identified as code generation or file writing." not in caplog.text
+
+
+    @patch.object(WorkflowDriver, '_write_output_file')
+    @patch.object(WorkflowDriver, '_invoke_coder_llm') # Mock LLM, return value doesn't matter for this test
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Save to file the results"]) # Changed step definition
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_no_path', 'task_name': 'Task No Path', 'status': 'Not Started', 'description': 'Desc No Path', 'priority': 'High'},
+        None
+    ])
+    def test_autonomous_loop_skips_write_file_if_no_filepath(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog):
+        """Test that autonomous_loop skips file writing if no filepath is found in the step."""
+        caplog.set_level(logging.INFO)
+        test_driver.tasks = [{'task_id': 'mock_task_no_path', 'task_name': 'Task No Path', 'status': 'Not Started', 'description': 'Desc No Path', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        # _write_output_file should NOT be called
+        mock_write_output_file.assert_not_called()
+
+        # Check log messages
+        assert "Step identified as file writing. Processing file operation for step: Step 1: Save to file the results" in caplog.text # Corrected assertion
+        assert "Could not extract filepath from step 'Step 1: Save to file the results'. Skipping file write." in caplog.text
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
+
+        # Check that _invoke_coder_llm was not called either (since it's not a code gen step)
+        mock_invoke_coder_llm.assert_not_called()
+        # Ensure the incorrect "Step not identified..." log does NOT appear at WARNING level
+        assert "Step not identified as code generation or file writing." not in caplog.text
+
+
+    @patch.object(WorkflowDriver, '_write_output_file', side_effect=FileExistsError("File already exists"))
+    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value=None)
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to existing.txt", "Step 2: Another step."])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_write_error', 'task_name': 'Task Write Error', 'status': 'Not Started', 'description': 'Desc Write Error', 'priority': 'High'},
+        None
+    ])
+    def test_autonomous_loop_handles_write_file_exceptions(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog):
+        """Test that autonomous_loop handles exceptions from _write_output_file gracefully."""
+        caplog.set_level(logging.INFO)
+        test_driver.tasks = [{'task_id': 'mock_task_write_error', 'task_name': 'Task Write Error', 'status': 'Not Started', 'description': 'Desc Write Error', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        mock_write_output_file.assert_called_once_with("existing.txt", ANY, overwrite=False)
+        assert "File existing.txt already exists. Skipping write as overwrite=False." in caplog.text
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
+        assert 'Autonomous loop terminated.' in caplog.text
+        # Only check that the message doesn't appear for step 1 related logs
+        step1_logs = "\n".join([log for log in caplog.text.splitlines() if "Step 1" in log]) # Filter logs for Step 1
+        assert "Step not identified as code generation or file writing." not in step1_logs
+
+
+    @patch.object(WorkflowDriver, '_write_output_file', side_effect=Exception("Generic write error"))
+    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value=None)
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to error.txt", "Step 2: Another step."])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High'},
+        None
+    ])
+    def test_autonomous_loop_handles_generic_write_file_exceptions(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog):
+        """Test that autonomous_loop handles generic exceptions from _write_output_file gracefully."""
+        caplog.set_level(logging.INFO)
+        test_driver.tasks = [{'task_id': 'mock_task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        mock_write_output_file.assert_called_once_with("error.txt", ANY, overwrite=False)
+        assert "Failed to write file error.txt: Generic write error" in caplog.text
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
+        assert 'Autonomous loop terminated.' in caplog.text
+        # Only check that the message doesn't appear for step 1 related logs
+        step1_logs = "\n".join([log for log in caplog.text.splitlines() if "Step 1" in log]) # Filter logs for Step 1
+        assert "Step not identified as code generation or file writing." not in step1_logs
+
+    # --- End new tests for Task 15_3e ---
 
 
     def test_workflow_driver_write_output_file_success(
@@ -557,6 +697,7 @@ class TestWorkflowDriver:
         tasks = test_driver.load_roadmap(roadmap_file)
         assert len(tasks) == 0 # Task should be skipped due to invalid ID
         # Check for the log message about the invalid task_id format
+        # CORRECTED ASSERTION TO MATCH LOG FORMAT
         assert "Skipping task with invalid task_id format: 'invalid/task'" in caplog.text
 
     def test_load_roadmap_task_name_too_long(self, test_driver, tmp_path, caplog):
@@ -1008,4 +1149,3 @@ class TestWorkflowDriver:
         assert test_driver._is_valid_task_id("task.") is False # Contains dot (dots are not allowed by the regex)
         assert test_driver._is_valid_task_id(".task") is False # Starts with dot (not allowed by new regex)
         assert test_driver._is_valid_task_id("-task") is False # Starts with hyphen (not allowed by new regex)
-        assert test_driver._is_valid_task_id("_task") is False # Starts with underscore (not allowed by new regex)

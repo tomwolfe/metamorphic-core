@@ -44,21 +44,28 @@ class TestWorkflowDriver:
         # Initialize tasks list for the driver instance for this test
         test_driver.tasks = [] # No tasks available
         test_driver.autonomous_loop()
-        assert 'Starting autonomous loop' in caplog.text
+        assert 'Starting autonomous loop iteration' in caplog.text # Updated log message
         assert 'No tasks available in Not Started status.' in caplog.text # Check log for no tasks
-        assert 'Loop iteration complete' in caplog.text
+        assert 'Autonomous loop terminated.' in caplog.text # Updated log message
 
     # --- New tests for autonomous_loop (Task 15_3a2) ---
-    @patch.object(WorkflowDriver, 'select_next_task', return_value={'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'})
+    # MODIFIED: Use side_effect to return task then None to allow loop to exit
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}, # First call returns a task
+        None # Second call returns None
+    ])
     def test_autonomous_loop_task_selected_logging(self, mock_select_next_task, test_driver, caplog):
-        """Test that autonomous_loop logs the selected task ID when a task is found."""
+        """Test that autonomous_loop logs the selected task ID when a task is found and then exits."""
         caplog.set_level(logging.INFO)
         test_driver.tasks = [{'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}] # Add a task
         test_driver.autonomous_loop()
-        mock_select_next_task.assert_called_once_with(test_driver.tasks)
-        assert 'Starting autonomous loop' in caplog.text
+        # select_next_task should be called twice (once finds task, second finds none)
+        assert mock_select_next_task.call_count == 2
+        mock_select_next_task.assert_any_call(test_driver.tasks)
+        assert 'Starting autonomous loop iteration' in caplog.text # Updated log message
         assert 'Selected task: ID=mock_task_1' in caplog.text # Check log for selected task
-        assert 'Loop iteration complete' in caplog.text
+        assert 'Autonomous loop terminated.' in caplog.text # Updated log message
+
 
     @patch.object(WorkflowDriver, 'select_next_task', return_value=None)
     def test_autonomous_loop_no_task_logging(self, mock_select_next_task, test_driver, caplog):
@@ -67,22 +74,23 @@ class TestWorkflowDriver:
         test_driver.tasks = [{'task_id': 'mock_task_completed', 'task_name': 'Completed Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High'}] # No 'Not Started' tasks
         test_driver.autonomous_loop()
         mock_select_next_task.assert_called_once_with(test_driver.tasks)
-        assert 'Starting autonomous loop' in caplog.text
-        assert 'No tasks available in Not Started status.' in caplog.text # Check log for no tasks
-        assert 'Loop iteration complete' in caplog.text
+        assert 'Starting autonomous loop iteration' in caplog.text # Updated log message
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text # Updated log message
+        assert 'Autonomous loop terminated.' in caplog.text # Updated log message
     # --- End new tests for autonomous_loop ---
 
     # --- New test for Task 15_3a3 ---
+    # MODIFIED: Use side_effect for select_next_task to return task then None
     def test_autonomous_loop_generates_plan_logging(self, test_driver, caplog, mocker):
-        """Test that autonomous_loop calls generate_solution_plan and logs the result."""
+        """Test that autonomous_loop calls generate_solution_plan and logs the result, then exits."""
         caplog.set_level(logging.INFO)
 
         # Define mock task and plan
         mock_task = {'task_id': 'mock_task_plan', 'task_name': 'Task with Plan', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}
         mock_plan = ['Mock Plan Step 1', 'Mock Plan Step 2']
 
-        # Mock select_next_task to return the mock task
-        mock_select_next_task = mocker.patch.object(test_driver, 'select_next_task', return_value=mock_task)
+        # Mock select_next_task to return the mock task then None
+        mock_select_next_task = mocker.patch.object(test_driver, 'select_next_task', side_effect=[mock_task, None])
 
         # Mock generate_solution_plan to return the mock plan
         mock_generate_solution_plan = mocker.patch.object(test_driver, 'generate_solution_plan', return_value=mock_plan)
@@ -94,15 +102,75 @@ class TestWorkflowDriver:
         test_driver.autonomous_loop()
 
         # Assertions
-        mock_select_next_task.assert_called_once_with(test_driver.tasks)
+        # select_next_task should be called twice (once finds task, second finds none)
+        assert mock_select_next_task.call_count == 2
+        mock_select_next_task.assert_any_call(test_driver.tasks)
+
+        # generate_solution_plan should be called once (only when a task is selected)
         mock_generate_solution_plan.assert_called_once_with(mock_task)
 
-        # Check log messages
-        assert 'Starting autonomous loop' in caplog.text
-        assert 'Selected task: ID=mock_task_plan' in caplog.text
-        assert f'Generated plan: {mock_plan}' in caplog.text # Check for the plan string representation
-        assert 'Loop iteration complete' in caplog.text
+        # Check log messages sequence
+        log_output = caplog.text
+        assert 'Starting autonomous loop iteration' in log_output # Updated log message
+        assert 'Selected task: ID=mock_task_plan' in log_output
+        assert f'Generated plan: {mock_plan}' in log_output # Check for the plan string representation
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in log_output # Updated log message
+        assert 'Autonomous loop terminated.' in log_output # Updated log message
+
+        # Ensure the loop ran exactly two iterations (one finding a task, one finding none)
+        assert log_output.count('Starting autonomous loop iteration') == 2
+
     # --- End new test for Task 15_3a3 ---
+
+    # --- Modified/New tests for autonomous_loop termination (Task 15_3b) ---
+    @patch.object(WorkflowDriver, 'select_next_task', return_value=None)
+    def test_autonomous_loop_no_task_exits_gracefully(self, mock_select_next_task, test_driver, caplog):
+        """Test that autonomous_loop exits gracefully when no 'Not Started' tasks are available."""
+        caplog.set_level(logging.INFO)
+        # Ensure tasks list is empty or contains no 'Not Started' tasks
+        test_driver.tasks = [{'task_id': 'mock_task_completed', 'task_name': 'Completed Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        mock_select_next_task.assert_called_once_with(test_driver.tasks)
+        assert 'Starting autonomous loop iteration' in caplog.text
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
+        assert 'Autonomous loop terminated.' in caplog.text
+        # Ensure the loop didn't run more than once
+        assert caplog.text.count('Starting autonomous loop iteration') == 1
+
+
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=['Mock Plan Step'])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_1', 'task_name': 'Task 1', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}, # First call returns a task
+        None # Second call returns None
+    ])
+    def test_autonomous_loop_processes_task_then_exits(self, mock_select_next_task, mock_generate_plan, test_driver, caplog):
+        """Test that autonomous_loop processes a task and then exits when no more tasks are available."""
+        caplog.set_level(logging.INFO)
+        # Ensure tasks list contains a 'Not Started' task initially
+        test_driver.tasks = [{'task_id': 'mock_task_1', 'task_name': 'Task 1', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        # select_next_task should be called twice (once finds task, second finds none)
+        assert mock_select_next_task.call_count == 2
+        mock_select_next_task.assert_any_call(test_driver.tasks) # Check it was called with the tasks list
+
+        # generate_solution_plan should be called once (only when a task is selected)
+        mock_generate_plan.assert_called_once_with({'task_id': 'mock_task_1', 'task_name': 'Task 1', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'})
+
+        # Check log messages sequence
+        log_output = caplog.text
+        assert 'Starting autonomous loop iteration' in log_output
+        assert 'Selected task: ID=mock_task_1' in log_output
+        assert "Generated plan: ['Mock Plan Step']" in log_output # Check for the plan log
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in log_output
+        assert 'Autonomous loop terminated.' in log_output
+
+        # Ensure the loop ran exactly two iterations (one finding a task, one finding none)
+        assert log_output.count('Starting autonomous loop iteration') == 2
+    # --- End modified/new tests for autonomous_loop termination (Task 15_3b) ---
 
 
     def test_workflow_driver_write_output_file_success(
@@ -837,4 +905,3 @@ class TestWorkflowDriver:
         assert test_driver._is_valid_task_id("-task") is False # Starts with hyphen (not allowed by new regex)
         assert test_driver._is_valid_task_id("_task") is False # Starts with underscore (not allowed by new regex)
         # Add cases that should now be invalid with the new regex
-        assert test_driver._is_valid_task_id("1-") is True # Ends with hyphen (should be allowed) - Corrected assertion

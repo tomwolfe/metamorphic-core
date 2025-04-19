@@ -38,12 +38,12 @@ class WorkflowDriver:
         This method orchestrates the task selection, planning, agent invocation,
         and file management steps to drive the development process autonomously.
         """
-        while True:
-            logger.info('Starting autonomous loop')
+        while True: # Loop indefinitely until explicitly broken
+            logger.info('Starting autonomous loop iteration') # Changed log message slightly for clarity
 
-            # --- Start Task 15_3a2 Implementation ---
             # Call select_next_task to get the next task
             # Ensure self.tasks is populated before calling select_next_task in a real scenario
+            # In a real scenario, self.tasks would be loaded once before the loop starts
             next_task = self.select_next_task(self.tasks)
 
             # Log the selected task or indicate no tasks are available
@@ -52,19 +52,22 @@ class WorkflowDriver:
                 task_id = next_task.get('task_id', 'Unknown ID')
                 logger.info(f'Selected task: ID={task_id}')
 
-                # --- Start Task 15_3a3 Implementation ---
                 # Call generate_solution_plan and log the result
-                solution_plan = self.generate_solution_plan(next_task)
-                logger.info(f'Generated plan: {solution_plan}')
-                # --- End Task 15_3a3 Implementation ---
+                solution_plan = self.generate_solution_plan(next_task) # Call the placeholder method
+                logger.info(f'Generated plan: {solution_plan}') # Log the result
 
-                # Future steps will process this task
+                # --- Future steps will process this task (Task 15_3c, 15_3d, etc.) ---
+                # For now, the loop will continue to the next iteration after processing a task.
+                # A real implementation might update task status here and re-select.
+
             else:
-                logger.info('No tasks available in Not Started status.')
-            # --- End Task 15_3a2 Implementation ---
+                logger.info('No tasks available in Not Started status. Exiting autonomous loop.')
+                break # Exit the loop when no tasks are found
 
-            logger.info('Loop iteration complete')
-            break # Placeholder to run loop once for now
+            # Removed the unconditional break here
+
+        logger.info('Autonomous loop terminated.') # Added log message for loop termination
+
 
     def generate_solution_plan(self, task: dict) -> list[str]:
         """
@@ -360,4 +363,5 @@ Requirements:
 
         except Exception as e:
             # Log any unexpected exceptions
-            logger.error(f"Unexpected error during file writing to {filepath}: {e}", exc_info=True)
+            logger.error(f"Unexpected error in _write_output_file for {filepath}: {e}", exc_info=True)
+            return False

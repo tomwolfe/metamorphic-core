@@ -61,15 +61,58 @@ class WorkflowDriver:
                 solution_plan = self.generate_solution_plan(next_task)
                 logger.info(f'Generated plan: {solution_plan}') # Log the result
 
-                # --- Future steps will process this task (Task 15_3c, 15_3d, etc.) ---
-                # For now, the loop will continue to the next iteration after processing a task.
+                # --- Task 15_3d: Integrate agent invocation based on the plan ---
+                if solution_plan: # Ensure plan is not empty or None
+                    logger.info(f"Executing plan for task {task_id} with {len(solution_plan)} steps.")
+                    for step_index, step in enumerate(solution_plan):
+                        logger.info(f"Executing step {step_index + 1}/{len(solution_plan)}: {step}")
+
+                        # Heuristic to identify code generation steps
+                        # This is a simple heuristic and will need refinement in future tasks
+                        code_generation_keywords = ["implement", "generate code", "write function", "modify file", "add logic to"]
+                        is_code_generation_step = any(keyword in step.lower() for keyword in code_generation_keywords)
+
+                        if is_code_generation_step:
+                            logger.info(f"Step identified as potential code generation. Invoking Coder LLM for step: {step}")
+                            # Construct a prompt specific to this step and the overall task
+                            # The prompt should include the task context and the specific step instruction
+                            # NOTE: Task name and step are NOT sanitized here, potential prompt injection risk if roadmap is untrusted.
+                            # Description is escaped by load_roadmap.
+                            coder_prompt = f"""You are a Coder LLM expert in Python.
+Your task is to perform the following specific step from a larger development plan for the task "{next_task.get('task_name', 'Unknown Task')}":
+
+Overall Task Description:
+{next_task.get('description', 'No description provided.')}
+
+Specific Plan Step to Implement:
+{step}
+
+Please provide the Python code or necessary instructions to fulfill this step. Focus ONLY on the code or direct instructions needed for this step.
+"""
+                            # Invoke the Coder LLM
+                            generated_output = self._invoke_coder_llm(coder_prompt)
+
+                            if generated_output:
+                                logger.info(f"Coder LLM invoked for step {step_index + 1}. Generated output (first 100 chars): {generated_output[:100]}...")
+                                # Note: Handling the generated_output (e.g., writing to file) is deferred to Task 15_3e
+                            else:
+                                logger.warning(f"Coder LLM invocation for step {step_index + 1} returned no output.")
+                        else:
+                            logger.info(f"Step not identified as code generation. Skipping agent invocation for step: {step}")
+                            # Future tasks will add logic for other step types (e.g., file write, test run, review)
+
+                else:
+                    logger.warning(f"No solution plan generated for task {task_id}.")
+
+                # --- End Task 15_3d logic ---
+
+                # Removed the unconditional break here
+                # The loop will now continue to the next iteration after processing a task
                 # A real implementation might update task status here and re-select.
 
             else:
                 logger.info('No tasks available in Not Started status. Exiting autonomous loop.')
                 break # Exit the loop when no tasks are found
-
-            # Removed the unconditional break here
 
         logger.info('Autonomous loop terminated.') # Added log message for loop termination
 
@@ -98,7 +141,8 @@ class WorkflowDriver:
 Your task is to generate a step-by-step solution plan for the following development task from the Metamorphic Software Genesis Ecosystem roadmap.
 
 Task Name: {task_name}
-Task Description: {description}
+Task Description:
+{description}
 
 The plan should be a numbered list of concise steps (1-2 sentences each). Focus on the high-level actions needed to complete the task.
 
@@ -440,4 +484,5 @@ Requirements:
 
         except Exception as e:
             # Log any unexpected exceptions
-            logger.error(f"Unexpected error in _write_output_file for {filepath}: {e}", exc_info=True)
+            logger.error(f"Unexpected error during file writing for {filepath}: {e}", exc_info=True)
+            return False

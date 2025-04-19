@@ -23,7 +23,8 @@ def test_driver(tmp_path):
     driver = WorkflowDriver(context)
     # Replace the real orchestrator with a mock
     driver.llm_orchestrator = MagicMock()
-    driver.llm_orchestrator.generate.return_value = "Test response"
+    # Default mock return for generate, can be overridden in tests
+    driver.llm_orchestrator.generate.return_value = "Test response from LLM"
     return driver
 
 def create_mock_roadmap_file(content, tmp_path, is_json=True):
@@ -54,7 +55,8 @@ class TestWorkflowDriver:
         {'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}, # First call returns a task
         None # Second call returns None
     ])
-    def test_autonomous_loop_task_selected_logging(self, mock_select_next_task, test_driver, caplog):
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=[]) # Mock plan generation to return empty plan
+    def test_autonomous_loop_task_selected_logging(self, mock_generate_plan, mock_select_next_task, test_driver, caplog):
         """Test that autonomous_loop logs the selected task ID when a task is found and then exits."""
         caplog.set_level(logging.INFO)
         test_driver.tasks = [{'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}] # Add a task
@@ -171,6 +173,109 @@ class TestWorkflowDriver:
         # Ensure the loop ran exactly two iterations (one finding a task, one finding none)
         assert log_output.count('Starting autonomous loop iteration') == 2
     # --- End modified/new tests for autonomous_loop termination (Task 15_3b) ---
+
+
+    # --- New tests for Task 15_3d ---
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Analyze requirements.", "Step 2: Implement the feature.", "Step 3: Write tests."])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_d', 'task_name': 'Task D', 'status': 'Not Started', 'description': 'Desc D', 'priority': 'High'},
+        None
+    ])
+    def test_autonomous_loop_calls_coder_llm_for_code_step(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog):
+        """Test that autonomous_loop calls _invoke_coder_llm for code generation steps."""
+        caplog.set_level(logging.INFO)
+        test_driver.tasks = [{'task_id': 'mock_task_d', 'task_name': 'Task D', 'status': 'Not Started', 'description': 'Desc D', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        # _invoke_coder_llm should be called exactly once for the "Implement the feature" step
+        assert mock_invoke_coder_llm.call_count == 1
+        # Verify the prompt passed to _invoke_coder_llm includes task context and step details
+        called_prompt = mock_invoke_coder_llm.call_args[0][0]
+        assert "Task D" in called_prompt
+        assert "Desc D" in called_prompt
+        assert "Specific Plan Step to Implement:\nStep 2: Implement the feature." in called_prompt
+        assert "Step identified as potential code generation. Invoking Coder LLM for step: Step 2: Implement the feature." in caplog.text
+        assert "Coder LLM invoked for step 2. Generated output" in caplog.text # Check log for successful invocation
+
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Analyze requirements.", "Step 2: Update documentation.", "Step 3: Review changes."])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_no_code', 'task_name': 'Task No Code', 'status': 'Not Started', 'description': 'Desc No Code', 'priority': 'High'},
+        None
+    ])
+    def test_autonomous_loop_does_not_call_coder_llm_for_non_code_step(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog):
+        """Test that autonomous_loop does NOT call _invoke_coder_llm for non-code generation steps."""
+        caplog.set_level(logging.INFO)
+        test_driver.tasks = [{'task_id': 'mock_task_no_code', 'task_name': 'Task No Code', 'status': 'Not Started', 'description': 'Desc No Code', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        # _invoke_coder_llm should NOT be called for any of these steps
+        mock_invoke_coder_llm.assert_not_called()
+        assert "Step not identified as code generation. Skipping agent invocation for step: Step 1: Analyze requirements." in caplog.text
+        assert "Step not identified as code generation. Skipping agent invocation for step: Step 2: Update documentation." in caplog.text
+        assert "Step not identified as code generation. Skipping agent invocation for step: Step 3: Review changes." in caplog.text
+
+    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="Mock Generated Code")
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement the feature."])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_prompt', 'task_name': 'Task Prompt', 'status': 'Not Started', 'description': 'Desc Prompt', 'priority': 'High'},
+        None
+    ])
+    def test_autonomous_loop_constructs_correct_coder_prompt(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver):
+        """Test that the prompt constructed for _invoke_coder_llm includes relevant task and step information."""
+        test_driver.tasks = [{'task_id': 'mock_task_prompt', 'task_name': 'Task Prompt', 'status': 'Not Started', 'description': 'Desc Prompt', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        mock_invoke_coder_llm.assert_called_once()
+        called_prompt = mock_invoke_coder_llm.call_args[0][0]
+
+        # Verify key pieces of information are in the prompt
+        assert "You are a Coder LLM expert in Python." in called_prompt
+        assert 'Overall Task Description:\nDesc Prompt' in called_prompt
+        assert 'Specific Plan Step to Implement:\nStep 1: Implement the feature.' in called_prompt
+        assert 'Focus ONLY on the code or direct instructions needed for this step.' in called_prompt
+
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=[]) # Return empty plan
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_empty_plan', 'task_name': 'Task Empty Plan', 'status': 'Not Started', 'description': 'Desc Empty Plan', 'priority': 'High'},
+        None
+    ])
+    def test_autonomous_loop_handles_empty_plan(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog):
+        """Test that autonomous_loop handles an empty plan gracefully."""
+        caplog.set_level(logging.INFO)
+        test_driver.tasks = [{'task_id': 'mock_task_empty_plan', 'task_name': 'Task Empty Plan', 'status': 'Not Started', 'description': 'Desc Empty Plan', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        # _invoke_coder_llm should NOT be called
+        mock_invoke_coder_llm.assert_not_called()
+        assert "No solution plan generated for task mock_task_empty_plan." in caplog.text # Check log for empty plan
+
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=None) # Return None plan
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'mock_task_none_plan', 'task_name': 'Task None Plan', 'status': 'Not Started', 'description': 'Desc None Plan', 'priority': 'High'},
+        None
+    ])
+    def test_autonomous_loop_handles_none_plan(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog):
+        """Test that autonomous_loop handles a None plan gracefully."""
+        caplog.set_level(logging.WARNING) # generate_solution_plan logs warning for None/empty
+        test_driver.tasks = [{'task_id': 'mock_task_none_plan', 'task_name': 'Task None Plan', 'status': 'Not Started', 'description': 'Desc None Plan', 'priority': 'High'}]
+
+        test_driver.autonomous_loop()
+
+        # _invoke_coder_llm should NOT be called
+        mock_invoke_coder_llm.assert_not_called()
+        # Check log for warning from generate_solution_plan and the subsequent warning in autonomous_loop
+        # Corrected assertion to check for the log message in autonomous_loop
+        assert "No solution plan generated for task mock_task_none_plan." in caplog.text
+
+    # --- End new tests for Task 15_3d ---
 
 
     def test_workflow_driver_write_output_file_success(
@@ -904,4 +1009,3 @@ class TestWorkflowDriver:
         assert test_driver._is_valid_task_id(".task") is False # Starts with dot (not allowed by new regex)
         assert test_driver._is_valid_task_id("-task") is False # Starts with hyphen (not allowed by new regex)
         assert test_driver._is_valid_task_id("_task") is False # Starts with underscore (not allowed by new regex)
-        # Add cases that should now be invalid with the new regex

@@ -77,7 +77,7 @@
       "priority": "High",
       "task_name": "Integrate agent invocation into autonomous loop",
       "description": "Modify the Driver loop to automatically call _invoke_coder_llm (and potentially other agents - though focus on Coder LLM for now) based on the generated plan. For each step in the plan that requires code generation, the loop should call `_invoke_coder_llm()` with the appropriate prompt.",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "`autonomous_loop()` iterates through plan steps, calls `_invoke_coder_llm()` for each step requiring code generation (even if placeholder plan). Verify log output for agent calls and prompts (if possible to log prompts easily).",
       "Potential Risks": "Incorrect plan step iteration, errors in agent invocation, handling agent responses, loop might not handle plans with different types of steps correctly.",
       "Mitigation": "Start with a simple plan with one code generation step, log each step and agent call (log prompt if feasible), mock agent responses for initial testing, test with plans containing different step types (code generation, file operations - in later tasks).",

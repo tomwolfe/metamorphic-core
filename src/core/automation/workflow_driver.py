@@ -1,13 +1,13 @@
 # src/core/automation/workflow_driver.py
-from src.cli.write_file import write_file
 import logging
 import html
 import os
 import json
 from pathlib import Path
-from src.core.llm_orchestration import EnhancedLLMOrchestrator  # Added import
-import re # Import regex for task_id validation
-from unittest.mock import MagicMock # Import MagicMock for placeholder initialization
+from src.core.llm_orchestration import EnhancedLLMOrchestrator
+import re
+from unittest.mock import MagicMock
+from src.cli.write_file import write_file # Ensure write_file is imported
 
 logger = logging.getLogger(__name__)
 
@@ -20,20 +20,15 @@ class Context:
 
 class WorkflowDriver:
     def __init__(self, context: Context):
-        # Initialize the WorkflowDriver with a given context
         self.context = context
-        # NOTE: self.tasks will need to be loaded before autonomous_loop is called
-        # This will be addressed in a later task. For now, assume self.tasks is available.
         self.tasks = [] # Placeholder - will be loaded by CLI or other mechanism
 
         # Initialize LLM Orchestrator - Pass placeholder dependencies for now
-        # These will be properly initialized in later phases/tasks
         self.llm_orchestrator = EnhancedLLMOrchestrator(
-            kg=MagicMock(),  # Mock KnowledgeGraph
-            spec=MagicMock(),  # Mock FormalSpecification
-            ethics_engine=MagicMock()  # Mock EthicalGovernanceEngine
+            kg=MagicMock(),
+            spec=MagicMock(),
+            ethics_engine=MagicMock()
         )
-
 
     def autonomous_loop(self):
         """
@@ -42,40 +37,31 @@ class WorkflowDriver:
         This method orchestrates the task selection, planning, agent invocation,
         and file management steps to drive the development process autonomously.
         """
-        while True: # Loop indefinitely until explicitly broken
-            logger.info('Starting autonomous loop iteration') # Changed log message slightly for clarity
+        while True:
+            logger.info('Starting autonomous loop iteration')
 
-            # Call select_next_task to get the next task
-            # Ensure self.tasks is populated before calling select_next_task in a real scenario
-            # In a real scenario, self.tasks would be loaded once before the loop starts
             next_task = self.select_next_task(self.tasks)
 
-            # Log the selected task or indicate no tasks are available
             if next_task:
-                # Ensure task_id is accessed safely
                 task_id = next_task.get('task_id', 'Unknown ID')
                 logger.info(f'Selected task: ID={task_id}')
 
-                # Call generate_solution_plan and log the result
-                # Now calls the LLM to generate the plan
                 solution_plan = self.generate_solution_plan(next_task)
-                logger.info(f'Generated plan: {solution_plan}') # Log the result
+                logger.info(f'Generated plan: {solution_plan}')
 
                 # --- Task 15_3d: Integrate agent invocation based on the plan ---
-                if solution_plan: # Ensure plan is not empty or None
+                if solution_plan:
                     logger.info(f"Executing plan for task {task_id} with {len(solution_plan)} steps.")
                     for step_index, step in enumerate(solution_plan):
                         logger.info(f"Executing step {step_index + 1}/{len(solution_plan)}: {step}")
 
-                        # Heuristic to identify code generation steps
-                        # This is a simple heuristic and will need refinement in future tasks
+                        # Simple heuristic to identify code generation steps
                         code_generation_keywords = ["implement", "generate code", "write function", "modify file", "add logic to"]
                         is_code_generation_step = any(keyword in step.lower() for keyword in code_generation_keywords)
 
                         if is_code_generation_step:
                             logger.info(f"Step identified as potential code generation. Invoking Coder LLM for step: {step}")
                             # Construct a prompt specific to this step and the overall task
-                            # The prompt should include the task context and the specific step instruction
                             # NOTE: Task name and step are NOT sanitized here, potential prompt injection risk if roadmap is untrusted.
                             # Description is escaped by load_roadmap.
                             coder_prompt = f"""You are a Coder LLM expert in Python.
@@ -89,7 +75,6 @@ Specific Plan Step to Implement:
 
 Please provide the Python code or necessary instructions to fulfill this step. Focus ONLY on the code or direct instructions needed for this step.
 """
-                            # Invoke the Coder LLM
                             generated_output = self._invoke_coder_llm(coder_prompt)
 
                             if generated_output:
@@ -104,18 +89,15 @@ Please provide the Python code or necessary instructions to fulfill this step. F
                 else:
                     logger.warning(f"No solution plan generated for task {task_id}.")
 
-                # --- End Task 15_3d logic ---
-
                 # Removed the unconditional break here
                 # The loop will now continue to the next iteration after processing a task
                 # A real implementation might update task status here and re-select.
 
             else:
                 logger.info('No tasks available in Not Started status. Exiting autonomous loop.')
-                break # Exit the loop when no tasks are found
+                break
 
-        logger.info('Autonomous loop terminated.') # Added log message for loop termination
-
+        logger.info('Autonomous loop terminated.')
 
     def generate_solution_plan(self, task: dict) -> list[str]:
         """
@@ -131,12 +113,11 @@ Please provide the Python code or necessary instructions to fulfill this step. F
         """
         if not isinstance(task, dict) or 'task_name' not in task or 'description' not in task:
              logger.error("Invalid task dictionary provided for plan generation.")
-             return [] # Return empty list for invalid input
+             return []
 
         task_name = task['task_name']
         description = task['description']
 
-        # Construct the prompt for the LLM to generate a plan
         planning_prompt = f"""You are an AI assistant specializing in software development workflows.
 Your task is to generate a step-by-step solution plan for the following development task from the Metamorphic Software Genesis Ecosystem roadmap.
 
@@ -158,18 +139,13 @@ Please provide the plan as a numbered markdown list. Do not include any introduc
 
         logger.debug(f"Sending planning prompt to LLM for task '{task_name}'.")
 
-        # Invoke the Coder LLM (via LLMOrchestrator) to generate the plan
         llm_response = self._invoke_coder_llm(planning_prompt)
 
         if not llm_response:
             logger.warning(f"LLM returned empty response for plan generation for task '{task_name}'.")
-            return [] # Return empty list if LLM response is empty or None
+            return []
 
-        # Parse the LLM's response to extract the numbered list items
         plan_steps = []
-        # Regex to find numbered list items (e.g., "1. ", "2. ", etc.)
-        # This regex is simple and assumes standard markdown numbering.
-        # It extracts the text following the number and dot.
         step_pattern = re.compile(r'^\s*\d+\.\s*(.*)$', re.MULTILINE)
 
         current_step_text = None
@@ -177,30 +153,21 @@ Please provide the plan as a numbered markdown list. Do not include any introduc
         for line in llm_response.splitlines():
             match = step_pattern.match(line)
             if match:
-                # If we were processing a previous step, add it to the list
                 if current_step_text is not None:
                     plan_steps.append(current_step_text.strip())
-                # Start a new step
                 current_step_text = match.group(1).strip()
             elif current_step_text is not None:
-                 # If a line doesn't match the pattern but we're inside a step,
-                 # assume it's a continuation.
                  current_step_text += " " + line.strip()
 
-        # Add the last step if any
         if current_step_text is not None:
              plan_steps.append(current_step_text.strip())
 
-
-        # Basic sanitization on extracted steps (remove potential markdown formatting like bold/italics)
         sanitized_steps = [re.sub(r'[*_`]', '', step).strip() for step in plan_steps]
-        # Remove empty strings resulting from sanitization or parsing issues
         sanitized_steps = [step for step in sanitized_steps if step]
 
         logger.debug(f"Parsed and sanitized plan steps: {sanitized_steps}")
 
         return sanitized_steps
-
 
     def _invoke_coder_llm(self, coder_llm_prompt: str) -> str:
         """
@@ -213,13 +180,11 @@ Please provide the plan as a numbered markdown list. Do not include any introduc
             Return the generated text from the LLM, or None if there was an error.
         """
         try:
-            # Use the mocked or real llm_orchestrator instance
-            # The generate method is expected to return a string
             response = self.llm_orchestrator.generate(coder_llm_prompt)
-            if response is None: # Handle cases where generate might return None on error
+            if response is None:
                  logger.error("LLM Orchestrator generate method returned None.")
                  return None
-            return response.strip()  # Return the generated text, stripped of whitespace
+            return response.strip()
         except Exception as e:
             logger.error(f"Error invoking Coder LLM: {e}", exc_info=True)
             return None
@@ -233,24 +198,19 @@ Please provide the plan as a numbered markdown list. Do not include any introduc
         Returns:
             The first task dictionary with a status of 'Not Started', or None if no such task exists or the list is empty.
         """
-        # Add input validation for safety and robustness
         if not isinstance(tasks, list):
             logger.warning(f"select_next_task received non-list input: {type(tasks)}")
-            return None # Return None for invalid input
+            return None
 
         for task in tasks:
-            # Ensure task is a dictionary and has required keys for safe access
             if isinstance(task, dict) and 'status' in task and 'task_id' in task:
-                # Basic sanitization/validation of task_id to prevent path traversal
                 task_id = task.get('task_id')
                 if task['status'] == 'Not Started':
                     if task_id and self._is_valid_task_id(task_id):
                          return task
                     elif task_id:
                          logger.warning(f"Skipping task with invalid task_id format: {task_id}")
-                    # If task_id is missing or invalid, continue to next task
             else:
-                # Log a warning for tasks that are not dictionaries or missing keys
                 logger.warning(f"Skipping invalid task format in list: {task}")
 
         return None
@@ -285,7 +245,6 @@ Requirements:
 """
         return [prompt]
 
-
     def generate_user_actionable_steps(self, steps):
         if not isinstance(steps, list):
             raise TypeError("generate_user_actionable_steps expects a list of strings")
@@ -297,13 +256,12 @@ Requirements:
 
         markdown_steps = ""
         for i, step in enumerate(steps):
-            # Use html.escape for sanitization to prevent rendering issues in markdown
             markdown_steps += f"{i+1}.  - [ ] {html.escape(step)}\n"
         return markdown_steps
 
     def load_roadmap(self, roadmap_file_path):
         tasks = []
-        max_file_size = 10000  # Maximum file size in bytes (10KB)
+        max_file_size = 10000
         if not os.path.exists(roadmap_file_path):
             logger.error(f"ROADMAP.json file not found at path: {roadmap_file_path}")
             return tasks
@@ -338,7 +296,6 @@ Requirements:
                 continue
 
             task_id = task_data['task_id']
-            # Validate task_id format early
             if not self._is_valid_task_id(task_id):
                 logger.warning(f"Skipping task with invalid task_id format: '{task_id}'. Task IDs can only contain alphanumeric characters, underscores, and hyphens.")
                 continue
@@ -349,7 +306,6 @@ Requirements:
                 continue
 
             task_description = task_data['description']
-            # Sanitize description to prevent rendering issues in markdown/HTML
             escaped_description = html.escape(task_description)
 
             task = {
@@ -366,19 +322,13 @@ Requirements:
         """Validates task_id to ensure it only contains allowed characters and format."""
         if not isinstance(task_id, str):
             return False
-        # Regex allows alphanumeric, underscores, and hyphens, but must start with alphanumeric.
-        # Prevents '/', '\', '..', '.', leading/trailing hyphens/underscores (implicitly by requiring alphanumeric start)
-        # Corrected regex to match test expectations (start with alphanumeric)
         return bool(re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_-]*$', task_id))
-
 
     def file_exists(self, relative_file_path):
         """Checks if a file exists in the workspace."""
-        # Sanitize path before checking existence
         try:
             full_path = self.context.get_full_path(relative_file_path)
             resolved_path = Path(full_path).resolve()
-            # Ensure the resolved path is still within the base path for security
             resolved_base_path = Path(self.context.base_path).resolve()
             if not str(resolved_path).startswith(str(resolved_base_path)):
                  logger.warning(f"Attempted to check file existence outside base path: {relative_file_path} (Resolved: {resolved_path})")
@@ -388,13 +338,11 @@ Requirements:
             logger.error(f"Error checking file existence for {relative_file_path}: {e}", exc_info=True)
             return False
 
-
     def list_files(self):
         """Lists files and directories in the workspace root."""
         base_path = self.context.base_path
         entries = []
         try:
-            # Ensure base_path is resolved and valid before listing
             resolved_base_path = Path(base_path).resolve()
             if not resolved_base_path.is_dir():
                  logger.error(f"Base path is not a valid directory: {base_path}")
@@ -402,7 +350,6 @@ Requirements:
 
             for name in os.listdir(resolved_base_path):
                 full_path = os.path.join(resolved_base_path, name)
-                # Further sanitize/validate each entry name if necessary, though os.listdir is relatively safe
                 if not self._is_valid_filename(name):
                      logger.warning(f"Skipping listing of invalid filename: {name}")
                      continue
@@ -420,12 +367,9 @@ Requirements:
         """Basic validation for filenames to prevent listing malicious names."""
         if not isinstance(filename, str):
             return False
-        # Prevent names containing path traversal sequences or control characters
         if '..' in filename or '/' in filename or '\\' in filename:
             return False
-        # Add other checks as needed (e.g., control characters)
         return True
-
 
     def _write_output_file(self, filepath, content, overwrite=False):
         """
@@ -442,47 +386,31 @@ Requirements:
         Raises:
             FileExistsError: If overwrite is False and the file already exists.
         """
-        # Sanitize the filepath and resolve it to an absolute path
         try:
             resolved_filepath = Path(filepath).resolve()
         except Exception as e:
             logger.error(f"Error resolving filepath {filepath}: {e}", exc_info=True)
             return False
 
-        # Ensure the resolved path is within the base path for security
         resolved_base_path = Path(self.context.base_path).resolve()
         if not str(resolved_filepath).startswith(str(resolved_base_path)):
              logger.error(f"Attempt to write outside base path: {filepath} (Resolved: {resolved_filepath})")
              return False
 
         try:
-            # Call the write_file function with the sanitized and validated path
             result = write_file(str(resolved_filepath), content, overwrite=overwrite)
-
-            # If write_file succeeds, log an info message and return True
             if result:
                 logger.info(f"Successfully wrote to file: {resolved_filepath}")
                 return True
-
-            # If write_file returns False (e.g., due to internal error not raising exception), propagate the failure
             return False
-
         except FileExistsError as e:
-            # Propagate FileExistsError to allow the caller to handle it
             logger.warning(f"File already exists and overwrite is False: {resolved_filepath}")
             raise e
-
         except FileNotFoundError as e:
-            # Log an error message for FileNotFoundError
             logger.error(f"File not found error when writing to {filepath}: {e}", exc_info=True)
             return False
-
         except PermissionError as e:
-            # Log an error message for PermissionError
             logger.error(f"Permission error when writing to {filepath}: {e}", exc_info=True)
             return False
-
         except Exception as e:
-            # Log any unexpected exceptions
             logger.error(f"Unexpected error during file writing for {filepath}: {e}", exc_info=True)
-            return False

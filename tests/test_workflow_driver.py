@@ -1,3 +1,5 @@
+# tests/test_workflow_driver.py
+
 import pytest
 import html
 import shutil
@@ -69,6 +71,38 @@ class TestWorkflowDriver:
         assert 'No tasks available in Not Started status.' in caplog.text # Check log for no tasks
         assert 'Loop iteration complete' in caplog.text
     # --- End new tests for autonomous_loop ---
+
+    # --- New test for Task 15_3a3 ---
+    def test_autonomous_loop_generates_plan_logging(self, test_driver, caplog, mocker):
+        """Test that autonomous_loop calls generate_solution_plan and logs the result."""
+        caplog.set_level(logging.INFO)
+
+        # Define mock task and plan
+        mock_task = {'task_id': 'mock_task_plan', 'task_name': 'Task with Plan', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}
+        mock_plan = ['Mock Plan Step 1', 'Mock Plan Step 2']
+
+        # Mock select_next_task to return the mock task
+        mock_select_next_task = mocker.patch.object(test_driver, 'select_next_task', return_value=mock_task)
+
+        # Mock generate_solution_plan to return the mock plan
+        mock_generate_solution_plan = mocker.patch.object(test_driver, 'generate_solution_plan', return_value=mock_plan)
+
+        # Set tasks for the driver (needed for select_next_task call argument)
+        test_driver.tasks = [mock_task]
+
+        # Call the autonomous loop
+        test_driver.autonomous_loop()
+
+        # Assertions
+        mock_select_next_task.assert_called_once_with(test_driver.tasks)
+        mock_generate_solution_plan.assert_called_once_with(mock_task)
+
+        # Check log messages
+        assert 'Starting autonomous loop' in caplog.text
+        assert 'Selected task: ID=mock_task_plan' in caplog.text
+        assert f'Generated plan: {mock_plan}' in caplog.text # Check for the plan string representation
+        assert 'Loop iteration complete' in caplog.text
+    # --- End new test for Task 15_3a3 ---
 
 
     def test_workflow_driver_write_output_file_success(
@@ -804,4 +838,3 @@ class TestWorkflowDriver:
         assert test_driver._is_valid_task_id("_task") is False # Starts with underscore (not allowed by new regex)
         # Add cases that should now be invalid with the new regex
         assert test_driver._is_valid_task_id("1-") is True # Ends with hyphen (should be allowed) - Corrected assertion
-        assert test_driver._is_valid_task_id("1_") is True # Ends with underscore (should be allowed) - Corrected assertion

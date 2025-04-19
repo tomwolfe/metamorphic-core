@@ -1,3 +1,4 @@
+# src/core/automation/workflow_driver.py
 # workflow_driver.py
 # src/core/automation/workflow_driver.py
 import logging
@@ -413,11 +414,12 @@ Requirements:
         # Disallow path traversal sequences and directory separators
         if '..' in filename or '/' in filename or '\\' in filename:
             return False
-        # Allow alphanumeric, underscores, hyphens, dots (for extensions)
+        # Require filename to start with alphanumeric, allow alphanumeric, underscores, hyphens, dots
         # Ensure it's not just a dot or dot-dot
         if filename in ['.', '..']:
             return False
-        return bool(re.fullmatch(r'^[a-zA-Z0-9_.-]+$', filename))
+        # --- UPDATED REGEX ---
+        return bool(re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]*$', filename))
 
 
     def _write_output_file(self, filepath, content, overwrite=False):
@@ -467,4 +469,3 @@ Requirements:
             return False
         except Exception as e:
             logger.error(f"Unexpected error writing to {filepath}: {e}", exc_info=True)
-            return False

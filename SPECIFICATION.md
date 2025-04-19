@@ -1,29 +1,38 @@
 # Full High-Level Specification (Detailed Vision)
 
-## Phase 2 Iteration 1 Focused Specification Summary <a name="phase-2-iteration-1-focused-specification-summary"></a>
+## Phase 2 Iteration 2 Focused Specification Summary <a name="phase-2-iteration-2-focused-specification-summary"></a>
 
-**Purpose:** This section provides a concise summary of the full specification, focusing *only* on the elements directly relevant to Phase 2 Iteration 1 (Weeks 7-9). This is intended to provide an actionable and focused guide for the current development iteration. Refer to the sections below for the full, detailed vision.
+**Purpose:** This section provides a concise summary of the full specification, focusing *only* on the elements directly relevant to Phase 2 Iteration 2. This is intended to provide an actionable and focused guide for the current development iteration. Refer to the sections below for the full, detailed vision.
 
-**Key Goals for Phase 2 Iteration 1 (from Full Specification):**
+**Key Goals for Phase 2 Iteration 2 (from Full Specification):**
 
-*   **Ethical Actionability & Governance (Simplified for Iteration 1):**
-    *   Continue to ensure ethical considerations are integrated. For Iteration 1, this primarily means ensuring the *new* `security_analysis` section in the API and the *enhanced test generation* features are designed and implemented in alignment with the existing ethical framework (as defined in the full specification's "Ethical Actionability" section). No new ethical constraints or policies are being introduced in Iteration 1, but existing policies will be applied during testing and code quality checks.
-*   **Automated Quality & Security (Focus for Iteration 1):**
-    *   **Enhanced Test Generation:** Re-integrate and expand the `TestGenAgent` to provide basic intelligent test generation for Python functions. This will be a foundational step towards the "Automated Quality & Security" objective outlined in the full specification (Section II. System Architecture & Core Workflow, Validation phase).
-    *   **Security Scanning Integration:** Integrate OWASP ZAP baseline scans into the `/genesis/analyze-ethical` API endpoint. This is a key step towards the "Cyber-Physical Resilience & Resource Efficiency" principle (Section I.4) by proactively addressing security from the code analysis phase. The `security_analysis` section in the API response will be a first step towards the "Automated Quality & Security" objective.
-*   **Knowledge-Based Problem Solving (Underlying for Iteration 1):**
-    *   While not directly implementing new KG features in Iteration 1, the existing Knowledge Graph (KG) infrastructure will continue to be used as the backbone for system knowledge. Agents like `CodeReviewAgent` and `TestGenAgent` will continue to leverage the KG (as currently implemented) for their operations. Future iterations will expand KG capabilities as described in the full specification's "Knowledge-Based Problem Solving" section (Section I.5).
+*   **Ethical Actionability & Governance (Continued Integration):**
+    *   Continue to ensure ethical considerations are integrated into new and enhanced features. As agents become more intelligent and KG integration deepens, ensure ethical policies and principles guide their design and operation.
+*   **Automated Quality & Security (Enhancement Focus):**
+    *   **Enhanced Code Review:** Improve the `CodeReviewAgent` to perform more sophisticated analysis, potentially using AST parsing for semantic understanding and identifying complex code issues beyond basic style/linting.
+    *   **Enhanced Test Generation:** Advance the `TestGenerationAgent` beyond placeholders to generate more intelligent, context-aware tests, potentially guided by code complexity metrics or basic specification analysis.
+*   **Knowledge-Based Problem Solving (Core Focus):**
+    *   **Deepen KG Integration:** Significantly expand the Knowledge Graph to store richer semantic information about code (structure, dependencies, metrics), ethical policies, security findings, and agent interactions.
+    *   **Leverage KG for Agents:** Modify core agents (`CodeReviewAgent`, `TestGenerationAgent`, future `CodeGenerationAgent`) to actively query and utilize the Knowledge Graph for enhanced context, reasoning, and decision-making.
+*   **Self-Improving Development Process (Next Automation Target):**
+    *   **Automate Initial Prompt:** Implement the automation of the initial prompt construction and submission from the CLI to the Driver LLM API, eliminating the manual copy-paste step.
 
-**Core Workflow Adaptation for Phase 2 Iteration 1 (Simplified):**
+**Core Workflow Adaptation for Phase 2 Iteration 2:**
 
-For Phase 2 Iteration 1, the core workflow (as detailed in Section II of the full specification) is primarily focused on enhancing the **Validation (Iterative Loop)** stage, specifically with:
+For Phase 2 Iteration 2, the core workflow (as detailed in Section II of the full specification) is primarily focused on enhancing the **Validation (Iterative Loop)** stage with more intelligent agents and deeper KG integration, and automating the **Initiation** phase.
 
-1.  **Enhanced Code Quality Checks:** Continuing to use `CodeReviewAgent` (Flake8) for code quality assessment.
-2.  **Security Scans:** Integrating `SecurityAgent` to perform ZAP baseline scans and report results in the API response.
-3.  **Test Generation (Basic Enhancement):** Re-integrating and slightly enhancing `TestGenAgent` to provide basic placeholder tests and improve test generation capabilities in future iterations.
-4.  **Ethical Assessment:** The `EthicalGovernanceEngine` continues to operate as defined in the MVP, ensuring ethical policies are enforced during code analysis.
+1.  **Automated Initiation (New):** The CLI will automate the construction and submission of the initial prompt to the Driver LLM API.
+2.  **Autonomous Workflow Execution (Driver LLM Loop - Automated):** The Driver LLM, initiated by the automated prompt, autonomously selects tasks, generates plans, and executes plan steps.
+3.  **Enhanced Validation (Orchestrated by Driver):** The Driver orchestrates validation steps using enhanced agents:
+    *   **Enhanced Code Quality Checks:** Using an improved `CodeReviewAgent` with semantic analysis.
+    *   **Security Scans:** Continuing to use `SecurityAgent` (ZAP).
+    *   **Enhanced Test Generation:** Using an improved `TestGenerationAgent` capable of more intelligent test generation.
+    *   **Ethical Assessment:** The `EthicalGovernanceEngine` continues to operate, potentially leveraging richer context from the KG.
+4.  **Knowledge Graph Interaction:** Agents actively query and update the expanded Knowledge Graph throughout the process, storing semantic code analysis results, test generation strategies, and ethical/security findings.
+5.  **Integration:** Validated code is written via `write_file`.
+6.  **User Review & Feedback:** User reviews outputs and provides feedback.
 
-*Note: This summary is intended to be a concise and actionable guide for Phase 2 Iteration 1. For full context and long-term vision, please refer to the detailed sections below.*
+*Note: This summary is intended to be a concise and actionable guide for Phase 2 Iteration 2. For full context and long-term vision, please refer to the detailed sections below.*
 
 ---
 
@@ -36,7 +45,7 @@ For Phase 2 Iteration 1, the core workflow (as detailed in Section II of the ful
 
 **Executive Summary:**
 
-The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source platform (AGPLv3) designed to revolutionize software development through **ethical actionability, adaptive learning, and human-AI symbiosis.** As a community-driven passion project, it aims for exceptional software quality, efficiency, and ethical responsibility by synergistically combining advanced AI with human expertise. Envisioned for creating robust software, especially for complex, long-context tasks, ASGE prioritizes verifiable reliability, resource efficiency, and transparent ethical operations, aligning with frameworks like the **EU AI Act, GDPR, and COPPA.** **A key aspect of our methodology is an Iterative Grading Process, ensuring continuous quality improvement and verifiable software artifacts. To further enhance our development process, we are currently prioritizing the implementation of a "Markdown-Only Automation Workflow" side project, which is strategically crucial to significantly improve software quality AND accelerate our development cycles for the Metamorphic Ecosystem itself. A future enhancement will automate the interaction with the Coder LLM, further streamlining the development process.** Long-term sustainability is fostered through vibrant community contribution, resourceful operation, and a commitment to open knowledge. This document outlines the core design, architecture, high-level post-MVP roadmap, technical specifications, and KPIs for Version 1.0. While this specification details the long-term vision, the **current development focus is on delivering the Phase 1 MVP** as outlined in the main roadmap section – establishing the foundational configurable ethical analysis and basic code quality checking capability.
+The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source platform (AGPLv3) designed to revolutionize software development through **ethical actionability, adaptive learning, and human-AI symbiosis.** As a community-driven passion project, it aims for exceptional software quality, efficiency, and ethical responsibility by synergistically combining advanced AI with human expertise. Envisioned for creating robust software, especially for complex, long-context tasks, ASGE prioritizes verifiable reliability, resource efficiency, and transparent ethical operations, aligning with frameworks like the **EU AI Act, GDPR, and COPPA.** **A key aspect of our methodology is an Iterative Grading Process, ensuring continuous quality improvement and verifiable software artifacts. We have successfully completed Phase 1.5, implementing a Markdown-Only Automation Workflow that automates the core Driver LLM loop (task selection, planning, agent invocation, file writing).** This strategic investment in our own development process significantly improves software quality AND accelerates our development cycles for the Metamorphic Ecosystem itself. **We are now focused on Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph**, improving the intelligence of our core AI agents and deepening their integration with the Knowledge Graph. Long-term sustainability is fostered through vibrant community contribution, resourceful operation, and a commitment to open knowledge. This document outlines the core design, architecture, high-level roadmap, technical specifications, and KPIs for Version 1.0.
 
 **I. Foundational Design Principles:**
 
@@ -61,7 +70,7 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
 
 6.  **Open Innovation & Global Accessibility**: Fostering a vibrant community and broad usability.
     *   *Mechanism:* Actively manage community contributions via **GitHub** (primary repository). Adhere to open standards (OpenAPI for APIs) and prioritize FOSS tools (Python, Go, Rust, Coq, ZAP, etc.).
-        *   **AI-Augmented Project Planning:** Integrate AI-driven iterative roadmap refinement, inspired by the process used to develop MSGE itself. This includes AI-assisted risk assessment, task breakdown, and continuous plan optimization, aiming to minimize uncertainty and maximize project success probability. **This includes the "Markdown-Only Automation Workflow," which leverages LLMs and augmented documentation to streamline and accelerate our own development process, demonstrating our commitment to self-improvement and efficient, transparent workflows.**
+        *   **AI-Augmented Project Planning:** Integrate AI-driven iterative roadmap refinement, inspired by the process used to develop MSGE itself. This includes AI-assisted risk assessment, task breakdown, and continuous plan optimization, aiming to minimize uncertainty and maximize project success probability. **The completion of the "Markdown-Only Automation Workflow" in Phase 1.5 provides a foundational step towards this, demonstrating our commitment to self-improvement and efficient, transparent workflows by automating the core Driver LLM execution loop.**
     *   *Future:* Develop a **Community Contribution Platform** (web UI). Implement localization (10+ languages). Support diverse open-source LLMs (Alpa, StarCoder) to reduce vendor lock-in and improve global accessibility.
 
 **II. System Architecture & Core Workflow:**
@@ -76,46 +85,49 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
           |--------------------------------------|-----------------------------|---(Feedback Loops, Monitoring, Validation)
 ```
 
-*   **Core Workflow Example (Code Analysis - MVP Focus):**
-    1.  User submits code via API (`/genesis/analyze-ethical`).
-    2.  API Gateway routes request.
-    3.  `Metamorphic Core` receives request.
-    4.  `Ethical Governance Layer` (`EthicalGovernanceEngine`) loads the relevant JSON policy.
-    5.  `Metamorphic Core` invokes `CodeReviewAgent` (**Flake8**) and `TestGenAgent` (placeholders).
-    6.  `CodeReviewAgent` analyzes code using Flake8, results stored temporarily/sent back.
-    7.  `EthicalGovernanceEngine` enforces loaded policy against the code.
-    8.  Results (**Flake8 output**, ethical status, placeholder tests) are aggregated by the `Metamorphic Core`.
-    9.  Results potentially stored in KG.
-    10. Formatted JSON response (including `code_quality` section) returned via API Gateway.
-    11. (Parallel/Async) `SecurityAgent` might trigger ZAP scan if applicable (post-MVP focus for full integration).
-    12. (Post-MVP) Feedback loops update KG and `ContinuousLearningCore`.
-    **13. (Iterative Grading & Refinement): The code changes and analysis results then enter an **Iterative Grading Process**. A reviewer assesses the changes across multiple quality dimensions, including **code style, ethical compliance, test success probability, non-regression probability, and security soundness**, and assigns a probability-based grade with actionable feedback. This feedback drives further code refinement and re-validation in subsequent iterations, ensuring continuous quality improvement.**
+*   **Core Workflow Example (Post-Phase 1.5 Stage 3):**
+    1.  User initiates the autonomous workflow (currently via CLI + manual prompt submission to Driver LLM API).
+    2.  The **Driver LLM** (within `Metamorphic Core`) receives the prompt, loads the `ROADMAP.json`, and enters its `autonomous_loop()`.
+    3.  The Driver autonomously selects the next task with status "Not Started".
+    4.  The Driver generates a step-by-step solution plan for the selected task (orchestrating LLM calls via `LLMOrchestrator`).
+    5.  The Driver iterates through the plan steps.
+    6.  For steps requiring code generation, the Driver automatically invokes the **Coder LLM** (via `LLMOrchestrator`) with a specific prompt for that step.
+    7.  For steps requiring file operations, the Driver automatically uses the `write_file` or `list_files` tools.
+    8.  The Driver orchestrates validation steps as part of the plan execution:
+        *   Code Quality (`CodeReviewAgent` - Flake8).
+        *   Security Scans (`SecurityAgent` - ZAP).
+        *   Testing (`TestGenAgent` - placeholder/basic).
+        *   Ethical Assessment (`EthicalGovernanceEngine`).
+    9.  Results (Flake8 output, ethical status, generated tests, security findings) are processed and potentially stored in the KG.
+    10. The Driver logs the progress and results of the iteration, including a Grade Report.
+    11. The Driver repeats the loop (steps 3-10) until no "Not Started" tasks remain in the roadmap.
+    12. **(Iterative Grading & Refinement):** The user reviews the outputs of the autonomous iteration (generated code, reports, logs). A reviewer assesses the changes across multiple quality dimensions, including **code style, ethical compliance, test success probability, non-regression probability, and security soundness**, and assigns a probability-based grade with actionable feedback. This feedback guides the user's next interaction with the Driver LLM to refine the generated artifacts and update the roadmap status manually (until roadmap automation is implemented).
 
         *(For full details on the grading process, see [**ROADMAP.md - Development Process & Methodology**](ROADMAP.md#development-process---methodology)).*
 
         **(Parallel/Async - Future Enhancements):**
-        *   *(Post-MVP) `SecurityAgent` might trigger ZAP scan if applicable for deeper security analysis (DAST).*
+        *   *(Phase 2 Iteration 2+) Enhanced agents perform more sophisticated analysis and generation.*
+        *   *(Phase 2 Iteration 2+) Deeper KG integration provides richer context for agents.*
         *   *(Phase 3) `FormalVerificationEngine` could trigger Coq proofs for critical logic paths, results feeding into validation.*
         *   *(Phase 4) `PerformanceAnalysisAgent` could run benchmarks and profiling, results informing resource optimization.*
 
-    * **The current workflow includes a manual step where the developer copies generated prompts to a Coder LLM, and pastes the code back to the Driver LLM. In future, the Metamorphic Core will directly orchestrate the Coder LLM, automating this process and streamlining the developer experience.**
+    * **With the completion of Phase 1.5 Stage 3, the Metamorphic Core now directly orchestrates the Coder LLM and file operations, automating the core development loop. The primary remaining manual step for the user is the initial construction and submission of the comprehensive prompt to the Driver LLM API endpoint. Automating this step is a key task in Phase 2 Iteration 2.**
 
 *   **Key Components (Detailed):**
     *   **Human Input & Oversight Interface:** (Planned Web UI) Secure portal for spec submission (text, later diagrams), configuration, feedback, ethical guidance input, ERB overrides, progress dashboards.
     *   **Metamorphic Core (Adaptive AI Orchestration):**
-        *   *Dynamic Knowledge Graph:* Neo4j or similar graph DB storing nodes (code chunks, specs, policies, vulnerabilities, tests, metrics) and semantic relationships. Enables complex querying for context retrieval and pattern analysis.
-        *   *Intelligent LLM Orchestration Layer:* Manages API calls to multiple LLMs (Gemini, HF models via `InferenceClient`, potentially OpenAI). Implements context window management (semantic chunking, summarization), cost/latency optimization (model selection based on task complexity), robust retries, and failover logic. Uses `TokenAllocator` for budget management. **This layer will be enhanced to automatically invoke the Coder LLM, managed by the `LLMOrchestrator`, based on prompts generated by the Driver LLM during task execution.**
+        *   *Dynamic Knowledge Graph:* Neo4j or similar graph DB storing nodes (code chunks, specs, policies, vulnerabilities, tests, metrics) and semantic relationships. Enables complex querying for context retrieval and pattern analysis. **Phase 2 Iteration 2 focuses on expanding the KG schema to store richer code semantics.**
+        *   *Intelligent LLM Orchestration Layer:* Manages API calls to multiple LLMs (Gemini, HF models via `InferenceClient`, potentially OpenAI). Implements context window management (semantic chunking, summarization), cost/latency optimization (model selection based on task complexity), robust retries, and failover logic. Uses `TokenAllocator` for budget management. **This layer is now orchestrated by the autonomous Driver LLM.**
         *   *Modular AI Agent Network:*
             *   `SpecificationAnalysisAgent`: Parses natural language/structured input into formal requirements, potentially using AST analysis and LLMs.
-            *   `TestGenerationAgent`: Generates pytest tests (placeholders in MVP, meaningful tests including HIL using code/spec analysis later).
+            *   `TestGenerationAgent`: Generates pytest tests (placeholders in MVP, meaningful tests including HIL using code/spec analysis later). **Phase 2 Iteration 2 focuses on enhancing this agent for more intelligent test generation.**
             *   `CodeGenerationAgent`: (Post-MVP) Generates code (Python, Go, Rust, JS/TS, C++) based on specs from KG/LLM Orchestrator.
-            *   `CodeReviewAgent`: Runs static analysis with **Flake8** for code quality. **Integrated into `/genesis/analyze-ethical` API endpoint.** (Post-MVP: Bandit, Semgrep for security SAST; LLMs for deeper semantic review).
+            *   `CodeReviewAgent`: Runs static analysis with **Flake8** for code quality. **Integrated into `/genesis/analyze-ethical` API endpoint. Phase 2 Iteration 2 focuses on enhancing this agent with semantic analysis.** (Post-MVP: Bandit, Semgrep for security SAST; LLMs for deeper semantic review).
             *   `SecurityAgent`: Orchestrates security tools (ZAP DAST now; SAST via Bandit/Semgrep later). Analyzes results, stores findings in KG.
             *   `PerformanceAnalysisAgent`: (Post-MVP) Integrates profiling tools (cProfile) and analyzes performance metrics.
             *   `FormalVerificationEngine`: Interfaces with Coq/Isabelle/Z3 to run proofs against code or specifications.
             *   `PredictiveRiskAssessmentModule`: Uses `QuantumRiskPredictor` (trained on historical KG data) to forecast ethical/security risks.
             *   `SelfMonitoringAndAdaptiveHealing`: Monitors system metrics (Prometheus), logs errors, triggers recovery actions.
-            *   `ContinuousLearningCore`: Uses ML (RL, supervised learning) on KG data/feedback to update agent strategies and LLM prompts.
             *   `ResourceManagementOptimization`: (Post-MVP) Optimizes cloud resource usage, potentially using Kubernetes HPA based on Prometheus metrics.
     *   **Ethical Governance Framework:**
         *   **Project Process Ethics:** Extend the Ethical Governance Framework to evaluate and guide MSGE's own development processes, ensuring they align with ethical principles of **transparency, risk mitigation, and continuous improvement**. This includes using AI-driven roadmap refinement to minimize uncertainty and enhance project success probability, and proactively addressing potential ethical concerns within the development process itself. **Furthermore, to ensure consistent ethical considerations in code contributions, we employ an **Iterative Grading Process** (detailed in [ROADMAP.md - Development Process & Methodology](ROADMAP.md#development-process---methodology)) that includes "Ethical Policy Compliance Probability", "Code Style Compliance Probability", and other key quality metrics in code reviews and iterative refinement cycles.**
@@ -152,7 +164,7 @@ The following table summarizes the anticipated cumulative improvements in key ar
 
 *   **Core Tech Stack:** Python (primary), Go (concurrency/API), Rust (safety-critical), JavaScript/TypeScript (UI - planned), Coq/Isabelle/Z3 (formal methods).
 *   **LLM Providers:** Gemini (default in MVP), Hugging Face (via `InferenceClient`, OpenAI (future).
-*   **Knowledge Graph:** Neo4j (planned), initially in-memory Python dict for MVP.
+*   **Knowledge Graph:** Neo4j (planned), initially in-memory Python dict for MVP. **Phase 2 Iteration 2 focuses on schema expansion.**
 *   **Security Scanning:** OWASP ZAP (DAST - integrated in CI for MVP), Bandit, Semgrep (SAST - post-MVP).
 *   **Testing Frameworks:** pytest (unit, integration), Hypothesis (property-based).
 *   **CI/CD:** GitHub Actions (MVP), GitLab CI/CD (future option).
@@ -164,7 +176,7 @@ The following table summarizes the anticipated cumulative improvements in key ar
 
 *(Roadmap for future phases - examples)*
 
-*   **Phase 2 (Enhanced Intelligence):** Advanced AI planning, reinforcement learning for agent optimization, deeper KG integration, semantic code search, AI-driven debugging/refactoring.
+*   **Phase 2 (Enhanced Intelligence):** Advanced AI planning, reinforcement learning for agent optimization, deeper KG integration, semantic code search, AI-driven debugging/refactoring. **Phase 2 Iteration 2 is the current focus.**
 *   **Phase 3 (Cyber-Physical Systems Focus):** Integration with robotics frameworks (ROS 2), hardware-in-the-loop (HIL) testing, formal verification of safety-critical embedded code, real-time ethical monitoring for autonomous systems.
 *   **Phase 4 (Quantum-Augmented Genesis):** Full integration of quantum computing for optimization, risk prediction, and potentially code generation, quantum-resistant security measures.
 

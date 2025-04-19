@@ -1,119 +1,65 @@
 {
-  "phase": "Phase 1.5 Stage 3 - Full Driver Automation",
-  "phase_goal": "Achieve fully autonomous Driver LLM loop capable of selecting tasks, planning solutions, invoking agents, and managing files without manual Driver prompts.",
+  "phase": "Phase 2 Iteration 2 - Enhanced Agents & Knowledge Graph",
+  "phase_goal": "Enhance the intelligence and capabilities of core AI Agents, and deepen integration with the Knowledge Graph to improve context handling, reasoning, and overall system performance.",
   "success_metrics": [
-    "Driver LLM can autonomously select the next 'Not Started' task from ROADMAP.json",
-    "Driver LLM can autonomously generate a solution plan for a selected task",
-    "Driver LLM can autonomously invoke the Coder LLM and other necessary agents as per the plan",
-    "Driver LLM can autonomously use the write_file and list_files tools as per the plan",
-    "End-to-end autonomous workflow execution completes successfully for simple tasks",
-    "Comprehensive test suite for the autonomous loop passes (100% coverage goal for core loop logic)",
-    "All unit tests in `tests/test_workflow_driver.py` related to plan generation pass, covering LLM call and parsing logic.",
-    "End-to-end test passes, showing autonomous loop with mocked task selection and plan generation.",
-    "The `generate_solution_plan` can extract a plan with multiple different task descriptions"
+    "Improved performance of CodeReviewAgent (e.g., reduced false positives, increased accuracy in identifying complex code issues).",
+    "Enhanced TestGenerationAgent capable of generating more intelligent and context-aware tests (beyond placeholders).",
+    "Knowledge Graph expanded to store richer semantic information about code, ethical policies, and system behavior.",
+    "Agents demonstrate improved context awareness and reasoning through KG integration, measured by benchmark tasks (to be defined).",
+    "Unit tests for enhanced agents and KG integration achieve >= 80% code coverage."
   ],
   "tasks": [
     {
-      "task_id": "task_15_3a1",
-      "priority": "Critical",
-      "task_name": "Implement `autonomous_loop()` method in `WorkflowDriver`",
-      "description": "Create a new method `autonomous_loop()` in `src/core/automation/workflow_driver.py`. This method will contain the main control flow logic for the Driver LLM loop. The loop should initially just log 'Starting autonomous loop' and 'Loop iteration complete'.",
-      "status": "Completed",
-      "Success Criteria": "`autonomous_loop()` method exists in `WorkflowDriver`, method starts without errors, includes basic logging (e.g., `logger.info('Starting autonomous loop')`).",
-      "Potential Risks": "Complex control flow logic, potential for infinite loops, error handling within loop, unclear loop termination condition.",
-      "Mitigation": "Start with a simplified loop structure (e.g., `while True: # loop logic; break`), implement basic logging for debugging, add a manual 'stop' mechanism (e.g., checking a flag) if needed, implement a clear exit condition based on task status or a max iteration limit.",
-      "Time Saving Strategy": "Focus on core loop structure first, defer complex error handling and edge cases."
-    },
-    {
-      "task_id": "task_15_3a2",
-      "priority": "Critical",
-      "task_name": "Implement task selection call in `autonomous_loop()`",
-      "description": "Within `autonomous_loop()`, call `self.select_next_task(self.tasks)` to get the next task. Log the selected task ID (e.g., `logger.info(f'Selected task: {next_task['task_id']}')`) or 'No tasks available' (e.g., `logger.info('No tasks available in Not Started status.')`).",
-      "status": "Completed",
-      "Success Criteria": "`autonomous_loop()` calls `select_next_task()`, logs task ID when task is found (e.g., 'Selected task: task_15_3a2') or 'No tasks available' when no task is found.",
-      "Potential Risks": "`select_next_task()` might return None, incorrect handling of task/None, loop might not proceed correctly if no task is selected.",
-      "Mitigation": "Add conditional logic to handle both task and None return values, add logging to verify task selection, test with empty and non-empty ROADMAP.json task lists.",
-      "Dependencies": ["task_15_3a1"],
-      "Time Saving Strategy": "Reuse existing `select_next_task()` logic, focus on integration and logging output verification."
-    },
-    {
-      "task_id": "task_15_3a3",
+      "task_id": "task_2_2a",
       "priority": "High",
-      "task_name": "Implement solution plan generation call in `autonomous_loop()`",
-      "description": "Within `autonomous_loop()`, call `self.generate_solution_plan(task)` (placeholder method for now) and log the generated plan (e.g., `logger.info(f'Generated plan: {plan}')`). The placeholder `generate_solution_plan()` can simply return a fixed list of strings for now.",
-      "status": "Completed",
-      "Success Criteria": "`autonomous_loop()` calls `generate_solution_plan()`, logs the plan content (e.g., 'Generated plan: ['Placeholder Step 1', 'Placeholder Step 2']').",
-      "Potential Risks": "`generate_solution_plan()` not yet implemented, potential errors in placeholder call, plan might not be correctly logged.",
-      "Mitigation": "Create a placeholder `generate_solution_plan()` method that returns a fixed plan (e.g., `return ['Placeholder Step 1', 'Placeholder Step 2']`) for testing, implement actual logic in a later task, verify log output for plan content.",
-      "Dependencies": ["task_15_3a2"],
-      "Time Saving Strategy": "Use placeholder function to decouple loop integration from plan generation logic, focus on verifying loop flow and logging."
-    },
-    {
-      "task_id": "task_15_3b",
-      "priority": "High",
-      "task_name": "Integrate task selection into autonomous loop",
-      "description": "Modify the Driver loop to automatically call select_next_task() and handle the result. Ensure the loop correctly proceeds when a task is selected and gracefully handles the case when no 'Not Started' tasks are available (e.g., loop should log a message and potentially pause or exit gracefully).",
-      "status": "Completed",
-      "Success Criteria": "`autonomous_loop()` correctly uses `select_next_task()` to get next task and proceeds with loop logic when task is found, loop logs 'No tasks available' and handles no-task scenario gracefully.",
-      "Potential Risks": "Incorrect task selection logic, loop not terminating or handling empty task list correctly, potential infinite loop if task selection fails repeatedly.",
-      "Mitigation": "Test with various ROADMAP.json states (tasks in different statuses, empty task list), add logging to track task selection and loop flow in both task and no-task scenarios, implement a max iteration count or timeout to prevent infinite loops.",
-      "Dependencies": ["task_15_3a3"],
-      "Time Saving Strategy": "Focus on robust task selection logic and graceful handling of no-task scenarios."
-    },
-    {
-      "task_id": "task_15_3c",
-      "priority": "High",
-      "task_name": "Integrate solution planning into autonomous loop",
-      "description": "Modify the Driver loop to automatically generate the solution plan using an LLM call for the selected task. The plan generation should use `generate_coder_llm_prompts()` to create prompts and `_invoke_coder_llm()` to call the LLM. For initial testing, you can mock the LLM response to return a predefined plan.",
-      "status": "Completed",
-      "Success Criteria": "`autonomous_loop()` calls LLM to generate solution plan using `generate_coder_llm_prompts()` and _invoke_coder_llm()`, logs the generated plan. Verify logged plan structure (list of strings).",
-      "Potential Risks": "LLM call errors, incorrect prompt generation, plan not being used in subsequent steps, LLM prompt might be too generic or ineffective.",
-      "Mitigation": "Mock LLM calls initially for testing (use `MagicMock` to simulate LLM response), verify prompt content and structure in logs, log generated plan for review, start with a well-defined, parameterized prompt template for plan generation.",
-      "Dependencies": ["task_15_3b"],
-      "Time Saving Strategy": "Mock LLM interactions to test loop flow and prompt generation logic before integrating actual LLM calls."
-    },
-    {
-      "task_id": "task_15_3d",
-      "priority": "High",
-      "task_name": "Integrate agent invocation into autonomous loop",
-      "description": "Modify the Driver loop to automatically call _invoke_coder_llm (and potentially other agents - though focus on Coder LLM for now) based on the generated plan. For each step in the plan that requires code generation, the loop should call `_invoke_coder_llm()` with the appropriate prompt.",
-      "status": "Completed",
-      "Success Criteria": "`autonomous_loop()` iterates through plan steps, calls `_invoke_coder_llm()` for each step requiring code generation (even if placeholder plan). Verify log output for agent calls and prompts (if possible to log prompts easily).",
-      "Potential Risks": "Incorrect plan step iteration, errors in agent invocation, handling agent responses, loop might not handle plans with different types of steps correctly.",
-      "Mitigation": "Start with a simple plan with one code generation step, log each step and agent call (log prompt if feasible), mock agent responses for initial testing, test with plans containing different step types (code generation, file operations - in later tasks).",
-      "Dependencies": ["task_15_3c"],
-      "Time Saving Strategy": "Start with a simplified plan and agent interaction to test loop iteration and agent calls, expand plan complexity iteratively."
-    },
-    {
-      "task_id": "task_15_3e",
-      "priority": "High",
-      "task_name": "Integrate file management into autonomous loop",
-      "description": "Modify the Driver loop to automatically call _write_output_file and list_files as needed by the generated plan. For now, focus on _write_output_file. If the plan includes a step like 'Write code to file X', the loop should call `_write_output_file()` with the correct filepath and content (placeholder content for now).",
-      "status": "Completed",
-      "Success Criteria": "`autonomous_loop()` calls `_write_output_file()` when the plan includes file writing steps. Verify log output for file write attempts (filepath logged).",
-      "Potential Risks": "Incorrect file path handling, overwrite issues (though overwrite=False is default), errors in file I/O operations, loop might not correctly parse plan steps for file operations.",
-      "Mitigation": "Test file operations in isolation first, then integrate into the loop with simple file writing steps.",
-      "Dependencies": ["task_15_3d"],
-      "Time Saving Strategy": "Test file operations in isolation first, then integrate into the loop with simple file writing steps."
-    },
-    {
-      "task_id": "task_15_3f",
-      "priority": "High",
-      "task_name": "Add comprehensive tests for autonomous Driver loop",
-      "description": "Develop tests that simulate the end-to-end autonomous loop execution, verifying task selection, planning, invocation, and file operations. Focus on testing the `autonomous_loop()` method directly using mocks for dependencies like LLM calls and agent methods. Aim for tests that cover different loop states (task selected, no task, exceptions during LLM calls, etc.).",
+      "task_name": "Automate Initial Prompt Submission from CLI",
+      "description": "Modify the CLI (`src/cli/main.py`) to automatically construct the Driver LLM prompt (reading from `docs/workflows/markdown_automation.md` and documentation files) and submit it to the `/genesis/drive_workflow` API endpoint (new endpoint to be created in Phase 2 Iteration 2). This will eliminate the manual copy-paste step for users initiating the workflow.",
       "status": "Not Started",
-      "Success Criteria": "Unit tests cover loop initiation, task selection, plan generation (mocked), agent calls (mocked), file operations (mocked), and loop termination (various scenarios). Achieve 85% branch coverage for `autonomous_loop()` method (increased from 80%).",
-      "Potential Risks": "Incomplete test coverage, difficulty in mocking and isolating complex loop components, test flakiness, tests might not accurately simulate real-world loop behavior.",
-      "Mitigation": "Use pytest and mocking extensively (especially `patch.object` for mocking methods within `WorkflowDriver`), break down tests into smaller units (test each loop phase separately), focus on testing core loop control flow and branching logic, use parameterized tests to cover various scenarios with different inputs/mocks, review coverage reports to identify untested branches.",
-      "Dependencies": ["task_15_3e"],
-      "Time Saving Strategy": "Start writing tests early, use TDD approach for loop implementation, prioritize testing core loop logic and different execution paths."
+      "Success Criteria": "CLI script automatically constructs and submits the prompt to a mock API endpoint (for initial testing). No manual copy-paste of prompt required to initiate workflow. Basic unit tests for prompt construction and API call (mocked) are implemented.",
+      "Potential Risks": "API endpoint not yet implemented (dependent on other tasks in Phase 2), complexity in handling file paths and content loading in CLI, potential errors in prompt construction logic.",
+      "Mitigation": "Start by mocking the API endpoint for initial CLI implementation, focus on robust file handling and prompt assembly in the CLI, implement the actual API endpoint in a parallel task, add logging for debugging.",
+      "Time Saving Strategy": "Focus on CLI-side implementation first, decouple from API endpoint initially using mocks."
+    },
+    {
+      "task_id": "task_2_2b",
+      "priority": "High",
+      "task_name": "Enhance CodeReviewAgent with Semantic Analysis",
+      "description": "Improve the `CodeReviewAgent` to perform basic semantic analysis of code beyond just Flake8 checks. This could involve using AST parsing to understand code structure, identify potential design flaws, and provide more context-aware code quality feedback. Initial focus on identifying overly complex functions or classes based on AST metrics (e.g., cyclomatic complexity, lines of code).",
+      "status": "Not Started",
+      "Success Criteria": "`CodeReviewAgent` can extract basic AST-based metrics (cyclomatic complexity, LOC) and include them in its analysis output. New unit tests added to verify metric extraction and reporting. Agent's output format updated to include semantic analysis results.",
+      "Potential Risks": "Complexity in AST analysis and metric calculation, potential performance impact of deeper analysis, defining meaningful thresholds for complexity metrics.",
+      "Mitigation": "Start with simple metrics and gradually increase complexity, profile performance impact and optimize as needed, define initial thresholds based on literature and adjust based on testing.",
+      "Dependencies": ["task_2_2a"],
+      "Time Saving Strategy": "Focus on a limited set of key metrics initially, use existing AST parsing libraries, defer complex semantic reasoning for later iterations."
+    },
+    {
+      "task_id": "task_2_2c",
+      "priority": "Medium",
+      "task_name": "Improve TestGenerationAgent for Function Complexity",
+      "description": "Enhance the `TestGenerationAgent` to generate more intelligent placeholder tests that are tailored to the complexity of the function being tested. For functions identified as complex (using metrics from enhanced `CodeReviewAgent`), generate a larger number of placeholder tests or tests covering different input types (e.g., edge cases, boundary values).",
+      "status": "Not Started",
+      "Success Criteria": "`TestGenerationAgent` can receive complexity metrics from `CodeReviewAgent` and adjust the number or type of generated placeholder tests based on these metrics. Unit tests verify test generation variations based on different complexity levels. Agent's test generation logic updated to incorporate complexity metrics.",
+      "Potential Risks": "Defining 'complexity' thresholds for triggering enhanced test generation, ensuring generated placeholder tests are still meaningful, potential increase in test generation time.",
+      "Dependencies": ["task_2_2b"],
+      "Time Saving Strategy": "Start with a simple complexity threshold (e.g., cyclomatic complexity > X), focus on varying the *number* of placeholder tests initially, refine test generation logic iteratively."
+    },
+    {
+      "task_id": "task_2_2d",
+      "priority": "Medium",
+      "task_name": "Expand Knowledge Graph Schema for Code Semantics",
+      "description": "Extend the Knowledge Graph schema to store semantic information extracted by the enhanced `CodeReviewAgent`. This includes storing function signatures, class structures, dependencies, and complexity metrics as nodes and edges in the KG. This will enable agents to leverage richer context from the KG for improved reasoning and analysis.",
+      "status": "Not Started",
+      "Success Criteria": "KG schema updated to include new node types and relationship types for code semantics (function, class, dependency, complexity_metric, etc.). Data migration script (or logic) created to populate KG with semantic information from existing code (can be placeholder data initially). Unit tests for KG schema extension and data storage/retrieval.",
+      "Potential Risks": "Designing an effective and scalable KG schema, complexity in mapping AST-based metrics to KG representation, potential performance impact of larger KG.",
+      "Dependencies": ["task_2_2b"],
+      "Time Saving Strategy": "Start with a minimal KG schema extension focusing on key semantic elements, use in-memory KG for initial testing, defer performance optimization and large-scale data migration for later iterations."
     }
   ],
   "next_phase_actions": [
-    "Set `status`: `complete` on all Phase 1.5 Stage 3 tasks",
-    "Remove all Phase 1.5 Stage 3 tasks from the json config",
-    "Set 🎯 CURRENT FOCUS to `Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph`",
+    "Set `status`: `complete` on all Phase 2 Iteration 2 tasks",
+    "Remove all Phase 2 Iteration 2 tasks from the json config",
+    "Set 🎯 CURRENT FOCUS to `Phase 2 Iteration 3: Ethical Governance & API Expansion`",
     "Add tasks from Iteration 3 (Ethical Governance & API Expansion)"
   ],
-  "current_focus": "🎯 CURRENT FOCUS: Starting Phase 1.5 Stage 3: Full Driver Automation 🚀"
+  "current_focus": "🎯 CURRENT FOCUS: Phase 2 Iteration 2 - Enhanced Agents & Knowledge Graph 🚀"
 }

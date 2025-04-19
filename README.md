@@ -2,26 +2,26 @@
 
 [![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
-[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.5_IN_PROGRESS-yellow)](ROADMAP.md)
+[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_2.2_IN_PROGRESS-blue)](ROADMAP.md)
 
-**🎯 CURRENT FOCUS: PHASE 1.5 - Debugging Markdown Automation & Workflow Driver 🚀**
+**🎯 CURRENT FOCUS: PHASE 2 ITERATION 2 - Enhanced Agents & Knowledge Graph 🚀**
 
-Phase 1 MVP is complete! We are now still working on remaining steps in the 1.5 development project, specifically addressing key issues that exist in the stability of the driver for deployment. Upon completion, we'll then be transitioning into Phase 2, beginning the initial implementation of a limited autonomous workflow engine. See the [Roadmap](#further-documentation) for details.
+Phase 1 MVP is complete, and **Phase 1.5: Workflow Automation is now also complete!** We successfully implemented the Markdown-Only Automation Workflow, achieving autonomous execution of development tasks (task selection, planning, agent invocation, file writing) once the Driver LLM is initiated. We are now transitioning into **Phase 2 Iteration 2**, focusing on enhancing the core AI agents and deepening their integration with the Knowledge Graph to improve intelligence, context handling, and overall system performance. See the [Roadmap](#further-documentation) for details.
 
 ---
 
 **Strategic Impact of Phase 1.5:**
 
-Phase 1.5 focuses on implementing a Markdown-Only Automation Workflow to enhance the efficiency and consistency of our development process. While immediate speed improvements may be modest, our goal is to create a robust foundation for significant acceleration and improved quality in later phases. This focus on refining our *own* development processes aligns with our core ethical principles of transparency, continuous improvement, and efficient resource utilization. This also supports more robust and reliable AI-driven code generation and validation.
+Phase 1.5 focused on implementing a Markdown-Only Automation Workflow to enhance the efficiency and consistency of our development process. **With the successful completion of Phase 1.5 Stage 3, we have achieved a robust foundation for significant acceleration and improved quality in later phases by automating the core Driver LLM loop.** This focus on refining our *own* development processes aligns with our core ethical principles of transparency, continuous improvement, and efficient resource utilization. This also supports more robust and reliable AI-driven code generation and validation.
 
-**Three-Stage Approach to Markdown-Only Automation:**
+**Three-Stage Approach to Markdown-Only Automation (Completed):**
 
-Phase 1.5 is being implemented in three key stages. Stage 1 established the fundamental markdown automation workflow and CLI driver. Stage 2 continues to enhance the workflow driver with key functionalities like secure file handling, **automated Coder LLM invocation, automated `write_file` tool execution**, LLM prompt generation and integration, and well-defined, actionable steps. Stage 3 aims for full Driver loop automation. The benefits from stages 1, 2 and 3, and synergy with MSGE:
+Phase 1.5 was implemented in three key stages. Stage 1 established the fundamental markdown automation workflow and CLI driver. Stage 2 enhanced the workflow driver with key functionalities like secure file handling, automated Coder LLM invocation, automated `write_file` tool execution, LLM prompt generation and integration, and well-defined, actionable steps. **Stage 3 successfully achieved full Driver loop automation, enabling the Driver LLM to autonomously select tasks, generate plans, invoke agents, and manage files based on the roadmap.**
 
 **Estimated Potential Benefits (Long-Term, Full Integration):**
 
 *   **MSGE (Without Phase 1.5):** Represents a baseline system with manual operations and loosely coupled components, delivering a starting-point project success likelihood of 65%.
-*   **Phase 1.5 (Separate):** Aims to automate key routine workflow operations, improving developer experience by an estimated 85% in those specific tasks once fully integrated.
+*   **Phase 1.5 (Completed):** Successfully automated key routine workflow operations (task processing, agent invocation, file writing), improving developer experience by an estimated 85% in those specific tasks once fully integrated.
 *   **MSGE (With Phase 1.5):** The long-term objective is a fully integrated system achieving up to a 95% grade in overall developer efficiency. Faster iteration cycles and more consistent code quality are expected. Successful execution of the Markdown-Only Automation Workflow is intended to enhance adherence to evolving ethical standards.
 
 ---
@@ -50,7 +50,7 @@ Phase 1.5 is being implemented in three key stages. Stage 1 established the fund
 
 ## <a name="about"></a>About the Metamorphic Software Genesis Ecosystem
 
-The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications. It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision is the implementation of Phase 1.5. Phase 1.5 focuses on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system, and not the individual parts. Phase 1.5 is broken down into three critical stages. Stage 1 established the fundamental markdown automation workflow and CLI driver. Stage 2 continues to enhance the workflow driver with key functionalities like secure file handling, automated Coder LLM invocation, automated `write_file` tool execution, LLM prompt generation and integration, and well-defined, actionable steps. Stage 3 aims for full Driver loop automation.**
+The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications. It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision was the implementation of Phase 1.5, which is now complete.** Phase 1.5 focused on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, enabling autonomous task selection, planning, agent invocation, and file writing.** This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system. We are now focused on **Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph**, improving the intelligence of our core AI agents and deepening their integration with the Knowledge Graph.
 
 **Key Objectives:**
 
@@ -153,11 +153,11 @@ Examine the JSON response for `code_quality` and `ethical_analysis` sections.
 
 ### <a name="quickstart-guide-to-markdown-only-automation"></a>Quickstart Guide to Markdown-Only Automation
 
-For a streamlined, AI-driven development experience with minimal manual prompting, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the completion of Phase 1.5 Stage 2 (task_2_9a), the system now includes automated Coder LLM invocation and file writing. The core of the automation is dependent on stages 1, 2 and 3, which involves well-defined and actionable steps. Currently, the workflow still requires manual prompting of the Driver LLM for task selection and planning, but Phase 1.5 Stage 3 will automate this prompting and create a fully autonomous Driver LLM loop.**
+For a streamlined, AI-driven development experience, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, including task selection, solution planning, automated Coder LLM invocation, automated `write_file` tool execution, and iterative processing of plan steps.**
 
-**(As of Phase 1.5 Stage 2, the Driver LLM now automatically invokes the Coder LLM and the `write_file` tool. Manual copy-pasting of Coder LLM output is no longer required for code generation. However, the user still manually prompts the Driver LLM and executes the User Actionable Steps.)**
+**(As of Phase 1.5 Stage 3, the Driver LLM now automatically selects tasks, generates plans, invokes the Coder LLM, and uses the `write_file` tool based on the plan. The manual copy-pasting of Coder LLM output is no longer required for code generation. The primary remaining manual step is the initial construction and submission of the comprehensive prompt to the Driver LLM API endpoint. Automating this step is a key task in Phase 2 Iteration 2.)**
 
-**Quickstart Steps:**
+**Quickstart Steps (Post-Phase 1.5 Stage 3):**
 
 1.  **Prepare your `ROADMAP.json` and codebase text** as described in the [Full Guide](docs/workflows/markdown_automation.md). The roadmap is now managed in `ROADMAP.json`, not `ROADMAP.md`.
 2.  **Open your terminal** in the `metamorphic-core` project directory.
@@ -171,13 +171,13 @@ For a streamlined, AI-driven development experience with minimal manual promptin
 5.  **Paste the prompt into your LLM interface (this is the Driver LLM).**
 6.  **Replace the `[PASTE_..._HERE]` placeholders** in the prompt with the *content* of the respective files (`SPECIFICATION.md`, `ROADMAP.md`, `CONTRIBUTING.md`, `docs/workflows/markdown_automation.md`, `COMPETITIVE_LANDSCAPE.md`).
 7.  **Submit the prompt to the Driver LLM.**
-8.  **Review the Driver LLM's output.** It will provide a solution plan, User Actionable Steps, and a Grade Report. Note that the Coder LLM interaction and file writing are now handled automatically by the Driver LLM.
-9.  **Follow the User Actionable Steps.** Execute the manual steps described (e.g., running tests, reviewing code, updating roadmap status).
+8.  **Review the Driver LLM's output.** It will now autonomously select a task, generate a plan, execute the plan steps (including invoking the Coder LLM and writing files), and provide a Grade Report for the completed iteration.
+9.  **Follow the User Actionable Steps.** These steps will guide you through reviewing the AI's work, running tests, and updating the roadmap status manually (until roadmap automation is implemented).
 10. **Provide feedback** to the Driver LLM using one of the specified letter codes (e.g., `A: Confirm` if the steps were completed successfully and the outcome is satisfactory).
 
 **Example Quickstart Scenario:**
 
-Let's assume you want to work on **Task ID: task_2_9b** (Update Documentation for Automated Coder LLM) from your `ROADMAP.json`.
+Let's assume you want to work on **Task ID: task_2_2a** (Automate Initial Prompt Submission from CLI) from your `ROADMAP.json`.
 
 1.  **Open a terminal** in your `metamorphic-core` project directory.
 2.  **Run the CLI:**
@@ -186,20 +186,20 @@ Let's assume you want to work on **Task ID: task_2_9b** (Update Documentation fo
     python src/cli/main.py
     ```
 
-3.  **Review the CLI output.** It should indicate that "Task ID: task_2_9b" is selected (if it's the first 'Not Started' task in your `ROADMAP.json`). The output will look similar to this:
+3.  **Review the CLI output.** It should indicate that "Task ID: task_2_2a" is selected (if it's the first 'Not Started' task in your `ROADMAP.json`). The output will look similar to this:
 
     ```text
     Using roadmap: /path/to/metamorphic-core/ROADMAP.json
     Using output directory: /path/to/metamorphic-core/output
-    Next task selected: ID=task_2_9b, Name=Update Documentation for Automated Coder LLM
+    Next task selected: ID=task_2_2a, Name=Automate Initial Prompt Submission from CLI
     ```
 
 4.  **Copy the "Ready-to-Use "Ideal" Self-Driving Prompt"** from `docs/workflows/markdown_automation.md`.
 5.  **Paste the prompt into your LLM interface (Driver LLM).**
 6.  **Replace the `[PASTE_..._HERE]` placeholders** in the prompt with the *content* of the respective files (`SPECIFICATION.md`, `ROADMAP.md`, `CONTRIBUTING.md`, `docs/workflows/markdown_automation.md`, `COMPETITIVE_LANDSCAPE.md`).
 7.  **Submit the prompt to the Driver LLM.**
-8.  **Review the Driver LLM's output.** It will provide a solution plan, User Actionable Steps, and a Grade Report. Note that the Coder LLM interaction and file writing steps are now automated and will not appear as manual steps in the User Actionable list.
-9.  **Follow the User Actionable Steps.** In this case, the steps will involve manually reviewing the generated documentation and updating the roadmap.
+8.  **Review the Driver LLM's output.** It will provide a solution plan for `task_2_2a`, autonomously execute the steps (e.g., generating code for the CLI modification, writing the file), and provide a Grade Report.
+9.  **Follow the User Actionable Steps.** These steps will guide you through reviewing the generated code, running tests for the CLI, and manually updating the roadmap status for `task_2_2a`.
 10. **Provide feedback** to the Driver LLM using one of the specified letter codes (e.g., `A: Confirm` if the review is satisfactory and steps are complete).
 
 **For detailed instructions and the full "Ideal Self-Driving Prompt" text, please refer to the [Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md).** Note that the `ROADMAP.md` file is now autogenerated from `ROADMAP.json`.
@@ -208,21 +208,26 @@ Let's assume you want to work on **Task ID: task_2_9b** (Update Documentation fo
 
 The Metamorphic Software Genesis Ecosystem aims to automate software development from specification to deployment. Consider generating software for an **Autonomous Drone Package Delivery System**. This example showcases the framework's ability to handle complexity, security, ethics, and hardware interaction.
 
-**Conceptual Workflow:**
+**Conceptual Workflow (Post-Phase 1.5 Stage 3):**
 
-1.  **Input:** Provide a high-level software description and detailed ethical policies/constraints.
+1.  **Input:** Provide a high-level software description and detailed ethical policies/constraints (via initial prompt to Driver LLM).
 
     *   Example Spec: "Develop software for a drone delivery system..."
     *   Policy Files (JSON): `safety_policy.json`, `privacy_policy.json`, `security_policy.json`
-2.  **Refinement:** AI clarifies requirements using the `SpecificationAnalysisAgent`.
-3.  **Design:** AI generates a software architecture, stored in the Knowledge Graph (KG).
-4.  **Generation:** `CodeGenerationAgent` creates code (Python, Go, etc.) using LLMs orchestrated by `LLMOrchestrator`. **As of Phase 1.5 Stage 2 (task_2_9a), the Driver LLM automatically invokes the Coder LLM for this step.**
-5.  **Validation (Iterative Loop):**
-
-    *   **Checks:** Code Quality (`CodeReviewAgent` - Flake8), Ethical Assessment (`EthicalGovernanceEngine`), Security Scans (`SecurityAgent`), Testing (`TestGenAgent`), Formal Verification (`FormalVerificationEngine`).
-    *   **Feedback & Regeneration:** Validation results drive code regeneration until all checks pass.
-6.  **Integration:** Validated code is integrated via Git and CI/CD pipelines. **As of Phase 1.5 Stage 2 (task_2_9a), the Driver LLM automatically uses the `write_file` tool to write generated code to the filesystem.**
-7.  **Improvement:** `ContinuousLearningCore` analyzes performance and feedback to refine agents and processes.
+2.  **Autonomous Workflow Execution (Driver LLM Loop):** The Driver LLM, initiated by the user's prompt, autonomously:
+    *   Selects the next task from `ROADMAP.json`.
+    *   Generates a step-by-step solution plan for the task.
+    *   Iterates through the plan steps, automatically invoking relevant agents (like the Coder LLM) and tools (like `write_file`) as needed by the plan.
+3.  **Validation (Iterative Loop - Orchestrated by Driver):** The Driver orchestrates validation steps as part of the plan execution. This includes:
+    *   Code Quality (`CodeReviewAgent` - Flake8).
+    *   Security Scans (`SecurityAgent` - ZAP).
+    *   Testing (`TestGenAgent` - placeholder/basic).
+    *   Ethical Assessment (`EthicalGovernanceEngine`).
+    *   Formal Verification (`FormalVerificationEngine` - future).
+    *   Validation results drive further steps in the plan (e.g., generating a fix if validation fails).
+4.  **Integration:** Validated code is written to the filesystem via the `write_file` tool, orchestrated by the Driver.
+5.  **Improvement:** `ContinuousLearningCore` analyzes performance and feedback to refine agents and processes (future).
+6.  **User Review & Feedback:** The user reviews the outputs of the autonomous iteration (generated code, reports, logs) and provides feedback to the Driver LLM to guide the next iteration or handle issues.
 
 **End Products:**
 
@@ -243,6 +248,7 @@ The Metamorphic Software Genesis Ecosystem aims to automate software development
 | `/genesis/solve-math`         | POST   | Basic LLM integration test endpoint.                                            | ✅ Working (Test) |
 | `/genesis/ethical/audit/{state_id}`   | GET    | Retrieve audit trail data (planned).                                            | ❌ Not Implemented |
 | `/genesis/ethical/visualize/{state_id}` | GET    | Obtain visualization data (planned).                                      | ❌ Not Implemented |
+| `/genesis/drive_workflow`     | POST   | Initiates the autonomous Workflow Driver loop (Planned for Phase 2 Iteration 2). | ❌ Not Implemented |
 
 **Sample MVP Request/Response - `/genesis/analyze-ethical`:**
 
@@ -250,7 +256,7 @@ The Metamorphic Software Genesis Ecosystem aims to automate software development
 
 ## <a name="contributing"></a>Contributing
 
-Contributions are welcome! Please align with the current [Phase 2 Iteration 1 focus](ROADMAP.md) and see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines (basic guidelines currently, enhanced guidelines planned for Phase 2 Iteration 2).
+Contributions are welcome! Please align with the current [Phase 2 Iteration 2 focus](ROADMAP.md) and see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines (basic guidelines currently, enhanced guidelines planned for Phase 2 Iteration 2).
 
 ## <a name="further-documentation"></a>Further Documentation
 

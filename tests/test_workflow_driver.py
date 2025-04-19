@@ -1,5 +1,4 @@
 # tests/test_workflow_driver.py
-# tests/test_workflow_driver.py
 
 import pytest
 import html
@@ -11,6 +10,7 @@ from src.cli.write_file import write_file, file_exists
 from pathlib import Path
 import json
 from unittest.mock import MagicMock, patch, ANY # Import ANY
+import re # Import re for plan parsing tests
 
 # Set up logging for tests
 # Use basicConfig only if no handlers are already configured
@@ -1148,4 +1148,150 @@ class TestWorkflowDriver:
         assert test_driver._is_valid_task_id(123) is False # Integer input
         assert test_driver._is_valid_task_id("task.") is False # Contains dot (dots are not allowed by the regex)
         assert test_driver._is_valid_task_id(".task") is False # Starts with dot (not allowed by new regex)
-        assert test_driver._is_valid_task_id("-task") is False # Starts with hyphen (not allowed by new regex)
+
+    # --- New tests for generate_solution_plan parsing ---
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    def test_generate_solution_plan_parses_valid_list(self, mock_invoke_coder_llm, test_driver):
+        """Test generate_solution_plan correctly parses a valid numbered markdown list."""
+        mock_llm_output = """
+1.  First step.
+2.  Second step.
+3.  Third step.
+"""
+        mock_invoke_coder_llm.return_value = mock_llm_output
+        mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High'}
+
+        plan = test_driver.generate_solution_plan(mock_task)
+
+        mock_invoke_coder_llm.assert_called_once()
+        assert plan == ["First step.", "Second step.", "Third step."]
+
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    def test_generate_solution_plan_handles_whitespace(self, mock_invoke_coder_llm, test_driver):
+        """Test generate_solution_plan handles leading/trailing whitespace and blank lines."""
+        mock_llm_output = """
+
+    1.  Step one with whitespace.
+
+2.  Step two.   \n
+3.  Step three.
+
+"""
+        mock_invoke_coder_llm.return_value = mock_llm_output
+        mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High'}
+
+        plan = test_driver.generate_solution_plan(mock_task)
+
+        mock_invoke_coder_llm.assert_called_once()
+        assert plan == ["Step one with whitespace.", "Step two.", "Step three."]
+
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    def test_generate_solution_plan_handles_multiline_steps(self, mock_invoke_coder_llm, test_driver):
+        """Test generate_solution_plan correctly parses multi-line steps."""
+        mock_llm_output = """
+1.  First step that
+    spans multiple lines.
+2.  Second step.
+"""
+        mock_invoke_coder_llm.return_value = mock_llm_output
+        mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High'}
+
+        plan = test_driver.generate_solution_plan(mock_task)
+
+        mock_invoke_coder_llm.assert_called_once()
+        assert plan == ["First step that spans multiple lines.", "Second step."]
+
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    def test_generate_solution_plan_handles_non_list_output(self, mock_invoke_coder_llm, test_driver):
+        """Test generate_solution_plan handles LLM output that is not a numbered list."""
+        mock_llm_output = "This is not a numbered list. Just some text."
+        mock_invoke_coder_llm.return_value = mock_llm_output
+        mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High'}
+
+        plan = test_driver.generate_solution_plan(mock_task)
+
+        mock_invoke_coder_llm.assert_called_once()
+        assert plan == [], "Should return an empty list if output is not a numbered list"
+
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    def test_generate_solution_plan_handles_empty_output(self, mock_invoke_coder_llm, test_driver):
+        """Test generate_solution_plan handles empty string output from LLM."""
+        mock_llm_output = ""
+        mock_invoke_coder_llm.return_value = mock_llm_output
+        mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High'}
+
+        plan = test_driver.generate_solution_plan(mock_task)
+
+        mock_invoke_coder_llm.assert_called_once()
+        assert plan == [], "Should return an empty list for empty LLM output"
+
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    def test_generate_solution_plan_handles_none_output(self, mock_invoke_coder_llm, test_driver, caplog):
+        """Test generate_solution_plan handles None output from _invoke_coder_llm."""
+        caplog.set_level(logging.WARNING)
+        mock_llm_output = None
+        mock_invoke_coder_llm.return_value = mock_llm_output
+        mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High'}
+
+        plan = test_driver.generate_solution_plan(mock_task)
+
+        mock_invoke_coder_llm.assert_called_once()
+        assert plan == [], "Should return an empty list for None LLM output"
+        assert "LLM returned empty response for plan generation" in caplog.text # Check warning log
+
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    def test_generate_solution_plan_sanitizes_markdown(self, mock_invoke_coder_llm, test_driver):
+        """Test generate_solution_plan sanitizes markdown formatting from steps."""
+        mock_llm_output = """
+1.  **Bold step**.
+2.  _Italic step_.
+3.  `Code step`.
+"""
+        mock_invoke_coder_llm.return_value = mock_llm_output
+        mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High'}
+
+        plan = test_driver.generate_solution_plan(mock_task)
+
+        mock_invoke_coder_llm.assert_called_once()
+        assert plan == ["Bold step.", "Italic step.", "Code step."] # Markdown characters should be removed
+
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    def test_generate_solution_plan_preserves_html_chars(self, mock_invoke_coder_llm, test_driver):
+        """Test generate_solution_plan preserves HTML characters in steps."""
+        mock_llm_output = """
+1.  Step with <tag>.
+2.  Step with & entity.
+3.  Step with > and <.
+"""
+        mock_invoke_coder_llm.return_value = mock_llm_output
+        mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High'}
+
+        plan = test_driver.generate_solution_plan(mock_task)
+
+        mock_invoke_coder_llm.assert_called_once()
+        assert plan == ["Step with <tag>.", "Step with & entity.", "Step with > and <."] # HTML characters should NOT be removed
+
+    # --- New tests for _is_valid_filename ---
+    def test_is_valid_filename_valid(self, test_driver):
+        """Test _is_valid_filename with valid filenames."""
+        assert test_driver._is_valid_filename("valid_file.py") is True
+        assert test_driver._is_valid_filename("another-file_123.txt") is True
+        assert test_driver._is_valid_filename("justletters") is True
+        assert test_driver._is_valid_filename("just123") is True
+        assert test_driver._is_valid_filename("a.b.c") is True
+        assert test_driver._is_valid_filename("file-with-hyphen.md") is True
+        assert test_driver._is_valid_filename("file_with_underscore.json") is True
+
+    def test_is_valid_filename_invalid(self, test_driver):
+        """Test _is_valid_filename with invalid filenames."""
+        assert test_driver._is_valid_filename("../path") is False # Path traversal
+        assert test_driver._is_valid_filename("sub/dir/file.txt") is False # Contains slash
+        assert test_driver._is_valid_filename("file with spaces.txt") is False # Contains space
+        assert test_driver._is_valid_filename("file!@#.txt") is False # Special characters
+        assert test_driver._is_valid_filename("") is False # Empty string
+        assert test_driver._is_valid_filename(None) is False # None input
+        assert test_driver._is_valid_filename(123) is False # Integer input
+        assert test_driver._is_valid_filename(".") is False # Just a dot
+        assert test_driver._is_valid_filename("..") is False # Just dot-dot
+        assert test_driver._is_valid_filename("-leading.txt") is False # Starts with hyphen (current regex doesn't allow)
+        assert test_driver._is_valid_filename("_leading.txt") is False # Starts with underscore (current regex doesn't allow)

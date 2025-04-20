@@ -160,8 +160,8 @@ For a streamlined, AI-driven development experience, you can use the **"Markdown
 **Quickstart Steps (Post-Phase 1.6):**
 
 1.  **Ensure the API server is running** (`python src/api/server.py`). This server now hosts the `/genesis/drive_workflow` endpoint.
-2.  **Prepare your `ROADMAP.json` and codebase text** as described in the [Full Guide](docs/workflows/markdown_automation.md). The roadmap is now managed in `ROADMAP.json`, not `ROADMAP.md`.
-3.  **Open your terminal** in the `metamorphic-core` project directory.
+2.  Prepare your `ROADMAP.json` and codebase text as described in the [Full Guide](docs/workflows/markdown_automation.md). The roadmap is now managed in `ROADMAP.json`, not `ROADMAP.md`.
+3.  Open your terminal in the `metamorphic-core` project directory.
 4.  **Run the CLI to initiate the automated workflow:**
 
     ```bash
@@ -171,9 +171,9 @@ For a streamlined, AI-driven development experience, you can use the **"Markdown
 5.  **The CLI will automatically:**
     *   Read the necessary documentation files (`SPECIFICATION.md`, `ROADMAP.json`, `CONTRIBUTING.md`, `docs/workflows/markdown_automation.md`, `COMPETITIVE_LANDSCAPE.md`).
     *   Construct the comprehensive prompt for the Driver LLM.
-    *   Call the `/genesis/drive_workflow` API endpoint to initiate the autonomous loop.
+    *   **Call the new `/genesis/drive_workflow` API endpoint** to initiate the autonomous loop, passing the roadmap and output directory paths.
 6.  **Monitor the API server logs and CLI output.** The Driver LLM (running within the API process, triggered by the CLI) will now autonomously:
-    *   Select the next task from `ROADMAP.json`.
+    *   Select the next task from `ROADMAP.json` (using the path passed to the API).
     *   Generate a solution plan.
     *   Execute plan steps, including invoking the Coder LLM and writing files.
     *   **Automatically execute tests (`pytest`).**
@@ -199,7 +199,7 @@ Let's assume you want to work on **Task ID: task_1_6a** (Implement /genesis/driv
     python src/cli/main.py
     ```
 
-4.  **Review the CLI and API server logs.** The CLI will print messages indicating it's constructing the prompt and calling the API. The API server logs will show the WorkflowDriver starting, selecting `task_1_6a` (if it's the first 'Not Started' task), generating a plan, executing steps (which might involve generating code for the API endpoint and writing it), automatically running tests/reviews, and finally updating the status of `task_1_6a` in `ROADMAP.json`.
+4.  **Review the CLI and API server logs.** The CLI will print messages indicating it's constructing the prompt and calling the API. **The API server logs will show the receipt of the request by `/genesis/drive_workflow`, the initiation of the WorkflowDriver**, starting, selecting `task_1_6a` (if it's the first 'Not Started' task), generating a plan, executing steps (which might involve generating code for the API endpoint and writing it), automatically running tests/reviews, and finally updating the status of `task_1_6a` in `ROADMAP.json`.
 5.  **Check the updated `ROADMAP.json`** to see the status of `task_1_6a`.
 6.  **Review any generated code** (e.g., in `src/api/routes/`) and the logs for details on the execution and Grade Report.
 
@@ -236,7 +236,7 @@ The Metamorphic Software Genesis Ecosystem aims to automate software development
     *   **Human Input & Oversight Interface:** (Planned Web UI) Secure portal for spec submission (text, later diagrams), configuration, feedback, ethical guidance input, ERB overrides, progress dashboards. The CLI (`src/cli/main.py`) now serves as the primary *initiation* interface for the automated workflow.
     *   **Metamorphic Core (Adaptive AI Orchestration):**
         *   *Dynamic Knowledge Graph:* Neo4j or similar graph DB storing nodes (code chunks, specs, policies, vulnerabilities, tests, metrics) and semantic relationships. Enables complex querying for context retrieval and pattern analysis. (Phase 2 Iteration 2 focuses on expanding the KG schema to store richer code semantics).
-        *   *Intelligent LLM Orchestration Layer:* Manages API calls to multiple LLMs (Gemini, HF models via `InferenceClient`, potentially OpenAI). Implements context window management (semantic chunking, summarization), cost/latency optimization (model selection based on task complexity), robust retries, and failover logic. Uses `TokenAllocator` for budget management. **This layer is now orchestrated by the autonomous Driver LLM, triggered via the `/genesis/drive_workflow` API endpoint.**
+        *   *Intelligent LLM Orchestration Layer:* Manages API calls to multiple LLMs (Gemini, Hugging Face, potentially OpenAI). Implements context window management (semantic chunking, summarization), cost/latency optimization (model selection based on task complexity), robust retries, and failover logic. Uses `TokenAllocator` for budget management. **This layer is now orchestrated by the autonomous Driver LLM, triggered via the `/genesis/drive_workflow` API endpoint.**
         *   *Modular AI Agent Network:*
             *   `SpecificationAnalysisAgent`: Parses natural language/structured input into formal requirements, potentially using AST analysis and LLMs.
             *   `TestGenerationAgent`: Generates pytest tests (placeholders in MVP, meaningful tests including HIL using code/spec analysis later). **Automated execution of these tests is now part of the Phase 1.6 workflow.** (Phase 2 Iteration 2 focuses on enhancing this agent for more intelligent test generation).
@@ -244,7 +244,7 @@ The Metamorphic Software Genesis Ecosystem aims to automate software development
             *   `CodeReviewAgent`: Runs static analysis with **Flake8** for code quality. **Integrated into `/genesis/analyze-ethical` API endpoint. Automated execution is now part of the Phase 1.6 workflow.** (Phase 2 Iteration 2 focuses on enhancing this agent with semantic analysis). (Post-MVP: Bandit, Semgrep for security SAST; LLMs for deeper semantic review).
             *   `SecurityAgent`: Orchestrates security tools (ZAP DAST now; SAST via Bandit/Semgrep later). Analyzes results, stores findings in KG. **Automated execution of relevant checks is now part of the Phase 1.6 workflow.**
             *   `PerformanceAnalysisAgent`: (Post-MVP) Integrates profiling tools (cProfile) and analyzes performance metrics.
-            *   `FormalVerificationEngine`: Interfaces with Coq/Isabelle/Z3 to run proofs against code or specifications.
+            *   `FormalVerificationEngine`: Interfaces with Coq (proofs compiled in CI), Isabelle/HOL, and Z3 (SMT solver) for multi-layered verification.
             *   `PredictiveRiskAssessmentModule`: Uses `QuantumRiskPredictor` (trained on historical KG data) to forecast ethical/security risks.
             *   `SelfMonitoringAndAdaptiveHealing`: Monitors system metrics (Prometheus), logs errors, triggers recovery actions.
             *   `ResourceManagementOptimization`: (Post-MVP) Optimizes cloud resource usage, potentially using Kubernetes HPA based on Prometheus metrics.
@@ -283,7 +283,7 @@ The following table summarizes the anticipated cumulative improvements in key ar
 
 *   **Core Tech Stack:** Python (primary), Go (concurrency/API), Rust (safety-critical), JavaScript/TypeScript (UI - planned), Coq/Isabelle/Z3 (formal methods).
 *   **LLM Providers:** Gemini (default in MVP), Hugging Face (via `InferenceClient`, OpenAI (future).
-*   **Knowledge Graph:** Neo4j (planned), initially in-memory Python dict for MVP. (Phase 2 Iteration 2 focuses on schema expansion).
+*   **Knowledge Graph:** Neo4j (planned), initially in-memory Python dict for MVP.
 *   **Security Scanning:** OWASP ZAP (DAST - integrated in CI for MVP), Bandit, Semgrep (SAST - post-MVP).
 *   **Testing Frameworks:** pytest (unit, integration), Hypothesis (property-based).
 *   **CI/CD:** GitHub Actions (MVP), GitLab CI/CD (future option).
@@ -296,7 +296,7 @@ The following table summarizes the anticipated cumulative improvements in key ar
 *(Roadmap for future phases - examples)*
 
 *   **Phase 1.6 (Enhanced Workflow Automation):** Current focus - completing the end-to-end automation layer.
-*   **Phase 2 (Enhanced Intelligence):** Advanced AI planning, reinforcement learning for agent optimization, deeper KG integration, semantic code search, AI-driven debugging/refactoring. (Phase 2 Iteration 2 is the first iteration focusing on agent and KG enhancements).
+*   **Phase 2 (Enhanced Intelligence):** Advanced AI planning, reinforcement learning for agent optimization, deeper KG integration, semantic code search, AI-driven debugging/refactoring. (Phase 2 Iteration 2 will be the first iteration focusing on agent and KG enhancements).
 *   **Phase 3 (Cyber-Physical Systems Focus):** Integration with robotics frameworks (ROS 2), hardware-in-the-loop (HIL) testing, formal verification of safety-critical embedded code, real-time ethical monitoring for autonomous systems.
 *   **Phase 4 (Quantum-Augmented Genesis):** Full integration of quantum computing for optimization, risk prediction, and potentially code generation, quantum-resistant security measures.
 
@@ -311,4 +311,3 @@ The following table summarizes the anticipated cumulative improvements in key ar
     *   **Data-Driven Evolution:** Base all improvements on measurable KPIs and empirical data, leveraging telemetry and user feedback.
     *   **Proactive Threat Mitigation:** Continuously monitor for emerging security threats and ethical risks, implementing proactive countermeasures.
     *   **Community-Centric Innovation:** Foster a vibrant community of contributors to drive innovation and address evolving needs.
-    *    **Formal Ethics Review and Grading:** The ethical values should have been tested, and verified.

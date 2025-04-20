@@ -6,14 +6,14 @@ This document describes the "Markdown-Only Automation" workflow for developing t
 
 ## Overview of the Workflow (Post-Phase 1.6)
 
-The "Markdown-Only Automation" workflow, as implemented through Phase 1.5 and Phase 1.6, enables a **Driver LLM** to autonomously drive development tasks from initiation through validation and roadmap update. The workflow steps executed autonomously by the Driver LLM (orchestrated via the `/genesis/drive_workflow` API endpoint, triggered by the CLI) are:
+The "Markdown-Only Automation" workflow, as implemented through Phase 1.5 and Phase 1.6, enables a **Driver LLM** to autonomously drive development tasks from initiation through validation and roadmap update. The workflow steps executed autonomously by the Driver LLM **(orchestrated via the `/genesis/drive_workflow` API endpoint, triggered by the CLI)** are:
 
-1.  **Identify and select the next development task** from the project's `ROADMAP.json` file. The `ROADMAP.md` file is now automatically generated *from* `ROADMAP.json`.
-2.  **Generate a high-level solution plan** for the selected task.
-3.  **Iterate through the solution plan steps.**
-4.  **Invoke necessary agents and tools** based on the plan step description. This includes automatically invoking the Coder LLM for code generation steps and automatically using the `write_file` and `list_files` tools for file management steps.
-5.  **Generate precise code generation prompts** for the **Coder LLM.** The Driver LLM automatically invokes the Coder LLM with these prompts when needed.
-6.  **Generate a numbered list of "User Actionable Steps"** for the user to perform *after* the autonomous iteration is complete (e.g., reviewing changes, providing feedback if needed). Format these steps as a Markdown checklist to enhance readability and trackability. Each step should start with a numbered list item, followed by a Markdown checklist syntax ` - [ ] ` and then the step description. For example:
+1.  **Identify and select the next development task** from the project's `ROADMAP.json` file **(loaded using the path provided to the API endpoint)**. The `ROADMAP.md` file is now automatically generated *from* `ROADMAP.json`.
+2.  Generate a high-level solution plan for the selected task.
+3.  Iterate through the solution plan steps.
+4.  Invoke necessary agents and tools based on the plan step description. This includes automatically invoking the Coder LLM for code generation steps and automatically using the `write_file` and `list_files` tools for file management steps.
+5.  Generate precise code generation prompts for the **Coder LLM.** The Driver LLM automatically invokes the Coder LLM with these prompts when needed.
+6.  Generate a numbered list of "User Actionable Steps" for the user to perform *after* the autonomous iteration is complete (e.g., reviewing changes, providing feedback if needed). Format these steps as a Markdown checklist to enhance readability and trackability. Each step should start with a numbered list item, followed by a Markdown checklist syntax ` - [ ] ` and then the step description. For example:
 
     ```markdown
     1.  - [ ] Step 1 description goes here.
@@ -25,20 +25,20 @@ The "Markdown-Only Automation" workflow, as implemented through Phase 1.5 and Ph
 7.  Call the `list_files` tool, to confirm all files that the write_file tool will modify. Write a description to the user for what file will be written.
 8.  Call the `write_file` tool, to write all code to file.
     * Ensure you check if the file will be overwriting code. Before writing all files that should be created or replaced, verify with the user if this step is correct. The Driver LLM now automatically invokes the `write_file` tool.
-9.  **Self-Critique and Revise Output:** Before proceeding to self-assessment, the Driver LLM reviews its generated output from the autonomous iteration (steps 1-8). Specifically:
+9.  Self-Critique and Revise Output: Before proceeding to self-assessment, the Driver LLM reviews its generated output from the autonomous iteration (steps 1-8). Specifically:
 
-    *   **Solution Plan Review:** Is the solution plan logical and comprehensive? Does it clearly address the selected task? Are there any missing steps or potential issues?
-    *   **Coder LLM Prompt Review:** Are the generated prompts for the Coder LLM clear, concise, and well-contextualized? Do they provide sufficient information for the Coder LLM to generate the correct code? Are the instructions unambiguous?
-    *   **User Actionable Steps Review:** Are the User Actionable Steps complete, clear, and easy to follow for a developer? Are there any missing steps or unclear instructions?
-    *   **Revision (If Necessary):** If, during its self-critique, the Driver identifies any weaknesses or areas for improvement in the solution plan, Coder LLM prompts, or User Actionable Steps, it revises them immediately. It iterates on these outputs to improve their clarity, completeness, and quality before proceeding to self-assessment.
-10. **Automatically execute validation steps:** The Driver automatically triggers execution of tests (e.g., `pytest`), code review (`CodeReviewAgent`), and security checks (`SecurityAgent`) on the generated/modified code. It captures the results (pass/fail, issues found).
-11. **Perform a self-assessment and grade the proposed solution** using the metrics and guidelines defined in the "Iterative Grading Process" section of CONTRIBUTING.md and the "LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE" block in CONTRIBUTING.md. Generate a structured "Grade Report" in JSON format, including results from the automated validation steps.
-12. **Automatically parse the Grade Report and determine the outcome:** The Driver parses the JSON Grade Report and evaluates the results (e.g., test pass rate, severity of issues, overall grade). Based on predefined criteria, it determines if the task iteration was successful, requires regeneration, or needs manual intervention.
-13. **Automatically update the task status in `ROADMAP.json`:** Based on the outcome determined in the previous step, the Driver updates the status of the current task in `ROADMAP.json` (e.g., sets status to "Completed" if successful, "Blocked" if critical issues found).
+    *   Solution Plan Review: Is the solution plan logical and comprehensive? Does it clearly address the selected task? Are there any missing steps or potential issues?
+    *   Coder LLM Prompt Review: Are the generated prompts for the Coder LLM clear, concise, and well-contextualized? Do they provide sufficient information for the Coder LLM to generate the correct code? Are the instructions unambiguous?
+    *   User Actionable Steps Review: Are the User Actionable Steps complete, clear, and easy to follow for a developer? Are there any missing steps or unclear instructions?
+    *   Revision (If Necessary): If, during its self-critique, the Driver identifies any weaknesses or areas for improvement in the solution plan, Coder LLM prompts, or User Actionable Steps, it revises them immediately. It iterates on these outputs to improve their clarity, completeness, and quality before proceeding to self-assessment.
+10. Automatically execute validation steps: The Driver automatically triggers execution of tests (e.g., `pytest`), code review (`CodeReviewAgent`), and security checks (`SecurityAgent`) on the generated/modified code. It captures the results (pass/fail, issues found).
+11. Perform a self-assessment and grade the proposed solution using the metrics and guidelines defined in the "Iterative Grading Process" section of CONTRIBUTING.md and the "LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE" block in CONTRIBUTING.md. Generate a structured "Grade Report" in JSON format, including results from the automated validation steps.
+12. Automatically parse the Grade Report and determine the outcome: The Driver parses the JSON Grade Report and evaluates the results (e.g., test pass rate, severity of issues, overall grade). Based on predefined criteria, it determines if the task iteration was successful, requires regeneration, or needs manual intervention.
+13. Automatically update the task status in `ROADMAP.json`: Based on the outcome determined in the previous step, the Driver updates the status of the current task in `ROADMAP.json` (e.g., sets status to "Completed" if successful, "Blocked" if critical issues found).
 
 **Primary Remaining Manual Step:** The user must initiate the workflow by running the CLI command (`python src/cli/main.py`) and review the outputs and logs after the autonomous iteration is complete.
 
-14. **Output the following in markdown format:**
+14. Output the following in markdown format:
 
     *   The selected task name and description.
     *   The complete high-level solution plan.

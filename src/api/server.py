@@ -1,14 +1,16 @@
+# src/api/server.py
 from flask import Flask, jsonify, request
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from src.api.routes.ethical_endpoints import ethical_bp
+from src.api.routes.workflow_endpoints import workflow_bp  # Import workflow_bp
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import logging
 import redis
 from src.core.llm_orchestration import LLMOrchestrator
-
 
 startup_done = False
 
@@ -20,17 +22,22 @@ logging.basicConfig(level=logging.INFO)
 llm_orchestrator = LLMOrchestrator()
 app.llm_orchestrator = llm_orchestrator
 
-@app.route('/generate', methods=['POST']) # Direct route for /generate - Option 1
+
+@app.route('/generate', methods=['POST'])  # Direct route for /generate - Option 1
 @limiter.limit("5/minute")
 def generate_endpoint():
     prompt = request.get_json().get('prompt')
     return jsonify({"generated": "output-text"}), 200
 
+
 @app.route('/genesis/test-endpoint')
 def test_endpoint():
     return jsonify({"status": "test-route-working"}), 200
 
+
 app.register_blueprint(ethical_bp, url_prefix='/genesis')
+app.register_blueprint(workflow_bp, url_prefix='/genesis')  # Register workflow_bp
+
 
 @app.before_request
 def startup_debug():
@@ -52,7 +59,8 @@ def startup_debug():
         except Exception as e:
             app.logger.error(f"Placeholder: Redis connection check failed (if configured): {str(e)}")
         app.logger.info("--- Environment Variables ---")
-        keys_to_log = ['LLM_PROVIDER', 'GEMINI_API_KEY', 'YOUR_GITHUB_API_KEY', 'HUGGING_FACE_API_KEY', 'ZAP_API_KEY']
+        keys_to_log = ['LLM_PROVIDER', 'GEMINI_API_KEY', 'YOUR_GITHUB_API_KEY',
+                       'HUGGING_FACE_API_KEY', 'ZAP_API_KEY']
         for key in keys_to_log:
             value = os.environ.get(key, 'NOT SET')
             app.logger.info(f"{key}: {value}")
@@ -61,4 +69,4 @@ def startup_debug():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000) # Correct port to 5000
+    app.run(host="0.0.0.0", port=5000, debug=True)

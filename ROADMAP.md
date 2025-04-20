@@ -4,23 +4,58 @@
 
 **NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**
 
-*   **Task ID**: task_2_2a
+*   **Task ID**: task_1_6a
+    *   **Priority**: High
+    *   **Task Name**: Implement /genesis/drive_workflow API Endpoint
+    *   **Status**: Not Started
+
+*   **Task ID**: task_1_6b
     *   **Priority**: High
     *   **Task Name**: Automate Initial Prompt Submission from CLI
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_2b
+*   **Task ID**: task_1_6c_exec_tests
     *   **Priority**: High
-    *   **Task Name**: Enhance CodeReviewAgent with Semantic Analysis
+    *   **Task Name**: Driver: Automate Test Execution
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_2c
-    *   **Priority**: Medium
-    *   **Task Name**: Improve TestGenerationAgent for Function Complexity
+*   **Task ID**: task_1_6d_parse_tests
+    *   **Priority**: High
+    *   **Task Name**: Driver: Parse Test Results
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_2d
-    *   **Priority**: Medium
-    *   **Task Name**: Expand Knowledge Graph Schema for Code Semantics
+*   **Task ID**: task_1_6e_exec_review
+    *   **Priority**: High
+    *   **Task Name**: Driver: Automate Code Review & Security Scan Execution
+    *   **Status**: Not Started
+
+*   **Task ID**: task_1_6f_generate_report
+    *   **Priority**: High
+    *   **Task Name**: Driver: Generate Structured JSON Grade Report
+    *   **Status**: Not Started
+
+*   **Task ID**: task_1_6g_parse_report
+    *   **Priority**: High
+    *   **Task Name**: Driver: Parse & Evaluate JSON Grade Report
+    *   **Status**: Not Started
+
+*   **Task ID**: task_1_6h_safe_roadmap_write
+    *   **Priority**: High
+    *   **Task Name**: Driver: Implement Safe Roadmap File Writing
+    *   **Status**: Not Started
+
+*   **Task ID**: task_1_6i_update_status
+    *   **Priority**: High
+    *   **Task Name**: Driver: Automate Roadmap Status Update Logic
+    *   **Status**: Not Started
+
+*   **Task ID**: task_1_6j_integrate_loop
+    *   **Priority**: Critical
+    *   **Task Name**: Driver: Integrate Automated Steps into Autonomous Loop
+    *   **Status**: Not Started
+
+*   **Task ID**: task_1_6k_tests
+    *   **Priority**: High
+    *   **Task Name**: Add Comprehensive Tests for Phase 1.6 Automation
     *   **Status**: Not Started
 

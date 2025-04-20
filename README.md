@@ -2,11 +2,11 @@
 
 [![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
-[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_2.2_IN_PROGRESS-blue)](ROADMAP.md)
+[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.6_IN_PROGRESS-blue)](ROADMAP.md)
 
-**🎯 CURRENT FOCUS: PHASE 2 ITERATION 2 - Enhanced Agents & Knowledge Graph 🚀**
+**🎯 CURRENT FOCUS: PHASE 1.6 - Enhanced Workflow Automation 🚀**
 
-Phase 1 MVP is complete, and **Phase 1.5: Workflow Automation is now also complete!** We successfully implemented the Markdown-Only Automation Workflow, achieving autonomous execution of development tasks (task selection, planning, agent invocation, file writing) once the Driver LLM is initiated. We are now transitioning into **Phase 2 Iteration 2**, focusing on enhancing the core AI agents and deepening their integration with the Knowledge Graph to improve intelligence, context handling, and overall system performance. See the [Roadmap](#further-documentation) for details.
+Phase 1 MVP is complete, and **Phase 1.5: Workflow Automation is now also complete!** We successfully implemented the Markdown-Only Automation Workflow, achieving autonomous execution of development tasks (task selection, planning, agent invocation, file writing) once the Driver LLM is initiated. We are now transitioning into **Phase 1.6**, focusing on completing the end-to-end automation layer by automating workflow initiation, validation execution, feedback processing, and roadmap status updates. This will establish a robust, self-driving development loop before we proceed to Phase 2's focus on enhancing agent intelligence and Knowledge Graph integration. See the [Roadmap](#further-documentation) for details.
 
 ---
 
@@ -50,7 +50,7 @@ Phase 1.5 was implemented in three key stages. Stage 1 established the fundament
 
 ## <a name="about"></a>About the Metamorphic Software Genesis Ecosystem
 
-The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications. It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision was the implementation of Phase 1.5, which is now complete.** Phase 1.5 focused on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, enabling autonomous task selection, planning, agent invocation, and file writing.** This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system. We are now focused on **Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph**, improving the intelligence of our core AI agents and deepening their integration with the Knowledge Graph.
+The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications. It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision was the implementation of Phase 1.5, which is now complete.** Phase 1.5 focused on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, enabling autonomous task selection, planning, agent invocation, and file writing.** This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system. We are now focused on **Phase 1.6: Enhanced Workflow Automation**, completing the end-to-end automation layer before proceeding to Phase 2's focus on enhancing the core AI agents and deepening their integration with the Knowledge Graph.
 
 **Key Objectives:**
 
@@ -155,183 +155,160 @@ Examine the JSON response for `code_quality` and `ethical_analysis` sections.
 
 For a streamlined, AI-driven development experience, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, including task selection, solution planning, automated Coder LLM invocation, automated `write_file` tool execution, and iterative processing of plan steps.**
 
-**(As of Phase 1.5 Stage 3, the Driver LLM now automatically selects tasks, generates plans, invokes the Coder LLM, and uses the `write_file` tool based on the plan. The manual copy-pasting of Coder LLM output is no longer required for code generation. The primary remaining manual step is the initial construction and submission of the comprehensive prompt to the Driver LLM API endpoint. Automating this step is a key task in Phase 2 Iteration 2.)**
+**(As of Phase 1.6, the manual step of constructing and submitting the initial comprehensive prompt to the Driver LLM API endpoint is automated via the CLI. The Workflow Driver, initiated by the API call, now autonomously selects tasks, generates plans, invokes agents, manages files, executes validation steps (tests, code review, security), parses the Grade Report, and updates the roadmap status.)**
 
-**Quickstart Steps (Post-Phase 1.5 Stage 3):**
+**Quickstart Steps (Post-Phase 1.6):**
 
-1.  **Prepare your `ROADMAP.json` and codebase text** as described in the [Full Guide](docs/workflows/markdown_automation.md). The roadmap is now managed in `ROADMAP.json`, not `ROADMAP.md`.
-2.  **Open your terminal** in the `metamorphic-core` project directory.
-3.  **Run the CLI to initiate the workflow driver:**
+1.  **Ensure the API server is running** (`python src/api/server.py`). This server now hosts the `/genesis/drive_workflow` endpoint.
+2.  **Prepare your `ROADMAP.json` and codebase text** as described in the [Full Guide](docs/workflows/markdown_automation.md). The roadmap is now managed in `ROADMAP.json`, not `ROADMAP.md`.
+3.  **Open your terminal** in the `metamorphic-core` project directory.
+4.  **Run the CLI to initiate the automated workflow:**
 
     ```bash
     python src/cli/main.py
     ```
     (You can optionally specify a different roadmap file or output directory using `--roadmap` and `--output-dir` arguments as described in the [Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md#cli-integration-and-execution)).
-4.  **Copy the "Ready-to-Use "Ideal" Self-Driving Prompt"** from [docs/workflows/markdown_automation.md](docs/workflows/markdown_automation.md).
-5.  **Paste the prompt into your LLM interface (this is the Driver LLM).**
-6.  **Replace the `[PASTE_..._HERE]` placeholders** in the prompt with the *content* of the respective files (`SPECIFICATION.md`, `ROADMAP.md`, `CONTRIBUTING.md`, `docs/workflows/markdown_automation.md`, `COMPETITIVE_LANDSCAPE.md`).
-7.  **Submit the prompt to the Driver LLM.**
-8.  **Review the Driver LLM's output.** It will now autonomously select a task, generate a plan, execute the plan steps (including invoking the Coder LLM and writing files), and provide a Grade Report for the completed iteration.
-9.  **Follow the User Actionable Steps.** These steps will guide you through reviewing the AI's work, running tests, and updating the roadmap status manually (until roadmap automation is implemented).
-10. **Provide feedback** to the Driver LLM using one of the specified letter codes (e.g., `A: Confirm` if the steps were completed successfully and the outcome is satisfactory).
+5.  **The CLI will automatically:**
+    *   Read the necessary documentation files (`SPECIFICATION.md`, `ROADMAP.json`, `CONTRIBUTING.md`, `docs/workflows/markdown_automation.md`, `COMPETITIVE_LANDSCAPE.md`).
+    *   Construct the comprehensive prompt for the Driver LLM.
+    *   Call the `/genesis/drive_workflow` API endpoint to initiate the autonomous loop.
+6.  **Monitor the API server logs and CLI output.** The Driver LLM (running within the API process, triggered by the CLI) will now autonomously:
+    *   Select the next task from `ROADMAP.json`.
+    *   Generate a solution plan.
+    *   Execute plan steps, including invoking the Coder LLM and writing files.
+    *   **Automatically execute tests (`pytest`).**
+    *   **Automatically execute code review (`CodeReviewAgent`) and security checks (`SecurityAgent`).**
+    *   Generate a Grade Report.
+    *   **Parse the Grade Report and determine the outcome.**
+    *   **Update the task status in `ROADMAP.json`.**
+7.  **Review the outputs:** Check the updated `ROADMAP.json`, any generated/modified code files, and the logs for the Grade Report and workflow status.
 
-**Example Quickstart Scenario:**
+**Example Quickstart Scenario (Post-Phase 1.6):**
 
-Let's assume you want to work on **Task ID: task_2_2a** (Automate Initial Prompt Submission from CLI) from your `ROADMAP.json`.
+Let's assume you want to work on **Task ID: task_1_6a** (Implement /genesis/drive_workflow API Endpoint) from your `ROADMAP.json`.
 
-1.  **Open a terminal** in your `metamorphic-core` project directory.
-2.  **Run the CLI:**
+1.  **Ensure the API server is running:**
+    ```bash
+    python src/api/server.py
+    ```
+    (In a separate terminal)
+2.  **Open a terminal** in your `metamorphic-core` project directory.
+3.  **Run the CLI:**
 
     ```bash
     python src/cli/main.py
     ```
 
-3.  **Review the CLI output.** It should indicate that "Task ID: task_2_2a" is selected (if it's the first 'Not Started' task in your `ROADMAP.json`). The output will look similar to this:
+4.  **Review the CLI and API server logs.** The CLI will print messages indicating it's constructing the prompt and calling the API. The API server logs will show the WorkflowDriver starting, selecting `task_1_6a` (if it's the first 'Not Started' task), generating a plan, executing steps (which might involve generating code for the API endpoint and writing it), automatically running tests/reviews, and finally updating the status of `task_1_6a` in `ROADMAP.json`.
+5.  **Check the updated `ROADMAP.json`** to see the status of `task_1_6a`.
+6.  **Review any generated code** (e.g., in `src/api/routes/`) and the logs for details on the execution and Grade Report.
 
-    ```text
-    Using roadmap: /path/to/metamorphic-core/ROADMAP.json
-    Using output directory: /path/to/metamorphic-core/output
-    Next task selected: ID=task_2_2a, Name=Automate Initial Prompt Submission from CLI
-    ```
-
-4.  **Copy the "Ready-to-Use "Ideal" Self-Driving Prompt"** from `docs/workflows/markdown_automation.md`.
-5.  **Paste the prompt into your LLM interface (Driver LLM).**
-6.  **Replace the `[PASTE_..._HERE]` placeholders** in the prompt with the *content* of the respective files (`SPECIFICATION.md`, `ROADMAP.md`, `CONTRIBUTING.md`, `docs/workflows/markdown_automation.md`, `COMPETITIVE_LANDSCAPE.md`).
-7.  **Submit the prompt to the Driver LLM.**
-8.  **Review the Driver LLM's output.** It will provide a solution plan for `task_2_2a`, autonomously execute the steps (e.g., generating code for the CLI modification, writing the file), and provide a Grade Report.
-9.  **Follow the User Actionable Steps.** These steps will guide you through reviewing the generated code, running tests for the CLI, and manually updating the roadmap status for `task_2_2a`.
-10. **Provide feedback** to the Driver LLM using one of the specified letter codes (e.g., `A: Confirm` if the review is satisfactory and steps are complete).
-
-**For detailed instructions and the full "Ideal Self-Driving Prompt" text, please refer to the [Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md).** Note that the `ROADMAP.md` file is now autogenerated from `ROADMAP.json`.
+**For detailed instructions and the structure of the "Ideal Self-Driving Prompt" (which is now constructed automatically by the CLI), please refer to the [Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md).** Note that the `ROADMAP.md` file is now autogenerated from `ROADMAP.json`.
 
 ## <a name="workflow-use-case-example"></a>Workflow and Use Case Example
 
 The Metamorphic Software Genesis Ecosystem aims to automate software development from specification to deployment. Consider generating software for an **Autonomous Drone Package Delivery System**. This example showcases the framework's ability to handle complexity, security, ethics, and hardware interaction.
 
-**Conceptual Workflow (Post-Phase 1.5 Stage 3):**
+**Conceptual Workflow (Post-Phase 1.6):**
 
-1.  **Input:** Provide a high-level software description and detailed ethical policies/constraints (via initial prompt to Driver LLM).
-
-    *   Example Spec: "Develop software for a drone delivery system..."
-    *   Policy Files (JSON): `safety_policy.json`, `privacy_policy.json`, `security_policy.json`
-2.  **Autonomous Workflow Execution (Driver LLM Loop):** The Driver LLM, initiated by the user's prompt, autonomously:
+1.  **Input:** User initiates the automated workflow via the CLI (`python src/cli/main.py`). The CLI automatically gathers context (specs, policies, documentation) and submits it to the Driver LLM API.
+2.  **Autonomous Workflow Execution (Driver LLM Loop - Automated):** The Driver LLM, initiated by the automated prompt via the API, autonomously:
     *   Selects the next task from `ROADMAP.json`.
     *   Generates a step-by-step solution plan for the task.
     *   Iterates through the plan steps, automatically invoking relevant agents (like the Coder LLM) and tools (like `write_file`) as needed by the plan.
-3.  **Validation (Iterative Loop - Orchestrated by Driver):** The Driver orchestrates validation steps as part of the plan execution. This includes:
-    *   Code Quality (`CodeReviewAgent` - Flake8).
+3.  **Automated Validation (Iterative Loop - Orchestrated by Driver):** The Driver orchestrates and *automatically executes* validation steps as part of the plan execution. This includes:
+    *   Code Quality (`CodeReviewAgent` - Flake8, Bandit).
     *   Security Scans (`SecurityAgent` - ZAP).
-    *   Testing (`TestGenAgent` - placeholder/basic).
+    *   Testing (`TestGenAgent` - placeholder/basic, *automatically run via pytest*).
     *   Ethical Assessment (`EthicalGovernanceEngine`).
     *   Formal Verification (`FormalVerificationEngine` - future).
-    *   Validation results drive further steps in the plan (e.g., generating a fix if validation fails).
-4.  **Integration:** Validated code is written to the filesystem via the `write_file` tool, orchestrated by the Driver.
-5.  **Improvement:** `ContinuousLearningCore` analyzes performance and feedback to refine agents and processes (future).
-6.  **User Review & Feedback:** The user reviews the outputs of the autonomous iteration (generated code, reports, logs) and provides feedback to the Driver LLM to guide the next iteration or handle issues.
+    *   Validation results are captured, logged, and feed into the Grade Report.
+4.  **Automated Feedback & Roadmap Update:** The Driver automatically parses the Grade Report, determines the outcome based on predefined criteria (e.g., test pass rate, severity of issues), and *automatically updates the task status in `ROADMAP.json`*.
+5.  **Integration:** Validated code is written to the filesystem via the `write_file` tool, orchestrated by the Driver.
+6.  **Improvement:** `ContinuousLearningCore` analyzes performance and feedback to refine agents and processes (future).
+7.  **User Review:** The user reviews the outputs of the autonomous iteration (generated code, updated roadmap, reports, logs) to monitor progress and intervene if necessary (e.g., if a task is marked 'Blocked').
 
-**End Products:**
+    *(For full details on the grading process, see [**CONTRIBUTING.md - Contribution Review Process: Iterative Probability-Based Grading**](CONTRIBUTING.md#contribution-review-process-iterative-probability-based-grading)).*
 
-*   Ready-to-deploy software (Cloud Backend, ESP32 Firmware).
-*   Comprehensive test suites (including Hardware-in-the-Loop).
-*   Configuration/policy files.
-*   Formal verification artifacts.
-*   MSGE Reports: Ethical Compliance, Security Analysis, Test Coverage, Formal Verification.
+    **With the completion of Phase 1.6, the Metamorphic Core now orchestrates the entire development iteration autonomously, from initiation via CLI/API through validation execution, grade report parsing, and roadmap status updates. The user's role shifts from manual step execution to initiating the loop and reviewing the results.**
 
-## <a name="core-api-endpoints"></a>Core API Endpoints
+*   **Key Components (Detailed):**
+    *   **Human Input & Oversight Interface:** (Planned Web UI) Secure portal for spec submission (text, later diagrams), configuration, feedback, ethical guidance input, ERB overrides, progress dashboards. The CLI (`src/cli/main.py`) now serves as the primary *initiation* interface for the automated workflow.
+    *   **Metamorphic Core (Adaptive AI Orchestration):**
+        *   *Dynamic Knowledge Graph:* Neo4j or similar graph DB storing nodes (code chunks, specs, policies, vulnerabilities, tests, metrics) and semantic relationships. Enables complex querying for context retrieval and pattern analysis. (Phase 2 Iteration 2 focuses on expanding the KG schema to store richer code semantics).
+        *   *Intelligent LLM Orchestration Layer:* Manages API calls to multiple LLMs (Gemini, HF models via `InferenceClient`, potentially OpenAI). Implements context window management (semantic chunking, summarization), cost/latency optimization (model selection based on task complexity), robust retries, and failover logic. Uses `TokenAllocator` for budget management. **This layer is now orchestrated by the autonomous Driver LLM, triggered via the `/genesis/drive_workflow` API endpoint.**
+        *   *Modular AI Agent Network:*
+            *   `SpecificationAnalysisAgent`: Parses natural language/structured input into formal requirements, potentially using AST analysis and LLMs.
+            *   `TestGenerationAgent`: Generates pytest tests (placeholders in MVP, meaningful tests including HIL using code/spec analysis later). **Automated execution of these tests is now part of the Phase 1.6 workflow.** (Phase 2 Iteration 2 focuses on enhancing this agent for more intelligent test generation).
+            *   `CodeGenerationAgent`: (Post-MVP) Generates code (Python, Go, Rust, JS/TS, C++) based on specs from KG/LLM Orchestrator.
+            *   `CodeReviewAgent`: Runs static analysis with **Flake8** for code quality. **Integrated into `/genesis/analyze-ethical` API endpoint. Automated execution is now part of the Phase 1.6 workflow.** (Phase 2 Iteration 2 focuses on enhancing this agent with semantic analysis). (Post-MVP: Bandit, Semgrep for security SAST; LLMs for deeper semantic review).
+            *   `SecurityAgent`: Orchestrates security tools (ZAP DAST now; SAST via Bandit/Semgrep later). Analyzes results, stores findings in KG. **Automated execution of relevant checks is now part of the Phase 1.6 workflow.**
+            *   `PerformanceAnalysisAgent`: (Post-MVP) Integrates profiling tools (cProfile) and analyzes performance metrics.
+            *   `FormalVerificationEngine`: Interfaces with Coq/Isabelle/Z3 to run proofs against code or specifications.
+            *   `PredictiveRiskAssessmentModule`: Uses `QuantumRiskPredictor` (trained on historical KG data) to forecast ethical/security risks.
+            *   `SelfMonitoringAndAdaptiveHealing`: Monitors system metrics (Prometheus), logs errors, triggers recovery actions.
+            *   `ResourceManagementOptimization`: (Post-MVP) Optimizes cloud resource usage, potentially using Kubernetes HPA based on Prometheus metrics.
+    *   **Ethical Governance Framework:**
+        *   **Project Process Ethics:** Extend the Ethical Governance Framework to evaluate and guide MSGE's own development processes, ensuring they align with ethical principles of **transparency, risk mitigation, and continuous improvement**. This includes using AI-driven roadmap refinement to minimize uncertainty and enhance project success probability, and proactively addressing potential ethical concerns within the development process itself. **Furthermore, to ensure consistent ethical considerations in code contributions, we employ an **Iterative Grading Process** (detailed in [CONTRIBUTING.md - Contribution Review Process: Iterative Probability-Based Grading](CONTRIBUTING.md#contribution-review-process-iterative-probability-based-grading)) that includes "Ethical Policy Compliance Probability", "Code Style Compliance Probability", and other key quality metrics in code reviews and iterative refinement cycles.**
+         *   *EthicalPolicyEngine (`EthicalGovernanceEngine`):* Loads JSON policies (`jsonschema` validation). `enforce_policy` method checks code/metadata against loaded constraints (regex, keyword checks, **AST analysis for transparency**). Returns compliance status. **Automated execution of policy enforcement is now part of the Phase 1.6 workflow.**
+         *   *BiasDetectionMitigationModule:* Uses NLP libraries (spaCy, Transformers) or fairness toolkits (Fairlearn) to analyze text (comments, docs) and potentially code structure for bias indicators. (Post-MVP) Implements mitigation strategies (e.g., suggesting alternative phrasing).
+         *   *TransparencyExplainabilityModule:* (Planned) Provides API endpoints to retrieve justification for policy violations or agent decisions, potentially querying LLM logs or KG links.
+    *   **Formal Verification & Resilience Subsystem:**
+        *   *FormalVerificationEngine:* Interfaces with Coq (proofs compiled in CI), Isabelle/HOL, and Z3 (SMT solver) for multi-layered verification.
+        *   *QuantumStatePreserver:* (MVP placeholder) Saves quantum states for auditability.
+        *   *SelfMonitoringAndAdaptiveHealing:* Prometheus metrics, anomaly detection (post-MVP).
+    *   **Continuous Learning & Improvement Loop:**
+        *   *PerformanceAnalysisAgent:* (Post-MVP) Benchmarking, profiling, bottleneck analysis.
+        *   *ContinuousLearningCore:* ML-driven process adaptation.
+        *   *FeedbackCaptureModule:* API endpoints for user feedback.
 
-*(Focus on MVP - see [API Documentation](docs/api/api-endpoints.md) for future plans)*
+**III. Technical Specifications & KPIs (Initial)**
 
-| Endpoint                        | Method | Description                                                                       | Status (MVP)     |
-| :---------------------------- | :----- | :------------------------------------------------------------------------------ | :--------------- |
-| `/genesis/health`             | GET    | Check API server status. Returns `{"status": "ready"}`.                         | ✅ Working       |
-| `/genesis/analyze-ethical`    | POST   | Analyzes Python code: Configurable Ethics, **Flake8 Quality**, Placeholder Tests. | ✅ MVP Core (Quality) |
-| `/genesis/solve-math`         | POST   | Basic LLM integration test endpoint.                                            | ✅ Working (Test) |
-| `/genesis/ethical/audit/{state_id}`   | GET    | Retrieve audit trail data (planned).                                            | ❌ Not Implemented |
-| `/genesis/ethical/visualize/{state_id}` | GET    | Obtain visualization data (planned).                                      | ❌ Not Implemented |
-| `/genesis/drive_workflow`     | POST   | Initiates the autonomous Workflow Driver loop (Planned for Phase 2 Iteration 2). | ❌ Not Implemented |
+### **Expected Phase Improvements**
 
-**Sample MVP Request/Response - `/genesis/analyze-ethical`:**
+The following table summarizes the anticipated cumulative improvements in key areas for each phase of the Metamorphic Software Genesis Ecosystem. Note that these are ballpark estimates and are subject to change.
 
-[Example curl request and JSON response for `/genesis/analyze-ethical` - as in the original README]
+| Feature                           | Phase 1.5 (Workflow Automation) | Phase 1.6 (Enhanced Automation) | Phase 2 (Enhanced Intelligence) | Phase 3 (Cyber-Physical Systems) | Phase 4 (Quantum) | Phase 5 (Sustaining) |
+| --------------------------------- | ------------- | ------------------------------- | ------------------------------- | ------------------------------- | --------------- | -------------------- |
+| Development Efficiency/Speed      | 5-10%         | 15-25%                          | 30-40%                          | 40-55%                          | 50-70%          | 60-80%              |
+| Software Quality (Bugs/Vulnerabilities) | 5-10%         | 10-15%                          | 30-40%                          | 50-70%                          | 70-90%          | 80-98%              |
+| Ethical Compliance                | 10-20%        | 25-35%                          | 40-60%                          | 60-80%                          | 80-95%          | 90-99%              |
+| Resource Efficiency               | Negligible    | Negligible                      | 5-10%                           | 15-25%                          | 20-35%          | 30-45%              |
 
-## <a name="contributing"></a>Contributing
+**Important Notes:**
 
-Contributions are welcome! Please align with the current [Phase 2 Iteration 2 focus](ROADMAP.md) and see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines (basic guidelines currently, enhanced guidelines planned for Phase 2 Iteration 2).
+*   All percentages are cumulative.
+*   These are "ballpark" estimates only and are subject to significant uncertainty.
+*   Actual improvements will depend on successful implementation, domain specificity, data availability, and human factors.
 
-## <a name="further-documentation"></a>Further Documentation
+*   **Core Tech Stack:** Python (primary), Go (concurrency/API), Rust (safety-critical), JavaScript/TypeScript (UI - planned), Coq/Isabelle/Z3 (formal methods).
+*   **LLM Providers:** Gemini (default in MVP), Hugging Face (via `InferenceClient`, OpenAI (future).
+*   **Knowledge Graph:** Neo4j (planned), initially in-memory Python dict for MVP. (Phase 2 Iteration 2 focuses on schema expansion).
+*   **Security Scanning:** OWASP ZAP (DAST - integrated in CI for MVP), Bandit, Semgrep (SAST - post-MVP).
+*   **Testing Frameworks:** pytest (unit, integration), Hypothesis (property-based).
+*   **CI/CD:** GitHub Actions (MVP), GitLab CI/CD (future option).
+*   **Monitoring & Telemetry:** Prometheus (planned), basic logging in MVP.
+*   **Ethical Policy Format:** JSON, schema-validated (`ethical_policy_schema.json`).
+*   **Formal Specification Language:** Natural language (constraints), Coq/Isabelle/Z3 (formal proofs).
 
-*   **[Full High-Level Specification (Detailed Vision)](SPECIFICATION.md)**
-*   **[Development Roadmap (MVP & Beyond)](ROADMAP.md)** - *Note: This file is autogenerated from `ROADMAP.json`. Do not edit directly!*
-*   **[Competitive Landscape Analysis](COMPETITIVE_LANDSCAPE.md)**
-*   **[API Documentation (Placeholder - In Progress)](docs/api/api-endpoints.md)** - *Detailed API documentation for the `/genesis/analyze-ethical` endpoint will be available here by the end of Phase 2 Iteration 1 (Week 9).*
-*   **[Contribution Guidelines](CONTRIBUTING.md)**
-*   **[Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md)** **(UPDATED - Recommended for streamlined AI-driven development)**
+**V. Future Evolution (Beyond Version 1.0):**
 
-## <a name="troubleshooting"></a>Troubleshooting
+*(Roadmap for future phases - examples)*
 
-### LLM API Key Errors
+*   **Phase 1.6 (Enhanced Workflow Automation):** Current focus - completing the end-to-end automation layer.
+*   **Phase 2 (Enhanced Intelligence):** Advanced AI planning, reinforcement learning for agent optimization, deeper KG integration, semantic code search, AI-driven debugging/refactoring. (Phase 2 Iteration 2 is the first iteration focusing on agent and KG enhancements).
+*   **Phase 3 (Cyber-Physical Systems Focus):** Integration with robotics frameworks (ROS 2), hardware-in-the-loop (HIL) testing, formal verification of safety-critical embedded code, real-time ethical monitoring for autonomous systems.
+*   **Phase 4 (Quantum-Augmented Genesis):** Full integration of quantum computing for optimization, risk prediction, and potentially code generation, quantum-resistant security measures.
 
-*   **Verify API Keys in `.env`:** Ensure API keys are correct in `.env`.
-*   **Check `LLM_PROVIDER`:** Verify `LLM_PROVIDER` is set correctly in `.env` (`gemini` or `huggingface`).
-*   **Key Validity:** Check API key validity in your provider's console.
-*   **Typographical Errors:** Double-check for typos in `.env`.
+---
 
-### Docker Compose Issues (Redis/ZAP)
+**VI. Phase 5: Sustaining - Continuous Improvement & Evolution**
 
-*   **Ensure Docker Desktop is Running:** Verify Docker Desktop is running.
-*   **Check Container Status:** Use `docker ps` to check container status. Use `docker-compose logs redis` or `docker-compose logs zap` for errors.
-*   **Port Conflicts:** Check for port conflicts (`docker ps -a`).
-*   **`docker-compose.yml` Existence:** Ensure `docker-compose.yml` exists in the project root.
-*   **Restart Docker:** Try restarting Docker Desktop.
+*Goal:* To ensure the long-term viability, security, ethical alignment, and performance of the Metamorphic Software Genesis Ecosystem through continuous monitoring, automated analysis, and community-driven contributions.
 
-### Python Dependency Errors
+*Key Principles:*
 
-*   **Verify Python Version:** `python --version` (must be 3.11+).
-*   **Virtual Environment Activation:** Ensure `venv` is activated (`(venv)` in prompt).
-*   **Upgrade pip:** `pip install --upgrade pip`.
-*   **Re-install Dependencies:** `pip install -r requirements/base.txt` and `pip install -r requirements/dev.txt`.
-*   **`flake8` Installation:** Verify `flake8` is installed (`pip install -r requirements/dev.txt`).
-*   **Cache Issues:** `pip cache purge` and reinstall dependencies.
-
-### API Connection Errors
-
-*   **Flask Server Running:** Run `python src/api/server.py`.
-*   **Host and Port:** Check server address (`http://127.0.0.1:5000`).
-*   **Docker Container Ports:** Verify port mappings in `docker-compose.yml` (5000:5000).
-*   **Firewall:** Check firewall rules blocking port 5000.
-
-### Ethical Policy Errors
-
-*   **Policy File Existence:** Ensure policy files (`.json`) are in `policies/`.
-*   **File Paths:** Verify file paths in `src/api/routes/ethical_endpoints.py`.
-*   **JSON Syntax:** Validate policy files for correct JSON.
-*   **Schema Compliance:** Ensure policies match `ethical_policy_schema.json`.
-
-### Code Quality Issues Not Reported
-
-*   **`flake8` Installation:** Verify `flake8` is installed (`pip install -r requirements/dev.txt`).
-*   **Server Logs:** Check Flask server logs for `CodeReviewAgent` or `flake8` errors.
-*   **API Response Structure:** Verify `code_quality` section in API response JSON.
-*   **Flake8 Executable Path:** Ensure `flake8` is in your system's PATH or venv's `bin`.
-
-### Known Issues
-
-#### ZAP Service (Local `docker-compose.yml`) Issue
-
-*   **Local ZAP Unreliable in MVP:** Local ZAP service in `docker-compose.yml` may not be reliable for local security scans in this MVP release.
-*   **CI Pipeline ZAP Scans Reliable:** Rely on ZAP Baseline Scan reports in CI pipeline runs for security vulnerability assessments.
-*   **Local ZAP Scans Not Reliable for MVP:** Local ZAP scans via `docker-compose up` are not currently reliable.
-*   **Resolution Planned Post-MVP:** Resolution for local ZAP service is planned for a future release.
-*   **Note:** Code quality reporting via Flake8 is verified and functional for both local and CI pipeline use.
-
-## <a name="license"></a>License
-
-This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3). See the `LICENSE` file for details. Aligned with OECD AI Principles and supports GDPR/Brexit compliance goals.
-
-## <a name="contact"></a>Contact
-
-tomwolfe@gmail.com
-
-## <a name="disclaimer"></a>Disclaimer
-
-Disclaimer: The Metamorphic Software Genesis Ecosystem is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.  This software is for research and development purposes only and should not be used for production systems without extensive testing and validation.  Ethical considerations and security best practices are paramount.  Use with caution and at your own risk.
+    *   **Data-Driven Evolution:** Base all improvements on measurable KPIs and empirical data, leveraging telemetry and user feedback.
+    *   **Proactive Threat Mitigation:** Continuously monitor for emerging security threats and ethical risks, implementing proactive countermeasures.
+    *   **Community-Centric Innovation:** Foster a vibrant community of contributors to drive innovation and address evolving needs.
+    *    **Formal Ethics Review and Grading:** The ethical values should have been tested, and verified.

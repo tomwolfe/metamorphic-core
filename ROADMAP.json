@@ -1,65 +1,154 @@
 {
-  "phase": "Phase 2 Iteration 2 - Enhanced Agents & Knowledge Graph",
-  "phase_goal": "Enhance the intelligence and capabilities of core AI Agents, and deepen integration with the Knowledge Graph to improve context handling, reasoning, and overall system performance.",
+  "phase": "Phase 1.6 - Enhanced Workflow Automation",
+  "phase_goal": "Complete the end-to-end automation layer by automating workflow initiation, validation execution, feedback processing, and roadmap status updates. Establish a robust, self-driving development loop.",
   "success_metrics": [
-    "Improved performance of CodeReviewAgent (e.g., reduced false positives, increased accuracy in identifying complex code issues).",
-    "Enhanced TestGenerationAgent capable of generating more intelligent and context-aware tests (beyond placeholders).",
-    "Knowledge Graph expanded to store richer semantic information about code, ethical policies, and system behavior.",
-    "Agents demonstrate improved context awareness and reasoning through KG integration, measured by benchmark tasks (to be defined).",
-    "Unit tests for enhanced agents and KG integration achieve >= 80% code coverage."
+    "Workflow can be initiated from CLI without manual prompt copy-paste.",
+    "Tests are automatically executed as part of the Driver loop, and results captured.",
+    "Code review (Flake8) and basic security scans (Bandit/simulated ZAP check) are automatically executed, and results captured.",
+    "Driver generates a structured JSON Grade Report incorporating validation results.",
+    "Driver automatically parses its JSON Grade Report and logs key findings/decisions.",
+    "Driver automatically updates the status of the completed task in ROADMAP.json based on success criteria (e.g., tests pass, grade >= X).",
+    "Comprehensive tests for the automation layer achieve >= 90% code coverage."
   ],
   "tasks": [
     {
-      "task_id": "task_2_2a",
+      "task_id": "task_1_6a",
+      "priority": "High",
+      "task_name": "Implement /genesis/drive_workflow API Endpoint",
+      "description": "Create a new API endpoint (`/genesis/drive_workflow`) that the CLI can call to initiate the WorkflowDriver's autonomous loop. This endpoint will receive the initial context (e.g., paths to documentation files) and trigger the driver. (Est. Time: 1-2 days)",
+      "status": "Not Started",
+      "Success Criteria": "New API endpoint is functional and can receive initial context. Basic unit tests cover endpoint routing and initial driver invocation logic.",
+      "Potential Risks": "Designing a secure and robust API endpoint for triggering a long-running process, handling potential timeouts if the driver loop is long.",
+      "Mitigation": "Implement input validation and rate limiting on the endpoint, consider making the API call non-blocking or using background tasks for long operations (defer if complex), add logging.",
+      "Time Saving Strategy": "Keep the initial API endpoint simple, primarily focusing on receiving input and calling the driver's main method.",
+      "dependencies": []
+    },
+    {
+      "task_id": "task_1_6b",
       "priority": "High",
       "task_name": "Automate Initial Prompt Submission from CLI",
-      "description": "Modify the CLI (`src/cli/main.py`) to automatically construct the Driver LLM prompt (reading from `docs/workflows/markdown_automation.md` and documentation files) and submit it to the `/genesis/drive_workflow` API endpoint (new endpoint to be created in Phase 2 Iteration 2). This will eliminate the manual copy-paste step for users initiating the workflow.",
+      "description": "Modify the CLI (`src/cli/main.py`) to automatically construct the Driver LLM prompt (reading from `docs/workflows/markdown_automation.md` and documentation files like `SPECIFICATION.md`, `CONTRIBUTING.md`, `COMPETITIVE_LANDSCAPE.md`, `ROADMAP.json`) and submit it to the new `/genesis/drive_workflow` API endpoint. This will eliminate the manual copy-paste step for users initiating the workflow. (Est. Time: 1-2 days)",
       "status": "Not Started",
-      "Success Criteria": "CLI script automatically constructs and submits the prompt to a mock API endpoint (for initial testing). No manual copy-paste of prompt required to initiate workflow. Basic unit tests for prompt construction and API call (mocked) are implemented.",
-      "Potential Risks": "API endpoint not yet implemented (dependent on other tasks in Phase 2), complexity in handling file paths and content loading in CLI, potential errors in prompt construction logic.",
-      "Mitigation": "Start by mocking the API endpoint for initial CLI implementation, focus on robust file handling and prompt assembly in the CLI, implement the actual API endpoint in a parallel task, add logging for debugging.",
-      "Time Saving Strategy": "Focus on CLI-side implementation first, decouple from API endpoint initially using mocks."
+      "Success Criteria": "CLI script automatically constructs the prompt by reading required files and successfully calls the `/genesis/drive_workflow` API endpoint (assuming it's running). User no longer needs to manually copy-paste the large prompt into an LLM interface to start an iteration. Basic unit tests for prompt construction and API call logic are implemented.",
+      "Potential Risks": "Complexity in handling file paths and content loading in CLI, ensuring all necessary context is included in the constructed prompt.",
+      "Mitigation": "Focus on robust file handling and prompt assembly in the CLI, add detailed logging for debugging.",
+      "Time Saving Strategy": "Re-use existing file reading logic where possible, focus on the core prompt assembly and API call.",
+      "dependencies": ["task_1_6a"]
     },
-    {
-      "task_id": "task_2_2b",
+     {
+      "task_id": "task_1_6c_exec_tests",
       "priority": "High",
-      "task_name": "Enhance CodeReviewAgent with Semantic Analysis",
-      "description": "Improve the `CodeReviewAgent` to perform basic semantic analysis of code beyond just Flake8 checks. This could involve using AST parsing to understand code structure, identify potential design flaws, and provide more context-aware code quality feedback. Initial focus on identifying overly complex functions or classes based on AST metrics (e.g., cyclomatic complexity, lines of code).",
+      "task_name": "Driver: Automate Test Execution",
+      "description": "Implement logic within `WorkflowDriver` to execute tests (e.g., run `pytest` via subprocess) on generated or modified code artifacts. Capture the raw output and return code. (Est. Time: 1-2 days)",
       "status": "Not Started",
-      "Success Criteria": "`CodeReviewAgent` can extract basic AST-based metrics (cyclomatic complexity, LOC) and include them in its analysis output. New unit tests added to verify metric extraction and reporting. Agent's output format updated to include semantic analysis results.",
-      "Potential Risks": "Complexity in AST analysis and metric calculation, potential performance impact of deeper analysis, defining meaningful thresholds for complexity metrics.",
-      "Mitigation": "Start with simple metrics and gradually increase complexity, profile performance impact and optimize as needed, define initial thresholds based on literature and adjust based on testing.",
-      "Dependencies": ["task_2_2a"],
-      "Time Saving Strategy": "Focus on a limited set of key metrics initially, use existing AST parsing libraries, defer complex semantic reasoning for later iterations."
+      "Success Criteria": "Driver can execute a subprocess command to run tests (e.g., `pytest`). Raw test output (stdout, stderr) and return code are captured and logged. Unit tests for subprocess execution and output capture are implemented.",
+      "Potential Risks": "Ensuring tests run in the correct environment (venv/container), handling subprocess errors (command not found, permissions).",
+      "Mitigation": "Start with simple `pytest` execution, log raw output and errors for debugging, ensure execution happens in the correct virtual environment or container.",
+      "Time Saving Strategy": "Focus only on execution and raw capture, defer parsing for a separate task.",
+      "dependencies": []
     },
     {
-      "task_id": "task_2_2c",
-      "priority": "Medium",
-      "task_name": "Improve TestGenerationAgent for Function Complexity",
-      "description": "Enhance the `TestGenerationAgent` to generate more intelligent placeholder tests that are tailored to the complexity of the function being tested. For functions identified as complex (using metrics from enhanced `CodeReviewAgent`), generate a larger number of placeholder tests or tests covering different input types (e.g., edge cases, boundary values).",
+      "task_id": "task_1_6d_parse_tests",
+      "priority": "High",
+      "task_name": "Driver: Parse Test Results",
+      "description": "Implement logic within `WorkflowDriver` to parse the raw output from test execution (`task_1_6c_exec_tests`) into a structured format (e.g., JSON or dictionary) indicating pass/fail status, number of tests run, number passed/failed. Focus on parsing standard `pytest` output. (Est. Time: 1-2 days)",
       "status": "Not Started",
-      "Success Criteria": "`TestGenerationAgent` can receive complexity metrics from `CodeReviewAgent` and adjust the number or type of generated placeholder tests based on these metrics. Unit tests verify test generation variations based on different complexity levels. Agent's test generation logic updated to incorporate complexity metrics.",
-      "Potential Risks": "Defining 'complexity' thresholds for triggering enhanced test generation, ensuring generated placeholder tests are still meaningful, potential increase in test generation time.",
-      "Dependencies": ["task_2_2b"],
-      "Time Saving Strategy": "Start with a simple complexity threshold (e.g., cyclomatic complexity > X), focus on varying the *number* of placeholder tests initially, refine test generation logic iteratively."
+      "Success Criteria": "Driver can parse standard `pytest` output into a structured result object (e.g., {'passed': 5, 'failed': 1, 'total': 6, 'status': 'failed'}). Parsing logic is robust to common variations. Unit tests for parsing logic are implemented.",
+      "Potential Risks": "Complexity in parsing varied test output formats, changes in pytest output format in future versions.",
+      "Mitigation": "Start with parsing a fixed, simplified output format, gradually add complexity as needed. Rely on pytest's `--json` output option if available and stable.",
+      "Time Saving Strategy": "Focus purely on parsing the output string, decouple from execution.",
+      "dependencies": ["task_1_6c_exec_tests"]
     },
     {
-      "task_id": "task_2_2d",
-      "priority": "Medium",
-      "task_name": "Expand Knowledge Graph Schema for Code Semantics",
-      "description": "Extend the Knowledge Graph schema to store semantic information extracted by the enhanced `CodeReviewAgent`. This includes storing function signatures, class structures, dependencies, and complexity metrics as nodes and edges in the KG. This will enable agents to leverage richer context from the KG for improved reasoning and analysis.",
+      "task_id": "task_1_6e_exec_review",
+      "priority": "High",
+      "task_name": "Driver: Automate Code Review & Security Scan Execution",
+      "description": "Implement logic within `WorkflowDriver` to invoke `CodeReviewAgent.analyze_python()` (for Flake8/static analysis) and a basic security check (e.g., Bandit via subprocess or a dedicated method). Capture their structured results. (Est. Time: 1-2 days)",
       "status": "Not Started",
-      "Success Criteria": "KG schema updated to include new node types and relationship types for code semantics (function, class, dependency, complexity_metric, etc.). Data migration script (or logic) created to populate KG with semantic information from existing code (can be placeholder data initially). Unit tests for KG schema extension and data storage/retrieval.",
-      "Potential Risks": "Designing an effective and scalable KG schema, complexity in mapping AST-based metrics to KG representation, potential performance impact of larger KG.",
-      "Dependencies": ["task_2_2b"],
-      "Time Saving Strategy": "Start with a minimal KG schema extension focusing on key semantic elements, use in-memory KG for initial testing, defer performance optimization and large-scale data migration for later iterations."
+      "Success Criteria": "Driver can call `CodeReviewAgent.analyze_python()` and capture its structured output (list of findings). Driver can execute a basic Bandit scan (e.g., `bandit -r <file> -f json`) and capture its structured JSON output. Results are logged. Unit tests for agent/tool invocation and result capture are implemented.",
+      "Potential Risks": "Integrating subprocess calls securely (especially for Bandit), parsing agent/tool output formats.",
+      "Mitigation": "Re-use existing agent methods, ensure secure subprocess execution (avoid shell=True), log raw output for debugging.",
+      "Time Saving Strategy": "Focus on integrating existing agent methods rather than rewriting analysis logic, prioritize Flake8 and a simple Bandit check initially.",
+      "dependencies": []
+    },
+    {
+      "task_id": "task_1_6f_generate_report",
+      "priority": "High",
+      "task_name": "Driver: Generate Structured JSON Grade Report",
+      "description": "Modify the `WorkflowDriver` to generate a structured JSON Grade Report after each iteration. This report should consolidate results from automated test execution (`task_1_6d_parse_tests`), code review/security scans (`task_1_6e_exec_review`), and ethical analysis into a single, machine-readable format, including the probability-based grades. (Est. Time: 1-2 days)",
+      "status": "Not Started",
+      "Success Criteria": "Driver generates a valid JSON object representing the Grade Report. Report includes sections for test results (parsed from task_1_6d), static analysis findings (from task_1_6e), security findings (from task_1_6e), and ethical analysis results (from existing ethics engine). Report includes calculated probability-based grades (can be simple calculations initially). Unit tests for report structure and content are implemented.",
+      "Potential Risks": "Ensuring consistent JSON structure, correctly aggregating results from different sources, defining initial grade calculation logic.",
+      "Mitigation": "Define a clear JSON schema for the report (can be implicit initially), use standard JSON libraries, ensure all relevant data points are included. Use simple weighting for initial grade calculation.",
+      "Time Saving Strategy": "Start with a minimal report structure and simple grade calculation, add complexity iteratively.",
+      "dependencies": ["task_1_6d_parse_tests", "task_1_6e_exec_review"]
+    },
+    {
+      "task_id": "task_1_6g_parse_report",
+      "priority": "High",
+      "task_name": "Driver: Parse & Evaluate JSON Grade Report",
+      "description": "Implement logic within `WorkflowDriver` to parse the structured JSON Grade Report it generated (`task_1_6f_generate_report`). Implement logic to evaluate the report (e.g., check overall percentage grade, number of high-risk violations, test results) and determine the recommended next action (e.g., trigger code regeneration, mark task for manual review, proceed to roadmap update). (Est. Time: 1-2 days)",
+      "status": "Not Started",
+      "Success Criteria": "Driver can parse its own generated JSON Grade Report. Driver can extract key metrics (grade, violations, test status). Driver can log a recommended next action based on predefined rules (e.g., if tests failed, recommend regeneration; if high-risk security issues, recommend manual review). Unit tests for report parsing and basic action logic are implemented.",
+      "Potential Risks": "Complexity in defining action rules, ensuring robust JSON parsing.",
+      "Mitigation": "Start with simple rules (e.g., Pass/Fail based on test results or a single grade threshold), use standard JSON parsing libraries, log the decision logic.",
+      "Time Saving Strategy": "Implement basic pass/fail logic first, defer complex multi-metric decision making.",
+      "dependencies": ["task_1_6f_generate_report"]
+    },
+    {
+      "task_id": "task_1_6h_safe_roadmap_write",
+      "priority": "High",
+      "task_name": "Driver: Implement Safe Roadmap File Writing",
+      "description": "Implement a utility function within `WorkflowDriver` (or a dedicated file utility module) for safely writing updates back to the `ROADMAP.json` file. This function should handle file locking (if necessary), use atomic writes (write to temp file then rename), and prevent path traversal. (Est. Time: 1-2 days)",
+      "status": "Not Started",
+      "Success Criteria": "Utility function can safely write to a specified file path within the allowed base directory. Function uses atomic write pattern. Function rejects paths attempting to write outside the base directory. Unit tests for safe file writing are implemented, including tests for file locking/safety (if concurrent access becomes a concern) and path traversal prevention.",
+      "Potential Risks": "Data corruption in `ROADMAP.json`, race conditions (less likely in current single-threaded driver), security risks from file writing.",
+      "Mitigation": "Implement robust file locking (if needed), validate roadmap structure before writing, use atomic writes (write to temp file then rename), ensure file writing respects base path boundaries (re-use/adapt logic from _write_output_file).",
+      "Time Saving Strategy": "Focus on the core safe writing mechanism as a standalone utility.",
+      "dependencies": []
+    },
+     {
+      "task_id": "task_1_6i_update_status",
+      "priority": "High",
+      "task_name": "Driver: Automate Roadmap Status Update Logic",
+      "description": "Modify the `WorkflowDriver` to use the safe file writing utility (`task_1_6h_safe_roadmap_write`) to update the status of the current task in `ROADMAP.json` based on the recommended action determined in `task_1_6g_parse_report` (e.g., mark 'Completed' if the iteration was successful, 'Blocked' if critical issues persist). (Est. Time: 1 day)",
+      "status": "Not Started",
+      "Success Criteria": "Driver calls the safe write utility to modify `ROADMAP.json`. Task status in the file is updated correctly based on the outcome of the iteration. Unit tests for the status update logic are implemented.",
+      "Potential Risks": "Incorrectly updating roadmap status, potential issues with file access.",
+      "Mitigation": "Ensure clear mapping between iteration outcome and status update, rely on the safety guarantees of `task_1_6h_safe_roadmap_write`.",
+      "Time Saving Strategy": "Focus on the logic of *what* status to set based on the report, assuming the safe write utility works.",
+      "dependencies": ["task_1_6g_parse_report", "task_1_6h_safe_roadmap_write"]
+    },
+    {
+      "task_id": "task_1_6j_integrate_loop",
+      "priority": "Critical",
+      "task_name": "Driver: Integrate Automated Steps into Autonomous Loop",
+      "description": "Integrate the execution of automated tests (`task_1_6c_exec_tests`), code review/security scans (`task_1_6e_exec_review`), JSON report generation (`task_1_6f_generate_report`), report parsing/evaluation (`task_1_6g_parse_report`), and roadmap status update (`task_1_6i_update_status`) into the `WorkflowDriver`'s main `autonomous_loop`. Ensure the flow is logical and results are passed between steps. (Est. Time: 1-2 days)",
+      "status": "Not Started",
+      "Success Criteria": "The `autonomous_loop` orchestrates the execution of all automated steps (test, review, security, report gen, report parse, status update) for a selected task. Results from earlier steps are correctly used by later steps. The loop processes one task iteration fully. Unit tests verify the orchestration flow.",
+      "Potential Risks": "Integration complexity, ensuring correct data flow between steps, debugging the end-to-end loop.",
+      "Mitigation": "Implement step-by-step, use extensive logging, mock individual step functions to test the orchestration logic.",
+      "Time Saving Strategy": "Focus purely on calling the previously implemented functions in the correct sequence within the loop.",
+      "dependencies": ["task_1_6d_parse_tests", "task_1_6e_exec_review", "task_1_6f_generate_report", "task_1_6g_parse_report", "task_1_6i_update_status"]
+    },
+    {
+      "task_id": "task_1_6k_tests",
+      "priority": "High",
+      "task_name": "Add Comprehensive Tests for Phase 1.6 Automation",
+      "description": "Write comprehensive unit and integration tests covering all new functionality added in Phase 1.6 tasks (API endpoint, CLI automation, all Driver sub-tasks: execution, parsing, reporting, decision, roadmap update). Ensure high code coverage for the new automation logic. (Est. Time: 2-3 days)",
+      "status": "Not Started",
+      "Success Criteria": "Test suite covers the core functionality of tasks 1_6a through 1_6j. Code coverage metrics for the relevant modules (e.g., `src/api/routes/`, `src/cli/`, `src/core/automation/workflow_driver.py`) are significantly increased, aiming for >= 90%. Tests are integrated into the CI pipeline.",
+      "Potential Risks": "Complexity in mocking external dependencies (API calls, subprocess), ensuring realistic test scenarios.",
+      "Mitigation": "Use mocking frameworks (unittest.mock, pytest-mock), create dedicated integration tests for components that interact with external systems (like the API endpoint), focus on testing the logic within the driver and CLI.",
+      "Time Saving Strategy": "Prioritize core logic tests first, add edge case and error handling tests iteratively.",
+      "dependencies": ["task_1_6j_integrate_loop"]
     }
   ],
   "next_phase_actions": [
-    "Set `status`: `complete` on all Phase 2 Iteration 2 tasks",
-    "Remove all Phase 2 Iteration 2 tasks from the json config",
-    "Set 🎯 CURRENT FOCUS to `Phase 2 Iteration 3: Ethical Governance & API Expansion`",
-    "Add tasks from Iteration 3 (Ethical Governance & API Expansion)"
+    "Set `status`: `Completed` on all Phase 1.6 tasks",
+    "Remove all Phase 1.6 tasks from the json config",
+    "Set 🎯 CURRENT FOCUS to `Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph`",
+    "Add tasks from Iteration 2 (Enhanced Agents & Knowledge Graph)"
   ],
-  "current_focus": "🎯 CURRENT FOCUS: Phase 2 Iteration 2 - Enhanced Agents & Knowledge Graph 🚀"
+  "current_focus": "🎯 CURRENT FOCUS: Phase 1.6 - Enhanced Workflow Automation 🚀"
 }

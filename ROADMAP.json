@@ -28,7 +28,7 @@
       "priority": "High",
       "task_name": "Automate Initial Prompt Submission from CLI",
       "description": "Modify the CLI (`src/cli/main.py`) to automatically construct the Driver LLM prompt (reading from `docs/workflows/markdown_automation.md` and documentation files like `SPECIFICATION.md`, `CONTRIBUTING.md`, `COMPETITIVE_LANDSCAPE.md`, `ROADMAP.json`) and submit it to the new `/genesis/drive_workflow` API endpoint. This will eliminate the manual copy-paste step for users initiating the workflow. (Est. Time: 1-2 days)",
-      "status": "Not Started",
+      "status": "Completed",
       "Success Criteria": "CLI script automatically constructs the prompt by reading required files and successfully calls the `/genesis/drive_workflow` API endpoint (assuming it's running). User no longer needs to manually copy-paste the large prompt into an LLM interface to start an iteration. Basic unit tests for prompt construction and API call logic are implemented.",
       "Potential Risks": "Complexity in handling file paths and content loading in CLI, ensuring all necessary context is included in the constructed prompt.",
       "Mitigation": "Focus on robust file handling and prompt assembly in the CLI, add detailed logging for debugging.",

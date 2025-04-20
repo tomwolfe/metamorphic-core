@@ -72,20 +72,46 @@ class TestWorkflowDriver:
         assert test_driver.context == mock_context
         mock_autonomous_loop.assert_called_once()
 
-    def test_start_workflow_with_none(self, test_driver, tmp_path, mocker):
-        """Test start_workflow handles None inputs (defensive check)."""
+    def test_start_workflow_with_none(self, test_driver, tmp_path, mocker, caplog):
+        """Test start_workflow handles None roadmap_path gracefully (load fails internally, loop runs with empty tasks)."""
+        # We expect load_roadmap to log an error and return [], but we mock it here
+        # to control the flow and make the test robust to load_roadmap's internal logging/return details.
+        # The specific logging of load_roadmap(None) is better tested in a dedicated load_roadmap test.
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[])
+
         mock_autonomous_loop = mocker.patch.object(test_driver, 'autonomous_loop')
-        mock_context = Context(str(tmp_path))
+        mock_context_passed_in = Context(str(tmp_path)) # This is the context we pass in
 
-        test_driver.start_workflow(None, None, mock_context)
+        # Store the original context from the fixture (optional, for clarity)
+        original_context_from_init = test_driver.context
 
+        # Call start_workflow with None inputs and the mock_context
+        test_driver.start_workflow(None, None, mock_context_passed_in)
+
+        # Assert that roadmap_path and output_dir were set (even if None)
         assert test_driver.roadmap_path is None
         assert test_driver.output_dir is None
-        assert test_driver.context == mock_context
+
+        # Assert that load_roadmap was called with the correct argument (None)
+        mock_load_roadmap.assert_called_once_with(None)
+
+        # Assert that self.tasks was set by the return value of load_roadmap (which is mocked to [])
+        assert test_driver.tasks == []
+
+        # Assert that the context *was* changed to the one passed into start_workflow
+        # Since you added __eq__ to Context, you can use == or 'is' if you expect identity
+        # The start_workflow code does 'self.context = context', so identity is expected.
+        assert test_driver.context is mock_context_passed_in # Use 'is' to check identity
+
+        # Assert that autonomous_loop *was* called, as start_workflow did not return early
         mock_autonomous_loop.assert_called_once()
 
-    # --- End new tests for start_workflow method ---
-
+        # Optional: You could assert that no *critical* errors occurred *within* start_workflow itself,
+        # but the load_roadmap error is expected to be logged by load_roadmap, not start_workflow's catch.
+        # Given the mock, no exception is raised in start_workflow.
+        # If you wanted to test the *real* load_roadmap's logging when given None,
+        # you'd remove the mock_load_roadmap patch and assert on caplog.
+        # But testing start_workflow's control flow seems more important here.
 
     # --- Modified tests for autonomous_loop (Task 15_3a2) ---
     # MODIFIED: Call start_workflow instead of autonomous_loop

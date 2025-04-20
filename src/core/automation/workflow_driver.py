@@ -21,6 +21,15 @@ class Context:
     def get_full_path(self, relative_path):
         return os.path.join(self.base_path, relative_path)
 
+    def __eq__(self, other):
+        """Compares two Context objects based on their base_path."""
+        if not isinstance(other, Context):
+            return NotImplemented
+        return self.base_path == other.base_path
+
+    def __repr__(self):
+         return f"Context(base_path='{self.base_path}')"
+
 
 class WorkflowDriver:
     def __init__(self, context: Context):
@@ -349,6 +358,9 @@ Requirements:
     def load_roadmap(self, roadmap_file_path):
         tasks = []
         max_file_size = 10000
+        if roadmap_file_path is None: # Handle None roadmap_file_path explicitly
+            logger.error(f"Failed to load roadmap from None: roadmap_file_path is None")
+            return tasks
         if not os.path.exists(roadmap_file_path):
             logger.error(f"ROADMAP.json file not found at path: {roadmap_file_path}")
             return tasks

@@ -9,9 +9,10 @@ from pathlib import Path
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
 import re
 from unittest.mock import MagicMock
-from src.cli.write_file import write_file # Ensure write_file is imported
+from src.cli.write_file import write_file  # Ensure write_file is imported
 
 logger = logging.getLogger(__name__)
+
 
 class Context:
     def __init__(self, base_path):
@@ -20,10 +21,11 @@ class Context:
     def get_full_path(self, relative_path):
         return os.path.join(self.base_path, relative_path)
 
+
 class WorkflowDriver:
     def __init__(self, context: Context):
         self.context = context
-        self.tasks = [] # Placeholder - will be loaded by CLI or other mechanism
+        self.tasks = []  # Placeholder - will be loaded by CLI or other mechanism
 
         # Initialize LLM Orchestrator - Pass placeholder dependencies for now
         self.llm_orchestrator = EnhancedLLMOrchestrator(
@@ -32,6 +34,21 @@ class WorkflowDriver:
             ethics_engine=MagicMock()
         )
 
+    def start_workflow(self, roadmap_path: str, output_dir: str, context: Context):
+        """
+        Initiates the autonomous workflow loop with specific context.
+
+        Args:
+            roadmap_path: Path to the roadmap JSON file.
+            output_dir: Path to the output directory.
+            context: The Context object for the workflow.
+        """
+        self.roadmap_path = roadmap_path
+        self.output_dir = output_dir  # Store output_dir for potential future use
+        self.context = context  # Update context if needed (though it's set in __init__)
+        logger.info(f"Workflow initiated with roadmap: {roadmap_path}, output: {output_dir}")
+        self.autonomous_loop()
+
     def autonomous_loop(self):
         """
         Main control flow loop for the autonomous Driver LLM.
@@ -39,8 +56,22 @@ class WorkflowDriver:
         This method orchestrates the task selection, planning, agent invocation,
         and file management steps to drive the development process autonomously.
         """
+        # Ensure roadmap_path is set before trying to load
+        if not hasattr(self, 'roadmap_path') or not self.roadmap_path:
+            logger.error("Roadmap path not set. Cannot start autonomous loop.")
+            return  # Exit if roadmap path is not set
+
         while True:
             logger.info('Starting autonomous loop iteration')
+
+            # --- MODIFIED: Use self.roadmap_path ---
+            try:
+                tasks = self.load_roadmap(self.roadmap_path)
+                self.tasks = tasks  # Update the driver's task list
+            except Exception as e:
+                logger.error(f"Failed to load roadmap from {self.roadmap_path}: {e}",
+                             exc_info=True)
+                break  # Exit loop if roadmap loading fails
 
             next_task = self.select_next_task(self.tasks)
 
@@ -54,29 +85,37 @@ class WorkflowDriver:
                 # --- Task 15_3d: Integrate agent invocation based on the plan ---
                 # --- Task 15_3e: Integrate file management into autonomous loop ---
                 if solution_plan:
-                    logger.info(f"Executing plan for task {task_id} with {len(solution_plan)} steps.")
+                    logger.info(
+                        f"Executing plan for task {task_id} with {len(solution_plan)} steps.")
                     for step_index, step in enumerate(solution_plan):
                         logger.info(f"Executing step {step_index + 1}/{len(solution_plan)}: {step}")
 
-                        step_lower = step.lower() # Convert step to lower once
-                        code_generation_keywords = ["implement", "generate code", "write function", "modify file", "add logic to"]
-                        file_writing_keywords = ["write file", "create file", "save to file", "output file", "generate file"]
+                        step_lower = step.lower()  # Convert step to lower once
+                        code_generation_keywords = ["implement", "generate code",
+                                                    "write function", "modify file",
+                                                    "add logic to"]
+                        file_writing_keywords = ["write file", "create file", "save to file",
+                                                 "output file", "generate file"]
 
-                        needs_coder_llm = any(keyword in step_lower for keyword in code_generation_keywords)
+                        needs_coder_llm = any(
+                            keyword in step_lower for keyword in code_generation_keywords)
 
                         # Check for a file path match using the regex
                         # Revised regex to be less strict with word boundaries and allow slashes/dots in the path part
-                        filepath_match = re.search(r'(\S+\.(py|md|json|txt|yml|yaml))', step, re.IGNORECASE) # <-- Updated regex
+                        filepath_match = re.search(
+                            r'(\S+\.(py|md|json|txt|yml|yaml))', step, re.IGNORECASE)  # <-- Updated regex
                         has_filepath = filepath_match is not None
-                        filepath = filepath_match.group(1) if has_filepath else None # Extract filepath here if found
+                        filepath = filepath_match.group(1) if has_filepath else None  # Extract filepath here if found
 
                         # A step is considered a file writing step if it contains a file path OR file writing keywords
-                        is_file_writing_step = has_filepath or any(keyword in step_lower for keyword in file_writing_keywords)
+                        is_file_writing_step = has_filepath or any(
+                            keyword in step_lower for keyword in file_writing_keywords)
 
-                        generated_output = None # Initialize generated_output for this step
+                        generated_output = None  # Initialize generated_output for this step
 
                         if needs_coder_llm:
-                            logger.info(f"Step identified as potential code generation. Invoking Coder LLM for step: {step}")
+                            logger.info(
+                                f"Step identified as potential code generation. Invoking Coder LLM for step: {step}")
                             # Construct a prompt specific to this step and the overall task
                             # NOTE: Task name and step are NOT sanitized here, potential prompt injection risk if roadmap is untrusted.
                             # Description is escaped by load_roadmap.
@@ -94,42 +133,50 @@ Please provide the Python code or necessary instructions to fulfill this step. F
                             generated_output = self._invoke_coder_llm(coder_prompt)
 
                             if generated_output:
-                                logger.info(f"Coder LLM invoked for step {step_index + 1}. Generated output (first 100 chars): {generated_output[:100]}...")
+                                logger.info(
+                                    f"Coder LLM invoked for step {step_index + 1}. Generated output (first 100 chars): {generated_output[:100]}...")
                             else:
-                                logger.warning(f"Coder LLM invocation for step {step_index + 1} returned no output.")
+                                logger.warning(
+                                    f"Coder LLM invocation for step {step_index + 1} returned no output.")
 
                         # --- File Writing Logic (Task 15_3e) ---
                         if is_file_writing_step:
-                             logger.info(f"Step identified as file writing. Processing file operation for step: {step}")
+                            logger.info(
+                                f"Step identified as file writing. Processing file operation for step: {step}")
 
-                             if filepath: # Proceed with writing ONLY if a filepath was found
-                                 content = None # Initialize content
+                            if filepath:  # Proceed with writing ONLY if a filepath was found
+                                content = None  # Initialize content
 
-                                 if needs_coder_llm and generated_output:
-                                     content = generated_output
-                                     logger.info(f"Using generated code for file: {filepath}")
-                                 else:
-                                     content = f"// Placeholder content for step: {step}"
-                                     logger.info(f"Using placeholder content for file: {filepath}")
+                                if needs_coder_llm and generated_output:
+                                    content = generated_output
+                                    logger.info(f"Using generated code for file: {filepath}")
+                                else:
+                                    content = f"// Placeholder content for step: {step}"
+                                    logger.info(f"Using placeholder content for file: {filepath}")
 
-                                 if content is not None:
-                                     logger.info(f"Attempting to write file: {filepath}")
-                                     try:
-                                         self._write_output_file(filepath, content, overwrite=False)
-                                     except FileExistsError:
-                                         logger.warning(f"File {filepath} already exists. Skipping write as overwrite=False.")
-                                     except Exception as e:
-                                         logger.error(f"Failed to write file {filepath}: {e}", exc_info=True)
-                                 else:
-                                     logger.warning(f"Content is None for file {filepath}. Skipping file write.")
+                                if content is not None:
+                                    logger.info(f"Attempting to write file: {filepath}")
+                                    try:
+                                        self._write_output_file(filepath, content,
+                                                                overwrite=False)
+                                    except FileExistsError:
+                                        logger.warning(
+                                            f"File {filepath} already exists. Skipping write as overwrite=False.")
+                                    except Exception as e:
+                                        logger.error(f"Failed to write file {filepath}: {e}",
+                                                     exc_info=True)
+                                else:
+                                    logger.warning(
+                                        f"Content is None for file {filepath}. Skipping file write.")
 
-                             else:
-                                 logger.warning(f"Could not extract filepath from step '{step}'. Skipping file write.")
-
+                            else:
+                                logger.warning(
+                                    f"Could not extract filepath from step '{step}'. Skipping file write.")
 
                         # Log if *neither* code generation nor file writing was identified
                         if not needs_coder_llm and not is_file_writing_step:
-                            logger.info(f"Step not identified as code generation or file writing. Skipping agent invocation/file write for step: {step}")
+                            logger.info(
+                                f"Step not identified as code generation or file writing. Skipping agent invocation/file write for step: {step}")
 
                 else:
                     logger.warning(f"No solution plan generated for task {task_id}.")
@@ -153,8 +200,8 @@ Please provide the Python code or necessary instructions to fulfill this step. F
             plan generation fails or returns an empty response.
         """
         if not isinstance(task, dict) or 'task_name' not in task or 'description' not in task:
-             logger.error("Invalid task dictionary provided for plan generation.")
-             return []
+            logger.error("Invalid task dictionary provided for plan generation.")
+            return []
 
         task_name = task['task_name']
         description = task['description']
@@ -198,10 +245,10 @@ Please provide the plan as a numbered markdown list. Do not include any introduc
                     plan_steps.append(current_step_text.strip())
                 current_step_text = match.group(1).strip()
             elif current_step_text is not None:
-                 current_step_text += " " + line.strip()
+                current_step_text += " " + line.strip()
 
         if current_step_text is not None:
-             plan_steps.append(current_step_text.strip())
+            plan_steps.append(current_step_text.strip())
 
         sanitized_steps = [re.sub(r'[*_`]', '', step).strip() for step in plan_steps]
         sanitized_steps = [step for step in sanitized_steps if step]
@@ -209,7 +256,6 @@ Please provide the plan as a numbered markdown list. Do not include any introduc
         logger.debug(f"Parsed and sanitized plan steps: {sanitized_steps}")
 
         return sanitized_steps
-
 
     def _invoke_coder_llm(self, coder_llm_prompt: str) -> str:
         """
@@ -224,8 +270,8 @@ Please provide the plan as a numbered markdown list. Do not include any introduc
         try:
             response = self.llm_orchestrator.generate(coder_llm_prompt)
             if response is None:
-                 logger.error("LLM Orchestrator generate method returned None.")
-                 return None
+                logger.error("LLM Orchestrator generate method returned None.")
+                return None
             return response.strip()
         except Exception as e:
             logger.error(f"Error invoking Coder LLM: {e}", exc_info=True)
@@ -249,9 +295,9 @@ Please provide the plan as a numbered markdown list. Do not include any introduc
                 task_id = task.get('task_id')
                 if task['status'] == 'Not Started':
                     if task_id and self._is_valid_task_id(task_id):
-                         return task
+                        return task
                     elif task_id:
-                         logger.warning(f"Skipping task with invalid task_id format: {task_id}")
+                        logger.warning(f"Skipping task with invalid task_id format: {task_id}")
             else:
                 logger.warning(f"Skipping invalid task format in list: {task}")
 
@@ -298,7 +344,7 @@ Requirements:
 
         markdown_steps = ""
         for i, step in enumerate(steps):
-            markdown_steps += f"{i+1}.  - [ ] {html.escape(step)}\n"
+            markdown_steps += f"{i + 1}.  - [ ] {html.escape(step)}\n"
         return markdown_steps
 
     def load_roadmap(self, roadmap_file_path):
@@ -309,7 +355,8 @@ Requirements:
             return tasks
 
         if os.path.getsize(roadmap_file_path) > max_file_size:
-            logger.error(f"ROADMAP.json file exceeds maximum allowed size of {max_file_size} bytes.")
+            logger.error(
+                f"ROADMAP.json file exceeds maximum allowed size of {max_file_size} bytes.")
             return tasks
 
         try:
@@ -339,7 +386,8 @@ Requirements:
 
             task_id = task_data['task_id']
             if not self._is_valid_task_id(task_id):
-                logger.warning(f"Skipping task with invalid task_id format: '{task_id}'. Task IDs can only contain alphanumeric characters, underscores, and hyphens.")
+                logger.warning(
+                    f"Skipping task with invalid task_id format: '{task_id}'. Task IDs can only contain alphanumeric characters, underscores, and hyphens.")
                 continue
 
             task_name = task_data['task_name']
@@ -367,7 +415,6 @@ Requirements:
         # Allow alphanumeric, underscores, and hyphens, must start with alphanumeric
         return bool(re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_-]*$', task_id))
 
-
     def file_exists(self, relative_file_path):
         """Checks if a file exists in the workspace."""
         try:
@@ -375,11 +422,13 @@ Requirements:
             resolved_path = Path(full_path).resolve()
             resolved_base_path = Path(self.context.base_path).resolve()
             if not str(resolved_path).startswith(str(resolved_base_path)):
-                 logger.warning(f"Attempted to check file existence outside base path: {relative_file_path} (Resolved: {resolved_path})")
-                 return False
+                logger.warning(
+                    f"Attempted to check file existence outside base path: {relative_file_path} (Resolved: {resolved_path})")
+                return False
             return os.path.exists(resolved_path) and os.path.isfile(resolved_path)
         except Exception as e:
-            logger.error(f"Error checking file existence for {relative_file_path}: {e}", exc_info=True)
+            logger.error(f"Error checking file existence for {relative_file_path}: {e}",
+                         exc_info=True)
             return False
 
     def list_files(self):
@@ -389,14 +438,14 @@ Requirements:
         try:
             resolved_base_path = Path(base_path).resolve()
             if not resolved_base_path.is_dir():
-                 logger.error(f"Base path is not a valid directory: {base_path}")
-                 return []
+                logger.error(f"Base path is not a valid directory: {base_path}")
+                return []
 
             for name in os.listdir(resolved_base_path):
                 full_path = os.path.join(resolved_base_path, name)
                 if not self._is_valid_filename(name):
-                     logger.warning(f"Skipping listing of invalid filename: {name}")
-                     continue
+                    logger.warning(f"Skipping listing of invalid filename: {name}")
+                    continue
 
                 if os.path.isfile(full_path):
                     entries.append({'name': name, 'status': 'file'})
@@ -420,7 +469,6 @@ Requirements:
             return False
         # --- UPDATED REGEX ---
         return bool(re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]*$', filename))
-
 
     def _write_output_file(self, filepath, content, overwrite=False):
         """
@@ -448,8 +496,8 @@ Requirements:
         resolved_base_path = Path(self.context.base_path).resolve()
         # Ensure the resolved path is within the resolved base path
         if not str(resolved_filepath).startswith(str(resolved_base_path)):
-             logger.error(f"Attempt to write outside base path: {filepath} (Resolved: {resolved_filepath})")
-             return False
+            logger.error(f"Attempt to write outside base path: {filepath} (Resolved: {resolved_filepath})")
+            return False
 
         try:
             # Pass the resolved full path to write_file
@@ -468,4 +516,5 @@ Requirements:
             logger.error(f"Permission error when writing to {filepath}: {e}", exc_info=True)
             return False
         except Exception as e:
-            logger.error(f"Unexpected error writing to {filepath}: {e}", exc_info=True)
+            logger.error(f"General exception writing file: {filepath} - {e}", exc_info=True)
+            return False

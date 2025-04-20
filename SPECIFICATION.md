@@ -13,7 +13,7 @@
     *   Automate the execution of security checks (`SecurityAgent` - ZAP/Bandit checks) within the Driver loop.
     *   Automate the execution of tests (`pytest`) within the Driver loop and capture results.
 *   **Self-Improving Development Process (Automation Completion):**
-    *   **Automate Initial Prompt:** Implement the automation of the initial prompt construction and submission from the CLI to the Driver LLM API, eliminating the manual copy-paste step.
+    *   **Automate Initial Prompt:** Implement the automation of the initial prompt construction and submission from the CLI **to the new `/genesis/drive_workflow` API endpoint**, eliminating the manual copy-paste step.
     *   **Automate Grade Report Parsing & Actioning:** Implement logic for the Driver to automatically parse its generated Grade Report and determine next steps based on validation results.
     *   **Automate Roadmap Status Update:** Implement logic for the Driver to automatically update the task status in `ROADMAP.json` based on the iteration's outcome.
 
@@ -190,4 +190,3 @@ The following table summarizes the anticipated cumulative improvements in key ar
     *   **Data-Driven Evolution:** Base all improvements on measurable KPIs and empirical data, leveraging telemetry and user feedback.
     *   **Proactive Threat Mitigation:** Continuously monitor for emerging security threats and ethical risks, implementing proactive countermeasures.
     *   **Community-Centric Innovation:** Foster a vibrant community of contributors to drive innovation and address evolving needs.
-    *    **Formal Ethics Review and Grading:** The ethical values should have been tested, and verified.

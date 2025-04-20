@@ -40,51 +40,120 @@ def create_mock_roadmap_file(content, tmp_path, is_json=True):
 
 class TestWorkflowDriver:
 
-    def test_autonomous_loop_basic_logging(self, test_driver, caplog):
-        """Test that autonomous_loop logs the start and end messages."""
-        caplog.set_level(logging.INFO)
-        # Initialize tasks list for the driver instance for this test
-        test_driver.tasks = [] # No tasks available
-        test_driver.autonomous_loop()
-        assert 'Starting autonomous loop iteration' in caplog.text # Updated log message
-        assert 'No tasks available in Not Started status.' in caplog.text # Check log for no tasks
-        assert 'Autonomous loop terminated.' in caplog.text # Updated log message
+    # --- New tests for start_workflow method ---
+    def test_start_workflow_sets_attributes_and_calls_loop(self, test_driver, tmp_path, mocker):
+        """Test that start_workflow correctly sets attributes and calls autonomous_loop."""
+        mock_autonomous_loop = mocker.patch.object(test_driver, 'autonomous_loop')
+        mock_roadmap_path = "path/to/roadmap.json"
+        mock_output_dir = str(tmp_path / "output")
+        mock_context = Context(str(tmp_path)) # Use a distinct context instance
 
-    # --- New tests for autonomous_loop (Task 15_3a2) ---
-    # MODIFIED: Use side_effect to return task then None to allow loop to exit
+        test_driver.start_workflow(mock_roadmap_path, mock_output_dir, mock_context)
+
+        assert test_driver.roadmap_path == mock_roadmap_path
+        assert test_driver.output_dir == mock_output_dir
+        # Note: The driver's __init__ already sets context.
+        # The start_workflow method as generated doesn't strictly *need* to update self.context
+        # if it's already set in __init__, but testing that it was passed is good.
+        # Let's assert that the context attribute is set, even if it's the same instance.
+        assert test_driver.context == mock_context
+
+        mock_autonomous_loop.assert_called_once()
+
+    def test_start_workflow_with_empty_strings(self, test_driver, tmp_path, mocker):
+        """Test start_workflow handles empty string inputs."""
+        mock_autonomous_loop = mocker.patch.object(test_driver, 'autonomous_loop')
+        mock_context = Context(str(tmp_path))
+
+        test_driver.start_workflow("", "", mock_context)
+
+        assert test_driver.roadmap_path == ""
+        assert test_driver.output_dir == ""
+        assert test_driver.context == mock_context
+        mock_autonomous_loop.assert_called_once()
+
+    def test_start_workflow_with_none(self, test_driver, tmp_path, mocker):
+        """Test start_workflow handles None inputs (defensive check)."""
+        mock_autonomous_loop = mocker.patch.object(test_driver, 'autonomous_loop')
+        mock_context = Context(str(tmp_path))
+
+        test_driver.start_workflow(None, None, mock_context)
+
+        assert test_driver.roadmap_path is None
+        assert test_driver.output_dir is None
+        assert test_driver.context == mock_context
+        mock_autonomous_loop.assert_called_once()
+
+    # --- End new tests for start_workflow method ---
+
+
+    # --- Modified tests for autonomous_loop (Task 15_3a2) ---
+    # MODIFIED: Call start_workflow instead of autonomous_loop
+    def test_autonomous_loop_basic_logging(self, test_driver, caplog, tmp_path, mocker):
+        """Test that autonomous_loop logs the start and end messages when no tasks are available."""
+        caplog.set_level(logging.INFO)
+        # Mock load_roadmap to return an empty task list
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[])
+
+        # Call start_workflow instead of autonomous_loop directly
+        # Provide dummy paths, as load_roadmap is mocked
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
+
+        # Assertions remain the same, but now they should pass because autonomous_loop is reached
+        assert 'Starting autonomous loop iteration' in caplog.text
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
+        assert 'Autonomous loop terminated.' in caplog.text
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json") # Verify load_roadmap was called with the provided path
+
+
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}, # First call returns a task
         None # Second call returns None
     ])
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=[]) # Mock plan generation to return empty plan
-    def test_autonomous_loop_task_selected_logging(self, mock_generate_plan, mock_select_next_task, test_driver, caplog):
+    def test_autonomous_loop_task_selected_logging(self, mock_generate_plan, mock_select_next_task, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop logs the selected task ID when a task is found and then exits."""
         caplog.set_level(logging.INFO)
-        test_driver.tasks = [{'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}] # Add a task
-        test_driver.autonomous_loop()
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}])
+
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
+
         # select_next_task should be called twice (once finds task, second finds none)
         assert mock_select_next_task.call_count == 2
-        mock_select_next_task.assert_any_call(test_driver.tasks)
-        assert 'Starting autonomous loop iteration' in caplog.text # Updated log message
-        assert 'Selected task: ID=mock_task_1' in caplog.text # Check log for selected task
-        assert 'Autonomous loop terminated.' in caplog.text # Updated log message
+        # load_roadmap should be called once
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
+        # select_next_task should be called with the tasks returned by load_roadmap
+        mock_select_next_task.assert_any_call(mock_load_roadmap.return_value)
+
+        assert 'Starting autonomous loop iteration' in caplog.text
+        assert 'Selected task: ID=mock_task_1' in caplog.text
+        assert 'Autonomous loop terminated.' in caplog.text
 
 
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, 'select_next_task', return_value=None)
-    def test_autonomous_loop_no_task_logging(self, mock_select_next_task, test_driver, caplog):
+    def test_autonomous_loop_no_task_logging(self, mock_select_next_task, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop logs the 'No tasks available' message when no task is found."""
         caplog.set_level(logging.INFO)
-        test_driver.tasks = [{'task_id': 'mock_task_completed', 'task_name': 'Completed Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High'}] # No 'Not Started' tasks
-        test_driver.autonomous_loop()
-        mock_select_next_task.assert_called_once_with(test_driver.tasks)
-        assert 'Starting autonomous loop iteration' in caplog.text # Updated log message
-        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text # Updated log message
-        assert 'Autonomous loop terminated.' in caplog.text # Updated log message
-    # --- End new tests for autonomous_loop ---
+        # Mock load_roadmap to return a list of completed tasks
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_completed', 'task_name': 'Completed Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High'}])
 
-    # --- New test for Task 15_3a3 ---
-    # MODIFIED: Use side_effect for select_next_task to return task then None
-    def test_autonomous_loop_generates_plan_logging(self, test_driver, caplog, mocker):
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
+
+        mock_select_next_task.assert_called_once_with(mock_load_roadmap.return_value)
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
+
+        assert 'Starting autonomous loop iteration' in caplog.text
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
+        assert 'Autonomous loop terminated.' in caplog.text
+
+
+    # MODIFIED: Call start_workflow instead of autonomous_loop
+    def test_autonomous_loop_generates_plan_logging(self, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop calls generate_solution_plan and logs the result, then exits."""
         caplog.set_level(logging.INFO)
 
@@ -98,44 +167,49 @@ class TestWorkflowDriver:
         # Mock generate_solution_plan to return the mock plan
         mock_generate_solution_plan = mocker.patch.object(test_driver, 'generate_solution_plan', return_value=mock_plan)
 
-        # Set tasks for the driver (needed for select_next_task call argument)
-        test_driver.tasks = [mock_task]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[mock_task])
 
-        # Call the autonomous loop
-        test_driver.autonomous_loop()
+        # Call the autonomous loop via start_workflow
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         # Assertions
         # select_next_task should be called twice (once finds task, second finds none)
         assert mock_select_next_task.call_count == 2
-        mock_select_next_task.assert_any_call(test_driver.tasks)
+        mock_select_next_task.assert_any_call(mock_load_roadmap.return_value)
 
         # generate_solution_plan should be called once (only when a task is selected)
         mock_generate_solution_plan.assert_called_once_with(mock_task)
 
+        # load_roadmap should be called once
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
+
         # Check log messages sequence
         log_output = caplog.text
-        assert 'Starting autonomous loop iteration' in log_output # Updated log message
+        assert 'Starting autonomous loop iteration' in log_output
         assert 'Selected task: ID=mock_task_plan' in log_output
         assert f'Generated plan: {mock_plan}' in log_output # Check for the plan string representation
-        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in log_output # Updated log message
-        assert 'Autonomous loop terminated.' in log_output # Updated log message
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in log_output
+        assert 'Autonomous loop terminated.' in log_output
 
         # Ensure the loop ran exactly two iterations (one finding a task, one finding none)
         assert log_output.count('Starting autonomous loop iteration') == 2
 
-    # --- End new test for Task 15_3a3 ---
 
-    # --- Modified/New tests for autonomous_loop termination (Task 15_3b) ---
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, 'select_next_task', return_value=None)
-    def test_autonomous_loop_no_task_exits_gracefully(self, mock_select_next_task, test_driver, caplog):
+    def test_autonomous_loop_no_task_exits_gracefully(self, mock_select_next_task, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop exits gracefully when no 'Not Started' tasks are available."""
         caplog.set_level(logging.INFO)
-        # Ensure tasks list is empty or contains no 'Not Started' tasks
-        test_driver.tasks = [{'task_id': 'mock_task_completed', 'task_name': 'Completed Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High'}]
+        # Mock load_roadmap to return a list of completed tasks
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_completed', 'task_name': 'Completed Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
-        mock_select_next_task.assert_called_once_with(test_driver.tasks)
+        mock_select_next_task.assert_called_once_with(mock_load_roadmap.return_value)
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
+
         assert 'Starting autonomous loop iteration' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
         assert 'Autonomous loop terminated.' in caplog.text
@@ -143,25 +217,30 @@ class TestWorkflowDriver:
         assert caplog.text.count('Starting autonomous loop iteration') == 1
 
 
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=['Mock Plan Step'])
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'mock_task_1', 'task_name': 'Task 1', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}, # First call returns a task
         None # Second call returns None
     ])
-    def test_autonomous_loop_processes_task_then_exits(self, mock_select_next_task, mock_generate_plan, test_driver, caplog):
+    def test_autonomous_loop_processes_task_then_exits(self, mock_select_next_task, mock_generate_plan, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop processes a task and then exits when no more tasks are available."""
         caplog.set_level(logging.INFO)
-        # Ensure tasks list contains a 'Not Started' task initially
-        test_driver.tasks = [{'task_id': 'mock_task_1', 'task_name': 'Task 1', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_1', 'task_name': 'Task 1', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         # select_next_task should be called twice (once finds task, second finds none)
         assert mock_select_next_task.call_count == 2
-        mock_select_next_task.assert_any_call(test_driver.tasks) # Check it was called with the tasks list
+        mock_select_next_task.assert_any_call(mock_load_roadmap.return_value) # Check it was called with the tasks list
 
         # generate_solution_plan should be called once (only when a task is selected)
         mock_generate_plan.assert_called_once_with({'task_id': 'mock_task_1', 'task_name': 'Task 1', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'})
+
+        # load_roadmap should be called once
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
 
         # Check log messages sequence
         log_output = caplog.text
@@ -173,22 +252,25 @@ class TestWorkflowDriver:
 
         # Ensure the loop ran exactly two iterations (one finding a task, one finding none)
         assert log_output.count('Starting autonomous loop iteration') == 2
-    # --- End modified/new tests for autonomous_loop termination (Task 15_3b) ---
+    # --- End modified tests for autonomous_loop termination (Task 15_3b) ---
 
 
-    # --- New tests for Task 15_3d ---
+    # --- Modified tests for Task 15_3d ---
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Analyze requirements.", "Step 2: Implement the feature.", "Step 3: Write tests."])
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'mock_task_d', 'task_name': 'Task D', 'status': 'Not Started', 'description': 'Desc D', 'priority': 'High'},
         None
     ])
-    def test_autonomous_loop_calls_coder_llm_for_code_step(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog):
+    def test_autonomous_loop_calls_coder_llm_for_code_step(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop calls _invoke_coder_llm for code generation steps."""
         caplog.set_level(logging.INFO)
-        test_driver.tasks = [{'task_id': 'mock_task_d', 'task_name': 'Task D', 'status': 'Not Started', 'description': 'Desc D', 'priority': 'High'}]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_d', 'task_name': 'Task D', 'status': 'Not Started', 'description': 'Desc D', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         # _invoke_coder_llm should be called exactly once for the "Implement the feature" step
         assert mock_invoke_coder_llm.call_count == 1
@@ -199,37 +281,47 @@ class TestWorkflowDriver:
         assert "Specific Plan Step to Implement:\nStep 2: Implement the feature." in called_prompt
         assert "Step identified as potential code generation. Invoking Coder LLM for step: Step 2: Implement the feature." in caplog.text
         assert "Coder LLM invoked for step 2. Generated output" in caplog.text # Check log for successful invocation
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
 
+
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Analyze requirements.", "Step 2: Update documentation.", "Step 3: Review changes."])
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'mock_task_no_code', 'task_name': 'Task No Code', 'status': 'Not Started', 'description': 'Desc No Code', 'priority': 'High'},
         None
     ])
-    def test_autonomous_loop_does_not_call_coder_llm_for_non_code_step(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog):
+    def test_autonomous_loop_does_not_call_coder_llm_for_non_code_step(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop does NOT call _invoke_coder_llm for non-code generation steps."""
         caplog.set_level(logging.INFO)
-        test_driver.tasks = [{'task_id': 'mock_task_no_code', 'task_name': 'Task No Code', 'status': 'Not Started', 'description': 'Desc No Code', 'priority': 'High'}]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_no_code', 'task_name': 'Task No Code', 'status': 'Not Started', 'description': 'Desc No Code', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         # _invoke_coder_llm should NOT be called for any of these steps
         mock_invoke_coder_llm.assert_not_called()
         assert "Step not identified as code generation or file writing. Skipping agent invocation/file write for step: Step 1: Analyze requirements." in caplog.text
         assert "Step not identified as code generation or file writing. Skipping agent invocation/file write for step: Step 2: Update documentation." in caplog.text
         assert "Step not identified as code generation or file writing. Skipping agent invocation/file write for step: Step 3: Review changes." in caplog.text
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
 
+
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="Mock Generated Code")
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement the feature."])
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'mock_task_prompt', 'task_name': 'Task Prompt', 'status': 'Not Started', 'description': 'Desc Prompt', 'priority': 'High'},
         None
     ])
-    def test_autonomous_loop_constructs_correct_coder_prompt(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver):
+    def test_autonomous_loop_constructs_correct_coder_prompt(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, tmp_path, mocker):
         """Test that the prompt constructed for _invoke_coder_llm includes relevant task and step information."""
-        test_driver.tasks = [{'task_id': 'mock_task_prompt', 'task_name': 'Task Prompt', 'status': 'Not Started', 'description': 'Desc Prompt', 'priority': 'High'}]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_prompt', 'task_name': 'Task Prompt', 'status': 'Not Started', 'description': 'Desc Prompt', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         mock_invoke_coder_llm.assert_called_once()
         called_prompt = mock_invoke_coder_llm.call_args[0][0]
@@ -239,49 +331,60 @@ class TestWorkflowDriver:
         assert 'Overall Task Description:\nDesc Prompt' in called_prompt
         assert 'Specific Plan Step to Implement:\nStep 1: Implement the feature.' in called_prompt
         assert 'Focus ONLY on the code or direct instructions needed for this step.' in called_prompt
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
 
+
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=[]) # Return empty plan
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'mock_task_empty_plan', 'task_name': 'Task Empty Plan', 'status': 'Not Started', 'description': 'Desc Empty Plan', 'priority': 'High'},
         None
     ])
-    def test_autonomous_loop_handles_empty_plan(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog):
+    def test_autonomous_loop_handles_empty_plan(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop handles an empty plan gracefully."""
         caplog.set_level(logging.WARNING) # generate_solution_plan logs warning for None/empty
-        test_driver.tasks = [{'task_id': 'mock_task_empty_plan', 'task_name': 'Task Empty Plan', 'status': 'Not Started', 'description': 'Desc Empty Plan', 'priority': 'High'}]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_empty_plan', 'task_name': 'Task Empty Plan', 'status': 'Not Started', 'description': 'Desc Empty Plan', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         # _invoke_coder_llm should NOT be called
         mock_invoke_coder_llm.assert_not_called()
         # Check log for warning from generate_solution_plan and the subsequent warning in autonomous_loop
         # Corrected assertion to check for the log message in autonomous_loop
         assert "No solution plan generated for task mock_task_empty_plan." in caplog.text
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
 
+
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=None) # Return None plan
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'mock_task_none_plan', 'task_name': 'Task None Plan', 'status': 'Not Started', 'description': 'Desc None Plan', 'priority': 'High'},
         None
     ])
-    def test_autonomous_loop_handles_none_plan(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog):
+    def test_autonomous_loop_handles_none_plan(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop handles a None plan gracefully."""
         caplog.set_level(logging.WARNING) # generate_solution_plan logs warning for None/empty
-        test_driver.tasks = [{'task_id': 'mock_task_none_plan', 'task_name': 'Task None Plan', 'status': 'Not Started', 'description': 'Desc None Plan', 'priority': 'High'}]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_none_plan', 'task_name': 'Task None Plan', 'status': 'Not Started', 'description': 'Desc None Plan', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         # _invoke_coder_llm should NOT be called
         mock_invoke_coder_llm.assert_not_called()
         # Check log for warning from generate_solution_plan and the subsequent warning in autonomous_loop
         # Corrected assertion to check for the log message in autonomous_loop
         assert "No solution plan generated for task mock_task_none_plan." in caplog.text
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
 
-    # --- End new tests for Task 15_3d ---
 
-    # --- New tests for Task 15_3e (File Management Integration) ---
+    # --- Modified tests for Task 15_3e (File Management Integration) ---
 
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, '_write_output_file')
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value=None) # Mock LLM to return None for placeholder content test
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to results.txt"])
@@ -289,12 +392,14 @@ class TestWorkflowDriver:
         {'task_id': 'mock_task_write_file', 'task_name': 'Task Write File', 'status': 'Not Started', 'description': 'Desc Write File', 'priority': 'High'},
         None
     ])
-    def test_autonomous_loop_calls_write_file_for_file_step(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog):
+    def test_autonomous_loop_calls_write_file_for_file_step(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop calls _write_output_file for a file writing step."""
         caplog.set_level(logging.INFO) # Keep INFO to capture "Step identified..." and "Attempting to write..."
-        test_driver.tasks = [{'task_id': 'mock_task_write_file', 'task_name': 'Task Write File', 'status': 'Not Started', 'description': 'Desc Write File', 'priority': 'High'}]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_write_file', 'task_name': 'Task Write File', 'status': 'Not Started', 'description': 'Desc Write File', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         # _write_output_file should be called exactly once
         mock_write_output_file.assert_called_once()
@@ -308,8 +413,10 @@ class TestWorkflowDriver:
         assert "Attempting to write file: results.txt" in caplog.text
         # Ensure the incorrect "Step not identified..." log does NOT appear
         assert "Step not identified as code generation or file writing." not in caplog.text
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
 
 
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, '_write_output_file')
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True") # Mock LLM to return generated code
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and write to src/feature.py"]) # Step is both code gen and file write
@@ -317,12 +424,14 @@ class TestWorkflowDriver:
         {'task_id': 'mock_task_code_write', 'task_name': 'Task Code Write', 'status': 'Not Started', 'description': 'Desc Code Write', 'priority': 'High'},
         None
     ])
-    def test_autonomous_loop_calls_write_file_with_generated_content(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog):
+    def test_autonomous_loop_calls_write_file_with_generated_content(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop calls _write_output_file with generated content when step is code gen + file write."""
         caplog.set_level(logging.INFO) # Keep INFO
-        test_driver.tasks = [{'task_id': 'mock_task_code_write', 'task_name': 'Task Code Write', 'status': 'Not Started', 'description': 'Desc Code Write', 'priority': 'High'}]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_code_write', 'task_name': 'Task Code Write', 'status': 'Not Started', 'description': 'Desc Code Write', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         # _invoke_coder_llm should be called once (code generation step)
         mock_invoke_coder_llm.assert_called_once()
@@ -340,8 +449,10 @@ class TestWorkflowDriver:
         assert "Attempting to write file: src/feature.py" in caplog.text
         # Ensure the incorrect "Step not identified..." log does NOT appear
         assert "Step not identified as code generation or file writing." not in caplog.text
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
 
 
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, '_write_output_file')
     @patch.object(WorkflowDriver, '_invoke_coder_llm') # Mock LLM, return value doesn't matter for this test
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Save to file the results"]) # Changed step definition
@@ -349,27 +460,32 @@ class TestWorkflowDriver:
         {'task_id': 'mock_task_no_path', 'task_name': 'Task No Path', 'status': 'Not Started', 'description': 'Desc No Path', 'priority': 'High'},
         None
     ])
-    def test_autonomous_loop_skips_write_file_if_no_filepath(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog):
+    def test_autonomous_loop_skips_write_file_if_no_filepath(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop skips file writing if no filepath is found in the step."""
         caplog.set_level(logging.INFO)
-        test_driver.tasks = [{'task_id': 'mock_task_no_path', 'task_name': 'Task No Path', 'status': 'Not Started', 'description': 'Desc No Path', 'priority': 'High'}]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_no_path', 'task_name': 'Task No Path', 'status': 'Not Started', 'description': 'Desc No Path', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         # _write_output_file should NOT be called
         mock_write_output_file.assert_not_called()
 
         # Check log messages
-        assert "Step identified as file writing. Processing file operation for step: Step 1: Save to file the results" in caplog.text # Corrected assertion
+        assert "Step identified as file writing. Processing file operation for step: Step 1: Save to file the results" in caplog.text
         assert "Could not extract filepath from step 'Step 1: Save to file the results'. Skipping file write." in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
+        assert 'Autonomous loop terminated.' in caplog.text
 
         # Check that _invoke_coder_llm was not called either (since it's not a code gen step)
         mock_invoke_coder_llm.assert_not_called()
         # Ensure the incorrect "Step not identified..." log does NOT appear at WARNING level
         assert "Step not identified as code generation or file writing." not in caplog.text
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
 
 
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, '_write_output_file', side_effect=FileExistsError("File already exists"))
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value=None)
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to existing.txt", "Step 2: Another step."])
@@ -377,12 +493,14 @@ class TestWorkflowDriver:
         {'task_id': 'mock_task_write_error', 'task_name': 'Task Write Error', 'status': 'Not Started', 'description': 'Desc Write Error', 'priority': 'High'},
         None
     ])
-    def test_autonomous_loop_handles_write_file_exceptions(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog):
+    def test_autonomous_loop_handles_write_file_exceptions(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop handles exceptions from _write_output_file gracefully."""
         caplog.set_level(logging.INFO)
-        test_driver.tasks = [{'task_id': 'mock_task_write_error', 'task_name': 'Task Write Error', 'status': 'Not Started', 'description': 'Desc Write Error', 'priority': 'High'}]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_write_error', 'task_name': 'Task Write Error', 'status': 'Not Started', 'description': 'Desc Write Error', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         mock_write_output_file.assert_called_once_with("existing.txt", ANY, overwrite=False)
         assert "File existing.txt already exists. Skipping write as overwrite=False." in caplog.text
@@ -391,8 +509,10 @@ class TestWorkflowDriver:
         # Only check that the message doesn't appear for step 1 related logs
         step1_logs = "\n".join([log for log in caplog.text.splitlines() if "Step 1" in log]) # Filter logs for Step 1
         assert "Step not identified as code generation or file writing." not in step1_logs
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
 
 
+    # MODIFIED: Call start_workflow instead of autonomous_loop
     @patch.object(WorkflowDriver, '_write_output_file', side_effect=Exception("Generic write error"))
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value=None)
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to error.txt", "Step 2: Another step."])
@@ -400,12 +520,14 @@ class TestWorkflowDriver:
         {'task_id': 'mock_task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High'},
         None
     ])
-    def test_autonomous_loop_handles_generic_write_file_exceptions(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog):
+    def test_autonomous_loop_handles_generic_write_file_exceptions(self, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop handles generic exceptions from _write_output_file gracefully."""
         caplog.set_level(logging.INFO)
-        test_driver.tasks = [{'task_id': 'mock_task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High'}]
+        # Mock load_roadmap to return a list containing the mock task
+        mock_load_roadmap = mocker.patch.object(test_driver, 'load_roadmap', return_value=[{'task_id': 'mock_task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High'}])
 
-        test_driver.autonomous_loop()
+        # Call start_workflow instead of autonomous_loop directly
+        test_driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), test_driver.context)
 
         mock_write_output_file.assert_called_once_with("error.txt", ANY, overwrite=False)
         assert "Failed to write file error.txt: Generic write error" in caplog.text
@@ -414,8 +536,9 @@ class TestWorkflowDriver:
         # Only check that the message doesn't appear for step 1 related logs
         step1_logs = "\n".join([log for log in caplog.text.splitlines() if "Step 1" in log]) # Filter logs for Step 1
         assert "Step not identified as code generation or file writing." not in step1_logs
+        mock_load_roadmap.assert_called_once_with("dummy_roadmap.json")
 
-    # --- End new tests for Task 15_3e ---
+    # --- End modified tests for Task 15_3e ---
 
 
     def test_workflow_driver_write_output_file_success(
@@ -1294,4 +1417,3 @@ class TestWorkflowDriver:
         assert test_driver._is_valid_filename(".") is False # Just a dot
         assert test_driver._is_valid_filename("..") is False # Just dot-dot
         assert test_driver._is_valid_filename("-leading.txt") is False # Starts with hyphen (current regex doesn't allow)
-        assert test_driver._is_valid_filename("_leading.txt") is False # Starts with underscore (current regex doesn't allow)

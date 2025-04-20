@@ -4,43 +4,23 @@
 
 **NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**
 
-*   **Task ID**: task_15_3a1
-    *   **Priority**: Critical
-    *   **Task Name**: Implement `autonomous_loop()` method in `WorkflowDriver`
-    *   **Status**: Completed
-
-*   **Task ID**: task_15_3a2
-    *   **Priority**: Critical
-    *   **Task Name**: Implement task selection call in `autonomous_loop()`
-    *   **Status**: Completed
-
-*   **Task ID**: task_15_3a3
+*   **Task ID**: task_2_2a
     *   **Priority**: High
-    *   **Task Name**: Implement solution plan generation call in `autonomous_loop()`
-    *   **Status**: Completed
+    *   **Task Name**: Automate Initial Prompt Submission from CLI
+    *   **Status**: Not Started
 
-*   **Task ID**: task_15_3b
+*   **Task ID**: task_2_2b
     *   **Priority**: High
-    *   **Task Name**: Integrate task selection into autonomous loop
-    *   **Status**: Completed
+    *   **Task Name**: Enhance CodeReviewAgent with Semantic Analysis
+    *   **Status**: Not Started
 
-*   **Task ID**: task_15_3c
-    *   **Priority**: High
-    *   **Task Name**: Integrate solution planning into autonomous loop
-    *   **Status**: Completed
+*   **Task ID**: task_2_2c
+    *   **Priority**: Medium
+    *   **Task Name**: Improve TestGenerationAgent for Function Complexity
+    *   **Status**: Not Started
 
-*   **Task ID**: task_15_3d
-    *   **Priority**: High
-    *   **Task Name**: Integrate agent invocation into autonomous loop
-    *   **Status**: Completed
-
-*   **Task ID**: task_15_3e
-    *   **Priority**: High
-    *   **Task Name**: Integrate file management into autonomous loop
-    *   **Status**: Completed
-
-*   **Task ID**: task_15_3f
-    *   **Priority**: High
-    *   **Task Name**: Add comprehensive tests for autonomous Driver loop
+*   **Task ID**: task_2_2d
+    *   **Priority**: Medium
+    *   **Task Name**: Expand Knowledge Graph Schema for Code Semantics
     *   **Status**: Not Started
 

@@ -21,7 +21,7 @@
 
 For Phase 1.6, the core workflow (as detailed in Section II of the full specification) is focused on automating the **Initiation** phase and the **Validation (Iterative Loop)** execution and feedback stages.
 
-1.  **Automated Initiation (New):** The CLI will automate the construction and submission of the initial prompt to the Driver LLM API (`/genesis/drive_workflow`).
+1.  **Automated Initiation (New):** The CLI will automate the construction and submission of the initial prompt **to the `/genesis/drive_workflow` API endpoint**, which triggers the Driver LLM.
 2.  **Autonomous Workflow Execution (Driver LLM Loop - Automated):** The Driver LLM, triggered by the automated prompt via the API, autonomously selects tasks, generates plans, and executes plan steps.
 3.  **Automated Validation (Orchestrated and Executed by Driver):** The Driver orchestrates and *automatically executes* validation steps as part of the plan execution. This includes:
     *   **Automated Code Quality Checks:** Executing `CodeReviewAgent` (Flake8/Bandit).
@@ -88,8 +88,8 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
 ```
 
 *   **Core Workflow Example (Post-Phase 1.6):**
-    1.  User initiates the automated workflow via the CLI (`python src/cli/main.py`). The CLI automatically gathers context (specs, policies, documentation) and submits it to the Driver LLM API.
-    2.  The **Driver LLM** (within `Metamorphic Core`), triggered by the API call, receives the prompt, loads the `ROADMAP.json`, and enters its `autonomous_loop()`.
+    1.  User initiates the automated workflow via the CLI (`python src/cli/main.py`). The CLI automatically gathers context (specs, policies, documentation) and **calls the `/genesis/drive_workflow` API endpoint** to submit it to the Driver LLM.
+    2.  The **Driver LLM** (within `Metamorphic Core`), triggered by the API call, receives the context, loads the `ROADMAP.json` (using the path provided via the API), and enters its `autonomous_loop()`.
     3.  The Driver autonomously selects the next task with status "Not Started".
     4.  The Driver generates a step-by-step solution plan for the selected task (orchestrating LLM calls via `LLMOrchestrator`).
     5.  The Driver iterates through the plan steps.
@@ -112,7 +112,7 @@ The Adaptive Software Genesis Ecosystem (ASGE) is a transformative open-source p
     **With the completion of Phase 1.6, the Metamorphic Core now orchestrates the entire development iteration autonomously, from initiation via CLI/API through validation execution, grade report parsing, and roadmap status updates. The user's role shifts from manual step execution to initiating the loop and reviewing the results.**
 
 *   **Key Components (Detailed):**
-    *   **Human Input & Oversight Interface:** (Planned Web UI) Secure portal for spec submission (text, later diagrams), configuration, feedback, ethical guidance input, ERB overrides, progress dashboards. The CLI (`src/cli/main.py`) now serves as the primary *initiation* interface for the automated workflow.
+    *   **Human Input & Oversight Interface:** (Planned Web UI) Secure portal for spec submission (text, later diagrams), configuration, feedback, ethical guidance input, ERB overrides, progress dashboards. The CLI (`src/cli/main.py`) now serves as the primary *initiation* interface for the automated workflow. **This CLI now calls the `/genesis/drive_workflow` API endpoint to trigger the autonomous loop.**
     *   **Metamorphic Core (Adaptive AI Orchestration):**
         *   *Dynamic Knowledge Graph:* Neo4j or similar graph DB storing nodes (code chunks, specs, policies, vulnerabilities, tests, metrics) and semantic relationships. Enables complex querying for context retrieval and pattern analysis.
         *   *Intelligent LLM Orchestration Layer:* Manages API calls to multiple LLMs (Gemini, Hugging Face, potentially OpenAI). Implements context window management (semantic chunking, summarization), cost/latency optimization (model selection based on task complexity), robust retries, and failover logic. Uses `TokenAllocator` for budget management. **This layer is now orchestrated by the autonomous Driver LLM, triggered via the `/genesis/drive_workflow` API endpoint.**

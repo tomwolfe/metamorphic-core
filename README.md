@@ -50,7 +50,7 @@ Phase 1.5 was implemented in three key stages. Stage 1 established the fundament
 
 ## <a name="about"></a>About the Metamorphic Software Genesis Ecosystem
 
-The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications. It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision was the implementation of Phase 1.5, which is now complete.** Phase 1.5 focused on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, enabling autonomous task selection, planning, agent invocation, and file writing.** This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system. We are now focused on **Phase 1.6: Enhanced Workflow Automation**, completing the end-to-end automation layer before proceeding to Phase 2's focus on enhancing the core AI agents and deepening their integration with the Knowledge Graph.
+The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications. It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision was the implementation of Phase 1.5, which is now complete.** Phase 1.5 focused on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, enabling autonomous task selection, planning, agent invocation, and file writing.** This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system. We are now focused on **Phase 1.6: Enhanced Workflow Automation**, completing the end-to-end automation layer by automating workflow initiation, validation execution, feedback processing, and roadmap status updates. This will establish a robust, self-driving development loop before we proceed to Phase 2's focus on enhancing the core AI agents and deepening their integration with the Knowledge Graph.
 
 **Key Objectives:**
 
@@ -180,7 +180,7 @@ For a streamlined, AI-driven development experience, you can use the **"Markdown
     *   **Automatically execute code review (`CodeReviewAgent`) and security checks (`SecurityAgent`).**
     *   Generate a Grade Report.
     *   **Parse the Grade Report and determine the outcome.**
-    *   **Update the task status in `ROADMAP.json`.**
+    *   **Automatically update the task status in `ROADMAP.json`.**
 7.  **Review the outputs:** Check the updated `ROADMAP.json`, any generated/modified code files, and the logs for the Grade Report and workflow status.
 
 **Example Quickstart Scenario (Post-Phase 1.6):**
@@ -233,7 +233,7 @@ The Metamorphic Software Genesis Ecosystem aims to automate software development
     **With the completion of Phase 1.6, the Metamorphic Core now orchestrates the entire development iteration autonomously, from initiation via CLI/API through validation execution, grade report parsing, and roadmap status updates. The user's role shifts from manual step execution to initiating the loop and reviewing the results.**
 
 *   **Key Components (Detailed):**
-    *   **Human Input & Oversight Interface:** (Planned Web UI) Secure portal for spec submission (text, later diagrams), configuration, feedback, ethical guidance input, ERB overrides, progress dashboards. The CLI (`src/cli/main.py`) now serves as the primary *initiation* interface for the automated workflow.
+    *   **Human Input & Oversight Interface:** (Planned Web UI) Secure portal for spec submission (text, later diagrams), configuration, feedback, ethical guidance input, ERB overrides, progress dashboards. The CLI (`src/cli/main.py`) now serves as the primary *initiation* interface for the automated workflow. **This CLI now calls the `/genesis/drive_workflow` API endpoint to trigger the autonomous loop.**
     *   **Metamorphic Core (Adaptive AI Orchestration):**
         *   *Dynamic Knowledge Graph:* Neo4j or similar graph DB storing nodes (code chunks, specs, policies, vulnerabilities, tests, metrics) and semantic relationships. Enables complex querying for context retrieval and pattern analysis. (Phase 2 Iteration 2 focuses on expanding the KG schema to store richer code semantics).
         *   *Intelligent LLM Orchestration Layer:* Manages API calls to multiple LLMs (Gemini, Hugging Face, potentially OpenAI). Implements context window management (semantic chunking, summarization), cost/latency optimization (model selection based on task complexity), robust retries, and failover logic. Uses `TokenAllocator` for budget management. **This layer is now orchestrated by the autonomous Driver LLM, triggered via the `/genesis/drive_workflow` API endpoint.**

@@ -25,7 +25,7 @@ class Context:
 class WorkflowDriver:
     def __init__(self, context: Context):
         self.context = context
-        self.tasks = []  # Placeholder - will be loaded by CLI or other mechanism
+        self.tasks = []  # Will be loaded by start_workflow
 
         # Initialize LLM Orchestrator - Pass placeholder dependencies for now
         self.llm_orchestrator = EnhancedLLMOrchestrator(
@@ -45,6 +45,14 @@ class WorkflowDriver:
         """
         self.roadmap_path = roadmap_path
         self.output_dir = output_dir  # Store output_dir for potential future use
+
+        # Load the roadmap once at the start of the workflow
+        try:
+            self.tasks = self.load_roadmap(self.roadmap_path)
+        except Exception as e:
+            logger.error(f"Failed to load roadmap from {self.roadmap_path}: {e}",
+                         exc_info=True)
+            return # Exit if roadmap loading fails
         self.context = context  # Update context if needed (though it's set in __init__)
         logger.info(f"Workflow initiated with roadmap: {roadmap_path}, output: {output_dir}")
         self.autonomous_loop()
@@ -59,19 +67,10 @@ class WorkflowDriver:
         # Ensure roadmap_path is set before trying to load
         if not hasattr(self, 'roadmap_path') or not self.roadmap_path:
             logger.error("Roadmap path not set. Cannot start autonomous loop.")
-            return  # Exit if roadmap path is not set
+            return # Exit if roadmap path is not set
 
         while True:
             logger.info('Starting autonomous loop iteration')
-
-            # --- MODIFIED: Use self.roadmap_path ---
-            try:
-                tasks = self.load_roadmap(self.roadmap_path)
-                self.tasks = tasks  # Update the driver's task list
-            except Exception as e:
-                logger.error(f"Failed to load roadmap from {self.roadmap_path}: {e}",
-                             exc_info=True)
-                break  # Exit loop if roadmap loading fails
 
             next_task = self.select_next_task(self.tasks)
 
@@ -517,4 +516,3 @@ Requirements:
             return False
         except Exception as e:
             logger.error(f"General exception writing file: {filepath} - {e}", exc_info=True)
-            return False

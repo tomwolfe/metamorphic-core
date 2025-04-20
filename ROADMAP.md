@@ -12,7 +12,7 @@
 *   **Task ID**: task_1_6b
     *   **Priority**: High
     *   **Task Name**: Automate Initial Prompt Submission from CLI
-    *   **Status**: Not Started
+    *   **Status**: Completed
 
 *   **Task ID**: task_1_6c_exec_tests
     *   **Priority**: High

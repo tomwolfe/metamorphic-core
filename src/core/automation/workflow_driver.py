@@ -159,12 +159,17 @@ Please provide the Python code or necessary instructions to fulfill this step. F
                                     content = generated_output
                                     logger.info(f"Using generated code for file: {filepath}")
                                 else:
+                                    # Use placeholder content if no code was generated for this step
                                     content = f"// Placeholder content for step: {step}"
                                     logger.info(f"Using placeholder content for file: {filepath}")
+
 
                                 if content is not None:
                                     logger.info(f"Attempting to write file: {filepath}")
                                     try:
+                                        # Use overwrite=True here if the step implies modification/replacement
+                                        # For now, keep overwrite=False to prevent accidental overwrites with placeholders
+                                        # This logic needs refinement as discussed in the previous turn.
                                         self._write_output_file(filepath, content,
                                                                 overwrite=False)
                                     except FileExistsError:
@@ -214,6 +219,14 @@ Please provide the Python code or necessary instructions to fulfill this step. F
         task_name = task['task_name']
         description = task['description']
 
+        # --- ADDED CONTEXT ABOUT THE TARGET FILE ---
+        # This is a heuristic based on the task name/description.
+        # A more robust system might infer this from the Knowledge Graph or task metadata.
+        target_file_context = ""
+        if "WorkflowDriver" in task_name or "workflow_driver.py" in description:
+             target_file_context = "The primary file being modified for this task is `src/core/automation/workflow_driver.py`."
+        # Add more heuristics here for other common files if needed
+
         planning_prompt = f"""You are an AI assistant specializing in software development workflows.
 Your task is to generate a step-by-step solution plan for the following development task from the Metamorphic Software Genesis Ecosystem roadmap.
 
@@ -221,7 +234,9 @@ Task Name: {task_name}
 Task Description:
 {description}
 
-The plan should be a numbered list of concise steps (1-2 sentences each). Focus on the high-level actions needed to complete the task. Include steps for writing files where appropriate, explicitly mentioning the file path (e.g., "Write code to file src/module/new_file.py").
+{target_file_context}
+
+The plan should be a numbered list of concise steps (1-2 sentences each). Focus on the high-level actions needed to complete the task. Include steps for writing files where appropriate, explicitly mentioning the file path using the correct filename (e.g., "Write code to file src/module/new_file.py").
 
 Example Plan Format:
 1.  Analyze the requirements for X.
@@ -527,4 +542,5 @@ Requirements:
             logger.error(f"Permission error when writing to {filepath}: {e}", exc_info=True)
             return False
         except Exception as e:
-            logger.error(f"General exception writing file: {filepath} - {e}", exc_info=True)
+             logger.error(f"An unexpected error occurred during file write to {filepath}: {e}", exc_info=True)
+             return False

@@ -46,7 +46,7 @@
       "Mitigation": "Start with simple `pytest` execution, log raw output and errors for debugging, ensure execution happens in the correct virtual environment or container.",
       "Time Saving Strategy": "Focus only on execution and raw capture, defer parsing for a separate task.",
       "dependencies": [],
-      "target_file": "src/core/automation/workflow_driver.py"  # <-- ADDED THIS LINE
+      "target_file": "src/core/automation/workflow_driver.py"
     },
     {
       "task_id": "task_1_6d_parse_tests",
@@ -58,7 +58,7 @@
       "Potential Risks": "Complexity in parsing varied test output formats, changes in pytest output format in future versions.",
       "Mitigation": "Start with parsing a fixed, simplified output format, gradually add complexity as needed. Rely on pytest's `--json` output option if available and stable.",
       "dependencies": ["task_1_6c_exec_tests"],
-      "target_file": "src/core/automation/workflow_driver.py"  # <-- ADDED THIS LINE
+      "target_file": "src/core/automation/workflow_driver.py"
     },
     {
       "task_id": "task_1_6e_exec_review",
@@ -71,7 +71,7 @@
       "Mitigation": "Re-use existing agent methods, ensure secure subprocess execution (avoid shell=True), log raw output for debugging.",
       "Time Saving Strategy": "Focus on integrating existing agent methods rather than rewriting analysis logic, prioritize Flake8 and a simple Bandit check initially.",
       "dependencies": [],
-      "target_file": "src/core/automation/workflow_driver.py"  # <-- ADDED THIS LINE
+      "target_file": "src/core/automation/workflow_driver.py"
     },
     {
       "task_id": "task_1_6f_generate_report",
@@ -131,7 +131,7 @@
       "Mitigation": "Implement step-by-step, use extensive logging, mock individual step functions to test the orchestration logic.",
       "Time Saving Strategy": "Focus purely on calling the previously implemented functions in the correct sequence within the loop.",
       "dependencies": ["task_1_6d_parse_tests", "task_1_6e_exec_review", "task_1_6f_generate_report", "task_1_6g_parse_report", "task_1_6i_update_status"],
-      "target_file": "src/core/automation/workflow_driver.py"  # <-- ADDED THIS LINE
+      "target_file": "src/core/automation/workflow_driver.py"
     },
     {
       "task_id": "task_1_6k_tests",

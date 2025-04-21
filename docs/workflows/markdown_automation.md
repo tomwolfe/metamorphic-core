@@ -31,7 +31,7 @@ The "Markdown-Only Automation" workflow, as implemented through Phase 1.5 and Ph
     *   Coder LLM Prompt Review: Are the generated prompts for the Coder LLM clear, concise, and well-contextualized? Do they provide sufficient information for the Coder LLM to generate the correct code? Are the instructions unambiguous?
     *   User Actionable Steps Review: Are the User Actionable Steps complete, clear, and easy to follow for a developer? Are there any missing steps or unclear instructions?
     *   Revision (If Necessary): If, during its self-critique, the Driver identifies any weaknesses or areas for improvement in the solution plan, Coder LLM prompts, or User Actionable Steps, it revises them immediately. It iterates on these outputs to improve their clarity, completeness, and quality before proceeding to self-assessment.
-10. Automatically execute validation steps: The Driver automatically triggers execution of tests (e.g., `pytest`), code review (`CodeReviewAgent`), and security checks (`SecurityAgent`) on the generated/modified code. It captures the results (pass/fail, issues found).
+10. Automatically execute validation steps: The Driver automatically triggers execution of tests (e.g., `pytest`), code review (`CodeReviewAgent`), and security checks (`SecurityAgent`) on the generated/modified code artifacts. It captures the raw output and return code.
 11. Perform a self-assessment and grade the proposed solution using the metrics and guidelines defined in the "Iterative Grading Process" section of CONTRIBUTING.md and the "LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE" block in CONTRIBUTING.md. Generate a structured "Grade Report" in JSON format, including results from the automated validation steps.
 12. Automatically parse the Grade Report and determine the outcome: The Driver parses the JSON Grade Report and evaluates the results (e.g., test pass rate, severity of issues, overall grade). Based on predefined criteria, it determines if the task iteration was successful, requires regeneration, or needs manual intervention.
 13. Automatically update the task status in `ROADMAP.json`: Based on the outcome determined in the previous step, the Driver updates the status of the current task in `ROADMAP.json` (e.g., sets status to "Completed" if successful, "Blocked" if critical issues found).
@@ -79,7 +79,8 @@ To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to 
             "priority": "High",
             "task_name": "Example Task",
             "description": "Details of the task",
-            "status": "Not Started"
+            "status": "Not Started",
+            "target_file": "optional/target/file.py"  // <-- ADDED THIS LINE
         }
     ],
     "next_phase_actions": [],
@@ -97,4 +98,7 @@ To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to 
     *   `"task_id"`: A unique string identifying the task (e.g., `"task_2_3"`). This *cannot* contain `/` or `..` sequences (to prevent path traversal vulnerabilities).
     *   `"priority"`: A string indicating the task's priority. Allowed values: `"High"`, `"Medium"`, or `"Low"`.
     *   `"task_name"`: A concise string description of the task (150 characters or less).
-    *   `"status"`: A string indicating the task's current status. Allowed values: `"Not Started"`
+    *   `"status"`: A string indicating the task's current status. Allowed values: `"Not Started"`, `"In Progress"`, `"Completed"`, or `"Blocked"`.
+    *   `"description"`: A string providing a more detailed description of the task. HTML characters in this field will be automatically escaped to prevent XSS vulnerabilities.
+    *   `"target_file"`: **(Optional)** A string specifying the primary file path targeted by this task. This is used by the Driver for file operations. This *cannot* contain `/` or `..` sequences relative to the base path (to prevent path traversal vulnerabilities).
+*   The `"phase"`, `"phase_goal"`, `"success_metrics"`, `"next_phase_actions"`, and `"current_focus"` fields are also required at the top level.

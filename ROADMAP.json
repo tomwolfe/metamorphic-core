@@ -45,7 +45,8 @@
       "Potential Risks": "Ensuring tests run in the correct environment (venv/container), handling subprocess errors (command not found, permissions).",
       "Mitigation": "Start with simple `pytest` execution, log raw output and errors for debugging, ensure execution happens in the correct virtual environment or container.",
       "Time Saving Strategy": "Focus only on execution and raw capture, defer parsing for a separate task.",
-      "dependencies": []
+      "dependencies": [],
+      "target_file": "src/core/automation/workflow_driver.py"  # <-- ADDED THIS LINE
     },
     {
       "task_id": "task_1_6d_parse_tests",
@@ -56,8 +57,8 @@
       "Success Criteria": "Driver can parse standard `pytest` output into a structured result object (e.g., {'passed': 5, 'failed': 1, 'total': 6, 'status': 'failed'}). Parsing logic is robust to common variations. Unit tests for parsing logic are implemented.",
       "Potential Risks": "Complexity in parsing varied test output formats, changes in pytest output format in future versions.",
       "Mitigation": "Start with parsing a fixed, simplified output format, gradually add complexity as needed. Rely on pytest's `--json` output option if available and stable.",
-      "Time Saving Strategy": "Focus purely on parsing the output string, decouple from execution.",
-      "dependencies": ["task_1_6c_exec_tests"]
+      "dependencies": ["task_1_6c_exec_tests"],
+      "target_file": "src/core/automation/workflow_driver.py"  # <-- ADDED THIS LINE
     },
     {
       "task_id": "task_1_6e_exec_review",
@@ -69,7 +70,8 @@
       "Potential Risks": "Integrating subprocess calls securely (especially for Bandit), parsing agent/tool output formats.",
       "Mitigation": "Re-use existing agent methods, ensure secure subprocess execution (avoid shell=True), log raw output for debugging.",
       "Time Saving Strategy": "Focus on integrating existing agent methods rather than rewriting analysis logic, prioritize Flake8 and a simple Bandit check initially.",
-      "dependencies": []
+      "dependencies": [],
+      "target_file": "src/core/automation/workflow_driver.py"  # <-- ADDED THIS LINE
     },
     {
       "task_id": "task_1_6f_generate_report",
@@ -80,7 +82,6 @@
       "Success Criteria": "Driver generates a valid JSON object representing the Grade Report. Report includes sections for test results (parsed from task_1_6d), static analysis findings (from task_1_6e), security findings (from task_1_6e), and ethical analysis results (from existing ethics engine). Report includes calculated probability-based grades (can be simple calculations initially). Unit tests for report structure and content are implemented.",
       "Potential Risks": "Ensuring consistent JSON structure, correctly aggregating results from different sources, defining initial grade calculation logic.",
       "Mitigation": "Define a clear JSON schema for the report (can be implicit initially), use standard JSON libraries, ensure all relevant data points are included. Use simple weighting for initial grade calculation.",
-      "Time Saving Strategy": "Start with a minimal report structure and simple grade calculation, add complexity iteratively.",
       "dependencies": ["task_1_6d_parse_tests", "task_1_6e_exec_review"]
     },
     {
@@ -129,7 +130,8 @@
       "Potential Risks": "Integration complexity, ensuring correct data flow between steps, debugging the end-to-end loop.",
       "Mitigation": "Implement step-by-step, use extensive logging, mock individual step functions to test the orchestration logic.",
       "Time Saving Strategy": "Focus purely on calling the previously implemented functions in the correct sequence within the loop.",
-      "dependencies": ["task_1_6d_parse_tests", "task_1_6e_exec_review", "task_1_6f_generate_report", "task_1_6g_parse_report", "task_1_6i_update_status"]
+      "dependencies": ["task_1_6d_parse_tests", "task_1_6e_exec_review", "task_1_6f_generate_report", "task_1_6g_parse_report", "task_1_6i_update_status"],
+      "target_file": "src/core/automation/workflow_driver.py"  # <-- ADDED THIS LINE
     },
     {
       "task_id": "task_1_6k_tests",

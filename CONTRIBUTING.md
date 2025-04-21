@@ -94,7 +94,7 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
         *   Probability of Non-Regression: 20%
         *   Probability of Test Success: 30%
         *   Code Style Compliance Probability: 10%
-        *   Ethical Policy Compliance Probability: 20%
+        *   Probability of Ethical Policy Compliance Probability: 20%
         *   Probability of Security Soundness: 20%
     *   **Dimension-Specific Probability Percentages:** Individual percentage grades for each quality dimension (Non-Regression, Test Success, Code Style, Ethics, Security).
     *   **Actionable Feedback:** Detailed feedback for each dimension, explaining the rationale behind the grades and providing concrete steps for improvement.
@@ -125,7 +125,7 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
     *   Probability of Non-Regression
     *   Probability of Test Success
     *   Code Style Compliance Probability
-    *   Ethical Policy Compliance Probability
+    *   Probability of Ethical Policy Compliance Probability
     *   Probability of Security Soundness
 
 3.  **For each dimension, assign a probability percentage grade (0-100%) and provide actionable feedback (as if you were giving feedback to a developer, focusing on concrete steps to improve the grade).**
@@ -198,7 +198,8 @@ The `ROADMAP.json` file must adhere to the following JSON structure.  Any deviat
             "priority": "High",
             "task_name": "Example Task",
             "description": "Details of the task",
-            "status": "Not Started"
+            "status": "Not Started",
+            "target_file": "optional/target/file.py"  // <-- ADDED THIS LINE
         }
     ],
     "next_phase_actions": [],
@@ -218,6 +219,7 @@ The `ROADMAP.json` file must adhere to the following JSON structure.  Any deviat
     *   `"task_name"`:  A concise string description of the task (150 characters or less).
     *   `"status"`: A string indicating the task's current status. Allowed values: `"Not Started"`, `"In Progress"`, `"Completed"`, or `"Blocked"`.
     *   `"description"`: A string providing a more detailed description of the task.  HTML characters in this field will be automatically escaped to prevent XSS vulnerabilities.
+    *   `"target_file"`: **(Optional)** A string specifying the primary file path targeted by this task. This is used by the Driver for file operations. This *cannot* contain `/` or `..` sequences relative to the base path (to prevent path traversal vulnerabilities).
 *   The `"phase"`, `"phase_goal"`, `"success_metrics"`, `"next_phase_actions"`, and `"current_focus"` fields are also required at the top level.
 
 **Validation:**

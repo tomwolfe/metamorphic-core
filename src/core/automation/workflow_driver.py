@@ -108,15 +108,21 @@ class WorkflowDriver:
                         needs_coder_llm = any(
                             keyword in step_lower for keyword in code_generation_keywords)
 
-                        # Check for a file path match using the regex
-                        # Revised regex to be less strict with word boundaries and allow slashes/dots in the path part
+                        # --- Retrieve target_file from task metadata ---
+                        task_target_file = next_task.get('target_file') # <-- ADDED THIS LINE
+
+                        # Check for a file path match using the regex (fallback)
                         filepath_match = re.search(
-                            r'(\S+\.(py|md|json|txt|yml|yaml))', step, re.IGNORECASE)  # <-- Updated regex
-                        has_filepath = filepath_match is not None
-                        filepath = filepath_match.group(1) if has_filepath else None  # Extract filepath here if found
+                            r'(\S+\.(py|md|json|txt|yml|yaml))', step, re.IGNORECASE)
+                        has_filepath_in_step = filepath_match is not None
+                        filepath_from_step = filepath_match.group(1) if has_filepath_in_step else None
+
+                        # Determine the actual filepath to use: prioritize target_file from task
+                        filepath_to_use = task_target_file if task_target_file else filepath_from_step # <-- ADDED THIS LINE
 
                         # A step is considered a file writing step if it contains a file path OR file writing keywords
-                        is_file_writing_step = has_filepath or any(
+                        # OR if the task has a target_file specified.
+                        is_file_writing_step = (filepath_to_use is not None) or any(
                             keyword in step_lower for keyword in file_writing_keywords)
 
                         generated_output = None  # Initialize generated_output for this step
@@ -128,14 +134,22 @@ class WorkflowDriver:
                             # NOTE: Task name and step are NOT sanitized here, potential prompt injection risk if roadmap is untrusted.
                             # Description is escaped by load_roadmap.
                             coder_prompt = f"""You are a Coder LLM expert in Python.
-Your task is to perform the following specific step from a larger development plan for the task "{next_task.get('task_name', 'Unknown Task')}":
+Your task is to perform the following specific step from a larger development plan for the task "{next_task.get('task_name', 'Unknown Task')}".
 
 Overall Task Description:
 {next_task.get('description', 'No description provided.')}
 
 Specific Plan Step to Implement:
 {step}
+"""
+                            # --- Add explicit instruction about target file if specified ---
+                            if task_target_file: # <-- ADDED THIS BLOCK
+                                coder_prompt += f"""
+The primary file being modified for this task is specified as `{task_target_file}` in the task metadata. Focus your implementation on this file.
+"""
+                            # --- End ADDED BLOCK ---
 
+                            coder_prompt += """
 Please provide the Python code or necessary instructions to fulfill this step. Focus ONLY on the code or direct instructions needed for this step.
 """
                             generated_output = self._invoke_coder_llm(coder_prompt)
@@ -147,52 +161,54 @@ Please provide the Python code or necessary instructions to fulfill this step. F
                                 logger.warning(
                                     f"Coder LLM invocation for step {step_index + 1} returned no output.")
 
-                        # --- File Writing Logic (Task 15_3e) ---
+                        # --- File Writing Logic ---
                         if is_file_writing_step:
                             logger.info(
                                 f"Step identified as file writing. Processing file operation for step: {step}")
 
-                            if filepath:  # Proceed with writing ONLY if a filepath was found
-                                content = None  # Initialize content
+                            # Use the determined filepath_to_use
+                            if filepath_to_use: # <-- Use filepath_to_use here
+                                content = None
 
                                 if needs_coder_llm and generated_output:
                                     content = generated_output
-                                    logger.info(f"Using generated code for file: {filepath}")
+                                    logger.info(f"Using generated code for file: {filepath_to_use}") # <-- Use filepath_to_use here
                                 else:
                                     # Use placeholder content if no code was generated for this step
                                     content = f"// Placeholder content for step: {step}"
-                                    logger.info(f"Using placeholder content for file: {filepath}")
+                                    logger.info(f"Using placeholder content for file: {filepath_to_use}") # <-- Use filepath_to_use here
 
 
                                 if content is not None:
-                                    logger.info(f"Attempting to write file: {filepath}")
+                                    logger.info(f"Attempting to write file: {filepath_to_use}") # <-- Use filepath_to_use here
                                     try:
-                                        # Use overwrite=True here if the step implies modification/replacement
-                                        # For now, keep overwrite=False to prevent accidental overwrites with placeholders
-                                        # This logic needs refinement as discussed in the previous turn.
-                                        self._write_output_file(filepath, content,
+                                        # Use overwrite=needs_coder_llm as decided before
+                                        self._write_output_file(filepath_to_use, content, # <-- Use filepath_to_use here
                                                                 overwrite=needs_coder_llm)
                                     except FileExistsError:
                                         logger.warning(
-                                            f"File {filepath} already exists. Skipping write as overwrite=False.")
+                                            f"File {filepath_to_use} already exists. Skipping write as overwrite=False.") # <-- Use filepath_to_use here
                                     except Exception as e:
-                                        logger.error(f"Failed to write file {filepath}: {e}",
+                                        logger.error(f"Failed to write file {filepath_to_use}: {e}", # <-- Use filepath_to_use here
                                                      exc_info=True)
                                 else:
                                     logger.warning(
-                                        f"Content is None for file {filepath}. Skipping file write.")
+                                        f"Content is None for file {filepath_to_use}. Skipping file write.") # <-- Use filepath_to_use here
 
                             else:
                                 logger.warning(
-                                    f"Could not extract filepath from step '{step}'. Skipping file write.")
+                                    f"Could not determine filepath for step '{step}'. Skipping file write.") # <-- Use filepath_to_use here (or just step)
 
                         # Log if *neither* code generation nor file writing was identified
+                        # This log message is now less relevant if target_file is used,
+                        # but keep it for steps that truly don't involve file writing or code gen.
+                        # The condition `not needs_coder_llm and not is_file_writing_step` still works.
                         if not needs_coder_llm and not is_file_writing_step:
                             logger.info(
                                 f"Step not identified as code generation or file writing. Skipping agent invocation/file write for step: {step}")
 
-                else:
-                    logger.warning(f"No solution plan generated for task {task_id}.")
+            else:
+                logger.warning(f"No solution plan generated for task {task_id}.")
 
             else:
                 logger.info('No tasks available in Not Started status. Exiting autonomous loop.')
@@ -223,9 +239,13 @@ Please provide the Python code or necessary instructions to fulfill this step. F
         # This is a heuristic based on the task name/description.
         # A more robust system might infer this from the Knowledge Graph or task metadata.
         target_file_context = ""
-        if "WorkflowDriver" in task_name or "workflow_driver.py" in description:
+        task_target_file = task.get('target_file') # <-- ADDED THIS LINE
+        if task_target_file: # <-- ADDED THIS BLOCK
+             target_file_context = f"The primary file being modified for this task is specified as `{task_target_file}` in the task metadata. Focus your plan steps on actions related to this file."
+        elif "WorkflowDriver" in task_name or "workflow_driver.py" in description:
              target_file_context = "The primary file being modified for this task is `src/core/automation/workflow_driver.py`."
         # Add more heuristics here for other common files if needed
+        # --- END ADDED BLOCK ---
 
         planning_prompt = f"""You are an AI assistant specializing in software development workflows.
 Your task is to generate a step-by-step solution plan for the following development task from the Metamorphic Software Genesis Ecosystem roadmap.
@@ -234,12 +254,12 @@ Task Name: {task_name}
 Task Description:
 {description}
 
-{target_file_context}
-
-The plan should be a numbered list of concise steps (1-2 sentences each). Focus on the high-level actions needed to complete the task. Include steps for writing files where appropriate, explicitly mentioning the file path using the correct filename. **Pay close attention to the target file mentioned in the context, such as `src/core/automation/workflow_driver.py`, and use its correct path.** Example: 'Write code to file src/module/new_file.py'.
+{target_file_context} # This variable is now updated with the new logic
 
 Please provide the plan as a numbered markdown list. Do not include any introductory or concluding remarks outside the list.
+When generating steps that involve modifying the primary file for this task, ensure you refer to the file identified in the context (e.g., `src/core/automation/workflow_driver.py`).
 """
+# The last sentence is kept to guide the LLM's natural language, but the Driver now relies on the target_file field.
 
         logger.debug(f"Sending planning prompt to LLM for task '{task_name}'.")
 
@@ -423,6 +443,7 @@ Requirements:
                 'task_name': task_name,
                 'status': task_data['status'],
                 'description': escaped_description,
+                'target_file': task_data.get('target_file') # <-- ADDED THIS LINE
             }
             tasks.append(task)
         return tasks
@@ -536,4 +557,3 @@ Requirements:
             return False
         except Exception as e:
              logger.error(f"An unexpected error occurred during file write to {filepath}: {e}", exc_info=True)
-             return False

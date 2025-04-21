@@ -171,7 +171,7 @@ Please provide the Python code or necessary instructions to fulfill this step. F
                                         # For now, keep overwrite=False to prevent accidental overwrites with placeholders
                                         # This logic needs refinement as discussed in the previous turn.
                                         self._write_output_file(filepath, content,
-                                                                overwrite=False)
+                                                                overwrite=needs_coder_llm)
                                     except FileExistsError:
                                         logger.warning(
                                             f"File {filepath} already exists. Skipping write as overwrite=False.")
@@ -236,14 +236,7 @@ Task Description:
 
 {target_file_context}
 
-The plan should be a numbered list of concise steps (1-2 sentences each). Focus on the high-level actions needed to complete the task. Include steps for writing files where appropriate, explicitly mentioning the file path using the correct filename (e.g., "Write code to file src/module/new_file.py").
-
-Example Plan Format:
-1.  Analyze the requirements for X.
-2.  Modify the Y component (src/component/y.py).
-3.  Implement Z feature.
-4.  Write tests for the changes (tests/test_z_feature.py).
-5.  Update documentation (docs/feature_z.md).
+The plan should be a numbered list of concise steps (1-2 sentences each). Focus on the high-level actions needed to complete the task. Include steps for writing files where appropriate, explicitly mentioning the file path using the correct filename. **Pay close attention to the target file mentioned in the context, such as `src/core/automation/workflow_driver.py`, and use its correct path.** Example: 'Write code to file src/module/new_file.py'.
 
 Please provide the plan as a numbered markdown list. Do not include any introductory or concluding remarks outside the list.
 """

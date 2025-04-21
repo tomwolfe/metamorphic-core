@@ -357,7 +357,7 @@ Requirements:
 
     def load_roadmap(self, roadmap_file_path):
         tasks = []
-        max_file_size = 10000
+        max_file_size = 20000
         if roadmap_file_path is None: # Handle None roadmap_file_path explicitly
             logger.error(f"Failed to load roadmap from None: roadmap_file_path is None")
             return tasks

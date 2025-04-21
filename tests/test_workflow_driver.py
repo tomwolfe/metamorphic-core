@@ -359,7 +359,7 @@ class TestWorkflowDriver:
         # _write_output_file should be called exactly once
         mock_write_output_file.assert_called_once()
         # Verify call arguments: filepath and content (generated code)
-        mock_write_output_file.assert_called_once_with("src/feature.py", "def generated_code(): return True", overwrite=False)
+        mock_write_output_file.assert_called_once_with("src/feature.py", "def generated_code(): return True", overwrite=True)
 
         # Check log messages
         assert "Step identified as potential code generation. Invoking Coder LLM for step: Step 1: Implement feature and write to src/feature.py" in caplog.text
@@ -394,7 +394,7 @@ class TestWorkflowDriver:
 
         # Check log messages
         assert "Step identified as file writing. Processing file operation for step: Step 1: Save to file the results" in caplog.text
-        assert "Could not extract filepath from step 'Step 1: Save to file the results'. Skipping file write." in caplog.text
+        assert "Could not determine filepath for step 'Step 1: Save to file the results'. Skipping file write." in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
         assert 'Autonomous loop terminated.' in caplog.text
 

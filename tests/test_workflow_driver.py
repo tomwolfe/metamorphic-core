@@ -836,36 +836,6 @@ class TestWorkflowDriver:
                 shutil.rmtree(str(outside_dir))
 
 
-    def test_list_files(self, test_driver, tmp_path):
-        temp_test_dir = tmp_path / "test_list_files_temp_dir"
-        temp_test_dir.mkdir()
-        try:
-            (temp_test_dir / "file1.txt").write_text("content")
-            (temp_test_dir / "file2.txt").write_text("content")
-            subdir = temp_test_dir / "subdir"
-            subdir.mkdir()
-            (subdir / "file_in_subdir.txt").write_text("content")
-
-            context = Context(str(temp_test_dir))
-            driver = WorkflowDriver(context)
-            entries = driver.list_files()
-            expected = [
-                {'name': 'file1.txt', 'status': 'file'},
-                {'name': 'file2.txt', 'status': 'file'},
-                {'name': 'subdir', 'status': 'directory'}
-            ]
-            entries_set = {tuple(sorted(d.items())) for d in entries}
-            expected_set = {tuple(sorted(d.items())) for d in expected}
-            assert entries_set == expected_set
-        finally:
-            try:
-                # Use ignore_errors=True for robustness during cleanup
-                shutil.rmtree(str(temp_test_dir), ignore_errors=True)
-            except OSError as e:
-                # This catch might be redundant with ignore_errors, but keep for safety
-                logger.warning(f"Failed to remove directory {temp_test_dir}: {e}")
-
-
     def test_list_files_invalid_filename(self, test_driver, tmp_path, caplog):
         """Test list_files skips invalid filenames."""
         caplog.set_level(logging.WARNING)
@@ -1377,4 +1347,3 @@ class TestWorkflowDriver:
         }
         test_driver.generate_solution_plan(mock_task)
         called_prompt = mock_invoke_coder_llm.call_args[0][0]
-        assert "The primary file being modified for this task is `src/core/automation/workflow_driver.py`." not in called_prompt

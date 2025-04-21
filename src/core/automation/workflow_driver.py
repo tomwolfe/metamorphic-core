@@ -308,7 +308,17 @@ When generating steps that involve modifying the primary file for this task, ens
             if response is None:
                 logger.error("LLM Orchestrator generate method returned None.")
                 return None
-            return response.strip()
+
+            # --- ADDED: Strip markdown code block fences ---
+            cleaned_response = response.strip()
+            if cleaned_response.startswith("```python"):
+                cleaned_response = cleaned_response[len("```python"):].lstrip()
+            if cleaned_response.endswith("```"):
+                cleaned_response = cleaned_response[:-len("```")].rstrip()
+            # --- END ADDED ---
+
+            return cleaned_response.strip() # Ensure final strip after removing fences
+
         except Exception as e:
             logger.error(f"Error invoking Coder LLM: {e}", exc_info=True)
             return None
@@ -556,4 +566,5 @@ Requirements:
             logger.error(f"Permission error when writing to {filepath}: {e}", exc_info=True)
             return False
         except Exception as e:
-             logger.error(f"An unexpected error occurred during file write to {filepath}: {e}", exc_info=True)
+            logger.error(f"Unexpected error writing to {filepath}: {e}", exc_info=True)
+            return False

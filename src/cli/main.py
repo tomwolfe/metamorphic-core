@@ -28,7 +28,7 @@ def _validate_roadmap_path(value):
         value (str): Path to the roadmap file
 
     Returns:
-        str: Validated absolute path if validation passes
+        str: Validated  path if validation passes
 
     Raises:
         argparse.ArgumentTypeError: If path doesn't exist or isn't a file
@@ -37,7 +37,8 @@ def _validate_roadmap_path(value):
         raise argparse.ArgumentTypeError(f"Roadmap file {value} does not exist")
     if not os.path.isfile(value):
         raise argparse.ArgumentTypeError(f"{value} is not a valid file")
-    return os.path.abspath(value)
+    # Do not call abspath()
+    return value
 
 
 def _validate_output_dir(value):
@@ -47,7 +48,7 @@ def _validate_output_dir(value):
         value (str): Path to the output directory
 
     Returns:
-        str: Validated absolute path if validation passes
+        str: Validated path if validation passes
 
     Raises:
         argparse.ArgumentTypeError: If path doesn't exist or isn't a directory
@@ -55,8 +56,9 @@ def _validate_output_dir(value):
     if not os.path.exists(value):
         raise argparse.ArgumentTypeError(f"Output directory {value} does not exist")
     if not os.path.isdir(value):
-        raise argparse.ArgumentTypeError(f"{value} is not a valid directory")
-    return os.path.abspath(value)
+        raise argparse.ArgumentTypeError(f"{value} is not a directory")
+    # Do not call abspath()
+    return value
 
 
 def cli_entry_point():
@@ -105,13 +107,13 @@ def cli_entry_point():
     # Note: API host/port is hardcoded for now. Future iterations may make this configurable.
     api_url = "http://127.0.0.1:5000/genesis/drive_workflow"
     payload = {
-        "roadmap_path": args.roadmap,
-        "output_dir": args.output_dir
+        "roadmap_path": args.roadmap, #Pass the raw paths, not abspath()
+        "output_dir": args.output_dir #Pass the raw paths, not abspath()
     }
 
     # Security Note: The CLI validates the existence and type of paths using _validate_roadmap_path
     # and _validate_output_dir. However, these checks do not prevent path traversal
-    # *relative to the API server's working directory*. Crucially, the API endpoint
+    # relative to the API server's working directory. Crucially, the API endpoint
     # `/genesis/drive_workflow` MUST perform its own robust path validation (e.g.,
     # using _is_safe_path) before using these paths in any file operations to prevent
     # path traversal vulnerabilities. The CLI relies on the API's validation for the

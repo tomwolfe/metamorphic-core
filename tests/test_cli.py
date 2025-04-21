@@ -10,7 +10,7 @@ import logging # Added logging import
 from src.cli.main import cli_entry_point
 from src.core.automation.workflow_driver import WorkflowDriver, Context # Keep Context import if needed elsewhere
 
-# Set up logging for tests
+# Configure logging for the tests
 # Use basicConfig only if no handlers are already configured
 if not logging.root.handlers:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -27,9 +27,9 @@ def mock_validate_paths():
     """Fixture to mock path validation helpers."""
     with patch('src.cli.main._validate_roadmap_path') as mock_roadmap_validator, \
          patch('src.cli.main._validate_output_dir') as mock_output_validator:
-        # By default, make validators return the input path as if it's valid and absolute
-        mock_roadmap_validator.side_effect = lambda x: os.path.abspath(x)
-        mock_output_validator.side_effect = lambda x: os.path.abspath(x)
+        # By default, make validators return the input path as if it's valid
+        mock_roadmap_validator.return_value = 'ROADMAP.json'
+        mock_output_validator.return_value = './output'
         yield {
             'roadmap': mock_roadmap_validator,
             'output': mock_output_validator
@@ -63,8 +63,10 @@ class TestCLIArguments:
     def test_cli_default_args(self, mock_validate_roadmap, mock_validate_output, mock_post, capsys, tmp_path):
         """Test CLI with default arguments."""
         # Configure mocks to return absolute paths
-        mock_validate_roadmap.return_value = os.path.abspath("ROADMAP.json")
-        mock_validate_output.return_value = os.path.abspath("./output")
+        roadmap_path = "ROADMAP.json"
+        output_path = "./output"
+        mock_validate_roadmap.return_value = roadmap_path
+        mock_validate_output.return_value = output_path
 
         # Mock the API call to return success
         mock_post.return_value = MagicMock(status_code=200, json=lambda: {"status": "success", "message": "Workflow initiated"}, text="{}")
@@ -73,14 +75,14 @@ class TestCLIArguments:
             cli_entry_point()
 
         captured = capsys.readouterr()
-        assert f"Using roadmap: {os.path.abspath('ROADMAP.json')}" in captured.out
-        assert f"Using output directory: {os.path.abspath('./output')}" in captured.out
+        assert f"Using roadmap: {roadmap_path}" in captured.out
+        assert f"Using output directory: {output_path}" in captured.out
         mock_validate_roadmap.assert_called_once_with("ROADMAP.json")
         mock_validate_output.assert_called_once_with("./output")
         # Verify the API call was made with the correct default payload
         mock_post.assert_called_once_with(
             "http://127.0.0.1:5000/genesis/drive_workflow",
-            json={"roadmap_path": os.path.abspath("ROADMAP.json"), "output_dir": os.path.abspath("./output")}
+            json={"roadmap_path": roadmap_path, "output_dir": output_path}
         )
 
 
@@ -90,10 +92,10 @@ class TestCLIArguments:
     def test_cli_custom_args_exist(self, mock_validate_roadmap, mock_validate_output, mock_post, capsys, tmp_path):
         """Test CLI with custom valid arguments."""
         # Configure mocks to return absolute paths
-        custom_roadmap_abs = os.path.abspath("custom_roadmap.json")
-        custom_output_abs = os.path.abspath("custom_output")
-        mock_validate_roadmap.return_value = custom_roadmap_abs
-        mock_validate_output.return_value = custom_output_abs
+        custom_roadmap = "custom_roadmap.json"
+        custom_output = "custom_output"
+        mock_validate_roadmap.return_value = custom_roadmap
+        mock_validate_output.return_value = custom_output
 
         # Mock the API call to return success
         mock_post.return_value = MagicMock(status_code=200, json=lambda: {"status": "success", "message": "Workflow initiated"}, text="{}")
@@ -102,14 +104,14 @@ class TestCLIArguments:
             cli_entry_point()
 
         captured = capsys.readouterr()
-        assert f"Using roadmap: {custom_roadmap_abs}" in captured.out
-        assert f"Using output directory: {custom_output_abs}" in captured.out
+        assert f"Using roadmap: {custom_roadmap}" in captured.out
+        assert f"Using output directory: {custom_output}" in captured.out
         mock_validate_roadmap.assert_called_once_with("custom_roadmap.json")
         mock_validate_output.assert_called_once_with("custom_output")
         # Verify the API call was made with the correct custom payload
         mock_post.assert_called_once_with(
             "http://127.0.0.1:5000/genesis/drive_workflow",
-            json={"roadmap_path": custom_roadmap_abs, "output_dir": custom_output_abs}
+            json={"roadmap_path": custom_roadmap, "output_dir": custom_output}
         )
 
 
@@ -148,10 +150,10 @@ class TestCLIArguments:
 
 # Note: The existing tests for WorkflowDriver interaction (load_roadmap, select_next_task)
 # in the original test_cli.py are now obsolete as that logic has moved to the API/Driver.
-# The tests below focus solely on the CLI's new responsibility: calling the API.
+# The tests below focus solely on the CLI's new responsibility: calling the API endpoint.
 
-@patch('src.cli.main._validate_roadmap_path', return_value=os.path.abspath("ROADMAP.json"))
-@patch('src.cli.main._validate_output_dir', return_value=os.path.abspath("./output"))
+@patch('src.cli.main._validate_roadmap_path', return_value="ROADMAP.json")
+@patch('src.cli.main._validate_output_dir', return_value="./output")
 def test_cli_api_call_success(mock_validate_output, mock_validate_roadmap, mock_requests_post, caplog):
     """Test CLI successfully calls API and handles 200 response with JSON."""
     # Corrected: Set log level to INFO to capture the initial log message
@@ -169,15 +171,15 @@ def test_cli_api_call_success(mock_validate_output, mock_validate_roadmap, mock_
     # Verify requests.post was called once with the correct URL and payload
     mock_requests_post.assert_called_once_with(
         "http://127.0.0.1:5000/genesis/drive_workflow",
-        json={"roadmap_path": os.path.abspath("ROADMAP.json"), "output_dir": os.path.abspath("./output")}
+        json={"roadmap_path": "ROADMAP.json", "output_dir": "./output"}
     )
     # Verify success message is logged
     assert "Calling API to initiate workflow at http://127.0.0.1:5000/genesis/drive_workflow..." in caplog.text
     assert "Workflow initiated successfully via API. Status: success, Message: Workflow initiated" in caplog.text
-    # Ensure the script exited gracefully (implicitly, by not raising SystemExit with code 1)
+    # Ensure the script exited gracefully (implicitly, by not raising SystemExit with code 0)
 
-@patch('src.cli.main._validate_roadmap_path', return_value=os.path.abspath("ROADMAP.json"))
-@patch('src.cli.main._validate_output_dir', return_value=os.path.abspath("./output"))
+@patch('src.cli.main._validate_roadmap_path', return_value="ROADMAP.json")
+@patch('src.cli.main._validate_output_dir', return_value="./output")
 def test_cli_api_call_success_non_json_200(mock_validate_output, mock_validate_roadmap, mock_requests_post, caplog):
     """Test CLI handles 200 response that is unexpectedly non-JSON."""
     # Corrected: Set log level to INFO to capture the initial log message
@@ -199,8 +201,8 @@ def test_cli_api_call_success_non_json_200(mock_validate_output, mock_validate_r
     assert "Workflow initiated successfully, but API returned non-JSON response. Status Code: 200. Response: OK" in caplog.text
     # Ensure the script exited gracefully
 
-@patch('src.cli.main._validate_roadmap_path', return_value=os.path.abspath("ROADMAP.json"))
-@patch('src.cli.main._validate_output_dir', return_value=os.path.abspath("./output"))
+@patch('src.cli.main._validate_roadmap_path', return_value="ROADMAP.json")
+@patch('src.cli.main._validate_output_dir', return_value="./output")
 def test_cli_api_call_non_200_json_error(mock_validate_output, mock_validate_roadmap, mock_requests_post, caplog):
     """Test CLI handles non-200 status code with JSON error payload."""
     # Corrected: Set log level to INFO to capture the initial log message
@@ -224,8 +226,8 @@ def test_cli_api_call_non_200_json_error(mock_validate_output, mock_validate_roa
     # Verify script exited with code 1
     assert excinfo.value.code == 1
 
-@patch('src.cli.main._validate_roadmap_path', return_value=os.path.abspath("ROADMAP.json"))
-@patch('src.cli.main._validate_output_dir', return_value=os.path.abspath("./output"))
+@patch('src.cli.main._validate_roadmap_path', return_value="ROADMAP.json")
+@patch('src.cli.main._validate_output_dir', return_value="./output")
 def test_cli_api_call_non_200_non_json(mock_validate_output, mock_validate_roadmap, mock_requests_post, caplog):
     """Test CLI handles non-200 status code with non-JSON response body."""
     # Corrected: Set log level to INFO to capture the initial log message
@@ -245,12 +247,12 @@ def test_cli_api_call_non_200_non_json(mock_validate_output, mock_validate_roadm
     mock_requests_post.assert_called_once()
     # Verify error message is logged, including status code and text snippet
     assert "Calling API to initiate workflow at http://127.0.0.1:5000/genesis/drive_workflow..." in caplog.text
-    assert "API returned non-JSON response (Status 500): Internal Server Error Details..." in caplog.text
+    assert "API returned error status code: 500. Message: API returned non-JSON response (Status 500): Internal Server Error Details..." in caplog.text
     # Verify script exited with code 1
     assert excinfo.value.code == 1
 
-@patch('src.cli.main._validate_roadmap_path', return_value=os.path.abspath("ROADMAP.json"))
-@patch('src.cli.main._validate_output_dir', return_value=os.path.abspath("./output"))
+@patch('src.cli.main._validate_roadmap_path', return_value="ROADMAP.json")
+@patch('src.cli.main._validate_output_dir', return_value="./output")
 def test_cli_api_call_connection_error(mock_validate_output, mock_validate_roadmap, mock_requests_post, caplog):
     """Test CLI handles requests.exceptions.ConnectionError."""
     # Corrected: Set log level to INFO to capture the initial log message
@@ -271,8 +273,8 @@ def test_cli_api_call_connection_error(mock_validate_output, mock_validate_roadm
     # Verify script exited with code 1
     assert excinfo.value.code == 1
 
-@patch('src.cli.main._validate_roadmap_path', return_value=os.path.abspath("ROADMAP.json"))
-@patch('src.cli.main._validate_output_dir', return_value=os.path.abspath("./output"))
+@patch('src.cli.main._validate_roadmap_path', return_value="ROADMAP.json")
+@patch('src.cli.main._validate_output_dir', return_value="./output")
 def test_cli_api_call_generic_request_exception(mock_validate_output, mock_validate_roadmap, mock_requests_post, caplog):
     """Test CLI handles other requests.exceptions.RequestException."""
     # Corrected: Set log level to INFO to capture the initial log message
@@ -292,10 +294,10 @@ def test_cli_api_call_generic_request_exception(mock_validate_output, mock_valid
     # Verify script exited with code 1
     assert excinfo.value.code == 1
 
-@patch('src.cli.main._validate_roadmap_path', return_value=os.path.abspath("ROADMAP.json"))
-@patch('src.cli.main._validate_output_dir', return_value=os.path.abspath("./output"))
+@patch('src.cli.main._validate_roadmap_path', return_value="ROADMAP.json")
+@patch('src.cli.main._validate_output_dir', return_value="./output")
 def test_cli_api_call_unexpected_exception(mock_validate_output, mock_validate_roadmap, mock_requests_post, caplog):
-    """Test CLI handles unexpected generic Exception during API call process."""
+    """Test CLI handles unexpected exception during API call process."""
     # Corrected: Set log level to INFO to capture the initial log message
     caplog.set_level(logging.INFO)
     # Configure the mock requests.post to raise a generic Exception

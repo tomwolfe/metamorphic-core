@@ -14,6 +14,26 @@
     *   **Task Name**: Automate Initial Prompt Submission from CLI
     *   **Status**: Completed
 
+*   **Task ID**: task_1_6_file_read
+    *   **Priority**: High
+    *   **Task Name**: Driver: Implement Robust File Reading for Context
+    *   **Status**: Completed
+
+*   **Task ID**: task_1_6_llm_snippet
+    *   **Priority**: High
+    *   **Task Name**: Driver: Modify LLM Prompt for Code Snippet Generation
+    *   **Status**: Not Started
+
+*   **Task ID**: task_1_6_code_merge
+    *   **Priority**: High
+    *   **Task Name**: Driver: Implement Code Snippet Merging/Patching Logic
+    *   **Status**: Not Started
+
+*   **Task ID**: task_1_6_integrate_file_flow
+    *   **Priority**: Critical
+    *   **Task Name**: Driver: Integrate Read-Generate-Merge-Write File Flow
+    *   **Status**: Not Started
+
 *   **Task ID**: task_1_6c_exec_tests
     *   **Priority**: High
     *   **Task Name**: Driver: Automate Test Execution

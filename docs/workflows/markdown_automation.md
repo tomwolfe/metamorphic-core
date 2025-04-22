@@ -12,7 +12,7 @@ The "Markdown-Only Automation" workflow, as implemented through Phase 1.5 and Ph
 2.  Generate a high-level solution plan for the selected task.
 3.  Iterate through the solution plan steps.
 4.  Invoke necessary agents and tools based on the plan step description. This includes automatically invoking the Coder LLM for code generation steps and automatically using the `write_file` and `list_files` tools for file management steps.
-5.  Generate precise code generation prompts for the **Coder LLM.** The Driver LLM automatically invokes the Coder LLM with these prompts when needed.
+5.  Generate precise code generation prompts for the **Coder LLM.** When a step involves modifying an existing file, the Driver LLM **reads the existing content of the target file and includes it in the prompt** to provide context. The Driver LLM automatically invokes the Coder LLM with these prompts when needed.
 6.  Generate a numbered list of "User Actionable Steps" for the user to perform *after* the autonomous iteration is complete (e.g., reviewing changes, providing feedback if needed). Format these steps as a Markdown checklist to enhance readability and trackability. Each step should start with a numbered list item, followed by a Markdown checklist syntax ` - [ ] ` and then the step description. For example:
 
     ```markdown
@@ -101,4 +101,3 @@ To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to 
     *   `"status"`: A string indicating the task's current status. Allowed values: `"Not Started"`, `"In Progress"`, `"Completed"`, or `"Blocked"`.
     *   `"description"`: A string providing a more detailed description of the task. HTML characters in this field will be automatically escaped to prevent XSS vulnerabilities.
     *   `"target_file"`: **(Optional)** A string specifying the primary file path targeted by this task. This is used by the Driver for file operations. This *cannot* contain `/` or `..` sequences relative to the base path (to prevent path traversal vulnerabilities).
-*   The `"phase"`, `"phase_goal"`, `"success_metrics"`, `"next_phase_actions"`, and `"current_focus"` fields are also required at the top level.

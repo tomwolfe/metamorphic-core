@@ -38,6 +38,38 @@
             ]
         },
         {
+            "task_id": "task_1_6_file_read",
+            "priority": "High",
+            "task_name": "Driver: Implement Robust File Reading for Context",
+            "description": "Enhance the file reading logic in `WorkflowDriver` to reliably read existing file content for use as context in LLM prompts. Ensure error handling for non-existent files, permission issues, and large files. (Est. Time: 0.5 days)",
+            "status": "Completed",
+            "target_file": "src/core/automation/workflow_driver.py"
+        },
+        {
+            "task_id": "task_1_6_llm_snippet",
+            "priority": "High",
+            "task_name": "Driver: Modify LLM Prompt for Code Snippet Generation",
+            "description": "Adjust the prompt sent to the Coder LLM to instruct it to generate *only the code snippet* required for the current plan step, given the existing file content and the step description. (Est. Time: 0.5 days)",
+            "status": "Not Started",
+            "target_file": "src/core/automation/workflow_driver.py"
+        },
+        {
+            "task_id": "task_1_6_code_merge",
+            "priority": "High",
+            "task_name": "Driver: Implement Code Snippet Merging/Patching Logic",
+            "description": "Develop logic within `WorkflowDriver` to integrate a generated code snippet into the existing content of a target file. This could involve simple line-based insertion (risky) or more sophisticated AST-based patching (complex, defer if needed). Start with a basic approach and plan for enhancement. (Est. Time: 2-3 days)",
+            "status": "Not Started",
+            "target_file": "src/core/automation/workflow_driver.py"
+        },
+        {
+            "task_id": "task_1_6_integrate_file_flow",
+            "priority": "Critical",
+            "task_name": "Driver: Integrate Read-Generate-Merge-Write File Flow",
+            "description": "Update the `autonomous_loop` in `WorkflowDriver` to use the new file reading (`task_1_6_file_read`), snippet generation (`task_1_6_llm_snippet`), and merging (`task_1_6_code_merge`) logic for steps involving code modification and file writing. (Est. Time: 1-2 days)",
+            "status": "Not Started",
+            "target_file": "src/core/automation/workflow_driver.py"
+        },
+        {
             "task_id": "task_1_6c_exec_tests",
             "priority": "High",
             "task_name": "Driver: Automate Test Execution",

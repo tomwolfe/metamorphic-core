@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 # Define a maximum file size for reading (e.g., 1MB)
 MAX_READ_FILE_SIZE = 1024 * 1024 # 1 MB
 
+# Define the marker for code insertion
+METAMORPHIC_INSERT_POINT = "# METAMORPHIC_INSERT_POINT"
+
 
 class Context:
     def __init__(self, base_path):
@@ -793,11 +796,14 @@ Requirements:
 
         return return_code, stdout, stderr # Corrected return order
 
+    # ADDED: Implementation of _merge_snippet method
     def _merge_snippet(self, existing_content: str, snippet: str) -> str:
         """
         Merges a generated code snippet into existing file content.
 
-        For this basic implementation, the snippet is appended to the existing content.
+        If the METAMORPHIC_INSERT_POINT marker is found, the snippet is inserted
+        at the first occurrence of the marker. Otherwise, the snippet is appended
+        to the existing content with a newline separator.
 
         Args:
             existing_content: The current content of the file.
@@ -806,7 +812,22 @@ Requirements:
         Returns:
             The merged content as a string.
         """
-        if not existing_content:
-            return snippet
-        # Add a newline for separation if existing content is not empty
-        return existing_content + "\n" + snippet # Corrected logic
+        if not snippet:
+            return existing_content # Return existing content if snippet is empty
+
+        marker_index = existing_content.find(METAMORPHIC_INSERT_POINT)
+
+        if marker_index != -1:
+            # Marker found, insert snippet at the marker position
+            before_marker = existing_content[:marker_index]
+            after_marker = existing_content[marker_index + len(METAMORPHIC_INSERT_POINT):]
+            # Insert the snippet between the parts, replacing the marker
+            return before_marker + snippet + after_marker
+        else:
+            # Marker not found, append snippet with a newline separator
+            if not existing_content:
+                return snippet # If existing is empty, just return snippet
+            # Ensure a newline before appending if existing content doesn't end with one
+            if existing_content and not existing_content.endswith('\n'):
+                 return existing_content + "\n" + snippet
+            return existing_content + snippet # Append directly if existing ends with newline or is empty

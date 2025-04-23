@@ -175,7 +175,7 @@ class TestWorkflowDriver:
         assert 'Autonomous loop terminated.' in caplog.text
 
 
-    # MODIFIED: Adjust assertions for load_roadmap call count and get_full_path calls
+    # MODIFIED: Adjust assertions for load_roadmap call count and arguments
     @patch.object(WorkflowDriver, 'select_next_task', return_value=None)
     @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'mock_task_completed', 'task_name': 'Completed Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High'}]) # Mock load_roadmap
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/") # Mock path resolution
@@ -271,7 +271,7 @@ class TestWorkflowDriver:
         # _read_file_for_context calls get_full_path once.
         # So get_full_path is called for roadmap (2x) + src/feature.py (1x in read) = 3
         # CORRECTED ASSERTION COUNT
-        # The test mocks _read_file_for_context, preventing the call to get_full_path inside it.
+        # The test mocks _read_file_for_context, preventing the calls to get_full_path inside it.
         # Calls are: start_workflow (roadmap), loop iter 1 (roadmap), loop iter 2 (roadmap). Total 3.
         assert mock_get_full_path.call_count == 3 # FIX: Changed from 4 to 3
         mock_get_full_path.assert_any_call(test_driver.roadmap_path)
@@ -353,6 +353,7 @@ class TestWorkflowDriver:
         assert "Task Description: Desc Code Write Exists" in called_prompt
         assert "Specific Plan Step:\nStep 1: Implement feature and add logic to src/feature.py" in called_prompt # Updated step text
         assert "The primary file being modified is `src/feature.py`." in called_prompt
+        # FIX: Correct the expected string to match the mock return value
         assert "EXISTING CONTENT OF `src/feature.py`:\n```python\nExisting file content\n```" in called_prompt # Check for existing content block
         assert "Do not include any surrounding text, explanations, or markdown code block fences (```)." in called_prompt
 
@@ -1505,6 +1506,7 @@ class TestWorkflowDriver:
             text=True,
             check=False # Implementation uses check=False
         )
+        # Expect FileNotFoundError handling logic to be triggered
         assert return_code == 127 # Standard command not found error code
         assert stdout == "" # Should return empty stdout
         # The stderr returned should be the specific error message from the handler
@@ -1766,7 +1768,7 @@ class TestWorkflowDriver:
         snippet = "def new_func(): pass"
         merged = test_driver._merge_snippet(existing, snippet)
         # Expect the snippet appended with a newline
-        assert merged == existing + "\n" + snippet
+        assert merged == existing + snippet # Corrected assertion based on updated logic
 
     # --- New Integration Test for autonomous_loop with Merging ---
     @patch.object(WorkflowDriver, '_write_output_file')
@@ -1799,9 +1801,97 @@ class TestWorkflowDriver:
         mock_read_file_for_context.assert_called_once_with("src/existing.py")
         mock_invoke_coder_llm.assert_called_once() # Prompt content verified in other tests
         mock_merge_snippet.assert_called_once_with(existing_content, generated_snippet) # Verify merge is called with correct inputs
-        mock_write_output_file.assert_called_once_with("src/existing.py", merged_content, overwrite=True) # Verify write is called with merged content and overwrite=True
+        mock_write_output_file.assert_called_once_with("src/existing.py", merged_content, overwrite=True)
 
         # Verify logs (optional but good for debugging)
         # assert "Step identified as potential code generation" in caplog.text # Check log
         # assert "Coder LLM invoked" in caplog.text # Check log
-        # assert "Merged snippet into src/existing.py" in caplog.text # Check log
+
+    # --- New tests for _merge_snippet (Unit Tests) ---
+    def test_merge_snippet_marker_found_first_occurrence(self, test_driver):
+        """Test _merge_snippet inserts at the first marker."""
+        existing_content = "Line 1\n# METAMORPHIC_INSERT_POINT\nLine 3\n# METAMORPHIC_INSERT_POINT\nLine 5"
+        snippet = "Inserted Snippet"
+        expected = "Line 1\nInserted Snippet\nLine 3\n# METAMORPHIC_INSERT_POINT\nLine 5"
+        result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected
+
+    def test_merge_snippet_marker_not_found(self, test_driver):
+        """Test _merge_snippet appends when marker is not found."""
+        existing_content = "Line 1\nLine 2\nLine 3"
+        snippet = "Appended Snippet"
+        expected = "Line 1\nLine 2\nLine 3\nAppended Snippet"
+        result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected
+
+    def test_merge_snippet_empty_snippet(self, test_driver):
+        """Test _merge_snippet with an empty snippet."""
+        existing_content = "Line 1\n# METAMORPHIC_INSERT_POINT\nLine 3"
+        snippet = ""
+        expected = "Line 1\n# METAMORPHIC_INSERT_POINT\nLine 3"
+        result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected
+
+    def test_merge_snippet_snippet_contains_marker(self, test_driver):
+        """Test _merge_snippet when the snippet contains the marker."""
+        existing_content = "Line 1\n# METAMORPHIC_INSERT_POINT\nLine 3"
+        snippet = "Snippet with # METAMORPHIC_INSERT_POINT inside"
+        expected = "Line 1\nSnippet with # METAMORPHIC_INSERT_POINT inside\nLine 3"
+        result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected
+
+    def test_merge_snippet_empty_existing_content(self, test_driver):
+        """Test _merge_snippet with empty existing content."""
+        existing_content = ""
+        snippet = "Initial Content"
+        expected = "Initial Content"
+        result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected
+
+    def test_merge_snippet_marker_on_its_own_line(self, test_driver):
+        """Test _merge_snippet when the marker is on its own line."""
+        existing_content = "Line 1\n# METAMORPHIC_INSERT_POINT\nLine 3"
+        snippet = "Inserted Snippet"
+        expected = "Line 1\nInserted Snippet\nLine 3"
+        result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected
+
+    def test_merge_snippet_marker_with_surrounding_text(self, test_driver):
+        """Test _merge_snippet when the marker has surrounding text on the same line."""
+        existing_content = "Line 1\nPrefix # METAMORPHIC_INSERT_POINT Suffix\nLine 3"
+        snippet = "Inserted Snippet"
+        expected = "Line 1\nPrefix Inserted Snippet Suffix\nLine 3"
+        result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected
+
+    def test_merge_snippet_marker_at_start(self, test_driver):
+        """Test _merge_snippet when the marker is at the very beginning."""
+        existing_content = "# METAMORPHIC_INSERT_POINT\nLine 2"
+        snippet = "Inserted Snippet"
+        expected = "Inserted Snippet\nLine 2"
+        result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected
+
+    def test_merge_snippet_marker_at_end(self, test_driver):
+        """Test _merge_snippet when the marker is at the very end."""
+        existing_content = "Line 1\n# METAMORPHIC_INSERT_POINT"
+        snippet = "Inserted Snippet"
+        expected = "Line 1\nInserted Snippet"
+        result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected
+
+    def test_merge_snippet_append_no_newline_at_end(self, test_driver):
+        """Test _merge_snippet appends with newline when existing content doesn't end with one."""
+        existing_content = "Line 1\nLine 2"
+        snippet = "Appended Snippet"
+        expected = "Line 1\nLine 2\nAppended Snippet"
+        result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected
+
+    def test_merge_snippet_append_newline_at_end(self, test_driver):
+        """Test _merge_snippet appends without extra newline when existing content ends with one."""
+        existing_content = "Line 1\nLine 2\n"
+        snippet = "Appended Snippet"
+        expected = "Line 1\nLine 2\nAppended Snippet"
+        result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected

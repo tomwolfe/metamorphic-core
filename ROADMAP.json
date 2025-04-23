@@ -50,7 +50,7 @@
             "priority": "High",
             "task_name": "Driver: Modify LLM Prompt for Code Snippet Generation",
             "description": "Adjust the prompt sent to the Coder LLM to instruct it to generate *only the code snippet* required for the current plan step, given the existing file content and the step description. (Est. Time: 0.5 days)",
-            "status": "Not Started",
+            "status": "Completed",
             "target_file": "src/core/automation/workflow_driver.py"
         },
         {

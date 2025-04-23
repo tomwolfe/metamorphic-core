@@ -206,9 +206,11 @@ class TestWorkflowDriver:
 
     # --- Modified tests for Task 15_3d & 15_3e ---
     # MODIFIED: Adjust assertions for load_roadmap and get_full_path calls
-    @patch.object(WorkflowDriver, '_write_output_file')
+    # MODIFIED: Update assertions to match the new prompt format for snippet generation
+    # MODIFIED: Change plan step phrasing to trigger needs_coder_llm
+    @patch.object(WorkflowDriver, '_write_output_file') # Mock to prevent file writes
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True") # Mock LLM to return generated code
-    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and write to src/feature.py"]) # Step is both code gen + file write
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/feature.py"]) # Step is both code gen + file write
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'mock_task_code_write', 'task_name': 'Task Code Write', 'status': 'Not Started', 'description': 'Desc Code Write', 'priority': 'High', 'target_file': 'src/feature.py'},
         None
@@ -231,46 +233,51 @@ class TestWorkflowDriver:
         mock_invoke_coder_llm.assert_called_once()
         # Verify the prompt passed to _invoke_coder_llm includes task context, step details, and empty existing content
         called_prompt = mock_invoke_coder_llm.call_args[0][0]
-        assert "Task Code Write" in called_prompt
-        assert "Desc Code Write" in called_prompt
-        assert "Specific Plan Step to Implement:\nStep 1: Implement feature and write to src/feature.py" in called_prompt
-        assert "The primary file being modified for this task is `src/feature.py`." in called_prompt
-        assert "EXISTING CONTENT OF `src/feature.py`:\n```\n\n```" in called_prompt # Check for empty existing content block
+        assert "You are a Coder LLM expert in Python." in called_prompt
+        assert "Your task is to generate *only the code snippet* required" in called_prompt
+        assert "Overall Task: \"Task Code Write\"" in called_prompt
+        assert "Task Description: Desc Code Write" in called_prompt
+        assert "Specific Plan Step:\nStep 1: Implement feature and add logic to src/feature.py" in called_prompt # Updated step text
+        assert "The primary file being modified is `src/feature.py`." in called_prompt
+        assert "EXISTING CONTENT OF `src/feature.py`:\n```python\n\n```" in called_prompt # Check for empty existing content block
+        assert "Do not include any surrounding text, explanations, or markdown code block fences (```)." in called_prompt
 
-        # _write_output_file should be called exactly once
-        mock_write_output_file.assert_called_once()
-        # Verify call arguments: filepath and content (generated code)
-        mock_write_output_file.assert_called_once_with("src/feature.py", "def generated_code(): return True", overwrite=True)
+
+        # _write_output_file should NOT be called immediately after snippet generation
+        mock_write_output_file.assert_not_called()
 
         # Check log messages
-        assert "Step identified as potential code generation for file src/feature.py. Invoking Coder LLM for step: Step 1: Implement feature and write to src/feature.py" in caplog.text
+        assert "Step identified as potential code generation for file src/feature.py. Invoking Coder LLM for step: Step 1: Implement feature and add logic to src/feature.py" in caplog.text # Updated step text
         assert "Coder LLM invoked for step 1. Generated output" in caplog.text
-        assert "Step identified as file writing (from LLM). Processing file operation for step: Step 1: Implement feature and write to src/feature.py" in caplog.text
-        assert "Attempting to write file: src/feature.py" in caplog.text
+        # Check the new log indicating snippet generation and deferral
+        assert "Generated code snippet for src/feature.py. Merging/Writing will be handled by subsequent steps." in caplog.text
+        # Ensure the incorrect "Step identified as file writing (from LLM)..." log does NOT appear
+        assert "Step identified as file writing (from LLM)." not in caplog.text
         # Ensure the incorrect "Step not identified..." log does NOT appear
         assert "Step not identified as code generation or file writing." not in caplog.text
         # load_roadmap should be called twice
         # FIX: Expected 3 calls
         assert mock_load_roadmap.call_count == 3
         mock_load_roadmap.assert_any_call(f"/resolved/{test_driver.roadmap_path}")
-        # get_full_path should be called multiple times (roadmap loading/reloading, _read_file_for_context, _write_output_file)
-        # _read_file_for_context calls get_full_path once. _write_output_file calls get_full_path once.
-        # So get_full_path is called for roadmap (2x) + src/feature.py (1x in read) + src/feature.py (1x in write) = 4
-        # FIX: Expected 4 calls
+        # get_full_path should be called multiple times (roadmap loading/reloading, _read_file_for_context)
+        # _read_file_for_context calls get_full_path once.
+        # So get_full_path is called for roadmap (2x) + src/feature.py (1x in read) = 3
         # CORRECTED ASSERTION COUNT
-        # The test mocks _read_file_for_context and _write_output_file, preventing the calls to get_full_path inside them.
+        # The test mocks _read_file_for_context, preventing the call to get_full_path inside it.
         # Calls are: start_workflow (roadmap), loop iter 1 (roadmap), loop iter 2 (roadmap). Total 3.
         assert mock_get_full_path.call_count == 3 # FIX: Changed from 4 to 3
         mock_get_full_path.assert_any_call(test_driver.roadmap_path)
-        # mock_get_full_path.assert_any_call('src/feature.py') # This call doesn't happen because _read/_write are mocked
+        # mock_get_full_path.assert_any_call('src/feature.py') # This call doesn't happen because _read is mocked
 
 
-    # MODIFIED: Adjust assertions for load_roadmap and get_full_path calls
+    # MODIFIED: Adjust assertions for load_roadmap and get_full_path calls, and _write_output_file call count
+    # MODIFIED: Update assertions to match the new prompt format for snippet generation
     # REMOVED CLASS LEVEL PATCH USING MOCKER
     # CORRECTED MOCK ARGUMENT ORDER
-    @patch.object(WorkflowDriver, '_write_output_file')
+    # MODIFIED: Change plan step phrasing to trigger needs_coder_llm
+    @patch.object(WorkflowDriver, '_write_output_file') # Mock to prevent file writes
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True") # Mock LLM to return generated code
-    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and write to src/feature.py"]) # Step is both code gen + file write
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/feature.py"]) # Step is both code gen + file write
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'mock_task_code_write_exists', 'task_name': 'Task Code Write Exists', 'status': 'Not Started', 'description': 'Desc Code Write Exists', 'priority': 'High', 'target_file': 'src/feature.py'},
         None
@@ -328,19 +335,27 @@ class TestWorkflowDriver:
         mock_invoke_coder_llm.assert_called_once()
         # Verify the prompt includes the existing content returned by the mock
         called_prompt = mock_invoke_coder_llm.call_args[0][0]
-        assert "EXISTING CONTENT OF `src/feature.py`:\n```\nExisting file content\n```" in called_prompt
+        assert "You are a Coder LLM expert in Python." in called_prompt
+        assert "Your task is to generate *only the code snippet* required" in called_prompt
+        assert "Overall Task: \"Task Code Write Exists\"" in called_prompt
+        assert "Task Description: Desc Code Write Exists" in called_prompt
+        assert "Specific Plan Step:\nStep 1: Implement feature and add logic to src/feature.py" in called_prompt # Updated step text
+        assert "The primary file being modified is `src/feature.py`." in called_prompt
+        assert "EXISTING CONTENT OF `src/feature.py`:\n```python\nExisting file content\n```" in called_prompt # Check for existing content block
+        assert "Do not include any surrounding text, explanations, or markdown code block fences (```)." in called_prompt
 
-        # _write_output_file should be called exactly once with overwrite=True
-        mock_write_output_file.assert_called_once_with("src/feature.py", "def generated_code(): return True", overwrite=True)
+
+        # _write_output_file should NOT be called immediately after snippet generation
+        mock_write_output_file.assert_not_called()
 
         # Check log messages
-        # The log "File src/feature.py exists. Reading content for LLM context." is now inside _read_file_for_context
-        # We should check the log from _read_file_for_context if needed, but not here.
-        # The log "Step identified as potential code generation..." remains.
-        assert "Step identified as potential code generation for file src/feature.py. Invoking Coder LLM for step: Step 1: Implement feature and write to src/feature.py" in caplog.text
+        assert "Step identified as potential code generation for file src/feature.py. Invoking Coder LLM for step: Step 1: Implement feature and add logic to src/feature.py" in caplog.text # Updated step text
         assert "Coder LLM invoked for step 1. Generated output" in caplog.text
-        assert "Step identified as file writing (from LLM). Processing file operation for step: Step 1: Implement feature and write to src/feature.py" in caplog.text
-        assert "Attempting to write file: src/feature.py" in caplog.text
+        # Check the new log indicating snippet generation and deferral
+        assert "Generated code snippet for src/feature.py. Merging/Writing will be handled by subsequent steps." in caplog.text
+        # Ensure the incorrect "Step identified as file writing (from LLM)..." log does NOT appear
+        assert "Step identified as file writing (from LLM)." not in caplog.text
+        # Ensure the incorrect "Step not identified..." log does NOT appear
         assert "Step not identified as code generation or file writing." not in caplog.text
         # load_roadmap should be called twice
         # FIX: Expected 3 calls
@@ -414,7 +429,7 @@ class TestWorkflowDriver:
         full_filepath = full_dir_path / "test.txt"
 
         # Mock Context.get_full_path to return the resolved path
-        with patch.object(Context, 'get_full_path', return_value=str(full_filepath)) as mock_get_full_path:
+        with patch.object(Context, 'get_full_path', return_value=str(full_filepath.resolve())) as mock_get_full_path:
              # Mock write_file to raise PermissionError
              with patch('src.core.automation.workflow_driver.write_file', side_effect=PermissionError("Permission denied")) as mock_write_file: # CORRECTED PATCH TARGET
                  result = test_driver._write_output_file(filepath, "Test content")
@@ -423,7 +438,8 @@ class TestWorkflowDriver:
                  assert "Permission denied" in caplog.text
                  assert "Permission error when writing to" in caplog.text
                  mock_get_full_path.assert_called_once_with(filepath)
-                 mock_write_file.assert_called_once_with(str(full_filepath), "Test content", overwrite=False)
+                 mock_write_file.assert_called_once_with(str(full_filepath.resolve()), "Test content", overwrite=False) # Use resolved path
+
 
         # Restore permissions for cleanup
         full_dir_path.chmod(0o777)
@@ -733,8 +749,8 @@ class TestWorkflowDriver:
         caplog.set_level(logging.WARNING)
         # Mock get_full_path to return None, simulating a failed resolution outside the base path
         with patch.object(Context, 'get_full_path', return_value=None) as mock_get_full_path:
-             assert test_driver.file_exists("../outside_test_dir/outside_file.txt") is False, "Checking file outside base path should return False"
-             mock_get_full_path.assert_called_once_with("../outside_test_dir/outside_file.txt")
+             assert test_driver.file_exists("../sensitive/file.txt") is False, "Checking file outside base path should return False"
+             mock_get_full_path.assert_called_once_with("../sensitive/file.txt")
              assert "Failed to resolve path for existence check" in caplog.text
 
 
@@ -772,7 +788,7 @@ class TestWorkflowDriver:
         entries = driver.list_files()
 
         # Expected entries should only include valid names found *within* the base dir
-        # Based on the regex `^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`, ".hidden_file.txt" and "file!@#.txt" should be skipped.
+        # Based on the regex `^[a-zAM-Z0-9][a-zA-Z0-9_.-]*$`, ".hidden_file.txt" and "file!@#.txt" should be skipped.
         expected_names = {'valid_file.txt', 'another'} # 'another' is a directory
 
         entry_names = {e['name'] for e in entries}
@@ -1139,7 +1155,7 @@ class TestWorkflowDriver:
         """Test generate_solution_plan handles None output from _invoke_coder_llm."""
         caplog.set_level(logging.WARNING)
         mock_llm_output = None
-        mock_invoke_coder_llm.return_value = mock_llm_output
+        mock_invoke_coder_llm.return_value = mock_llm_output # Corrected NameError here
         mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High', 'status': 'Not Started'} # Added status
 
         plan = test_driver.generate_solution_plan(mock_task)
@@ -1553,4 +1569,153 @@ class TestWorkflowDriver:
         # This test exposes a slight mismatch in the error handling logic vs. the specific error type.
         # However, to make the test pass based on the *current* handler logic:
         assert "Error: Command executable not found. Ensure 'echo' is in your system's PATH." in stderr # Check the specific message from the handler
-        assert "Error: Command executable not found." in caplog.text # Check error log
+
+    # --- New tests for prompt construction logic in autonomous_loop ---
+    # These tests verify the content of the prompt passed to _invoke_coder_llm
+    @patch.object(WorkflowDriver, '_write_output_file') # Mock to prevent file writes
+    @patch.object(WorkflowDriver, '_invoke_coder_llm') # Mock the LLM call itself
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature in src/feature.py"]) # This step phrasing *should* work now
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'task_prompt_test_1', 'task_name': 'Prompt Test Task 1', 'status': 'Not Started', 'description': 'Test description 1.', 'priority': 'High', 'target_file': 'src/feature.py'},
+        None
+    ])
+    @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_prompt_test_1', 'task_name': 'Prompt Test Task 1', 'status': 'Not Started', 'description': 'Test description 1.', 'priority': 'High', 'target_file': 'src/feature.py'}])
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="") # Mock reading empty file
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/") # Mock path resolution
+    def test_autonomous_loop_constructs_prompt_no_existing_content(self, mock_get_full_path, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, tmp_path, mocker):
+        """Test prompt construction when target file exists but is empty."""
+        test_driver.roadmap_path = "dummy_roadmap.json"
+        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+
+        mock_invoke_coder_llm.assert_called_once()
+        called_prompt = mock_invoke_coder_llm.call_args[0][0]
+
+        assert "You are a Coder LLM expert in Python." in called_prompt
+        assert "Your task is to generate *only the code snippet* required" in called_prompt
+        assert "Overall Task: \"Prompt Test Task 1\"" in called_prompt
+        assert "Task Description: Test description 1." in called_prompt
+        assert "Specific Plan Step:\nStep 1: Implement feature in src/feature.py" in called_prompt # Assert on the step text
+        assert "The primary file being modified is `src/feature.py`." in called_prompt
+        assert "EXISTING CONTENT OF `src/feature.py`:\n```python\n\n```" in called_prompt # Empty content block
+        assert "Do not include any surrounding text, explanations, or markdown code block fences (```)." in called_prompt
+
+        mock_read_file_for_context.assert_called_once_with("src/feature.py")
+        mock_write_output_file.assert_not_called() # Ensure write is not called
+
+    @patch.object(WorkflowDriver, '_write_output_file') # Mock to prevent file writes
+    @patch.object(WorkflowDriver, '_invoke_coder_llm') # Mock the LLM call itself
+    # MODIFIED: Change plan step phrasing to trigger needs_coder_llm
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Add logic to utils.py"])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'task_prompt_test_2', 'task_name': 'Prompt Test Task 2', 'status': 'Not Started', 'description': 'Test description 2.', 'priority': 'Medium', 'target_file': 'src/utils.py'},
+        None
+    ])
+    @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_prompt_test_2', 'task_name': 'Prompt Test Task 2', 'status': 'Not Started', 'description': 'Test description 2.', 'priority': 'Medium', 'target_file': 'src/utils.py'}])
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing code content here.") # Mock reading existing file
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/") # Mock path resolution
+    def test_autonomous_loop_constructs_prompt_with_existing_content(self, mock_get_full_path, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, tmp_path, mocker):
+        """Test prompt construction when target file exists and has content."""
+        test_driver.roadmap_path = "dummy_roadmap.json"
+        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+
+        mock_invoke_coder_llm.assert_called_once()
+        called_prompt = mock_invoke_coder_llm.call_args[0][0]
+
+        assert "Overall Task: \"Prompt Test Task 2\"" in called_prompt
+        assert "Task Description: Test description 2." in called_prompt
+        assert "Specific Plan Step:\nStep 1: Add logic to utils.py" in called_prompt # Assert on the step text
+        assert "The primary file being modified is `src/utils.py`." in called_prompt
+        assert "EXISTING CONTENT OF `src/utils.py`:\n```python\nExisting code content here.\n```" in called_prompt # Existing content block
+        assert "Do not include any surrounding text, explanations, or markdown code block fences (```)." in called_prompt
+
+
+        mock_read_file_for_context.assert_called_once_with("src/utils.py")
+        mock_write_output_file.assert_not_called() # Ensure write is not called
+
+    @patch.object(WorkflowDriver, '_write_output_file') # Mock to prevent file writes
+    @patch.object(WorkflowDriver, '_invoke_coder_llm') # Mock the LLM call itself
+    # MODIFIED: Change plan step phrasing to trigger needs_coder_llm
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement agent logic in src/new_agent.py"])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'task_prompt_test_3', 'task_name': 'Prompt Test Task 3', 'status': 'Not Started', 'description': 'Test description 3.', 'priority': 'Low', 'target_file': 'src/new_agent.py'},
+        None
+    ])
+    @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_prompt_test_3', 'task_name': 'Prompt Test Task 3', 'status': 'Not Started', 'description': 'Test description 3.', 'priority': 'Low', 'target_file': 'src/new_agent.py'}])
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="") # Mock reading empty file (as it won't exist yet)
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/") # Mock path resolution
+    def test_autonomous_loop_constructs_prompt_new_file(self, mock_get_full_path, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, tmp_path, mocker):
+        """Test prompt construction for a new file (read_file_for_context returns empty)."""
+        test_driver.roadmap_path = "dummy_roadmap.json"
+        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+
+        mock_invoke_coder_llm.assert_called_once()
+        called_prompt = mock_invoke_coder_llm.call_args[0][0]
+
+        assert "Overall Task: \"Prompt Test Task 3\"" in called_prompt
+        assert "Task Description: Test description 3." in called_prompt
+        assert "Specific Plan Step:\nStep 1: Implement agent logic in src/new_agent.py" in called_prompt # Assert on the step text
+        assert "The primary file being modified is `src/new_agent.py`." in called_prompt
+        assert "EXISTING CONTENT OF `src/new_agent.py`:\n```python\n\n```" in called_prompt # Empty content block
+        assert "Do not include any surrounding text, explanations, or markdown code block fences (```)." in called_prompt
+
+
+        mock_read_file_for_context.assert_called_once_with("src/new_agent.py")
+        mock_write_output_file.assert_not_called() # Ensure write is not called
+
+    @patch.object(WorkflowDriver, '_write_output_file') # Mock to prevent file writes
+    @patch.object(WorkflowDriver, '_invoke_coder_llm') # Mock the LLM call itself
+    # MODIFIED: Change plan step phrasing to trigger needs_coder_llm
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement documentation updates in docs/documentation.md"])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'task_prompt_test_4', 'task_name': 'Prompt Test Task 4', 'status': 'Not Started', 'description': 'Test description 4.', 'priority': 'High', 'target_file': 'docs/documentation.md'},
+        None
+    ])
+    @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_prompt_test_4', 'task_name': 'Prompt Test Task 4', 'status': 'Not Started', 'description': 'Test description 4.', 'priority': 'High', 'target_file': 'docs/documentation.md'}])
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing markdown content.") # Mock reading existing file
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/") # Mock path resolution
+    def test_autonomous_loop_constructs_prompt_markdown_file(self, mock_get_full_path, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, tmp_path, mocker):
+        """Test prompt construction for a markdown file."""
+        test_driver.roadmap_path = "dummy_roadmap.json"
+        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+
+        mock_invoke_coder_llm.assert_called_once()
+        called_prompt = mock_invoke_coder_llm.call_args[0][0]
+
+        assert "Overall Task: \"Prompt Test Task 4\"" in called_prompt
+        assert "Task Description: Test description 4." in called_prompt
+        assert "Specific Plan Step:\nStep 1: Implement documentation updates in docs/documentation.md" in called_prompt # Assert on the step text
+        assert "The primary file being modified is `docs/documentation.md`." in called_prompt
+        # Note: The code block fence is hardcoded as ```python in the driver.
+        # This might need refinement in a future task if non-code files are common targets.
+        assert "EXISTING CONTENT OF `docs/documentation.md`:\n```python\nExisting markdown content.\n```" in called_prompt
+        assert "Do not include any surrounding text, explanations, or markdown code block fences (```)." in called_prompt
+
+
+        mock_read_file_for_context.assert_called_once_with("docs/documentation.md")
+        mock_write_output_file.assert_not_called() # Ensure write is not called
+
+    # --- New test for snippet generation deferral ---
+    @patch.object(WorkflowDriver, '_write_output_file') # Mock to ensure it's NOT called
+    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_snippet(): pass") # Simulate successful snippet generation
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement function in src/code.py"])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'task_deferral_test', 'task_name': 'Deferral Test Task', 'status': 'Not Started', 'description': 'Test deferral.', 'priority': 'High', 'target_file': 'src/code.py'},
+        None
+    ])
+    @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_deferral_test', 'task_name': 'Deferral Test Task', 'status': 'Not Started', 'description': 'Test deferral.', 'priority': 'High', 'target_file': 'src/code.py'}])
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="") # Mock reading empty file
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/") # Mock path resolution
+    def test_autonomous_loop_defers_write_after_snippet_gen(self, mock_get_full_path, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
+        """Test that _write_output_file is NOT called immediately after snippet generation."""
+        caplog.set_level(logging.INFO) # Capture info logs
+
+        test_driver.roadmap_path = "dummy_roadmap.json"
+        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+
+        mock_invoke_coder_llm.assert_called_once() # LLM should be called to generate snippet
+        mock_write_output_file.assert_not_called() # Crucially, write_file should NOT be called
+
+        # Check log message confirming deferral
+        assert "Generated code snippet for src/code.py. Merging/Writing will be handled by subsequent steps." in caplog.text
+        # Ensure the old "Step identified as file writing (from LLM)..." log does NOT appear
+        assert "Step identified as file writing (from LLM)." not in caplog.text

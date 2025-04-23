@@ -27,7 +27,7 @@
 *   **Task ID**: task_1_6_code_merge
     *   **Priority**: High
     *   **Task Name**: Driver: Implement Code Snippet Merging/Patching Logic
-    *   **Status**: Not Started
+    *   **Status**: In Progress
 
 *   **Task ID**: task_1_6_integrate_file_flow
     *   **Priority**: Critical

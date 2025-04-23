@@ -809,4 +809,4 @@ Requirements:
         if not existing_content:
             return snippet
         # Add a newline for separation if existing content is not empty
-        return existing_content + "\n" + snippet
+        return existing_content + "\n" + snippet # Corrected logic

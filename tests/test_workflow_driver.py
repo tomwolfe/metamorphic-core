@@ -115,7 +115,7 @@ class TestWorkflowDriver:
         assert "Invalid roadmap path provided: None" in caplog.text # Check the error log
 
     # --- Modified tests for autonomous_loop (Task 15_3a2) ---
-    # MODIFIED: Adjust assertions for load_roadmap call count
+    # MODIFIED: Adjust assertions for load_roadmap call count and get_full_path calls
     @patch.object(WorkflowDriver, 'load_roadmap', return_value=[]) # Mock load_roadmap to return empty list
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/") # Mock path resolution
     def test_autonomous_loop_basic_logging(self, mock_get_full_path, mock_load_roadmap, test_driver, caplog, tmp_path, mocker):
@@ -283,7 +283,7 @@ class TestWorkflowDriver:
     # REMOVED CLASS LEVEL PATCH USING MOCKER
     # CORRECTED MOCK ARGUMENT ORDER
     # MODIFIED: Change plan step phrasing to trigger needs_coder_llm
-    # MODIFIED: Add mock for _merge_snippet
+    # MODIFIED: Add mock for _merge_snippet (even though it won't be called in this specific test scenario)
     @patch.object(WorkflowDriver, '_write_output_file') # Mock to prevent file writes
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True") # Mock LLM to return generated code
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/feature.py"]) # Step is both code gen + file write
@@ -339,13 +339,14 @@ class TestWorkflowDriver:
         # Calls are: start_workflow (roadmap), loop iter 1 (roadmap), loop iter 2 (roadmap). Total 3.
         assert mock_get_full_path.call_count == 3 # FIX: Changed from 4 to 3
         mock_get_full_path.assert_any_call(test_driver.roadmap_path)
-        # mock_get_full_path.assert_any_call('src/feature.py') # This call doesn't happen because _read/_write are mocked
+        # mock_get_full_path.assert_any_call('src/feature.py') # This call doesn't happen because _read is mocked
 
 
         # _invoke_coder_llm should be called once
         mock_invoke_coder_llm.assert_called_once()
         # Verify the prompt includes the existing content returned by the mock
         called_prompt = mock_invoke_coder_llm.call_args[0][0]
+
         assert "You are a Coder LLM expert in Python." in called_prompt
         assert "Your task is to generate *only the code snippet* required" in called_prompt
         assert "Overall Task: \"Task Code Write Exists\"" in called_prompt
@@ -1804,4 +1805,3 @@ class TestWorkflowDriver:
         # assert "Step identified as potential code generation" in caplog.text # Check log
         # assert "Coder LLM invoked" in caplog.text # Check log
         # assert "Merged snippet into src/existing.py" in caplog.text # Check log
-        # assert "Successfully wrote merged content to src/existing.py" in caplog.text # Check log

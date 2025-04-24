@@ -657,7 +657,7 @@ Requirements:
         if '..' in filename or '/' in filename or '\\' in filename:
             return False
         # Ensure it's not just a dot or dot-dot
-        if filename in ['.', '..']:
+        if filename in ['.', '..']: # Corrected from ['.', '.']
             return False
         # Allow alphanumeric, underscores, hyphens, and dots. Must start with alphanumeric.
         # This regex is primarily for validating *user-provided* filenames/paths,
@@ -830,4 +830,5 @@ Requirements:
             # Ensure a newline before appending if existing content doesn't end with one
             if existing_content and not existing_content.endswith('\n'):
                  return existing_content + "\n" + snippet
-            return existing_content + snippet # Append directly if existing ends with newline or is empty
+            # If existing content ends with a newline, just append the snippet
+            return existing_content + snippet

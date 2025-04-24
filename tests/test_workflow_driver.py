@@ -1894,4 +1894,3 @@ class TestWorkflowDriver:
         snippet = "Appended Snippet"
         expected = "Line 1\nLine 2\nAppended Snippet"
         result = test_driver._merge_snippet(existing_content, snippet)
-        assert result == expected

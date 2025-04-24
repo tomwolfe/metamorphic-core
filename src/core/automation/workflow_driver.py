@@ -163,17 +163,17 @@ class WorkflowDriver:
                         content_to_write = None # Initialize content_to_write
                         overwrite_file = False # Initialize overwrite flag
 
-                        # --- Logic for steps involving the Coder LLM ---
-                        # Only invoke Coder if code gen is needed AND we know which file
+                        # --- START MODIFIED LOGIC FOR STEP PROCESSING ---
+                        # Prioritize code generation steps targeting a specific file
                         if needs_coder_llm and filepath_to_use:
                             logger.info(
-                                f"Step identified as potential code generation for file {filepath_to_use}. Invoking Coder LLM for step: {step}")
+                                f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.")
 
-                            # Read existing content if the file exists using the new robust method
+                            # 1. Read existing content
                             existing_content = self._read_file_for_context(filepath_to_use)
+                            logger.debug(f"Read {len(existing_content)} characters from {filepath_to_use}.")
 
-                            # --- MODIFIED PROMPT CONSTRUCTION ---
-                            # Construct the detailed prompt here, including task context, step, and existing content
+                            # 2. Construct prompt and invoke Coder LLM for snippet
                             coder_prompt = f"""You are a Coder LLM expert in Python.
 Your task is to generate *only the code snippet* required to implement the following specific step from a larger development plan.
 
@@ -192,26 +192,19 @@ EXISTING CONTENT OF `{filepath_to_use}`:
 
 Generate *only* the Python code snippet needed to fulfill the "Specific Plan Step". Do not include any surrounding text, explanations, or markdown code block fences (```). Provide just the raw code lines that need to be added or modified.
 """
-                            # --- END MODIFIED PROMPT CONSTRUCTION ---
+                            logger.debug("Invoking Coder LLM with prompt: %s", coder_prompt[:500])
+                            generated_snippet = self._invoke_coder_llm(coder_prompt)
 
-                            # --- DEBUG LOGS ADDED HERE ---
-                            logger.debug("Entering _invoke_coder_llm call block.")
-                            logger.debug("Calling _invoke_coder_llm with prompt: %s", coder_prompt[:500])
-                            # --- END DEBUG LOGS ---
-
-                            generated_output = self._invoke_coder_llm(coder_prompt) # Pass the constructed prompt
-
-                            if generated_output:
+                            if generated_snippet:
                                 logger.info(
-                                    f"Coder LLM invoked for step {step_index + 1}. Generated output (first 100 chars): {generated_output[:100]}...")
-                                # Use generated output as the content to merge/write
+                                    f"Coder LLM generated snippet (first 100 chars): {generated_snippet[:100]}...")
 
-                                # --- START MODIFIED LOGIC FOR SNIPPET MERGING AND WRITING ---
-                                # We generated a snippet. Now merge it into the existing content.
-                                merged_content = self._merge_snippet(existing_content, generated_output)
-                                logger.info(f"Merged snippet into {filepath_to_use}. Attempting to write merged content.")
+                                # 3. Merge snippet into existing content
+                                merged_content = self._merge_snippet(existing_content, generated_snippet)
+                                logger.debug("Snippet merged.")
 
-                                # Write the merged content back to the file, overwriting the original
+                                # 4. Write merged content back to file (overwrite=True)
+                                logger.info(f"Attempting to write merged content to {filepath_to_use}.")
                                 try:
                                     self._write_output_file(filepath_to_use, merged_content, overwrite=True)
                                     logger.info(f"Successfully wrote merged content to {filepath_to_use}.")
@@ -220,25 +213,21 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                                     logger.error(f"Unexpected FileExistsError when writing merged content to {filepath_to_use} with overwrite=True.")
                                 except Exception as e:
                                     logger.error(f"Failed to write merged content to {filepath_to_use}: {e}", exc_info=True)
-                                # --- END MODIFIED LOGIC ---
+                            else:
+                                logger.warning(f"Coder LLM returned empty or None snippet for step {step_index + 1}. Skipping file write.")
 
-
-                        # --- File Writing Logic (Adjusted for Snippet Generation) ---
-                        # This logic should now only handle steps that are *explicitly* file writing
-                        # but *not* code generation steps that produce snippets.
-                        # The logic for writing the *merged* file content will be added in task_1_6_integrate_file_flow.
-                        # For *this* task, if needs_coder_llm was true, we just generated a snippet and logged it.
-                        # If needs_coder_llm is false, but it's a file writing step, we use placeholder content.
-                        # The original logic below is mostly correct for non-code-gen file writes,
-                        # but needs to be careful not to trigger for the snippet case.
-
+                        # Handle steps identified as file writing, but NOT code generation (e.g., writing a report)
                         elif is_file_writing_step and not needs_coder_llm and filepath_to_use:
-                             logger.info(f"Step identified as file writing (placeholder). Processing file operation for step: {step}")
+                             logger.info(f"Step identified as file writing (non-code-gen). Processing file operation for step: {step}")
+                             # For now, use placeholder content. In future tasks, this would involve
+                             # invoking a different agent or logic to generate the file content.
                              content_to_write = f"// Placeholder content for step: {step}"
                              logger.info(f"Using placeholder content for file: {filepath_to_use}")
                              logger.info(f"Attempting to write file: {filepath_to_use}")
                              try:
-                                 # Use overwrite=False for placeholder content
+                                 # Use overwrite=False as a default for non-code-gen writes,
+                                 # unless the step explicitly indicates overwrite.
+                                 # This logic might need refinement in future tasks.
                                  self._write_output_file(filepath_to_use, content_to_write, overwrite=False)
                              except FileExistsError:
                                  logger.warning(
@@ -247,18 +236,16 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                                  logger.error(f"Failed to write file {filepath_to_use}: {e}",
                                               exc_info=True)
 
-                        elif is_file_writing_step and not filepath_to_use and not needs_coder_llm:
-                             # This case is for file writing steps where no specific file was identified and no code gen
+                        # Handle steps identified as file writing or code generation, but without a determined filepath
+                        elif (is_file_writing_step or needs_coder_llm) and not filepath_to_use:
                              logger.warning(
-                                 f"Could not determine filepath for step '{step}'. Skipping file write.")
+                                 f"Step identified as file operation or code generation but could not determine filepath for step '{step}'. Skipping file operation.")
 
-                        # Log if *neither* code generation nor file writing was identified
-                        # This log message is now less relevant if target_file is used,
-                        # but keep it for steps that truly don't involve file writing or code gen.
-                        # The condition `not needs_coder_llm and not is_file_writing_step` still works.
-                        if not needs_coder_llm and not is_file_writing_step:
+                        # Log if the step was not identified as involving file operations or code generation
+                        else: # not needs_coder_llm and not is_file_writing_step
                             logger.info(
                                 f"Step not identified as code generation or file writing. Skipping agent invocation/file write for step: {step}")
+                        # --- END MODIFIED LOGIC FOR STEP PROCESSING ---
 
 
                 else: # This 'else' corresponds to 'if solution_plan:'

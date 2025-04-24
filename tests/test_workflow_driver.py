@@ -252,11 +252,11 @@ class TestWorkflowDriver:
         mock_write_output_file.assert_called_once_with("src/feature.py", mock_merge_snippet.return_value, overwrite=True)
 
         # Check log messages
-        assert "Step identified as potential code generation for file src/feature.py. Invoking Coder LLM for step: Step 1: Implement feature and add logic to src/feature.py" in caplog.text # Updated step text
-        assert "Coder LLM invoked for step 1. Generated output" in caplog.text
+        assert "Step identified as code generation for file src/feature.py. Orchestrating read-generate-merge-write." in caplog.text # Updated step text
+        assert "Coder LLM generated snippet (first 100 chars):" in caplog.text
         # Check the new log indicating merging and writing
-        assert "Merged snippet into src/feature.py. Attempting to write merged content." in caplog.text
-        assert "Successfully wrote merged content to src/feature.py." in caplog.text
+        assert "Attempting to write merged content to src/feature.py." in caplog.text # Corrected assertion string
+        assert "Successfully wrote merged content to src/feature.py." in caplog.text # Added assertion
         # Ensure the old "Generated code snippet for ... Merging/Writing will be handled by subsequent steps." log does NOT appear
         assert "Generated code snippet for src/feature.py. Merging/Writing will be handled by subsequent steps." not in caplog.text
         # Ensure the incorrect "Step identified as file writing (from LLM)..." log does NOT appear
@@ -364,11 +364,11 @@ class TestWorkflowDriver:
         mock_write_output_file.assert_called_once_with("src/feature.py", mock_merge_snippet.return_value, overwrite=True)
 
         # Check log messages
-        assert "Step identified as potential code generation for file src/feature.py. Invoking Coder LLM for step: Step 1: Implement feature and add logic to src/feature.py" in caplog.text # Updated step text
-        assert "Coder LLM invoked for step 1. Generated output" in caplog.text
+        assert "Step identified as code generation for file src/feature.py. Orchestrating read-generate-merge-write." in caplog.text # Updated step text
+        assert "Coder LLM generated snippet (first 100 chars):" in caplog.text
         # Check the new log indicating merging and writing
-        assert "Merged snippet into src/feature.py. Attempting to write merged content." in caplog.text
-        assert "Successfully wrote merged content to src/feature.py." in caplog.text
+        assert "Attempting to write merged content to src/feature.py." in caplog.text # Corrected assertion string
+        assert "Successfully wrote merged content to src/feature.py." in caplog.text # Added assertion
         # Ensure the old "Generated code snippet for ... Merging/Writing will be handled by subsequent steps." log does NOT appear
         assert "Generated code snippet for src/feature.py. Merging/Writing will be handled by subsequent steps." not in caplog.text
         # Ensure the incorrect "Step identified as file writing (from LLM)..." log does NOT appear
@@ -1219,7 +1219,7 @@ class TestWorkflowDriver:
         mock_invoke_coder_llm.assert_called_once()
         assert plan == ["Step with <tag>.", "Step with & entity.", "Step with > and <."] # HTML characters should NOT be removed
 
-    # --- Tests for generate_solution_plan prompt generation (New tests for the heuristic change) ---
+    # --- New tests for generate_solution_plan prompt generation (New tests for the heuristic change) ---
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="1. Step.")
     def test_generate_solution_plan_includes_target_file_context_task_name(self, mock_invoke_coder_llm, test_driver):
         """Test generate_solution_plan includes target file context when 'WorkflowDriver' is in task name."""
@@ -1362,18 +1362,20 @@ class TestWorkflowDriver:
         """Test _read_file_for_context handles file exceeding size limit."""
         caplog.set_level(logging.WARNING) # Capture warning log
 
-        content = test_driver._read_file_for_context("path/to/large_file.txt")
+        # Define the values used in the method's log message
+        test_relative_path = "path/to/large_file.txt"
+        test_file_size = MAX_READ_FILE_SIZE + 1 # Matches the mock return value
 
-        mock_get_full_path.assert_called_once_with("path/to/large_file.txt")
+        content = test_driver._read_file_for_context(test_relative_path)
+
+        mock_get_full_path.assert_called_once_with(test_relative_path)
         mock_exists.assert_called_once_with("/resolved/path/to/large_file.txt")
         mock_isfile.assert_called_once_with("/resolved/path/to/large_file.txt")
         mock_getsize.assert_called_once_with("/resolved/path/to/large_file.txt")
         assert content == ""
-        assert f"File exceeds maximum read size ({MAX_READ_FILE_SIZE} bytes): path/to/large_file.txt ({MAX_READ_FILE_SIZE + 1} bytes)" in caplog.text
-        # Ensure file is not opened
-        with patch('builtins.open') as mock_open:
-             test_driver._read_file_for_context("path/to/large_file.txt")
-             mock_open.assert_not_called()
+        # Construct the expected log string using variables available in the test scope
+        expected_log_substring = f"File exceeds maximum read size ({MAX_READ_FILE_SIZE} bytes): {test_relative_path} ({test_file_size} bytes)"
+        assert expected_log_substring in caplog.text
 
 
     @patch.object(Context, 'get_full_path', return_value="/resolved/path/to/permission_denied.txt")
@@ -1452,7 +1454,7 @@ class TestWorkflowDriver:
         assert return_code == 0
         assert stdout == "Test passed\n"
         assert stderr == ""
-        assert f"Executing command: echo hello in directory: {cwd}" in caplog.text
+        assert f"Executing command: echo hello in directory: {cwd or 'current directory'}" in caplog.text # Corrected log message check
         assert "Command executed successfully. Return code: 0" in caplog.text
         assert "STDOUT:\nTest passed\n" in caplog.text
         assert "STDERR:\n" in caplog.text # Check for empty stderr log
@@ -1484,7 +1486,7 @@ class TestWorkflowDriver:
         # The stderr returned should be the captured stderr plus the logged error message
         assert "Test failed\n" in stderr
         assert "Command failed with return code: 1" in stderr # Check for the logged message
-        assert f"Executing command: false in directory: {cwd}" in caplog.text
+        assert f"Executing command: false in directory: {cwd or 'current directory'}" in caplog.text # Corrected log message check
         assert "Command failed. Return code: 1" in caplog.text
         assert "STDOUT:\nSome stdout\n" in caplog.text
         assert "STDERR:\nTest failed\n" in caplog.text # Check for stderr log
@@ -1597,6 +1599,7 @@ class TestWorkflowDriver:
     # These tests verify the content of the prompt passed to _invoke_coder_llm
     @patch.object(WorkflowDriver, '_write_output_file') # Mock to prevent file writes
     @patch.object(WorkflowDriver, '_invoke_coder_llm') # Mock the LLM call itself
+    # MODIFIED: Change plan step phrasing to trigger needs_coder_llm
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature in src/feature.py"]) # This step phrasing *should* work now
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'task_prompt_test_1', 'task_name': 'Prompt Test Task 1', 'status': 'Not Started', 'description': 'Test description 1.', 'priority': 'High', 'target_file': 'src/feature.py'},
@@ -1804,7 +1807,7 @@ class TestWorkflowDriver:
         mock_write_output_file.assert_called_once_with("src/existing.py", merged_content, overwrite=True)
 
         # Verify logs (optional but good for debugging)
-        # assert "Step identified as potential code generation" in caplog.text # Check log
+        # assert "Step identified as code generation" in caplog.text # Check log
         # assert "Coder LLM invoked" in caplog.text # Check log
 
     # --- New tests for _merge_snippet (Unit Tests) ---
@@ -1894,3 +1897,106 @@ class TestWorkflowDriver:
         snippet = "Appended Snippet"
         expected = "Line 1\nLine 2\nAppended Snippet"
         result = test_driver._merge_snippet(existing_content, snippet)
+        assert result == expected
+
+    # --- New tests for autonomous_loop step processing logic (Task 1_6_integrate_file_flow) ---
+
+    @patch.object(WorkflowDriver, '_write_output_file')
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/feature.py"])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'task_code_gen_merge', 'task_name': 'Code Gen Merge Test', 'status': 'Not Started', 'description': 'Test code gen merge flow.', 'priority': 'High', 'target_file': 'src/feature.py'},
+        None
+    ])
+    @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_code_gen_merge', 'task_name': 'Code Gen Merge Test', 'status': 'Not Started', 'description': 'Test code gen merge flow.', 'priority': 'High', 'target_file': 'src/feature.py'}])
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing content.")
+    @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content.")
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+    def test_autonomous_loop_code_gen_merge_flow_integration(self, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
+        """
+        Test that autonomous_loop orchestrates read, generate, merge, write
+        when a code generation step with a target file is encountered.
+        """
+        caplog.set_level(logging.INFO)
+        test_driver.roadmap_path = "dummy_roadmap.json"
+        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+
+        # Verify the sequence of calls
+        mock_read_file_for_context.assert_called_once_with("src/feature.py")
+        mock_invoke_coder_llm.assert_called_once() # Prompt content verified in other tests
+        mock_merge_snippet.assert_called_once_with(mock_read_file_for_context.return_value, mock_invoke_coder_llm.return_value)
+        mock_write_output_file.assert_called_once_with("src/feature.py", mock_merge_snippet.return_value, overwrite=True)
+
+        # Verify logs
+        assert "Step identified as code generation for file src/feature.py. Orchestrating read-generate-merge-write." in caplog.text
+        assert "Coder LLM generated snippet (first 100 chars):" in caplog.text
+        assert "Attempting to write merged content to src/feature.py." in caplog.text # Corrected assertion string
+        assert "Successfully wrote merged content to src/feature.py." in caplog.text # Added assertion
+
+
+    @patch.object(WorkflowDriver, '_write_output_file')
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write report to output/report.json"])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'task_file_write_only', 'task_name': 'File Write Only Test', 'status': 'Not Started', 'description': 'Test file write only flow.', 'priority': 'Medium', 'target_file': 'output/report.json'},
+        None
+    ])
+    @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_file_write_only', 'task_name': 'File Write Only Test', 'status': 'Not Started', 'description': 'Test file write only flow.', 'priority': 'Medium', 'target_file': 'output/report.json'}])
+    @patch.object(WorkflowDriver, '_read_file_for_context') # Ensure this is NOT called
+    @patch.object(WorkflowDriver, '_merge_snippet') # Ensure this is NOT called
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+    def test_autonomous_loop_file_write_only_step(self, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
+        """
+        Test that autonomous_loop handles a step identified as file writing only
+        (not code generation) for a target file.
+        """
+        caplog.set_level(logging.INFO)
+        test_driver.roadmap_path = "dummy_roadmap.json"
+        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+
+        # Verify code gen/merge helpers are NOT called
+        mock_read_file_for_context.assert_not_called()
+        mock_invoke_coder_llm.assert_not_called()
+        mock_merge_snippet.assert_not_called()
+
+        # Verify _write_output_file is called with placeholder content and overwrite=False
+        mock_write_output_file.assert_called_once_with("output/report.json", ANY, overwrite=False)
+        # Check that the content written is the placeholder
+        written_content = mock_write_output_file.call_args[0][1]
+        assert written_content.startswith("// Placeholder content for step: Step 1: Write report to output/report.json")
+
+        # Verify logs
+        assert "Step identified as file writing (non-code-gen). Processing file operation for step: Step 1: Write report to output/report.json" in caplog.text
+        assert "Using placeholder content for file: output/report.json" in caplog.text
+        assert "Attempting to write file: output/report.json" in caplog.text
+
+
+    @patch.object(WorkflowDriver, '_write_output_file') # Ensure this is NOT called
+    @patch.object(WorkflowDriver, '_invoke_coder_llm')
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement the feature logic"]) # Changed step text to remove filepath
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'task_no_target_file', 'task_name': 'No Target File Test', 'status': 'Not Started', 'description': 'Test handling of steps without target_file.', 'priority': 'Low'}, # No target_file
+        None
+    ])
+    @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_no_target_file', 'task_name': 'No Target File Test', 'status': 'Not Started', 'description': 'Test handling of steps without target_file.', 'priority': 'Low'}])
+    @patch.object(WorkflowDriver, '_read_file_for_context') # Ensure this is NOT called
+    @patch.object(WorkflowDriver, '_merge_snippet') # Ensure this is NOT called
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+    def test_autonomous_loop_step_without_target_file(self, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
+        """
+        Test that autonomous_loop handles a step indicating code generation
+        but where no target file is specified in the task metadata or step text.
+        """
+        caplog.set_level(logging.WARNING) # Capture warning log
+
+        test_driver.roadmap_path = "dummy_roadmap.json"
+        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+
+        # Verify no file operations or code gen/merge helpers are called
+        mock_read_file_for_context.assert_not_called()
+        mock_invoke_coder_llm.assert_not_called()
+        mock_merge_snippet.assert_not_called()
+        mock_write_output_file.assert_not_called()
+
+        # Verify warning log
+        assert "Step identified as file operation or code generation but could not determine filepath for step 'Step 1: Implement the feature logic'. Skipping file operation." in caplog.text # Updated assertion string

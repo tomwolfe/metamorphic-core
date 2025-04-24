@@ -720,42 +720,20 @@ Requirements:
         except Exception as e:
             logger.error(f"Unexpected error writing to {filepath} (resolved: {resolved_filepath}): {e}", exc_info=True)
 
-    # ADDED: Implementation of execute_tests method
-    def execute_tests(self, test_command: list[str], cwd: str) -> tuple[str, str, int]:
-        """
-        Executes a given test command using subprocess with error handling.
-
-        Args:
-            test_command (list): The command and its arguments as a list.
-                                 Example: ['pytest', 'tests/']
-            cwd (str, optional): The current working directory to run the command from.
-                                 Defaults to None (uses current process's cwd).
-
-        Returns:
-            tuple: A tuple containing (return_code, stdout, stderr).
-                   return_code is 0 for success, non-zero for failure.
-                   stdout and stderr are strings containing the captured output.
-                   In case of execution errors (like command not found),
-                   return_code will be non-zero, stdout will be empty,
-                   and stderr will contain an error message.
-        """
+    def execute_tests(self, test_command: list[str], cwd: str) -> tuple[int, str, str]:
         stdout = ""
         stderr = ""
-        return_code = 1 # Default to a non-zero failure code
+        return_code = 1
 
         logger.info(f"Executing command: {' '.join(test_command)} in directory: {cwd or 'current directory'}")
 
         try:
-            # Execute the command
-            # capture_output=True captures stdout and stderr
-            # text=True decodes stdout/stderr using default encoding
-            # check=True raises CalledProcessError if the command returns a non-zero exit code
             process = subprocess.run(
                 test_command,
                 cwd=cwd,
                 capture_output=True,
                 text=True,
-                check=False # Changed to False to avoid raising CalledProcessError
+                check=False
             )
 
             stdout = process.stdout
@@ -763,25 +741,26 @@ Requirements:
             return_code = process.returncode
 
             if return_code == 0:
-                 logger.info(f"Command executed successfully. Return code: {return_code}")
+                logger.info(f"Command executed successfully. Return code: {return_code}")
             else:
-                 logger.warning(f"Command failed with return code: {return_code}")
+                logger.error(f"Command failed with return code: {return_code}")
 
             logger.debug(f"STDOUT:\n{stdout}")
             logger.debug(f"STDERR:\n{stderr}")
 
         except FileNotFoundError:
-            # Handle the case where the command executable is not found
-            stderr = f"Error: Command executable not found. Ensure '{test_command[0]}' is in your system's PATH."
-            return_code = 127 # Standard error code for command not found
-            logger.error(stderr)
+            error_msg = f"Error: Command executable not found. Ensure '{test_command[0]}' is in your system's PATH."
+            stderr = error_msg
+            return_code = 127
+            logger.error(error_msg)
 
         except Exception as e:
-            # Catch any other unexpected errors during subprocess execution (e.g., permission errors, invalid arguments)
-            stderr = f"An unexpected error occurred during command execution: {e}"
-            return_code = 1 # Generic failure code
+            error_msg = f"An unexpected error occurred during command execution: {e}"
+            stderr = error_msg
+            return_code = 1
+            logger.error(error_msg)
 
-        return return_code, stdout, stderr # Corrected return order
+        return return_code, stdout, stderr
 
     # ADDED: Implementation of _merge_snippet method
     def _merge_snippet(self, existing_content: str, snippet: str) -> str:

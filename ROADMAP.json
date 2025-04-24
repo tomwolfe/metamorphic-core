@@ -74,7 +74,7 @@
             "priority": "High",
             "task_name": "Driver: Automate Test Execution",
             "description": "Implement logic within `WorkflowDriver` to execute tests (e.g., run `pytest` via subprocess) on generated or modified code artifacts. Capture the raw output and return code. (Est. Time: 1-2 days)",
-            "status": "Not Started",
+            "status": "Completed",
             "Success Criteria": "Driver can execute a subprocess command to run tests (e.g., `pytest`). Raw test output (stdout, stderr) and return code are captured and logged. Unit tests for subprocess execution and output capture are implemented.",
             "Potential Risks": "Ensuring tests run in the correct environment (venv/container), handling subprocess errors (command not found, permissions).",
             "Mitigation": "Start with simple `pytest` execution, log raw output and errors for debugging, ensure execution happens in the correct virtual environment or container.",

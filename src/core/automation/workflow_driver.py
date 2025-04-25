@@ -144,6 +144,8 @@ class WorkflowDriver:
                                                     "add logic to"]
                         file_writing_keywords = ["write file", "create file", "save to file",
                                                  "output file", "generate file"]
+                        # FIX: Added "pytest" and "test suite" to test execution keywords
+                        test_execution_keywords = ["run tests", "execute tests", "verify tests", "pytest", "test suite"]
 
                         # Determine the actual filepath to use: prioritize target_file from task
                         task_target_file = next_task.get('target_file')
@@ -159,13 +161,45 @@ class WorkflowDriver:
                         needs_coder_llm = any(
                             keyword in step_lower for keyword in code_generation_keywords)
 
+                        is_test_execution_step = any(keyword in step_lower for keyword in test_execution_keywords) # ADDED: Check if it's a test execution step
+
                         generated_output = None  # Initialize generated_output for this step
                         content_to_write = None # Initialize content_to_write
                         overwrite_file = False # Initialize overwrite flag
 
-                        # --- START MODIFIED LOGIC FOR STEP PROCESSING ---
+                        # --- START MODIFIED LOGIC FOR STEP PROCESSING (REORDERED) ---
+                        # Prioritize test execution steps
+                        if is_test_execution_step:
+                             logger.info(f"Step identified as test execution. Running tests for step: {step}")
+                             # Determine test command - This is a simplification for Phase 1.6
+                             # A more sophisticated approach would infer the target test file from the previous steps or task metadata
+                             # For now, if a target_file is specified and looks like a test file, use it. Otherwise, default.
+                             test_command = ["pytest"]
+                             if filepath_to_use and ('test_' in filepath_to_use or filepath_to_use.endswith('_test.py')):
+                                 test_command.append(filepath_to_use)
+                             else:
+                                 test_command.append("tests/") # Default to running all tests in tests/
+
+                             # Execute tests
+                             return_code, stdout, stderr = self.execute_tests(test_command, self.context.base_path)
+
+                             # Parse test results
+                             test_results = self._parse_test_results(stdout)
+
+                             # Log parsed results
+                             logger.info(f"Test Execution Results: Status={test_results['status']}, Passed={test_results['passed']}, Failed={test_results['failed']}, Total={test_results['total']}")
+                             if test_results['status'] == 'failed':
+                                 logger.error(f"Tests failed for step: {step}. Raw stderr:\n{stderr}")
+                             elif test_results['status'] == 'error':
+                                 logger.error(f"Test execution or parsing error for step: {step}. Message: {test_results['message']}. Raw stderr:\n{stderr}")
+
+                             # Store test_results for later use (e.g., Grade Report)
+                             # This would typically be stored in a list or dict associated with the current task iteration
+                             # For now, we just log it. In task_1_6f_generate_report, we'll need to retrieve this.
+                             # Placeholder: self.current_task_test_results = test_results # Example storage
+
                         # Prioritize code generation steps targeting a specific file
-                        if needs_coder_llm and filepath_to_use:
+                        elif needs_coder_llm and filepath_to_use:
                             logger.info(
                                 f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.")
 
@@ -241,10 +275,10 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                              logger.warning(
                                  f"Step identified as file operation or code generation but could not determine filepath for step '{step}'. Skipping file operation.")
 
-                        # Log if the step was not identified as involving file operations or code generation
-                        else: # not needs_coder_llm and not is_file_writing_step
+                        # Log if the step was not identified as involving file operations, code generation, or test execution
+                        else: # not needs_coder_llm and not is_file_writing_step and not is_test_execution_step
                             logger.info(
-                                f"Step not identified as code generation or file writing. Skipping agent invocation/file write for step: {step}")
+                                f"Step not identified as code generation, file writing, or test execution. Skipping agent invocation/file write for step: {step}")
                         # --- END MODIFIED LOGIC FOR STEP PROCESSING ---
 
 
@@ -798,3 +832,88 @@ Requirements:
                  return existing_content + "\n" + snippet
             # If existing content ends with a newline, just append the snippet
             return existing_content + snippet
+
+    # METAMORPHIC_INSERT_POINT
+
+    def _parse_test_results(self, raw_output: str) -> dict:
+        """
+        Parses raw pytest output to extract test results.
+
+        Args:
+            raw_output: The raw string output from a pytest subprocess run.
+
+        Returns:
+            A dictionary containing parsed test results:
+            {'passed': int, 'failed': int, 'total': int, 'status': str, 'message': str}
+            Status is 'passed', 'failed', or 'error'.
+        """
+        if not raw_output:
+            logger.warning("Received empty output for test results parsing.")
+            return {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Received empty output.'}
+
+        # Regex to find the final summary line(s)
+        # Look for lines starting with '==' and containing 'test session' or test counts
+        summary_lines = [line for line in raw_output.splitlines() if line.strip().startswith('==') and ('test session' in line or 'passed' in line or 'failed' in line or 'skipped' in line or 'error' in line)]
+
+        if not summary_lines:
+            logger.warning("Could not find pytest summary lines in output.")
+            return {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Could not find pytest summary lines in output.'}
+
+        # Focus on the last summary line, which usually contains the final counts
+        final_summary_line = summary_lines[-1]
+
+        # Regex to extract counts (passed, failed, skipped, error)
+        # This regex is more robust to different orderings and presence of counts
+        # It looks for patterns like "N status" where status is one of the keywords
+        counts_pattern = re.compile(r'(\d+) (passed|failed|skipped|error)')
+        matches = counts_pattern.findall(final_summary_line)
+
+        passed = 0
+        failed = 0
+        skipped = 0
+        errors = 0
+
+        for count_str, status_str in matches:
+            try:
+                count = int(count_str)
+                if status_str == 'passed':
+                    passed = count
+                elif status_str == 'failed':
+                    failed = count
+                elif status_str == 'skipped':
+                    skipped = count
+                elif status_str == 'error':
+                    errors = count
+            except ValueError:
+                logger.warning(f"Could not parse count '{count_str}' from summary line: {final_summary_line}")
+                # Continue parsing other matches
+
+        total = passed + failed + skipped + errors
+
+        if total == 0 and (passed > 0 or failed > 0 or skipped > 0 or errors > 0):
+             # This case should ideally not happen if parsing is correct, but handle defensively
+             logger.warning(f"Parsed counts ({passed}p, {failed}f, {skipped}s, {errors}e) but total is 0. Summary line: {final_summary_line}")
+             # Attempt to calculate total from counts if the sum was somehow 0
+             total = passed + failed + skipped + errors
+
+
+        status = 'passed' if failed == 0 and errors == 0 and total > 0 else 'failed'
+        if total == 0:
+             status = 'error' # If no tests ran, consider it an error state for parsing
+
+        if total == 0 and not matches:
+             # If no matches were found at all, it's a parsing error
+             logger.warning(f"Could not parse any counts from summary line: {final_summary_line}")
+             return {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Could not parse test results output.'}
+
+
+        results = {
+            'passed': passed,
+            'failed': failed,
+            'total': total,
+            'status': status,
+            'message': 'Parsed successfully.' if status != 'error' else 'Could not parse test results output.'
+        }
+
+        logger.debug(f"Parsed test results: {results}")
+        return results

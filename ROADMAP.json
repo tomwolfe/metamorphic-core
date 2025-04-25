@@ -87,7 +87,7 @@
             "priority": "High",
             "task_name": "Driver: Parse Test Results",
             "description": "Implement logic within `WorkflowDriver` to parse the raw output from test execution (`task_1_6c_exec_tests`) into a structured format (e.g., JSON or dictionary) indicating pass/fail status, number of tests run, number passed/failed. Focus on parsing standard `pytest` output. (Est. Time: 1-2 days)",
-            "status": "Not Started",
+            "status": "Completed",
             "Success Criteria": "Driver can parse standard `pytest` output into a structured result object (e.g., {'passed': 5, 'failed': 1, 'total': 6, 'status': 'failed'}). Parsing logic is robust to common variations. Unit tests for parsing logic are implemented.",
             "Potential Risks": "Complexity in parsing varied test output formats, changes in pytest output format in future versions.",
             "Mitigation": "Start with parsing a fixed, simplified output format, gradually add complexity as needed. Rely on pytest's `--json` output option if available and stable.",

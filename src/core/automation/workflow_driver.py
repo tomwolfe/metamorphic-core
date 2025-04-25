@@ -1,3 +1,4 @@
+# src/core/automation/workflow_driver.py
 # workflow_driver.py
 # src/core/automation/workflow_driver.py
 import logging
@@ -10,6 +11,7 @@ import re
 from unittest.mock import MagicMock
 from src.cli.write_file import write_file  # Ensure write_file is imported
 import subprocess # Import subprocess for execute_tests
+from src.core.agents.code_review_agent import CodeReviewAgent # Import CodeReviewAgent
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,9 @@ class WorkflowDriver:
             spec=MagicMock(),
             ethics_engine=MagicMock()
         )
+        # Instantiate CodeReviewAgent
+        self.code_review_agent = CodeReviewAgent()
+
 
     def start_workflow(self, roadmap_path: str, output_dir: str, context: Context):
         """
@@ -242,6 +247,18 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                                 try:
                                     self._write_output_file(filepath_to_use, merged_content, overwrite=True)
                                     logger.info(f"Successfully wrote merged content to {filepath_to_use}.")
+
+                                    # --- ADDED: Call CodeReviewAgent after successful write ---
+                                    try:
+                                        logger.info(f"Running code review and security scan for {filepath_to_use}...")
+                                        review_results = self.code_review_agent.analyze_python(merged_content)
+                                        logger.info(f"Code Review and Security Scan Results for {filepath_to_use}: {review_results}")
+                                        # Store review_results for later use (e.g., Grade Report)
+                                        # Placeholder: self.current_task_review_results = review_results # Example storage
+                                    except Exception as review_e:
+                                        logger.error(f"Error running code review/security scan for {filepath_to_use}: {review_e}", exc_info=True)
+                                    # --- END ADDED BLOCK ---
+
                                 except FileExistsError:
                                     # This should not happen with overwrite=True, but handle defensively
                                     logger.error(f"Unexpected FileExistsError when writing merged content to {filepath_to_use} with overwrite=True.")
@@ -893,7 +910,7 @@ Requirements:
         if total == 0 and (passed > 0 or failed > 0 or skipped > 0 or errors > 0):
              # This case should ideally not happen if parsing is correct, but handle defensively
              logger.warning(f"Parsed counts ({passed}p, {failed}f, {skipped}s, {errors}e) but total is 0. Summary line: {final_summary_line}")
-             # Attempt to calculate total from counts if the sum was somehow 0
+             # Attempt to calculate total from counts if the sum was somehow zero
              total = passed + failed + skipped + errors
 
 
@@ -916,4 +933,3 @@ Requirements:
         }
 
         logger.debug(f"Parsed test results: {results}")
-        return results

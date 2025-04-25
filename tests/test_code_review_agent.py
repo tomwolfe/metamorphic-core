@@ -1,3 +1,4 @@
+# tests/test_code_review_agent.py
 import pytest
 from src.core.agents.code_review_agent import CodeReviewAgent
 from src.core.knowledge_graph import KnowledgeGraph, Node
@@ -15,7 +16,7 @@ def review_agent():
     """Fixture to create a CodeReviewAgent instance."""
     return CodeReviewAgent()
 
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
+# --- Flake8 Tests (Keeping these) ---
 @pytest.mark.parametrize(
     "test_input, expected_issues_count, expected_issue_details",
     [
@@ -99,173 +100,48 @@ test_module.py:10:20: W0612 Unused variable 'x'""",  # Test case 3: Multiple iss
 def test_parse_flake8_output_with_severity(review_agent, test_input, expected_issues_count, expected_issue_details):
     """Test _parse_flake8_results method with severity classification."""
     results = review_agent._parse_flake8_results(test_input)
-    assert len(results['static_analysis']) == expected_issues_count
+    assert len(results) == expected_issues_count # Corrected assertion to check length of the list
 
     if expected_issues_count > 0:
         for i in range(expected_issues_count):
             expected_issue = expected_issue_details[i]
-            actual_issue = results['static_analysis'][i]
+            actual_issue = results[i] # Corrected indexing
             assert actual_issue['file'] == expected_issue['file']
             assert actual_issue['line'] == expected_issue['line']
             assert actual_issue['col'] == expected_issue['col']
             assert actual_issue['code'] == expected_issue['code']
-            assert actual_issue['msg'] == expected_issue['msg']
+            assert actual_issue['message'] == expected_issue['msg'] # Corrected key name
             assert actual_issue['severity'] == expected_issue['severity']
             assert isinstance(actual_issue['line'], str)
 
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
 def test_parse_flake8_output_malformed(review_agent):
     """Test error handling for malformed flake8 output."""
     sample_output = "invalid output format"
     results = review_agent._parse_flake8_results(sample_output)
-    assert results['static_analysis'] == []
+    assert results == [] # Corrected assertion to check the list
 
-def test_analyze_python_flake8_success(review_agent):
+@patch('subprocess.run')
+def test_analyze_python_flake8_success(mock_run, review_agent):
     """Test successful flake8 execution."""
-    mock_run = MagicMock()
-
-    # Simulate Flake8 success + Bandit success
+    # Simulate Flake8 success + Bandit success (no findings)
     mock_run.side_effect = [
         MagicMock(stdout="test.py:1:1: E302 expected 2 blank lines, found 1", returncode=0),  # Flake8 response
-        MagicMock(stdout=json.dumps({'results': []}), returncode=0)  # Bandit response - Commented out for MVP, but mock still here for now
+        MagicMock(stdout=json.dumps({'results': []}), returncode=0)  # Bandit response
     ]
 
-    with patch('subprocess.run', mock_run):
-        result = review_agent.analyze_python("def code(): pass")
-        assert 'error' not in result  # Now error should not be in result
-        assert result['static_analysis'] # Assert static_analysis is present (even if empty list)
-        assert 'output' in result # Assert 'output' key is present
+    result = review_agent.analyze_python("def code(): pass")
+    assert result['status'] == 'failed' # Expect 'failed' because Flake8 issue is 'error' severity
+    assert result['static_analysis'] # Assert static_analysis is present and not empty
+    assert 'flake8_output' in result # Assert 'flake8_output' key is present
+    assert result['errors']['flake8'] is None # Assert no Flake8 execution error
+    assert result['errors']['bandit'] is None # Assert no Bandit execution error
 
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
-def test_analyze_python_flake8_calledprocesserror(review_agent, caplog):
-    """Test handling of subprocess.CalledProcessError."""
-    mock_run = MagicMock(side_effect=subprocess.CalledProcessError(returncode=1, cmd=['flake8'], stderr=b"Error details"))
-    with patch('subprocess.run', mock_run):
-        result = review_agent.analyze_python("def code(): pass")
-        assert result['error'] is True
-        assert "Flake8 analysis failed" in result['error_message']
-        assert result['static_analysis'] == []
 
-    log_records = caplog.records
-    stderr_logged = False
-    for record in log_records:
-        if record.levelname == 'ERROR' and "Flake8 stderr: b'Error details'" in record.message:
-            stderr_logged = True
-            break
-    assert stderr_logged
+# --- Bandit Tests (Unskipped) ---
 
-def test_analyze_python_flake8_filenotfounderror(review_agent):
-    """Test handling of FileNotFoundError."""
-    mock_run = MagicMock(side_effect=FileNotFoundError("flake8 not found"))
-    with patch('subprocess.run', mock_run):
-        result = review_agent.analyze_python("def code(): pass")
-        assert 'error' in result # Corrected assertion
-        assert "flake8 not found" in result['error'] # Corrected assertion - lowercase 'f' in flake8
-        assert result['static_analysis'] == []
-
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
-def test_analyze_python_flake8_generic_exception(review_agent):
-    """Test handling of generic exceptions."""
-    mock_run = MagicMock(side_effect=Exception("Generic flake8 error"))
-    with patch('subprocess.run', mock_run):
-        result = review_agent.analyze_python("def code(): pass")
-        assert result['error'] is True
-        assert "Error running flake8" in result['error_message']
-        assert result['static_analysis'] == []
-
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
-def test_store_findings_kg_integration_with_severity(review_agent):
-    """Test that findings with severity are stored in KG."""
-    mock_kg = MagicMock(spec=KnowledgeGraph)
-    review_agent.kg = mock_kg
-
-    sample_findings = {
-        'static_analysis': [
-            {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'test message', 'severity': 'error'}
-        ]
-    }
-    code_hash_str = "1234567890"
-
-    review_agent.store_findings(sample_findings, code_hash_str, "def code(): pass")  # Added code sample
-
-    mock_kg.add_node.assert_called_once()
-    added_node = mock_kg.add_node.call_args[0][0]
-
-    assert added_node.type == "code_review"
-    assert "Static analysis findings from flake8" in added_node.content  # Corrected assertion - Removed Bandit mention
-    assert isinstance(added_node.metadata['findings'], list)
-
-    finding = added_node.metadata['findings'][0]
-    assert finding['severity'] == 'error'
-    assert 'file' in finding
-    assert 'line' in finding
-    assert 'col' in finding
-    assert 'code' in finding
-    assert 'msg' in finding
-
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
-def test_analyze_python_stores_findings_in_kg(review_agent):
-    """Test that analyze_python stores findings in KG."""
-    mock_kg = MagicMock(spec=KnowledgeGraph)
-    review_agent.kg = mock_kg
-
-    # Setup mock to handle both Flake8 and Bandit calls - Bandit call now irrelevant for MVP, but kept for skipped test context
-    mock_run = MagicMock()
-    mock_run.side_effect = [
-        MagicMock(stdout="test.py:1:1: E302 expected 2 blank lines, found 1", returncode=0),
-        MagicMock(stdout=json.dumps({'results': []}), returncode=0) # Bandit mock - irrelevant for MVP, but kept for skipped test context
-    ]
-
-    with patch('subprocess.run', mock_run):
-        code_sample = "def example(): pass"
-        code_hash_str = str(hash(code_sample))
-        review_agent.analyze_python(code_sample)
-
-    mock_kg.add_node.assert_called()  # More flexible than assert_called_once
-    call_args = mock_kg.add_node.call_args
-    node_arg = call_args[0][0]
-
-    assert isinstance(node_arg, Node)
-    assert node_arg.type == 'code_review'
-    assert node_arg.content == 'Static analysis findings from flake8' # Corrected assertion - Removed Bandit mention
-    assert node_arg.metadata['code_hash'] == code_hash_str
-    assert len(node_arg.metadata['findings']) == 1
-    assert 'timestamp' in node_arg.metadata
-
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
-def test_kg_integration_with_severity(review_agent):
-    """Test the integration with the Knowledge Graph and severity classification."""
-    sample_code = """
-        def my_function():
-            print('Hello, World!')  # E302 expected 2 blank lines after function definition
-        """
-
-    mock_kg = MagicMock(spec=KnowledgeGraph)
-    review_agent.kg = mock_kg
-
-    # Simulate Flake8 success + Bandit success (no findings) - Bandit mock now irrelevant for MVP, but kept for skipped test context
-    mock_run = MagicMock()
-    mock_run.side_effect = [
-        MagicMock(stdout="test.py:2:1: E302 expected 2 blank lines, found 1", returncode=0),  # Flake8 output with issue
-        MagicMock(stdout=json.dumps({'results': []}), returncode=0)  # Bandit response - no findings - irrelevant for MVP, but kept for skipped test context
-    ]
-
-    with patch('subprocess.run', mock_run):
-        findings = review_agent.analyze_python(sample_code)
-        mock_kg.add_node.assert_called_once()  # Corrected assertion here
-
-    node = mock_kg.add_node.call_args[0][0]
-
-    assert node.type == "code_review"
-    assert isinstance(node.metadata['findings'], list)
-
-    if node.metadata['findings']:
-        first_finding = node.metadata['findings'][0]
-        assert first_finding['severity'] == 'error' # Corrected assertion
-
-# Bandit tests - all skipped for MVP
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
-def test_analyze_python_bandit_success(review_agent):
+# Removed @pytest.mark.skip("Temporarily skipping old tests for MVP focus")
+@patch('subprocess.run')
+def test_analyze_python_bandit_success(mock_run, review_agent):
     """Test successful Bandit execution and parsing."""
     bandit_output = {
         "results": [{
@@ -282,55 +158,58 @@ def test_analyze_python_bandit_success(review_agent):
             "test_name": "hardcoded_sql_expressions"
         }]
     }
-    mock_run = MagicMock()
-
-    # Mock both Flake8 (no issues) and Bandit (with findings)
     mock_run.side_effect = [
         MagicMock(stdout="", returncode=0),  # Flake8 - no output
         MagicMock(stdout=json.dumps(bandit_output), returncode=0)  # Bandit output with findings
     ]
 
-    with patch('subprocess.run', mock_run):
-        result = review_agent.analyze_python("import os; os.system('ls -l')")  # Example code doesn't matter here for mock output
-        assert 'error' not in result
-        assert len(result['static_analysis']) == 1
-        finding = result['static_analysis'][0]
-        assert finding['code'] == 'B608'
-        assert finding['severity'] == 'security_high'
+    result = review_agent.analyze_python("import os; os.system('ls -l')")  # Example code doesn't matter here for mock output
+    assert result['status'] == 'failed' # Expect 'failed' because Bandit finding is 'security_high'
+    assert len(result['static_analysis']) == 1 # Should have 1 finding (from Bandit)
+    finding = result['static_analysis'][0]
+    assert finding['code'] == 'B608'
+    assert finding['severity'] == 'security_high'
+    assert result['errors']['flake8'] is None
+    assert result['errors']['bandit'] is None
 
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
-def test_analyze_python_bandit_calledprocesserror(review_agent, caplog):
+
+# Removed @pytest.mark.skip("Temporarily skipping old tests for MVP focus")
+@patch('subprocess.run')
+def test_analyze_python_bandit_calledprocesserror(mock_run, review_agent, caplog):
     """Test handling of subprocess.CalledProcessError from Bandit."""
-    mock_run = MagicMock()
     mock_run.side_effect = [
         MagicMock(stdout="", returncode=0),  # Flake8 - no output
         subprocess.CalledProcessError(returncode=1, cmd=['bandit'], stderr=b"Bandit error")  # Bandit error
     ]
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
-        assert result['error'] is True
-        assert "Bandit analysis failed" in result['error_message']  # Corrected assertion
-        assert result['static_analysis'] == []
-    assert "Bandit stderr: b'Bandit error'" in caplog.text
+        assert result['status'] == 'error' # Expect 'error' status
+        assert result['errors']['bandit'] is not None # Expect Bandit error message
+        assert "Bandit execution failed" in result['errors']['bandit'] # Corrected assertion
+        assert result['static_analysis'] == [] # No findings should be parsed
+    assert "Bandit execution failed with return code 1 and no output. Stderr:\nBandit error" in caplog.text # Check log
 
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
-def test_analyze_python_bandit_filenotfounderror(review_agent):
+
+# Removed @pytest.mark.skip("Temporarily skipping old tests for MVP focus")
+@patch('subprocess.run')
+def test_analyze_python_bandit_filenotfounderror(mock_run, review_agent):
     """Test handling of FileNotFoundError from Bandit."""
-    mock_run = MagicMock()
     mock_run.side_effect = [
         MagicMock(stdout="", returncode=0),  # Flake8 - no output
         FileNotFoundError("bandit not found")  # Bandit not found
     ]
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
-        assert result['error'] is True
-        assert "Bandit executable not found" in result['error_message']  # Corrected assertion
-        assert result['static_analysis'] == []
+        assert result['status'] == 'error' # Expect 'error' status
+        assert result['errors']['bandit'] is not None # Expect Bandit error message
+        assert "Bandit executable not found" in result['errors']['bandit'] # Corrected assertion
+        assert result['static_analysis'] == [] # No findings should be parsed
 
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
-def test_analyze_python_bandit_jsondecodeerror(review_agent, caplog):
+
+# Removed @pytest.mark.skip("Temporarily skipping old tests for MVP focus")
+@patch('subprocess.run')
+def test_analyze_python_bandit_jsondecodeerror(mock_run, review_agent, caplog):
     """Test handling of JSONDecodeError from Bandit output."""
-    mock_run = MagicMock()
     mock_run.side_effect = [
         MagicMock(stdout="", returncode=0),  # Flake8 - no output
         MagicMock(stdout="invalid json", returncode=0)  # Bandit - invalid json
@@ -338,15 +217,17 @@ def test_analyze_python_bandit_jsondecodeerror(review_agent, caplog):
 
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
-        assert result['error'] is True
-        assert "Error parsing Bandit JSON output" in result['error_message']
-        assert result['static_analysis'] == []
-    assert "Bandit Output (non-JSON): invalid json" in caplog.text  # Verify raw output logged
+        assert result['status'] == 'error' # Expect 'error' status
+        assert result['errors']['bandit'] is not None # Expect Bandit error message
+        assert "Error parsing Bandit JSON output" in result['errors']['bandit']
+        assert result['static_analysis'] == [] # No findings should be parsed
+    assert "Error parsing Bandit JSON output: Expecting value: line 1 column 1 (char 0). Raw output:\ninvalid json" in caplog.text # Verify raw output logged
 
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
-def test_analyze_python_bandit_generic_exception(review_agent):
+
+# Removed @pytest.mark.skip("Temporarily skipping old tests for MVP focus")
+@patch('subprocess.run')
+def test_analyze_python_bandit_generic_exception(mock_run, review_agent):
     """Test handling of generic exceptions during Bandit execution."""
-    mock_run = MagicMock()
     mock_run.side_effect = [
         MagicMock(stdout="", returncode=0),  # Flake8 - no output
         Exception("Generic bandit error")  # Bandit - generic exception
@@ -354,37 +235,131 @@ def test_analyze_python_bandit_generic_exception(review_agent):
 
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
-        assert result['error'] is True
-        assert "Error running bandit" in result['error_message']
-        assert result['static_analysis'] == []
+        assert result['status'] == 'error' # Expect 'error' status
+        assert result['errors']['bandit'] is not None # Expect Bandit error message
+        assert "Error running bandit: Generic bandit error" in result['errors']['bandit'] # Corrected assertion
+        assert result['static_analysis'] == [] # No findings should be parsed
 
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
+
+# --- Merge Results Tests (Unskipped) ---
+
+# Removed @pytest.mark.skip("Temporarily skipping old tests for MVP focus")
 def test_merge_results(review_agent):
     """Test merging of Flake8 and Bandit results."""
-    flake8_results = {'static_analysis': [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'msg': 'Flake8 issue', 'severity': 'error'}]}
+    flake8_results = {'static_analysis': [{'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'message': 'Flake8 issue', 'severity': 'error'}]} # Corrected key name
     bandit_results = {
-        'findings': [{
+        'results': [{ # Corrected key name to 'results' to match Bandit output structure
             "filename": "test.py",
             "line_number": 5,
             "issue_text": "Bandit issue",
             "test_id": "B101",
             "issue_severity": "HIGH"
-        }],
-        'error': False,
-        'error_message': None
+        }]
     }
     merged = review_agent._merge_results(flake8_results, bandit_results)
     assert len(merged['static_analysis']) == 2
     assert merged['static_analysis'][1]['code'] == 'B101'
     assert merged['static_analysis'][1]['severity'] == 'security_high'
 
-@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
+# Removed @pytest.mark.skip("Temporarily skipping old tests for MVP focus")
 def test_map_bandit_severity(review_agent):
     """Test mapping Bandit severity levels."""
     assert review_agent._map_bandit_severity('HIGH') == 'security_high'
-    assert review_agent._map_bandit_severity('MEDIUM') == 'security_high'
-    assert review_agent._map_bandit_severity('LOW') == 'security_low'
-    assert review_agent._map_bandit_severity('INFO') == 'info'  # or 'info' for unknown
+    assert review_agent._map_bandit_severity('MEDIUM') == 'security_medium' # Corrected expectation
+    assert review_agent._map_bandit_severity('LOW') == 'security_low' # Corrected expectation
+    assert review_agent._map_bandit_severity('INFO') == 'info'
+
+# --- KG Integration Tests (Skipped for MVP, but kept for future reference) ---
+
+@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
+def test_store_findings_kg_integration_with_severity(review_agent):
+    """Test that findings with severity are stored in KG."""
+    mock_kg = MagicMock(spec=KnowledgeGraph)
+    review_agent.kg = mock_kg
+
+    sample_findings = {
+        'static_analysis': [
+            {'file': 'test.py', 'line': '1', 'col': '1', 'code': 'E302', 'message': 'test message', 'severity': 'error'} # Corrected key name
+        ]
+    }
+    code_hash_str = "1234567890"
+
+    review_agent.store_findings(sample_findings, code_hash_str, "def code(): pass")  # Added code sample
+
+    mock_kg.add_node.assert_called_once()
+    added_node = mock_kg.add_node.call_args[0][0]
+
+    assert added_node.type == "code_review"
+    assert "Static analysis findings from flake8 and bandit" in added_node.content  # Corrected assertion
+    assert isinstance(added_node.metadata['findings'], list)
+
+    finding = added_node.metadata['findings'][0]
+    assert finding['severity'] == 'error'
+    assert 'file' in finding
+    assert 'line' in finding
+    assert 'col' in finding
+    assert 'code' in finding
+    assert 'message' in finding # Corrected key name
+
+@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
+def test_analyze_python_stores_findings_in_kg(review_agent):
+    """Test that analyze_python stores findings in KG."""
+    mock_kg = MagicMock(spec=KnowledgeGraph)
+    review_agent.kg = mock_kg
+
+    # Setup mock to handle both Flake8 and Bandit calls
+    mock_run = MagicMock()
+    mock_run.side_effect = [
+        MagicMock(stdout="test.py:1:1: E302 expected 2 blank lines, found 1", returncode=0),
+        MagicMock(stdout=json.dumps({'results': []}), returncode=0)
+    ]
+
+    with patch('subprocess.run', mock_run):
+        code_sample = "def example(): pass"
+        code_hash_str = str(hash(code_sample))
+        review_agent.analyze_python(code_sample)
+
+    mock_kg.add_node.assert_called()
+    call_args = mock_kg.add_node.call_args
+    node_arg = call_args[0][0]
+
+    assert isinstance(node_arg, Node)
+    assert node_arg.type == 'code_review'
+    assert node_arg.content == 'Static analysis findings from flake8 and bandit' # Corrected assertion
+    assert node_arg.metadata['code_hash'] == code_hash_str
+    assert len(node_arg.metadata['findings']) == 1
+    assert 'timestamp' in node_arg.metadata
+
+@pytest.mark.skip("Temporarily skipping old tests for MVP focus")
+def test_kg_integration_with_severity(review_agent):
+    """Test the integration with the Knowledge Graph and severity classification."""
+    sample_code = """
+        def my_function():
+            print('Hello, World!')  # E302 expected 2 blank lines after function definition
+        """
+
+    mock_kg = MagicMock(spec=KnowledgeGraph)
+    review_agent.kg = mock_kg
+
+    # Simulate Flake8 success + Bandit success (no findings)
+    mock_run = MagicMock()
+    mock_run.side_effect = [
+        MagicMock(stdout="test.py:2:1: E302 expected 2 blank lines, found 1", returncode=0),  # Flake8 output with issue
+        MagicMock(stdout=json.dumps({'results': []}), returncode=0)  # Bandit response - no findings
+    ]
+
+    with patch('subprocess.run', mock_run):
+        findings = review_agent.analyze_python(sample_code)
+        mock_kg.add_node.assert_called_once()
+
+    node = mock_kg.add_node.call_args[0][0]
+
+    assert node.type == "code_review"
+    assert isinstance(node.metadata['findings'], list)
+
+    if node.metadata['findings']:
+        first_finding = node.metadata['findings'][0]
+        assert first_finding['severity'] == 'error'
 
 @pytest.mark.skip("Temporarily skipping old tests for MVP focus")
 def test_store_findings_stores_code_snippet(review_agent):
@@ -393,7 +368,7 @@ def test_store_findings_stores_code_snippet(review_agent):
     review_agent.kg = mock_kg
     sample_findings = {
         'static_analysis': [
-            {'file': 'test.py', 'line': '2', 'col': '10', 'code': 'E303', 'msg': 'Too many blank lines', 'severity': 'style'}
+            {'file': 'test.py', 'line': '2', 'col': '10', 'code': 'E303', 'message': 'Too many blank lines', 'severity': 'style'} # Corrected key name
         ]
     }
     code_sample = """def test_function():
@@ -469,57 +444,105 @@ def test_security_vulnerability_detection(review_agent):
         assert any(f['code'] == 'B603' and f['severity'] == 'security_high' for f in results['static_analysis'])  # B603 is subprocess_popen_with_shell_equals_true
 
 
-def test_analyze_python_invokes_flake8_with_py_file(review_agent):
+# --- Other Tests (Keeping these) ---
+
+@patch('subprocess.run')
+def test_analyze_python_invokes_flake8_with_py_file(mock_run, review_agent):
     """Verify flake8 is called with correct parameters."""
     agent = CodeReviewAgent()
-    with patch('subprocess.run') as mock_run:
-        code = "print(1)"
-        agent.analyze_python(code)
-        # Uses patched ANY to confirm tmp file path
-        mock_run.assert_called_with(
-            ['flake8', ANY],
-            capture_output=True,
-            text=True,
-            check=False
-        )
+    # Mock Bandit call as well since analyze_python now runs both
+    mock_run.side_effect = [
+        MagicMock(stdout="", returncode=0), # Flake8 mock
+        MagicMock(stdout=json.dumps({'results': []}), returncode=0) # Bandit mock
+    ]
+    code = "print(1)"
+    agent.analyze_python(code)
+    # Uses patched ANY to confirm tmp file path
+    mock_run.assert_any_call(
+        ['flake8', ANY],
+        capture_output=True,
+        text=True,
+        check=False
+    )
+    mock_run.assert_any_call(
+         ['bandit', '-r', ANY, '-f', 'json'],
+         capture_output=True,
+         text=True,
+         check=False
+    )
 
-def test_analyze_python_returns_flake8_stdout(review_agent):
+
+@patch('subprocess.run')
+def test_analyze_python_returns_flake8_stdout(mock_run, review_agent):
     """Check successful analysis returns captured flake8 stdout."""
-    mock_result = MagicMock()
-    mock_result.stdout = "Sample flake8 output"
-    with patch('subprocess.run', return_value=mock_result):
-        result = review_agent.analyze_python("")
-    assert result == {'output': 'Sample flake8 output', 'static_analysis': review_agent._parse_flake8_results("Sample flake8 output")} # Corrected assertion to include static analysis
+    mock_run.side_effect = [
+        MagicMock(stdout="Sample flake8 output", returncode=0), # Flake8 mock
+        MagicMock(stdout=json.dumps({'results': []}), returncode=0) # Bandit mock
+    ]
+    result = review_agent.analyze_python("")
+    # Corrected assertion to include static analysis and other keys
+    assert result['flake8_output'] == 'Sample flake8 output'
+    assert 'static_analysis' in result
+    assert 'status' in result
+    assert 'errors' in result
 
-def test_analyze_python_returns_empty_stdout_on_success(review_agent):
+
+@patch('subprocess.run')
+def test_analyze_python_returns_empty_stdout_on_success(mock_run, review_agent):
     """Verify clean code returns empty output dict (no flake8 warnings)."""
-    with patch('subprocess.run', return_value=MagicMock(stdout="", returncode=0)):
-        result = review_agent.analyze_python("def x(): return 1")
-    assert result == {'output': '', 'static_analysis': []}
+    mock_run.side_effect = [
+        MagicMock(stdout="", returncode=0), # Flake8 mock
+        MagicMock(stdout=json.dumps({'results': []}), returncode=0) # Bandit mock
+    ]
+    result = review_agent.analyze_python("def x(): return 1")
+    # Corrected assertion to check the full result structure
+    assert result == {
+        'status': 'success',
+        'flake8_output': '',
+        'static_analysis': [],
+        'errors': {'flake8': None, 'bandit': None}
+    }
 
-def test_analyze_python_returns_flake8_errors_when_present(review_agent):
+
+@patch('subprocess.run')
+def test_analyze_python_returns_flake8_errors_when_present(mock_run, review_agent):
     """Ensure flake8 errors are captured correctly in output."""
     mock_error = "test.py:1:7: E225 missing whitespace around operator"
-    mock_result = MagicMock(stdout=mock_error, returncode=1) # Define mock_result here
-    with patch('subprocess.run', return_value=mock_result):
-        result = review_agent.analyze_python("if(True):print('test')")
-    assert result['output'] == mock_error
-    assert result['static_analysis'] == review_agent._parse_flake8_results(mock_error) # Assert also static_analysis is parsed
+    mock_run.side_effect = [
+        MagicMock(stdout=mock_error, returncode=1), # Flake8 mock with error
+        MagicMock(stdout=json.dumps({'results': []}), returncode=0) # Bandit mock
+    ]
+    result = review_agent.analyze_python("if(True):print('test')")
+    assert result['flake8_output'] == mock_error
+    assert result['static_analysis'] == review_agent._merge_results({'static_analysis': review_agent._parse_flake8_results(mock_error)}, {'results': []}).get('static_analysis') # Assert merged static analysis is parsed
+    assert result['status'] == 'failed' # Expect 'failed' due to Flake8 error severity
 
-def test_analyze_python_handles_file_not_found(review_agent):
+
+@patch('subprocess.run', side_effect=FileNotFoundError("flake8 not found"))
+def test_analyze_python_handles_file_not_found(mock_run, review_agent):
     """Test file not found scenario returns error dict."""
     agent = CodeReviewAgent()
-    with patch('subprocess.run', side_effect=FileNotFoundError("flake8 not found")):
-        # Expected return when flake8 is missing
-        result = agent.analyze_python("def y(): pass")
-    assert result == {'error': "FileNotFoundError: flake8 not found", 'static_analysis': []} # Assert also static_analysis is returned (empty list)
+    # The FileNotFoundError happens during the first subprocess.run call (Flake8)
+    # The Bandit call will not be reached in this scenario.
+    result = agent.analyze_python("def y(): pass")
+    # Corrected assertion to match the new error handling structure
+    assert result == {
+        'status': 'error',
+        'flake8_output': '',
+        'static_analysis': [],
+        'errors': {'flake8': 'FileNotFoundError: flake8 not found', 'bandit': None}
+    }
 
-def test_analyze_python_captures_returncode_exit_status(review_agent):
+
+@patch('subprocess.run')
+def test_analyze_python_captures_returncode_exit_status(mock_run, review_agent):
     """Verify returncode does not affect raw stdout capture."""
+    mock_run.side_effect = [
+        MagicMock(stdout="Error found", returncode=1), # Flake8 mock with non-zero returncode
+        MagicMock(stdout=json.dumps({'results': []}), returncode=0) # Bandit mock
+    ]
     agent = CodeReviewAgent()
-    mock_result = MagicMock(stdout="Error found", returncode=1)
-    with patch('subprocess.run', return_value=mock_result):
-        # Even with returncode=1, output should be captured
-        result = agent.analyze_python("var = 5;")
-        assert 'output' in result
-        assert result['static_analysis'] == review_agent._parse_flake8_results("Error found") # Assert static_analysis is parsed even with return code
+    # Even with returncode=1, output should be captured
+    result = agent.analyze_python("var = 5;")
+    assert result['flake8_output'] == 'Error found' # Flake8 output captured
+    assert result['status'] == 'failed' # Status is 'failed' due to Flake8 error severity

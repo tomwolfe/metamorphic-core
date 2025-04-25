@@ -13,6 +13,7 @@ from pathlib import Path
 import json
 from unittest.mock import MagicMock, patch, ANY # Import ANY
 import re # Import re for plan parsing tests
+from src.core.agents.code_review_agent import CodeReviewAgent # Import CodeReviewAgent for mocking
 
 # Set up logging for tests
 # Use basicConfig only if no handlers are already configured
@@ -30,12 +31,21 @@ METAMORPHIC_INSERT_POINT = "# METAMORPHIC_INSERT_POINT"
 @pytest.fixture
 def test_driver(tmp_path):
     context = Context(str(tmp_path))
-    driver = WorkflowDriver(context)
-    # Replace the real orchestrator with a mock
-    driver.llm_orchestrator = MagicMock()
-    # Default mock return for generate, can be overridden in tests
-    driver.llm_orchestrator.generate.return_value = "Test response from LLM"
-    return driver
+    # Patch the CodeReviewAgent instantiation within the fixture setup
+    with patch('src.core.automation.workflow_driver.CodeReviewAgent') as MockCodeReviewAgent:
+        mock_code_review_agent_instance = MockCodeReviewAgent.return_value
+        driver = WorkflowDriver(context)
+        # Replace the real orchestrator with a mock
+        driver.llm_orchestrator = MagicMock()
+        # Default mock return for generate, can be overridden in tests
+        driver.llm_orchestrator.generate.return_value = "Test response from LLM"
+        # Ensure the driver instance uses the mocked CodeReviewAgent
+        driver.code_review_agent = mock_code_review_agent_instance
+        yield {
+            'driver': driver,
+            'mock_code_review_agent': mock_code_review_agent_instance
+        }
+
 
 def create_mock_roadmap_file(content, tmp_path, is_json=True):
     """Creates a mock roadmap file in the temporary directory."""
@@ -55,14 +65,15 @@ class TestWorkflowDriver:
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/") # Mock path resolution
     def test_start_workflow_sets_attributes_and_calls_loop(self, mock_get_full_path, mock_load_roadmap, test_driver, tmp_path, mocker):
         """Test that start_workflow correctly sets attributes and calls autonomous_loop."""
-        mock_autonomous_loop = mocker.patch.object(test_driver, 'autonomous_loop')
+        driver = test_driver['driver']
+        mock_autonomous_loop = mocker.patch.object(driver, 'autonomous_loop')
         mock_context = Context(str(tmp_path)) # Use a distinct context instance
 
-        test_driver.start_workflow("path/to/roadmap.json", str(tmp_path / "output"), mock_context)
+        driver.start_workflow("path/to/roadmap.json", str(tmp_path / "output"), mock_context)
 
-        assert test_driver.roadmap_path == "path/to/roadmap.json"
-        assert test_driver.output_dir == str(tmp_path / "output")
-        assert test_driver.context is mock_context # Use 'is' to check identity
+        assert driver.roadmap_path == "path/to/roadmap.json"
+        assert driver.output_dir == str(tmp_path / "output")
+        assert driver.context is mock_context # Use 'is' to check identity
 
         # Context.get_full_path should be called once for the roadmap path in start_workflow
         mock_get_full_path.assert_called_once_with("path/to/roadmap.json")
@@ -75,14 +86,15 @@ class TestWorkflowDriver:
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/") # Mock path resolution
     def test_start_workflow_with_empty_strings(self, mock_get_full_path, mock_load_roadmap, test_driver, tmp_path, mocker):
         """Test start_workflow handles empty string inputs."""
-        mock_autonomous_loop = mocker.patch.object(test_driver, 'autonomous_loop')
+        driver = test_driver['driver']
+        mock_autonomous_loop = mocker.patch.object(driver, 'autonomous_loop')
         mock_context = Context(str(tmp_path))
 
-        test_driver.start_workflow("", "", mock_context)
+        driver.start_workflow("", "", mock_context)
 
-        assert test_driver.roadmap_path == ""
-        assert test_driver.output_dir == ""
-        assert test_driver.context == mock_context # Use 'is' to check identity
+        assert driver.roadmap_path == ""
+        assert driver.output_dir == ""
+        assert driver.context == mock_context # Use 'is' to check identity
         # Context.get_full_path should be called once for the empty roadmap path
         mock_get_full_path.assert_called_once_with("")
         # load_roadmap is called with the resolved empty path
@@ -95,24 +107,25 @@ class TestWorkflowDriver:
     def test_start_workflow_with_none(self, mock_get_full_path, mock_load_roadmap, test_driver, tmp_path, mocker, caplog):
         """Test start_workflow handles None roadmap_path gracefully (load fails internally, loop runs with empty tasks)."""
         caplog.set_level(logging.ERROR) # Capture load_roadmap error log
+        driver = test_driver['driver']
 
-        mock_autonomous_loop = mocker.patch.object(test_driver, 'autonomous_loop')
+        mock_autonomous_loop = mocker.patch.object(driver, 'autonomous_loop')
         mock_context_passed_in = Context(str(tmp_path)) # This is the context we pass in
 
-        test_driver.start_workflow(None, None, mock_context_passed_in)
+        driver.start_workflow(None, None, mock_context_passed_in)
 
-        assert test_driver.roadmap_path is None
-        assert test_driver.output_dir is None
+        assert driver.roadmap_path is None
+        assert driver.output_dir is None
 
         # Context.get_full_path should be called once for the None roadmap path
         mock_get_full_path.assert_called_once_with(None)
         # load_roadmap should NOT be called because get_full_path returned None
         mock_load_roadmap.assert_not_called()
-        assert test_driver.tasks == [] # tasks remains the default empty list
+        assert driver.tasks == [] # tasks remains the default empty list
 
         # Assert that the context was set to the one passed in, checking equality (same base_path)
         # Using 'is' might fail if the fixture's context is somehow re-created or copied.
-        assert test_driver.context == mock_context_passed_in
+        assert driver.context == mock_context_passed_in
 
         # autonomous_loop should NOT be called because start_workflow returned early
         mock_autonomous_loop.assert_not_called()
@@ -125,11 +138,12 @@ class TestWorkflowDriver:
     def test_autonomous_loop_basic_logging(self, mock_get_full_path, mock_load_roadmap, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop logs the start and end messages when no tasks are available."""
         caplog.set_level(logging.INFO)
-        test_driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
+        driver = test_driver['driver']
+        driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
 
         # Call start_workflow instead of autonomous_loop directly
         # Provide dummy paths, as load_roadmap is mocked
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         # Assertions remain the same, but now they should pass because autonomous_loop is reached
         assert 'Starting autonomous loop iteration' in caplog.text
@@ -139,11 +153,11 @@ class TestWorkflowDriver:
         # Plus once in start_workflow = 3 calls
         # FIX: Expected 2 calls when loop runs once
         assert mock_load_roadmap.call_count == 2
-        mock_load_roadmap.assert_any_call(f"/resolved/{test_driver.roadmap_path}")
+        mock_load_roadmap.assert_any_call(f"/resolved/{driver.roadmap_path}")
         # get_full_path is called three times (once in start, twice in loop)
         # FIX: Expected 2 calls when loop runs once
         assert mock_get_full_path.call_count == 2
-        mock_get_full_path.assert_any_call(test_driver.roadmap_path)
+        mock_get_full_path.assert_any_call(driver.roadmap_path)
 
 
     # MODIFIED: Adjust assertions for load_roadmap call count and arguments
@@ -157,21 +171,22 @@ class TestWorkflowDriver:
     def test_autonomous_loop_task_selected_logging(self, mock_get_full_path, mock_load_roadmap, mock_generate_plan, mock_select_next_task, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop logs the selected task ID when a task is found and then exits."""
         caplog.set_level(logging.INFO)
-        test_driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
+        driver = test_driver['driver']
+        driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
 
         # Call start_workflow instead of autonomous_loop directly
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         # select_next_task should be called twice (once finds task, second finds none)
         assert mock_select_next_task.call_count == 2
         # load_roadmap should be called twice in the loop + once in start_workflow = 3 calls
         assert mock_load_roadmap.call_count == 3
-        mock_load_roadmap.assert_any_call(f"/resolved/{test_driver.roadmap_path}") # load_roadmap is called with the resolved path
+        mock_load_roadmap.assert_any_call(f"/resolved/{driver.roadmap_path}") # load_roadmap is called with the resolved path
         # select_next_task should be called with the tasks returned by load_roadmap
         mock_select_next_task.assert_any_call(mock_load_roadmap.return_value)
         # get_full_path is called three times
         assert mock_get_full_path.call_count == 3
-        mock_get_full_path.assert_any_call(test_driver.roadmap_path)
+        mock_get_full_path.assert_any_call(driver.roadmap_path)
 
 
         assert 'Starting autonomous loop iteration' in caplog.text
@@ -186,18 +201,19 @@ class TestWorkflowDriver:
     def test_autonomous_loop_no_task_logging(self, mock_get_full_path, mock_load_roadmap, mock_select_next_task, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop logs the 'No tasks available' message when no task is found."""
         caplog.set_level(logging.INFO)
-        test_driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
+        driver = test_driver['driver']
+        driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
 
         # Call start_workflow instead of autonomous_loop directly
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         mock_select_next_task.assert_called_once_with(mock_load_roadmap.return_value)
         # load_roadmap should be called twice (once at start, once per iteration)
         assert mock_load_roadmap.call_count == 2
-        mock_load_roadmap.assert_any_call(f"/resolved/{test_driver.roadmap_path}")
+        mock_load_roadmap.assert_any_call(f"/resolved/{driver.roadmap_path}")
         # get_full_path is called twice
         assert mock_get_full_path.call_count == 2
-        mock_get_full_path.assert_any_call(test_driver.roadmap_path)
+        mock_get_full_path.assert_any_call(driver.roadmap_path)
 
 
         assert 'Starting autonomous loop iteration' in caplog.text
@@ -213,6 +229,7 @@ class TestWorkflowDriver:
     # MODIFIED: Update assertions to match the new prompt format for snippet generation
     # MODIFIED: Change plan step phrasing to trigger needs_coder_llm
     # MODIFIED: Add mock for _merge_snippet
+    # NEW: Add assertions for CodeReviewAgent call
     @patch.object(WorkflowDriver, '_write_output_file') # Mock to prevent file writes
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True") # Mock LLM to return generated code
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/feature.py"]) # Step is both code gen + file write
@@ -228,10 +245,13 @@ class TestWorkflowDriver:
     def test_autonomous_loop_calls_write_file_with_generated_content(self, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop calls _write_output_file with generated content when step is code gen + file write."""
         caplog.set_level(logging.INFO) # Keep INFO
-        test_driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
+        driver = test_driver['driver']
+        mock_code_review_agent = test_driver['mock_code_review_agent'] # Get the mock agent
+
+        driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
 
         # Call start_workflow instead of autonomous_loop directly
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         # _read_file_for_context should be called once before invoking LLM
         mock_read_file_for_context.assert_called_once_with("src/feature.py")
@@ -255,12 +275,19 @@ class TestWorkflowDriver:
         # _write_output_file should be called once with the merged content and overwrite=True
         mock_write_output_file.assert_called_once_with("src/feature.py", mock_merge_snippet.return_value, overwrite=True)
 
+        # NEW: Verify CodeReviewAgent.analyze_python was called after _write_output_file
+        mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
+
         # Check log messages
         assert "Step identified as code generation for file src/feature.py. Orchestrating read-generate-merge-write." in caplog.text # Updated step text
         assert "Coder LLM generated snippet (first 100 chars):" in caplog.text
         # Check the new log indicating merging and writing
         assert "Attempting to write merged content to src/feature.py." in caplog.text # Corrected assertion string
         assert "Successfully wrote merged content to src/feature.py." in caplog.text # Added assertion
+        # NEW: Check log for code review execution
+        assert "Running code review and security scan for src/feature.py..." in caplog.text
+        assert f"Code Review and Security Scan Results for src/feature.py: {mock_code_review_agent.analyze_python.return_value}" in caplog.text
+
         # Ensure the old "Generated code snippet for ... Merging/Writing will be handled by subsequent steps." log does NOT appear
         assert "Generated code snippet for src/feature.py. Merging/Writing will be handled by subsequent steps." not in caplog.text
         # Ensure the incorrect "Step identified as file writing (from LLM)..." log does NOT appear
@@ -270,7 +297,7 @@ class TestWorkflowDriver:
         # load_roadmap should be called twice
         # FIX: Expected 3 calls
         assert mock_load_roadmap.call_count == 3
-        mock_load_roadmap.assert_any_call(f"/resolved/{test_driver.roadmap_path}")
+        mock_load_roadmap.assert_any_call(f"/resolved/{driver.roadmap_path}")
         # get_full_path should be called multiple times (roadmap loading/reloading, _read_file_for_context)
         # _read_file_for_context calls get_full_path once.
         # So get_full_path is called for roadmap (2x) + src/feature.py (1x in read) = 3
@@ -278,7 +305,7 @@ class TestWorkflowDriver:
         # The test mocks _read_file_for_context and _write_output_file, preventing the calls to get_full_path inside them.
         # Calls are: start_workflow (roadmap), loop iter 1 (roadmap), loop iter 2 (roadmap). Total 3.
         assert mock_get_full_path.call_count == 3 # FIX: Changed from 4 to 3
-        mock_get_full_path.assert_any_call(test_driver.roadmap_path)
+        mock_get_full_path.assert_any_call(driver.roadmap_path)
         # mock_get_full_path.assert_any_call('src/feature.py') # This call doesn't happen because _read is mocked
 
 
@@ -286,6 +313,7 @@ class TestWorkflowDriver:
     # MODIFIED: Mock src.cli.write_file.write_file instead of WorkflowDriver._write_output_file
     # CORRECTED MOCK ARGUMENT ORDER
     # MODIFIED: Add mock for _merge_snippet (even though it won't be called in this specific test scenario)
+    # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
     @patch.object(WorkflowDriver, '_write_output_file') # Mock to prevent file writes
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True") # Mock LLM to return generated code
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/feature.py"]) # Step is both code gen + file write
@@ -301,13 +329,16 @@ class TestWorkflowDriver:
     def test_autonomous_loop_reads_existing_file_content(self, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop reads existing file content and includes it in the LLM prompt."""
         caplog.set_level(logging.INFO) # Keep INFO
-        test_driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
+        driver = test_driver['driver']
+        mock_code_review_agent = test_driver['mock_code_review_agent'] # Get the mock agent
+
+        driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
 
         # PATCH OPEN AND CONTEXT.GET_FULL_PATH HERE
         # mock_open = mocker.mock_open(read_data="Existing file content") # Not needed anymore, mocking _read_file_for_context
         # Mock get_full_path to return different resolved paths based on input
         def get_full_path_side_effect(path):
-            if path == test_driver.roadmap_path:
+            if path == driver.roadmap_path:
                 return f"/resolved/{path}"
             elif path == "src/feature.py":
                 return "/app/src/feature.py" # Simulate a resolved path
@@ -318,7 +349,7 @@ class TestWorkflowDriver:
         # mocker.patch('builtins.open', mock_open) # Not needed anymore
 
         # Call start_workflow instead of autonomous_loop directly
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         # _read_file_for_context should be called once before invoking LLM
         mock_read_file_for_context.assert_called_once_with("src/feature.py")
@@ -336,7 +367,7 @@ class TestWorkflowDriver:
         # The test mocks _read_file_for_context and _write_output_file, preventing the calls to get_full_path inside it.
         # Calls are: start_workflow (roadmap), loop iter 1 (roadmap), loop iter 2 (roadmap). Total 3.
         assert mock_get_full_path.call_count == 3 # FIX: Changed from 4 to 3
-        mock_get_full_path.assert_any_call(test_driver.roadmap_path)
+        mock_get_full_path.assert_any_call(driver.roadmap_path)
         # mock_get_full_path.assert_any_call('src/feature.py') # This call doesn't happen because _read is mocked
 
 
@@ -361,12 +392,19 @@ class TestWorkflowDriver:
         # _write_output_file should be called once with the merged content and overwrite=True
         mock_write_output_file.assert_called_once_with("src/feature.py", mock_merge_snippet.return_value, overwrite=True)
 
+        # NEW: Verify CodeReviewAgent.analyze_python was called after _write_output_file
+        mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
+
         # Check log messages
         assert "Step identified as code generation for file src/feature.py. Orchestrating read-generate-merge-write." in caplog.text # Updated step text
         assert "Coder LLM generated snippet (first 100 chars):" in caplog.text
         # Check the new log indicating merging and writing
         assert "Attempting to write merged content to src/feature.py." in caplog.text # Corrected assertion string
         assert "Successfully wrote merged content to src/feature.py." in caplog.text # Added assertion
+        # NEW: Check log for code review execution
+        assert "Running code review and security scan for src/feature.py..." in caplog.text
+        assert f"Code Review and Security Scan Results for src/feature.py: {mock_code_review_agent.analyze_python.return_value}" in caplog.text
+
         # Ensure the old "Generated code snippet for ... Merging/Writing will be handled by subsequent steps." log does NOT appear
         assert "Generated code snippet for src/feature.py. Merging/Writing will be handled by subsequent steps." not in caplog.text
         # Ensure the incorrect "Step identified as file writing (from LLM)..." log does NOT appear
@@ -376,13 +414,14 @@ class TestWorkflowDriver:
         # load_roadmap should be called twice
         # FIX: Expected 3 calls
         assert mock_load_roadmap.call_count == 3
-        mock_load_roadmap.assert_any_call(f"/resolved/{test_driver.roadmap_path}")
+        mock_load_roadmap.assert_any_call(f"/resolved/{driver.roadmap_path}")
 
 
     # MODIFIED: Adjust assertions for load_roadmap and get_full_path calls, and _write_output_file call count
     # MODIFIED: Mock src.cli.write_file.write_file instead of WorkflowDriver._write_output_file
     # CORRECTED MOCK ARGUMENT ORDER
     # MODIFIED: Add mock for _merge_snippet (even though it won't be called in this specific test scenario)
+    # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
     @patch.object(WorkflowDriver, '_write_output_file', side_effect=Exception("Generic write error"))
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value=None)
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to error.txt", "Step 2: Another step."])
@@ -395,18 +434,26 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_merge_snippet') # Mock the new merge method (won't be called)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     # CORRECTED ARGUMENT ORDER TO MATCH PATCHES (BOTTOM-UP)
+    # NEW: Add caplog fixture
     def test_autonomous_loop_handles_generic_write_file_exceptions(self, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock__write_output_file, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop handles generic exceptions from _write_output_file gracefully."""
         caplog.set_level(logging.INFO)
-        test_driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
+        driver = test_driver['driver']
+        mock_code_review_agent = test_driver['mock_code_review_agent'] # Get the mock agent
+
+        driver.roadmap_path = "dummy_roadmap.json" # Set roadmap_path on the driver
 
         # Call start_workflow instead of autonomous_loop directly
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         # _read_file_for_context should NOT be called (only called before LLM invocation)
         mock_read_file_for_context.assert_not_called()
         # _merge_snippet should NOT be called (only called after LLM invocation)
         mock_merge_snippet.assert_not_called()
+        # _invoke_coder_llm should NOT be called (not a code gen step)
+        mock_invoke_coder_llm.assert_not_called()
+        # CodeReviewAgent should NOT be called (only called after successful code write)
+        mock_code_review_agent.analyze_python.assert_not_called()
 
         # _write_output_file should be called twice (once for each step)
         # FIX: Assert on mock__write_output_file
@@ -423,7 +470,7 @@ class TestWorkflowDriver:
         # load_roadmap should be called twice
         # FIX: Expected 3 calls
         assert mock_load_roadmap.call_count == 3
-        mock_load_roadmap.assert_any_call(f"/resolved/{test_driver.roadmap_path}")
+        mock_load_roadmap.assert_any_call(f"/resolved/{driver.roadmap_path}")
         # get_full_path should be called multiple times (roadmap loading/reloading, _write_output_file * 2)
         # _write_output_file calls get_full_path once, then write_file
         # So get_full_path is called for roadmap (2x) + error.txt (2x) = 4
@@ -432,7 +479,7 @@ class TestWorkflowDriver:
         # The test mocks _write_output_file, preventing the calls to get_full_path inside it.
         # Calls are: start_workflow (roadmap), loop iter 1 (roadmap), loop iter 2 (roadmap). Total 3.
         assert mock_get_full_path.call_count == 3 # FIX: Changed from 4 to 3
-        mock_get_full_path.assert_any_call(test_driver.roadmap_path)
+        mock_get_full_path.assert_any_call(driver.roadmap_path)
         # mock_get_full_path.assert_any_call('error.txt') # This call doesn't happen because _write_output_file is mocked
 
 
@@ -442,6 +489,7 @@ class TestWorkflowDriver:
     ):
         """Test writing to a read-only directory (PermissionError)."""
         caplog.set_level(logging.ERROR)
+        driver = test_driver['driver']
         dir_name = "readonly_dir"
         filepath = f"{dir_name}/test.txt" # Use relative path
         full_dir_path = tmp_path / dir_name
@@ -453,7 +501,7 @@ class TestWorkflowDriver:
         with patch.object(Context, 'get_full_path', return_value=str(full_filepath.resolve())) as mock_get_full_path:
              # Mock write_file to raise PermissionError
              with patch('src.core.automation.workflow_driver.write_file', side_effect=PermissionError("Permission denied")) as mock_write_file: # CORRECTED PATCH TARGET
-                 result = test_driver._write_output_file(filepath, "Test content")
+                 result = driver._write_output_file(filepath, "Test content")
                  assert result is False
                  # FIX: Update assertion string to match actual log
                  assert "Permission denied" in caplog.text
@@ -472,6 +520,7 @@ class TestWorkflowDriver:
     ):
         """Test overwrite=True successfully replaces existing file content."""
         caplog.set_level(logging.INFO) # Capture success log
+        driver = test_driver['driver']
         filepath = "overwrite_test.txt" # Use relative path
         full_path = str(tmp_path / filepath)
         initial_content = "original content"
@@ -479,7 +528,7 @@ class TestWorkflowDriver:
         Path(full_path).write_text(initial_content)
         # Mock Context.get_full_path to return the resolved path
         with patch.object(Context, 'get_full_path', return_value=full_path) as mock_get_full_path:
-             result = test_driver._write_output_file(filepath, new_content, overwrite=True)
+             result = driver._write_output_file(filepath, new_content, overwrite=True)
              assert result is True
              assert Path(full_path).read_text() == new_content
              # FIX: Update assertion string to match actual log from write_file
@@ -494,13 +543,14 @@ class TestWorkflowDriver:
         # The Context.get_full_path method is responsible for resolving paths safely.
         # We mock it here to simulate an injection attempt and verify the driver handles the failed resolution.
         caplog.set_level(logging.ERROR) # Set level to capture the security error log
+        driver = test_driver['driver']
 
         # Test relative path injection attempt
         relative_path_attempt =  "../injected_file.txt"
         content = "Path injection test - relative path"
         # Mock get_full_path to return None, simulating a failed resolution outside the base path
         with patch.object(Context, 'get_full_path', return_value=None) as mock_get_full_path:
-             result_relative = test_driver._write_output_file(relative_path_attempt, content)
+             result_relative = driver._write_output_file(relative_path_attempt, content)
              assert result_relative is False, "Relative path write should have failed due to resolution failure"
              mock_get_full_path.assert_called_once_with(relative_path_attempt)
              assert "Failed to resolve path for writing" in caplog.text # Check log
@@ -512,13 +562,14 @@ class TestWorkflowDriver:
         content_absolute = "Path injection test - absolute path"
         # Mock get_full_path to return None, simulating a failed resolution outside the base path
         with patch.object(Context, 'get_full_path', return_value=None) as mock_get_full_path:
-             result_absolute = test_driver._write_output_file(absolute_path_attempt, content_absolute)
+             result_absolute = driver._write_output_file(absolute_path_attempt, content_absolute)
              assert result_absolute is False, "Absolute path write should have failed due to resolution failure"
              mock_get_full_path.assert_called_once_with(absolute_path_attempt)
              assert "Failed to resolve path for writing" in caplog.text # Check log
 
 
     def test_load_roadmap_valid_json(self, test_driver, tmp_path):
+        driver = test_driver['driver']
         roadmap_content = """
         {
             "phase": "Test Phase",
@@ -540,7 +591,7 @@ class TestWorkflowDriver:
         roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
         # load_roadmap is called with the full path by start_workflow, but we test it directly here
         # It needs to use the provided path directly.
-        tasks = test_driver.load_roadmap(roadmap_file)
+        tasks = driver.load_roadmap(roadmap_file)
         assert len(tasks) == 1
         assert tasks[0]["task_id"] == "Task1"
         assert tasks[0]["priority"] == "High"
@@ -550,21 +601,24 @@ class TestWorkflowDriver:
 
     def test_load_roadmap_file_not_found(self, test_driver, tmp_path, caplog):
         caplog.set_level(logging.ERROR)
+        driver = test_driver['driver']
         non_existent_file = str(tmp_path / "NON_EXISTENT_ROADMAP.json")
-        tasks = test_driver.load_roadmap(non_existent_file)
+        tasks = driver.load_roadmap(non_existent_file)
         assert len(tasks) == 0
         assert f"ROADMAP.json file not found at path: {non_existent_file}" in caplog.text
 
     def test_load_roadmap_invalid_json(self, test_driver, tmp_path, caplog):
         caplog.set_level(logging.ERROR)
+        driver = test_driver['driver']
         roadmap_content = "This is not a valid JSON file."
         roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
-        tasks = test_driver.load_roadmap(roadmap_file)
+        tasks = driver.load_roadmap(roadmap_file)
         assert len(tasks) == 0
         assert "Invalid JSON in roadmap file" in caplog.text
 
     def test_load_roadmap_file_size_limit(self, test_driver, tmp_path, caplog):
         caplog.set_level(logging.ERROR)
+        driver = test_driver['driver']
         # Increase string length significantly to ensure file size exceeds 20000 bytes
         long_string = "A" * 20000 # Changed from 11000 to 20000
         roadmap_content = f"""
@@ -586,12 +640,13 @@ class TestWorkflowDriver:
         }}
         """
         roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
-        tasks = test_driver.load_roadmap(roadmap_file)
+        tasks = driver.load_roadmap(roadmap_file)
         assert len(tasks) == 0
         assert "file exceeds maximum allowed size" in caplog.text
 
     def test_load_roadmap_missing_tasks_key(self, test_driver, tmp_path, caplog):
         caplog.set_level(logging.ERROR)
+        driver = test_driver['driver']
         roadmap_content = """
         {
             "phase": "Test Phase",
@@ -602,12 +657,13 @@ class TestWorkflowDriver:
         }
         """
         roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
-        tasks = test_driver.load_roadmap(roadmap_file)
+        tasks = driver.load_roadmap(roadmap_file)
         assert len(tasks) == 0
         assert "ROADMAP.json must contain a 'tasks' key." in caplog.text
 
     def test_load_roadmap_tasks_not_a_list(self, test_driver: WorkflowDriver, tmp_path, caplog):
         caplog.set_level(logging.ERROR)
+        driver = test_driver['driver']
         roadmap_content = """
         {
             "phase": "Test Phase",
@@ -619,13 +675,14 @@ class TestWorkflowDriver:
         }
         """
         roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
-        tasks = test_driver.load_roadmap(roadmap_file)
+        tasks = driver.load_roadmap(roadmap_file)
         assert len(tasks) == 0
         assert "'tasks' must be a list" in caplog.text
 
     def test_load_roadmap_invalid_task_format(self, test_driver, tmp_path, caplog):
         """Test load_roadmap skips invalid task formats within the list."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         # Reorder tasks so invalid ones are encountered before a valid 'Not Started' task
         tasks = [
             "not a dict", # Invalid format (will be skipped and logged)
@@ -633,7 +690,7 @@ class TestWorkflowDriver:
             {'task_id': 't1', 'status': 'Completed', 'task_name': 'Task 1', 'description': 'Desc', 'priority': 'High'}, # Valid but Completed
             {'task_id': 't2', 'status': 'Not Started', 'task_name': 'Task 2', 'description': 'Desc', 'priority': 'High'} # Valid and Not Started
         ]
-        next_task = test_driver.select_next_task(tasks)
+        next_task = driver.select_next_task(tasks)
         assert next_task is not None
         # The first item that is a dict, has status/task_id, is 'Not Started', and has a valid ID is selected.
         # This is the task with task_id 't3'.
@@ -646,6 +703,7 @@ class TestWorkflowDriver:
     def test_load_roadmap_list_with_invalid_task_id(self, test_driver, tmp_path, caplog):
         """Test load_roadmap skips tasks with invalid task_id format."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         roadmap_content = """
         {
             "phase": "Test Phase",
@@ -665,7 +723,7 @@ class TestWorkflowDriver:
         }
         """
         roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
-        tasks = test_driver.load_roadmap(roadmap_file)
+        tasks = driver.load_roadmap(roadmap_file)
         assert len(tasks) == 0 # Task should be skipped due to invalid ID
         # Check for the log message about the invalid task_id format
         # CORRECTED ASSERTION TO MATCH LOG FORMAT
@@ -673,6 +731,7 @@ class TestWorkflowDriver:
 
     def test_load_roadmap_task_name_too_long(self, test_driver, tmp_path, caplog):
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         long_task_name = "A" * 151
         roadmap_content = f"""
         {{
@@ -693,13 +752,14 @@ class TestWorkflowDriver:
         }}
         """
         roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
-        tasks = test_driver.load_roadmap(roadmap_file)
+        tasks = driver.load_roadmap(roadmap_file)
         assert len(tasks) == 0
         assert "Task Name" in caplog.text and "exceeds 150 characters" in caplog.text
 
     def test_load_roadmap_handles_html_in_description(self, test_driver, tmp_path, caplog):
         """Tests that description field is escaped to prevent JS injection"""
         caplog.set_level(logging.ERROR) # Keep ERROR level for other tests
+        driver = test_driver['driver']
         roadmap_content = f"""
         {{
             "phase": "Test Phase",
@@ -719,36 +779,39 @@ class TestWorkflowDriver:
         }}
         """
         roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
-        tasks = test_driver.load_roadmap(roadmap_file)
+        tasks = driver.load_roadmap(roadmap_file)
         assert len(tasks) == 1
         # Expect the escaped HTML version
         expected_description = html.escape("<script> test</script>")
         assert tasks[0]["description"] == expected_description, f"Expected escaped version of '<script> test</script>', got '{tasks[0]['description']}'"
 
     def test_file_exists_existing(self, test_driver, tmp_path):
+        driver = test_driver['driver']
         test_file_relative = "test.txt"
         test_file_full = tmp_path / test_file_relative
         test_file_full.write_text("content")
         # Mock get_full_path to return the resolved path
         with patch.object(Context, 'get_full_path', return_value=str(test_file_full.resolve())) as mock_get_full_path:
-             assert test_driver.file_exists(test_file_relative) is True
+             assert driver.file_exists(test_file_relative) is True
              mock_get_full_path.assert_called_once_with(test_file_relative)
 
 
     def test_file_exists_non_existing(self, test_driver, tmp_path):
+        driver = test_driver['driver']
         non_existing_file_relative = "nonexist.txt"
         # Mock get_full_path to return a path that doesn't exist
         with patch.object(Context, 'get_full_path', return_value=str(tmp_path / non_existing_file_relative)) as mock_get_full_path:
-             assert test_driver.file_exists(non_existing_file_relative) is False
+             assert driver.file_exists(non_existing_file_relative) is False
              mock_get_full_path.assert_called_once_with(non_existing_file_relative)
 
 
     def test_file_exists_outside_base_path(self, test_driver, tmp_path, caplog):
         """Test file_exists prevents checking outside the base path."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         # Mock get_full_path to return None, simulating a failed resolution outside the base path
         with patch.object(Context, 'get_full_path', return_value=None) as mock_get_full_path:
-             assert test_driver.file_exists("../sensitive/file.txt") is False, "Checking file outside base path should return False"
+             assert driver.file_exists("../sensitive/file.txt") is False, "Checking file outside base path should return False"
              mock_get_full_path.assert_called_once_with("../sensitive/file.txt")
              assert "Failed to resolve path for existence check" in caplog.text
 
@@ -756,6 +819,7 @@ class TestWorkflowDriver:
     def test_list_files_invalid_filename(self, test_driver, tmp_path, caplog):
         """Test list_files skips invalid filenames."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         temp_test_dir = tmp_path / "test_list_files_invalid_names"
         temp_test_dir.mkdir()
 
@@ -807,48 +871,54 @@ class TestWorkflowDriver:
 
 
     def test_generate_user_actionable_steps_empty(self, test_driver):
-        assert test_driver.generate_user_actionable_steps([]) == ""
+        driver = test_driver['driver']
+        assert driver.generate_user_actionable_steps([]) == ""
 
     def test_generate_user_actionable_steps_single(self, test_driver):
-        result = test_driver.generate_user_actionable_steps(["Single step"])
+        driver = test_driver['driver']
+        result = driver.generate_user_actionable_steps(["Single step"])
         assert result == "1.  - [ ] Single step\n"
 
     def test_generate_user_actionable_steps_multiple(self, test_driver):
+        driver = test_driver['driver']
         steps = ["Step 1", "Step 2", "Step 3"]
         expected = (
             "1.  - [ ] Step 1\n"
             "2.  - [ ] Step 2\n"
             "3.  - [ ] Step 3\n"
         )
-        assert test_driver.generate_user_actionable_steps(steps) == expected
+        assert driver.generate_user_actionable_steps(steps) == expected
 
     def test_generate_user_actionable_steps_special_chars(self, test_driver):
+        driver = test_driver['driver']
         steps = ["Use <script>", "Escape > & < tags", "Math: 5 > 3"]
         expected = (
             f"1.  - [ ] {html.escape('Use <script>')}\n"
             f"2.  - [ ] {html.escape('Escape > & < tags')}\n"
             f"3.  - [ ] {html.escape('Math: 5 > 3')}\n"
         )
-        result = test_driver.generate_user_actionable_steps(steps)
+        result = driver.generate_user_actionable_steps(steps)
         assert result == expected, "Special characters should be escaped using html.escape."
 
     # The following tests for generate_coder_llm_prompts are now less critical
     # as the autonomous_loop constructs the prompt directly.
     # Keeping them for completeness of the method itself, but they don't test the loop integration.
     def test_generate_coder_llm_prompts_type_error(self, test_driver):
+        driver = test_driver['driver']
         with pytest.raises(TypeError):
-            test_driver.generate_coder_llm_prompts("not a list", [])
+            driver.generate_coder_llm_prompts("not a list", [])
 
         with pytest.raises(TypeError):
-            test_driver.generate_coder_llm_prompts({}, [1, 2, 3])
+            driver.generate_coder_llm_prompts({}, [1, 2, 3])
 
         with pytest.raises(TypeError):
-            test_driver.generate_coder_llm_prompts({}, [{"step": "dict instead of string"}])
+            driver.generate_coder_llm_prompts({}, [{"step": "dict instead of string"}])
 
     def test_generate_coder_llm_prompts_valid(self, test_driver):
+        driver = test_driver['driver']
         task = {"task_id": "t1", "priority": "High", "task_name": "Sample Task", "status": "Not Started", "description": "Do something cool."} # Added missing keys for valid task dict
         plan = ["Step 1: Define function.", "Step 2: Add logic.", "Step 3: Write tests."]
-        prompts = test_driver.generate_coder_llm_prompts(task, plan)
+        prompts = driver.generate_coder_llm_prompts(task, plan)
         assert isinstance(prompts, list)
         assert len(prompts) > 0
         assert "Sample Task" in prompts[0]
@@ -858,35 +928,40 @@ class TestWorkflowDriver:
         assert "Prioritize security" in prompts[0]
 
     def test_generate_coder_llm_prompts_empty_plan(self, test_driver):
+        driver = test_driver['driver']
         task = {"task_id": "t2", "priority": "Low", "task_name": "Empty Plan Task", "status": "Not Started", "description": "Nothing to do."} # Added missing keys
         plan = []
-        prompts = test_driver.generate_coder_llm_prompts(task, plan)
+        prompts = driver.generate_coder_llm_prompts(task, plan)
         assert isinstance(prompts, list)
         assert len(prompts) == 1
 
     # MODIFIED: Fix test logic to provide valid plan but invalid task
     def test_generate_coder_llm_prompts_invalid_task_type(self, test_driver):
+        driver = test_driver['driver']
         # Provide a valid plan (list of strings) but an invalid task (not a dict)
         valid_plan = ["Step 1"]
         invalid_task = "not a dict"
         with pytest.raises(TypeError, match="Input 'task' must be a dictionary"):
-            test_driver.generate_coder_llm_prompts(invalid_task, valid_plan)
+            driver.generate_coder_llm_prompts(invalid_task, valid_plan)
 
     def test_generate_coder_llm_prompts_invalid_plan_type(self, test_driver):
+        driver = test_driver['driver']
         task = {"task_id": "t3", "priority": "High", "task_name": "Invalid Plan", "status": "Not Started", "description": "Desc"} # Added missing key
         with pytest.raises(TypeError, match="Input 'solution_plan' must be a list of strings"):
-            test_driver.generate_coder_llm_prompts(task, "not a list")
+            driver.generate_coder_llm_prompts(task, "not a list")
         with pytest.raises(TypeError, match="Input 'solution_plan' must be a list of strings"):
-            test_driver.generate_coder_llm_prompts(task, [1, 2, 3])
+            driver.generate_coder_llm_prompts(task, [1, 2, 3])
 
     def test_generate_coder_llm_prompts_missing_task_keys(self, test_driver):
+        driver = test_driver['driver']
         task = {"task_id": "t4", "priority": "High"} # Missing name and description
         plan = ["Step 1"]
         with pytest.raises(ValueError, match="Task dictionary must contain 'task_name' and 'description' keys"):
-            test_driver.generate_coder_llm_prompts(task, plan)
+            driver.generate_coder_llm_prompts(task, plan)
 
     def test_generate_coder_llm_prompts_html_escaping(self, test_driver):
         """Test generate_coder_llm_prompts properly handles HTML characters."""
+        driver = test_driver['driver']
         task = {
             "task_id": "test_task_6",
             "task_name": "Task with <script>alert()</script> tag",
@@ -895,7 +970,7 @@ class TestWorkflowDriver:
             "status": "Not Started"
         }
         solution_plan = ["Step 1: Handle <input> safely."]
-        prompts = test_driver.generate_coder_llm_prompts(task, solution_plan)
+        prompts = driver.generate_coder_llm_prompts(task, solution_plan)
         prompt = prompts[0]
 
         # Task name should remain unescaped (trusted input from roadmap JSON)
@@ -907,6 +982,7 @@ class TestWorkflowDriver:
 
     def test_generate_coder_llm_prompts_null_plan(self, test_driver):
         """Test generate_coder_llm_prompts with None as solution_plan."""
+        driver = test_driver['driver']
         task = {
             "task_id": "test_task_7",
             "task_name": "Null Plan Task",
@@ -916,7 +992,7 @@ class TestWorkflowDriver:
         }
         # The type hint is list, so passing None should raise TypeError
         with pytest.raises(TypeError) as excinfo:
-            test_driver.generate_coder_llm_prompts(task, None)
+            driver.generate_coder_llm_prompts(task, None)
         # Optional: check the error message if desired
         # assert "Input 'solution_plan' must be a list of strings" in str(excinfo.value)
 
@@ -924,34 +1000,37 @@ class TestWorkflowDriver:
     # --- New tests for _invoke_coder_llm ---
     def test_invoke_coder_llm_success(self, test_driver):
         """Test _invoke_coder_llm calls generate and returns stripped response."""
+        driver = test_driver['driver']
         test_prompt = "Test prompt for LLM"
         # Simulate LLM returning code with markdown fences
-        test_driver.llm_orchestrator.generate.return_value = "  ```python\nGenerated code response\n```  \n"
+        driver.llm_orchestrator.generate.return_value = "  ```python\nGenerated code response\n```  \n"
 
-        response = test_driver._invoke_coder_llm(test_prompt)
+        response = driver._invoke_coder_llm(test_prompt)
 
-        test_driver.llm_orchestrator.generate.assert_called_once_with(test_prompt)
+        driver.llm_orchestrator.generate.assert_called_once_with(test_prompt)
         assert response == "Generated code response" # Should be stripped of fences and whitespace
 
     def test_invoke_coder_llm_empty_response(self, test_driver):
         """Test _invoke_coder_llm handles empty response from LLM."""
+        driver = test_driver['driver']
         test_prompt = "Test prompt for empty response"
-        test_driver.llm_orchestrator.generate.return_value = ""
+        driver.llm_orchestrator.generate.return_value = ""
 
-        response = test_driver._invoke_coder_llm(test_prompt)
+        response = driver._invoke_coder_llm(test_prompt)
 
-        test_driver.llm_orchestrator.generate.assert_called_once_with(test_prompt)
+        driver.llm_orchestrator.generate.assert_called_once_with(test_prompt)
         assert response == ""
 
     def test_invoke_coder_llm_llm_exception(self, test_driver, caplog):
         """Test _invoke_coder_llm catches exceptions from LLM and returns None."""
+        driver = test_driver['driver']
         test_prompt = "Test prompt for exception"
-        test_driver.llm_orchestrator.generate.side_effect = Exception("Test LLM API error")
+        driver.llm_orchestrator.generate.side_effect = Exception("Test LLM API error")
         caplog.set_level(logging.ERROR)
 
-        response = test_driver._invoke_coder_llm(test_prompt)
+        response = driver._invoke_coder_llm(test_prompt)
 
-        test_driver.llm_orchestrator.generate.assert_called_once_with(test_prompt)
+        driver.llm_orchestrator.generate.assert_called_once_with(test_prompt)
         assert response is None
         assert "Error invoking Coder LLM" in caplog.text
         assert "Test LLM API error" in caplog.text
@@ -961,6 +1040,7 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     def test_simulated_workflow_step_calls_invoke_coder_llm(self, mock_invoke_coder_llm, test_driver):
         """Test that a simulated workflow step correctly calls _invoke_coder_llm."""
+        driver = test_driver['driver']
         # This test simulates the call to _invoke_coder_llm *after* the prompt has been constructed
         mock_prompt = "Simulated prompt for Coder LLM"
         mock_generated_code = "def generated_code(): pass"
@@ -968,7 +1048,7 @@ class TestWorkflowDriver:
         mock_invoke_coder_llm.return_value = mock_generated_code
 
         # Simulate the call that would happen in the loop
-        generated_code = test_driver._invoke_coder_llm(mock_prompt)
+        generated_code = driver._invoke_coder_llm(mock_prompt)
 
         mock_invoke_coder_llm.assert_called_once_with(mock_prompt)
         assert generated_code == mock_generated_code
@@ -977,35 +1057,39 @@ class TestWorkflowDriver:
     # --- New tests for select_next_task validation (Task 15_3a2) ---
     def test_select_next_task_valid_list_with_not_started(self, test_driver):
         """Test select_next_task returns the first 'Not Started' task."""
+        driver = test_driver['driver']
         tasks = [
             {'task_id': 't1', 'status': 'Completed', 'task_name': 'Task 1', 'description': 'Desc', 'priority': 'Low'},
             {'task_id': 't2', 'status': 'Not Started', 'task_name': 'Task 2', 'description': 'Desc', 'priority': 'High'},
             {'task_id': 't3', 'status': 'Not Started', 'task_name': 'Task 3', 'description': 'Desc', 'priority': 'Medium'}
         ]
-        next_task = test_driver.select_next_task(tasks)
+        next_task = driver.select_next_task(tasks)
         assert next_task is not None
         assert next_task['task_id'] == 't2'
 
     def test_select_next_task_valid_list_no_not_started(self, test_driver):
         """Test select_next_task returns None when no 'Not Started' tasks exist."""
+        driver = test_driver['driver']
         tasks = [
             {'task_id': 't1', 'status': 'Completed', 'task_name': 'Task 1', 'description': 'Desc', 'priority': 'Low'},
             {'task_id': 't2', 'status': 'Completed', 'task_name': 'Task 2', 'description': 'Desc', 'priority': 'High'}
         ]
-        next_task = test_driver.select_next_task(tasks)
+        next_task = driver.select_next_task(tasks)
         assert next_task is None
 
     def test_select_next_task_empty_list(self, test_driver):
         """Test select_next_task returns None for an empty list."""
+        driver = test_driver['driver']
         tasks = []
-        next_task = test_driver.select_next_task(tasks)
+        next_task = driver.select_next_task(tasks)
         assert next_task is None
 
     def test_select_next_task_invalid_input_not_list(self, test_driver, caplog):
         """Test select_next_task handles non-list input gracefully."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         tasks = "not a list"
-        next_task = test_driver.select_next_task(tasks)
+        next_task = driver.select_next_task(tasks)
         assert next_task is None
         assert "select_next_task received non-list input" in caplog.text
 
@@ -1013,6 +1097,7 @@ class TestWorkflowDriver:
     def test_select_next_task_list_with_invalid_task_format(self, test_driver, caplog):
         """Test select_next_task skips invalid task formats within the list."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         # Reorder tasks so invalid ones are encountered before a valid 'Not Started' task
         tasks = [
             "not a dict", # Invalid format (will be skipped and logged)
@@ -1020,7 +1105,7 @@ class TestWorkflowDriver:
             {'task_id': 't1', 'status': 'Completed', 'task_name': 'Task 1', 'description': 'Desc', 'priority': 'High'}, # Valid but Completed
             {'task_id': 't2', 'status': 'Not Started', 'task_name': 'Task 2', 'description': 'Desc', 'priority': 'High'} # Valid and Not Started
         ]
-        next_task = test_driver.select_next_task(tasks)
+        next_task = driver.select_next_task(tasks)
         assert next_task is not None
         # The first item that is a dict, has status/task_id, is 'Not Started', and has a valid ID is selected.
         # This is the task with task_id 't3'.
@@ -1033,11 +1118,12 @@ class TestWorkflowDriver:
     def test_select_next_task_list_with_invalid_task_id(self, test_driver, caplog):
         """Test select_next_task skips tasks with invalid task_id format."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         tasks = [
             {'task_id': 'invalid/id', 'status': 'Not Started', 'task_name': 'Task Invalid', 'description': 'Desc', 'priority': 'High'}, # Invalid ID (will be skipped and logged)
             {'task_id': 't2', 'status': 'Not Started', 'task_name': 'Task 2', 'description': 'Desc', 'priority': 'High'} # Valid task (will be selected)
         ]
-        next_task = test_driver.select_next_task(tasks)
+        next_task = driver.select_next_task(tasks)
         assert next_task is not None
         assert next_task['task_id'] == 't2' # Should select the next valid task
         # Check for the log message about the invalid task_id
@@ -1047,36 +1133,39 @@ class TestWorkflowDriver:
     # --- New tests for _is_valid_task_id (Task 15_3a2) ---
     def test_is_valid_task_id_valid_formats(self, test_driver):
         """Test _is_valid_task_id with valid task ID formats."""
-        assert test_driver._is_valid_task_id("task_1_1") is True
-        assert test_driver._is_valid_task_id("Task-ID-2") is True
-        assert test_driver._is_valid_task_id("task123") is True
-        assert test_driver._is_valid_task_id("a_b-c_1-2") is True
-        assert test_driver._is_valid_task_id("justletters") is True
-        assert test_driver._is_valid_task_id("just123") is True
-        assert test_driver._is_valid_task_id("a") is True
-        assert test_driver._is_valid_task_id("1") is True
+        driver = test_driver['driver']
+        assert driver._is_valid_task_id("task_1_1") is True
+        assert driver._is_valid_task_id("Task-ID-2") is True
+        assert driver._is_valid_task_id("task123") is True
+        assert driver._is_valid_task_id("a_b-c_1-2") is True
+        assert driver._is_valid_task_id("justletters") is True
+        assert driver._is_valid_task_id("just123") is True
+        assert driver._is_valid_task_id("a") is True
+        assert driver._is_valid_task_id("1") is True
         # Add cases that were previously valid but might be invalid with new regex
-        assert test_driver._is_valid_task_id("a-") is True # Ends with hyphen (should be allowed by new regex)
-        assert test_driver._is_valid_task_id("a_") is True # Ends with underscore (should be allowed by new regex)
+        assert driver._is_valid_task_id("a-") is True # Ends with hyphen (should be allowed by new regex)
+        assert driver._is_valid_task_id("a_") is True # Ends with underscore (should be allowed by new regex)
 
 
     def test_is_valid_task_id_invalid_formats(self, test_driver):
         """Test _is_valid_task_id with invalid task ID formats."""
-        assert test_driver._is_valid_task_id("invalid/id") is False # Contains slash
-        assert test_driver._is_valid_task_id("..") is False # Path traversal
-        assert test_driver._is_valid_task_id("../task") is False # Path traversal
-        assert test_driver._is_valid_task_id("task id") is False # Contains space
-        assert test_driver._is_valid_task_id("task!@#") is False # Contains special characters
-        assert test_driver._is_valid_task_id("") is False # Empty string
-        assert test_driver._is_valid_task_id(None) is False # None input
-        assert test_driver._is_valid_task_id(123) is False # Integer input
-        assert test_driver._is_valid_task_id("task.") is False # Contains dot (dots are not allowed by the regex)
-        assert test_driver._is_valid_task_id(".task") is False # Starts with dot (not allowed by new regex)
+        driver = test_driver['driver']
+        assert driver._is_valid_task_id("invalid/id") is False # Contains slash
+        assert driver._is_valid_task_id("..") is False # Path traversal
+        assert driver._is_valid_task_id("../task") is False # Path traversal
+        assert driver._is_valid_task_id("task id") is False # Contains space
+        assert driver._is_valid_task_id("task!@#") is False # Contains special characters
+        assert driver._is_valid_task_id("") is False # Empty string
+        assert driver._is_valid_task_id(None) is False # None input
+        assert driver._is_valid_task_id(123) is False # Integer input
+        assert driver._is_valid_task_id("task.") is False # Contains dot (dots are not allowed by the regex)
+        assert driver._is_valid_task_id(".task") is False # Starts with dot (not allowed by new regex)
 
     # --- New tests for generate_solution_plan parsing ---
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     def test_generate_solution_plan_parses_valid_list(self, mock_invoke_coder_llm, test_driver):
         """Test generate_solution_plan correctly parses a valid numbered markdown list."""
+        driver = test_driver['driver']
         mock_llm_output = """
 1.  First step.
 2.  Second step.
@@ -1085,7 +1174,7 @@ class TestWorkflowDriver:
         mock_invoke_coder_llm.return_value = mock_llm_output
         mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High', 'status': 'Not Started'} # Added status
 
-        plan = test_driver.generate_solution_plan(mock_task)
+        plan = driver.generate_solution_plan(mock_task)
 
         mock_invoke_coder_llm.assert_called_once()
         assert plan == ["First step.", "Second step.", "Third step."]
@@ -1093,6 +1182,7 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     def test_generate_solution_plan_handles_whitespace(self, mock_invoke_coder_llm, test_driver):
         """Test generate_solution_plan handles leading/trailing whitespace and blank lines."""
+        driver = test_driver['driver']
         mock_llm_output = """
 
     1.  Step one with whitespace.
@@ -1104,7 +1194,7 @@ class TestWorkflowDriver:
         mock_invoke_coder_llm.return_value = mock_llm_output
         mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High', 'status': 'Not Started'} # Added status
 
-        plan = test_driver.generate_solution_plan(mock_task)
+        plan = driver.generate_solution_plan(mock_task)
 
         mock_invoke_coder_llm.assert_called_once()
         assert plan == ["Step one with whitespace.", "Step two.", "Step three."]
@@ -1112,6 +1202,7 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     def test_generate_solution_plan_handles_multiline_steps(self, mock_invoke_coder_llm, test_driver):
         """Test generate_solution_plan correctly parses multi-line steps."""
+        driver = test_driver['driver']
         mock_llm_output = """
 1.  First step that
     spans multiple lines.
@@ -1120,7 +1211,7 @@ class TestWorkflowDriver:
         mock_invoke_coder_llm.return_value = mock_llm_output
         mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High', 'status': 'Not Started'} # Added status
 
-        plan = test_driver.generate_solution_plan(mock_task)
+        plan = driver.generate_solution_plan(mock_task)
 
         mock_invoke_coder_llm.assert_called_once()
         assert plan == ["First step that spans multiple lines.", "Second step."]
@@ -1128,11 +1219,12 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     def test_generate_solution_plan_handles_non_list_output(self, mock_invoke_coder_llm, test_driver):
         """Test generate_solution_plan handles LLM output that is not a numbered list."""
+        driver = test_driver['driver']
         mock_llm_output = "This is not a numbered list. Just some text."
         mock_invoke_coder_llm.return_value = mock_llm_output
         mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High', 'status': 'Not Started'} # Added status
 
-        plan = test_driver.generate_solution_plan(mock_task)
+        plan = driver.generate_solution_plan(mock_task)
 
         mock_invoke_coder_llm.assert_called_once()
         assert plan == [], "Should return an empty list if output is not a numbered list"
@@ -1140,12 +1232,13 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     def test_generate_solution_plan_handles_empty_output(self, mock_invoke_coder_llm, test_driver):
         """Test generate_solution_plan handles empty string output from LLM."""
+        driver = test_driver['driver']
         mock_llm_output = ""
         # FIX: Patch _invoke_coder_llm and set its return value
         mock_invoke_coder_llm.return_value = mock_llm_output
         mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High', 'status': 'Not Started'} # Added status
 
-        plan = test_driver.generate_solution_plan(mock_task)
+        plan = driver.generate_solution_plan(mock_task)
 
         # FIX: Assert on the patched mock _invoke_coder_llm
         mock_invoke_coder_llm.assert_called_once()
@@ -1155,11 +1248,12 @@ class TestWorkflowDriver:
     def test_generate_solution_plan_handles_none_output(self, mock_invoke_coder_llm, test_driver, caplog):
         """Test generate_solution_plan handles None output from _invoke_coder_llm."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         mock_llm_output = None
         mock_invoke_coder_llm.return_value = mock_llm_output # Corrected NameError here
         mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High', 'status': 'Not Started'} # Added status
 
-        plan = test_driver.generate_solution_plan(mock_task)
+        plan = driver.generate_solution_plan(mock_task)
 
         mock_invoke_coder_llm.assert_called_once()
         assert plan == [], "Should return an empty list for None LLM output"
@@ -1168,6 +1262,7 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     def test_generate_solution_plan_sanitizes_markdown(self, mock_invoke_coder_llm, test_driver):
         """Test generate_solution_plan sanitizes markdown formatting from steps."""
+        driver = test_driver['driver']
         mock_llm_output = """
 1.  **Bold step**.
 2.  _Italic step_.
@@ -1176,7 +1271,7 @@ class TestWorkflowDriver:
         mock_invoke_coder_llm.return_value = mock_llm_output
         mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High', 'status': 'Not Started'} # Added status
 
-        plan = test_driver.generate_solution_plan(mock_task)
+        plan = driver.generate_solution_plan(mock_task)
 
         mock_invoke_coder_llm.assert_called_once()
         assert plan == ["Bold step.", "Italic step.", "Code step."] # Markdown characters should be removed
@@ -1184,6 +1279,7 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     def test_generate_solution_plan_preserves_html_chars(self, mock_invoke_coder_llm, test_driver):
         """Test generate_solution_plan preserves HTML characters in steps."""
+        driver = test_driver['driver']
         mock_llm_output = """
 1.  Step with <tag>.
 2.  Step with & entity.
@@ -1192,7 +1288,7 @@ class TestWorkflowDriver:
         mock_invoke_coder_llm.return_value = mock_llm_output
         mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High', 'status': 'Not Started'} # Added status
 
-        plan = test_driver.generate_solution_plan(mock_task)
+        plan = driver.generate_solution_plan(mock_task)
 
         mock_invoke_coder_llm.assert_called_once()
         assert plan == ["Step with <tag>.", "Step with & entity.", "Step with > and <."] # HTML characters should NOT be removed
@@ -1201,39 +1297,42 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="1. Step.")
     def test_generate_solution_plan_includes_target_file_context_task_name(self, mock_invoke_coder_llm, test_driver):
         """Test generate_solution_plan includes target file context when 'WorkflowDriver' is in task name."""
+        driver = test_driver['driver']
         mock_task = {
             'task_id': 'mock_task',
             'task_name': 'Enhance the WorkflowDriver',
             'description': 'Implement a feature.',
             'priority': 'High', 'status': 'Not Started'
         }
-        test_driver.generate_solution_plan(mock_task)
+        driver.generate_solution_plan(mock_task)
         called_prompt = mock_invoke_coder_llm.call_args[0][0]
         assert "The primary file being modified for this task is `src/core/automation/workflow_driver.py`." in called_prompt
 
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="1. Step.")
     def test_generate_solution_plan_includes_target_file_context_description(self, mock_invoke_coder_llm, test_driver):
         """Test generate_solution_plan includes target file context when 'workflow_driver.py' is in description."""
+        driver = test_driver['driver']
         mock_task = {
             'task_id': 'mock_task',
             'task_name': 'Implement a feature',
             'description': 'Modify the file src/core/automation/workflow_driver.py.',
             'priority': 'High', 'status': 'Not Started'
         }
-        test_driver.generate_solution_plan(mock_task)
+        driver.generate_solution_plan(mock_task)
         called_prompt = mock_invoke_coder_llm.call_args[0][0]
         assert "The primary file being modified for this task is `src/core/automation/workflow_driver.py`." in called_prompt
 
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="1. Step.")
     def test_generate_solution_plan_excludes_target_file_context(self, mock_invoke_coder_llm, test_driver):
         """Test generate_solution_plan excludes target file context when keywords are not present."""
+        driver = test_driver['driver']
         mock_task = {
             'task_id': 'mock_task',
             'task_name': 'Implement a new API endpoint',
             'description': 'Create a file in src/api/routes.',
             'priority': 'High', 'status': 'Not Started'
         }
-        test_driver.generate_solution_plan(mock_task)
+        driver.generate_solution_plan(mock_task)
         called_prompt = mock_invoke_coder_llm.call_args[0][0]
         assert "The primary file being modified for this task is `src/core/automation/workflow_driver.py`." not in called_prompt
 
@@ -1246,10 +1345,11 @@ class TestWorkflowDriver:
     def test_read_file_for_context_success(self, mock_getsize, mock_isfile, mock_exists, mock_open, mock_get_full_path, test_driver, caplog):
         """Test _read_file_for_context successfully reads a file."""
         caplog.set_level(logging.DEBUG) # Capture debug log
+        driver = test_driver['driver']
         mock_get_full_path.return_value = "/resolved/path/to/file.txt"
         mock_open.return_value.__enter__.return_value.read.return_value = "File content"
 
-        content = test_driver._read_file_for_context("path/to/file.txt")
+        content = driver._read_file_for_context("path/to/file.txt")
 
         mock_get_full_path.assert_called_once_with("path/to/file.txt")
         mock_exists.assert_called_once_with("/resolved/path/to/file.txt")
@@ -1263,9 +1363,10 @@ class TestWorkflowDriver:
     def test_read_file_for_context_path_resolution_failure(self, mock_get_full_path, test_driver, caplog):
         """Test _read_file_for_context handles path resolution failure."""
         caplog.set_level(logging.ERROR) # Capture error log
+        driver = test_driver['driver']
 
         # First call to trigger the path resolution failure and check basic behavior
-        content = test_driver._read_file_for_context("../sensitive/file.txt")
+        content = driver._read_file_for_context("../sensitive/file.txt")
 
         mock_get_full_path.assert_called_once_with("../sensitive/file.txt")
         assert content == ""
@@ -1279,7 +1380,7 @@ class TestWorkflowDriver:
              patch('builtins.open') as mock_open:
 
              # Call the method again to trigger the logic under the new patches
-             test_driver._read_file_for_context("../sensitive/file.txt")
+             driver._read_file_for_context("../sensitive/file.txt")
 
              # Assert that *none* of the file system operations were called
              mock_exists.assert_not_called() # FIX: Changed from assert_called_once_with(None) to assert_not_called()
@@ -1293,8 +1394,9 @@ class TestWorkflowDriver:
     def test_read_file_for_context_file_not_found(self, mock_exists, mock_get_full_path, test_driver, caplog):
         """Test _read_file_for_context handles FileNotFoundError."""
         caplog.set_level(logging.WARNING) # Capture warning log
+        driver = test_driver['driver']
 
-        content = test_driver._read_file_for_context("nonexistent/file.txt")
+        content = driver._read_file_for_context("nonexistent/file.txt")
 
         mock_get_full_path.assert_called_once_with("nonexistent/file.txt")
         mock_exists.assert_called_once_with("/resolved/nonexistent/file.txt")
@@ -1304,7 +1406,7 @@ class TestWorkflowDriver:
         with patch('os.path.isfile') as mock_isfile, \
              patch('os.path.getsize') as mock_getsize, \
              patch('builtins.open') as mock_open:
-             test_driver._read_file_for_context("nonexistent/file.txt")
+             driver._read_file_for_context("nonexistent/file.txt")
              mock_isfile.assert_not_called()
              mock_getsize.assert_not_called()
              mock_open.assert_not_called()
@@ -1316,8 +1418,9 @@ class TestWorkflowDriver:
     def test_read_file_for_context_is_directory(self, mock_isfile, mock_exists, mock_get_full_path, test_driver, caplog):
         """Test _read_file_for_context handles path being a directory."""
         caplog.set_level(logging.WARNING) # Capture warning log
+        driver = test_driver['driver']
 
-        content = test_driver._read_file_for_context("path/to/directory")
+        content = driver._read_file_for_context("path/to/directory")
 
         mock_get_full_path.assert_called_once_with("path/to/directory")
         mock_exists.assert_called_once_with("/resolved/path/to/directory")
@@ -1327,7 +1430,7 @@ class TestWorkflowDriver:
         # Ensure no further file system operations are attempted
         with patch('os.path.getsize') as mock_getsize, \
              patch('builtins.open') as mock_open:
-             test_driver._read_file_for_context("path/to/directory")
+             driver._read_file_for_context("path/to/directory")
              mock_getsize.assert_not_called()
              mock_open.assert_not_called()
 
@@ -1339,12 +1442,13 @@ class TestWorkflowDriver:
     def test_read_file_for_context_file_too_large(self, mock_getsize, mock_isfile, mock_exists, mock_get_full_path, test_driver, caplog):
         """Test _read_file_for_context handles file exceeding size limit."""
         caplog.set_level(logging.WARNING) # Capture warning log
+        driver = test_driver['driver']
 
         # Define the values used in the method's log message
         test_relative_path = "path/to/large_file.txt"
         test_file_size = MAX_READ_FILE_SIZE + 1 # Matches the mock return value
 
-        content = test_driver._read_file_for_context(test_relative_path)
+        content = driver._read_file_for_context(test_relative_path)
 
         mock_get_full_path.assert_called_once_with(test_relative_path)
         mock_exists.assert_called_once_with("/resolved/path/to/large_file.txt")
@@ -1364,8 +1468,9 @@ class TestWorkflowDriver:
     def test_read_file_for_context_permission_denied(self, mock_open, mock_getsize, mock_isfile, mock_exists, mock_get_full_path, test_driver, caplog):
         """Test _read_file_for_context handles PermissionError during file open."""
         caplog.set_level(logging.ERROR) # Capture error log
+        driver = test_driver['driver']
 
-        content = test_driver._read_file_for_context("path/to/permission_denied.txt")
+        content = driver._read_file_for_context("path/to/permission_denied.txt")
 
         mock_get_full_path.assert_called_once_with("path/to/permission_denied.txt")
         mock_exists.assert_called_once_with("/resolved/path/to/permission_denied.txt")
@@ -1383,8 +1488,9 @@ class TestWorkflowDriver:
     def test_read_file_for_context_generic_error(self, mock_open, mock_getsize, mock_isfile, mock_exists, mock_get_full_path, test_driver, caplog):
         """Test _read_file_for_context handles generic exceptions during file open."""
         caplog.set_level(logging.ERROR) # Capture error log
+        driver = test_driver['driver']
 
-        content = test_driver._read_file_for_context("path/to/error_file.txt")
+        content = driver._read_file_for_context("path/to/error_file.txt")
 
         mock_get_full_path.assert_called_once_with("path/to/error_file.txt")
         mock_exists.assert_called_once_with("/resolved/path/to/error_file.txt")
@@ -1397,14 +1503,15 @@ class TestWorkflowDriver:
     def test_read_file_for_context_invalid_path_type(self, test_driver, caplog):
         """Test _read_file_for_context handles invalid path input types."""
         caplog.set_level(logging.WARNING) # Capture warning log
+        driver = test_driver['driver']
 
-        content_none = test_driver._read_file_for_context(None)
+        content_none = driver._read_file_for_context(None)
         assert content_none == ""
         assert "Attempted to read file with invalid path: None" in caplog.text
 
         caplog.clear() # Clear logs
 
-        content_int = test_driver._read_file_for_context(123)
+        content_int = driver._read_file_for_context(123)
         assert content_int == ""
         assert "Attempted to read file with invalid path: 123" in caplog.text
 
@@ -1413,12 +1520,13 @@ class TestWorkflowDriver:
     def test_execute_tests_success(self, mock_subprocess_run, test_driver, tmp_path, caplog):
         """Test execute_tests successfully runs a command."""
         caplog.set_level(logging.DEBUG)
+        driver = test_driver['driver']
         mock_result = MagicMock(stdout="Test passed\n", stderr="", returncode=0)
         mock_subprocess_run.return_value = mock_result
         test_command = ["echo", "hello"]
         cwd = str(tmp_path)
 
-        return_code, stdout, stderr = test_driver.execute_tests(test_command, cwd)
+        return_code, stdout, stderr = driver.execute_tests(test_command, cwd)
 
         mock_subprocess_run.assert_called_once_with(
             test_command,
@@ -1439,12 +1547,13 @@ class TestWorkflowDriver:
     def test_execute_tests_failure(self, mock_subprocess_run, test_driver, tmp_path, caplog):
         """Test execute_tests handles a command that returns a non-zero exit code."""
         caplog.set_level(logging.DEBUG)
+        driver = test_driver['driver']
         mock_result = MagicMock(stdout="Some stdout\n", stderr="Test failed\n", returncode=1)
         mock_subprocess_run.return_value = mock_result
         test_command = ["false"]
         cwd = str(tmp_path)
 
-        return_code, stdout, stderr = test_driver.execute_tests(test_command, cwd)
+        return_code, stdout, stderr = driver.execute_tests(test_command, cwd)
 
         mock_subprocess_run.assert_called_once_with(
             test_command,
@@ -1465,10 +1574,11 @@ class TestWorkflowDriver:
     def test_execute_tests_command_not_found(self, mock_subprocess_run, test_driver, tmp_path, caplog):
         """Test execute_tests handles FileNotFoundError."""
         caplog.set_level(logging.ERROR)
+        driver = test_driver['driver']
         test_command = ["nonexistent_command"]
         cwd = str(tmp_path)
 
-        return_code, stdout, stderr = test_driver.execute_tests(test_command, cwd)
+        return_code, stdout, stderr = driver.execute_tests(test_command, cwd)
 
         mock_subprocess_run.assert_called_once_with(
             test_command,
@@ -1486,10 +1596,11 @@ class TestWorkflowDriver:
     def test_execute_tests_os_error(self, mock_subprocess_run, test_driver, tmp_path, caplog):
         """Test execute_tests handles OSError."""
         caplog.set_level(logging.ERROR)
+        driver = test_driver['driver']
         test_command = ["ls"]
         cwd = str(tmp_path)
 
-        return_code, stdout, stderr = test_driver.execute_tests(test_command, cwd)
+        return_code, stdout, stderr = driver.execute_tests(test_command, cwd)
 
         mock_subprocess_run.assert_called_once_with(
             test_command,
@@ -1508,10 +1619,11 @@ class TestWorkflowDriver:
     def test_execute_tests_generic_exception(self, mock_subprocess_run, test_driver, tmp_path, caplog):
         """Test execute_tests handles generic exceptions."""
         caplog.set_level(logging.ERROR)
+        driver = test_driver['driver']
         test_command = ["ls"]
         cwd = str(tmp_path)
 
-        return_code, stdout, stderr = test_driver.execute_tests(test_command, cwd)
+        return_code, stdout, stderr = driver.execute_tests(test_command, cwd)
 
         mock_subprocess_run.assert_called_once_with(
             test_command,
@@ -1531,13 +1643,14 @@ class TestWorkflowDriver:
     def test_execute_tests_invalid_cwd(self, mock_get_full_path, mock_subprocess_run, test_driver, caplog):
         """Test execute_tests handles non-existent working directory."""
         caplog.set_level(logging.ERROR)
+        driver = test_driver['driver']
         test_command = ["echo", "hello"]
         cwd = "/nonexistent/directory/12345"
 
         # Mock subprocess.run to raise the expected error when cwd is invalid
         mock_subprocess_run.side_effect = FileNotFoundError(f"No such file or directory: '{cwd}'")
 
-        return_code, stdout, stderr = test_driver.execute_tests(test_command, cwd)
+        return_code, stdout, stderr = driver.execute_tests(test_command, cwd)
 
         mock_subprocess_run.assert_called_once_with(
             test_command,
@@ -1557,94 +1670,105 @@ class TestWorkflowDriver:
     # --- New tests for _merge_snippet (Task 1_6_code_merge) ---
     def test_merge_snippet_marker_found_first_occurrence(self, test_driver):
         """Test _merge_snippet inserts at the first marker."""
+        driver = test_driver['driver']
         existing_content = "Line 1\n# METAMORPHIC_INSERT_POINT\nLine 3\n# METAMORPHIC_INSERT_POINT\nLine 5"
         snippet = "Inserted Snippet"
         expected = "Line 1\nInserted Snippet\nLine 3\n# METAMORPHIC_INSERT_POINT\nLine 5"
-        result = test_driver._merge_snippet(existing_content, snippet)
+        result = driver._merge_snippet(existing_content, snippet)
         assert result == expected
 
     def test_merge_snippet_marker_not_found(self, test_driver):
         """Test _merge_snippet appends when marker is not found."""
+        driver = test_driver['driver']
         existing_content = "Line 1\nLine 2\nLine 3"
         snippet = "Appended Snippet"
         expected = "Line 1\nLine 2\nLine 3\nAppended Snippet"
-        result = test_driver._merge_snippet(existing_content, snippet)
+        result = driver._merge_snippet(existing_content, snippet)
         assert result == expected
 
     def test_merge_snippet_empty_snippet(self, test_driver):
         """Test _merge_snippet with an empty snippet."""
+        driver = test_driver['driver']
         existing_content = "Line 1\n# METAMORPHIC_INSERT_POINT\nLine 3"
         snippet = ""
         expected = "Line 1\n# METAMORPHIC_INSERT_POINT\nLine 3"
-        result = test_driver._merge_snippet(existing_content, snippet)
+        result = driver._merge_snippet(existing_content, snippet)
         assert result == expected
 
     def test_merge_snippet_snippet_contains_marker(self, test_driver):
         """Test _merge_snippet when the snippet contains the marker."""
+        driver = test_driver['driver']
         existing_content = "Line 1\n# METAMORPHIC_INSERT_POINT\nLine 3"
         snippet = "Snippet with # METAMORPHIC_INSERT_POINT inside"
         expected = "Line 1\nSnippet with # METAMORPHIC_INSERT_POINT inside\nLine 3"
-        result = test_driver._merge_snippet(existing_content, snippet)
+        result = driver._merge_snippet(existing_content, snippet)
         assert result == expected
 
     def test_merge_snippet_empty_existing_content(self, test_driver):
         """Test _merge_snippet with empty existing content."""
+        driver = test_driver['driver']
         existing_content = ""
         snippet = "Initial Content"
         expected = "Initial Content"
-        result = test_driver._merge_snippet(existing_content, snippet)
+        result = driver._merge_snippet(existing_content, snippet)
         assert result == expected
 
     def test_merge_snippet_marker_on_its_own_line(self, test_driver):
         """Test _merge_snippet when the marker is on its own line."""
+        driver = test_driver['driver']
         existing_content = "Line 1\n# METAMORPHIC_INSERT_POINT\nLine 3"
         snippet = "Inserted Snippet"
         expected = "Line 1\nInserted Snippet\nLine 3"
-        result = test_driver._merge_snippet(existing_content, snippet)
+        result = driver._merge_snippet(existing_content, snippet)
         assert result == expected
 
     def test_merge_snippet_marker_with_surrounding_text(self, test_driver):
         """Test _merge_snippet when the marker has surrounding text on the same line."""
+        driver = test_driver['driver']
         existing_content = "Line 1\nPrefix # METAMORPHIC_INSERT_POINT Suffix\nLine 3"
         snippet = "Inserted Snippet"
         expected = "Line 1\nPrefix Inserted Snippet Suffix\nLine 3"
-        result = test_driver._merge_snippet(existing_content, snippet)
+        result = driver._merge_snippet(existing_content, snippet)
         assert result == expected
 
     def test_merge_snippet_marker_at_start(self, test_driver):
         """Test _merge_snippet when the marker is at the very beginning."""
+        driver = test_driver['driver']
         existing_content = "# METAMORPHIC_INSERT_POINT\nLine 2"
         snippet = "Inserted Snippet"
         expected = "Inserted Snippet\nLine 2"
-        result = test_driver._merge_snippet(existing_content, snippet)
+        result = driver._merge_snippet(existing_content, snippet)
         assert result == expected
 
     def test_merge_snippet_marker_at_end(self, test_driver):
         """Test _merge_snippet when the marker is at the very end."""
+        driver = test_driver['driver']
         existing_content = "Line 1\n# METAMORPHIC_INSERT_POINT"
         snippet = "Inserted Snippet"
         expected = "Line 1\nInserted Snippet"
-        result = test_driver._merge_snippet(existing_content, snippet)
+        result = driver._merge_snippet(existing_content, snippet)
         assert result == expected
 
     def test_merge_snippet_append_no_newline_at_end(self, test_driver):
         """Test _merge_snippet appends with newline when existing content doesn't end with one."""
+        driver = test_driver['driver']
         existing_content = "Line 1\nLine 2"
         snippet = "Appended Snippet"
         expected = "Line 1\nLine 2\nAppended Snippet"
-        result = test_driver._merge_snippet(existing_content, snippet)
+        result = driver._merge_snippet(existing_content, snippet)
         assert result == expected
 
     def test_merge_snippet_append_newline_at_end(self, test_driver):
         """Test _merge_snippet appends without extra newline when existing content ends with one."""
+        driver = test_driver['driver']
         existing_content = "Line 1\nLine 2\n"
         snippet = "Appended Snippet"
         expected = "Line 1\nLine 2\nAppended Snippet"
-        result = test_driver._merge_snippet(existing_content, snippet)
+        result = driver._merge_snippet(existing_content, snippet)
         assert result == expected
 
     # --- New Integration Test for autonomous_loop with Merging ---
-    @patch.object(WorkflowDriver, '_write_output_file')
+    @patch.object(WorkflowDriver, '_write_output_file') # Ensure this is NOT called
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     # MODIFIED: Change plan step phrasing to trigger needs_coder_llm
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/existing.py"])
@@ -1657,14 +1781,18 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_merge_snippet') # Patch the new method
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     # FIX: Add caplog fixture to the argument list
+    # NEW: Add assertions for CodeReviewAgent call
     def test_autonomous_loop_code_gen_merge_flow(self, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, tmp_path, mocker, caplog):
         """
         Test that autonomous_loop orchestrates read, generate, merge, write
         when a code generation step with a target file is encountered.
         """
         caplog.set_level(logging.INFO)
-        test_driver.roadmap_path = "dummy_roadmap.json"
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver = test_driver['driver']
+        mock_code_review_agent = test_driver['mock_code_review_agent'] # Get the mock agent
+
+        driver.roadmap_path = "dummy_roadmap.json"
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         # Verify the sequence of calls
         mock_read_file_for_context.assert_called_once_with("src/existing.py")
@@ -1672,9 +1800,15 @@ class TestWorkflowDriver:
         mock_merge_snippet.assert_called_once_with(mock_read_file_for_context.return_value, mock_invoke_coder_llm.return_value)
         mock_write_output_file.assert_called_once_with("src/existing.py", mock_merge_snippet.return_value, overwrite=True)
 
+        # NEW: Verify CodeReviewAgent.analyze_python was called after _write_output_file
+        mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
+
         # Verify logs (optional but good for debugging)
         # assert "Step identified as code generation" in caplog.text # Check log
         # assert "Coder LLM invoked" in caplog.text # Check log
+        # NEW: Check log for code review execution
+        assert "Running code review and security scan for src/existing.py..." in caplog.text
+        assert f"Code Review and Security Scan Results for src/existing.py: {mock_code_review_agent.analyze_python.return_value}" in caplog.text
 
 
     @patch.object(WorkflowDriver, '_write_output_file') # Ensure this is NOT called
@@ -1688,19 +1822,25 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_read_file_for_context') # Ensure this is NOT called
     @patch.object(WorkflowDriver, '_merge_snippet') # Ensure this is NOT called
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+    # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
     def test_autonomous_loop_file_write_only_step(self, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
         """
         Test that autonomous_loop handles a step identified as file writing only
         (not code generation) for a target file.
         """
         caplog.set_level(logging.INFO)
-        test_driver.roadmap_path = "dummy_roadmap.json"
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver = test_driver['driver']
+        mock_code_review_agent = test_driver['mock_code_review_agent'] # Get the mock agent
+
+        driver.roadmap_path = "dummy_roadmap.json"
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         # Verify code gen/merge helpers are NOT called
         mock_read_file_for_context.assert_not_called()
         mock_invoke_coder_llm.assert_not_called()
         mock_merge_snippet.assert_not_called()
+        # CodeReviewAgent should NOT be called (only called after successful code write)
+        mock_code_review_agent.analyze_python.assert_not_called()
 
         # Verify _write_output_file is called with placeholder content and overwrite=False
         mock_write_output_file.assert_called_once_with("output/report.json", ANY, overwrite=False)
@@ -1725,21 +1865,27 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_read_file_for_context') # Ensure this is NOT called
     @patch.object(WorkflowDriver, '_merge_snippet') # Ensure this is NOT called
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+    # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
     def test_autonomous_loop_step_without_target_file(self, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, caplog, tmp_path, mocker):
         """
         Test that autonomous_loop handles a step indicating code generation
         but where no target file is specified in the task metadata or step text.
         """
         caplog.set_level(logging.WARNING) # Capture warning log
+        driver = test_driver['driver']
+        mock_code_review_agent = test_driver['mock_code_review_agent'] # Get the mock agent
 
-        test_driver.roadmap_path = "dummy_roadmap.json"
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver.roadmap_path = "dummy_roadmap.json"
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         # Verify no file operations or code gen/merge helpers are called
         mock_read_file_for_context.assert_not_called()
         mock_invoke_coder_llm.assert_not_called()
         mock_merge_snippet.assert_not_called()
         mock_write_output_file.assert_not_called()
+        # CodeReviewAgent should NOT be called (only called after successful code write)
+        mock_code_review_agent.analyze_python.assert_not_called()
+
 
         # Verify warning log
         assert "Step identified as file operation or code generation but could not determine filepath for step 'Step 1: Implement the feature logic'. Skipping file operation." in caplog.text
@@ -1748,6 +1894,7 @@ class TestWorkflowDriver:
     def test_parse_test_results_success_all_passed(self, test_driver, caplog):
         """Test _parse_test_results with output showing all tests passed."""
         caplog.set_level(logging.DEBUG)
+        driver = test_driver['driver']
         output = """
 ============================= test session starts ==============================
 platform linux -- Python 3.11.0, pytest-8.0.0, pluggy-1.4.0
@@ -1762,13 +1909,14 @@ tests/test_edge_cases.py::test_five PASSED                               [100%]
 
 ============================== 5 passed in 1.23s ===============================
 """
-        results = test_driver._parse_test_results(output)
+        results = driver._parse_test_results(output)
         assert results == {'passed': 5, 'failed': 0, 'total': 5, 'status': 'passed', 'message': 'Parsed successfully.'}
         assert "Parsed test results:" in caplog.text # Check debug log
 
     def test_parse_test_results_success_with_failures(self, test_driver, caplog):
         """Test _parse_test_results with output showing some failures."""
         caplog.set_level(logging.DEBUG)
+        driver = test_driver['driver']
         output = """
 ============================= test session starts ==============================
 platform linux -- Python 3.11.0, pytest-8.0.0, pluggy-1.4.0
@@ -1785,13 +1933,14 @@ tests/test_errors.py::test_seven ERROR                                   [100%]
 
 ============================== 2 failed, 3 passed, 1 skipped, 1 error in 4.56s ==============================
 """
-        results = test_driver._parse_test_results(output)
+        results = driver._parse_test_results(output)
         assert results == {'passed': 3, 'failed': 2, 'total': 7, 'status': 'failed', 'message': 'Parsed successfully.'}
         assert "Parsed test results:" in caplog.text # Check debug log
 
     def test_parse_test_results_success_only_failures(self, test_driver, caplog):
         """Test _parse_test_results with output showing only failures."""
         caplog.set_level(logging.DEBUG)
+        driver = test_driver['driver']
         output = """
 ============================= test session starts ==============================
 platform linux -- Python 3.11.0, pytest-8.0.0, pluggy-1.4.0
@@ -1804,37 +1953,40 @@ tests/test_another.py::test_three FAILED                                 [100%]
 
 ============================== 3 failed in 0.78s ===============================
 """
-        results = test_driver._parse_test_results(output)
+        results = driver._parse_test_results(output)
         assert results == {'passed': 0, 'failed': 3, 'total': 3, 'status': 'failed', 'message': 'Parsed successfully.'}
         assert "Parsed test results:" in caplog.text # Check debug log
 
     def test_parse_test_results_empty_output(self, test_driver, caplog):
         """Test _parse_test_results with empty input string."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         output = ""
-        results = test_driver._parse_test_results(output)
+        results = driver._parse_test_results(output)
         assert results == {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Received empty output.'}
         assert "Received empty output for test results parsing." in caplog.text # Check warning log
 
     def test_parse_test_results_no_summary_line(self, test_driver, caplog):
         """Test _parse_test_results with output missing the summary line."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         output = """
 Some other output
 without a summary line
 """
-        results = test_driver._parse_test_results(output)
+        results = driver._parse_test_results(output)
         assert results == {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Could not find pytest summary lines in output.'}
         assert "Could not find pytest summary lines in output." in caplog.text # Check warning log
 
     def test_parse_test_results_malformed_summary_line(self, test_driver, caplog):
         """Test _parse_test_results with a malformed summary line."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         output = """
 ============================= test session starts ==============================
 ============================== malformed summary line ==============================
 """
-        results = test_driver._parse_test_results(output)
+        results = driver._parse_test_results(output)
         # Should still return error status if no counts are parsed
         assert results == {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Could not parse test results output.'}
         # FIX: Update assertion string to match the actual log output
@@ -1843,48 +1995,45 @@ without a summary line
     def test_parse_test_results_only_skipped(self, test_driver, caplog):
         """Test _parse_test_results with output showing only skipped tests."""
         caplog.set_level(logging.DEBUG)
+        driver = test_driver['driver']
         output = """
 ============================= test session starts ==============================
 ============================== 3 skipped in 0.10s ==============================
 """
-        results = test_driver._parse_test_results(output)
+        results = driver._parse_test_results(output)
         assert results == {'passed': 0, 'failed': 0, 'total': 3, 'status': 'passed', 'message': 'Parsed successfully.'} # Skipped tests don't fail the run
         assert "Parsed test results:" in caplog.text # Check debug log
 
     def test_parse_test_results_only_errors(self, test_driver, caplog):
         """Test _parse_test_results with output showing only errors."""
         caplog.set_level(logging.DEBUG)
+        driver = test_driver['driver']
         output = """
 ============================= test session starts ==============================
 ============================== 2 error in 0.15s ==============================
 """
-        results = test_driver._parse_test_results(output)
+        results = driver._parse_test_results(output)
         assert results == {'passed': 0, 'failed': 0, 'total': 2, 'status': 'failed', 'message': 'Parsed successfully.'} # Errors fail the run
         assert "Parsed test results:" in caplog.text # Check debug log
 
     def test_parse_test_results_mixed_order(self, test_driver, caplog):
         """Test _parse_test_results with counts in a different order."""
         caplog.set_level(logging.DEBUG)
+        driver = test_driver['driver']
         output = """
 ============================= test session starts ==============================
 ============================== 1 error, 2 failed, 3 passed, 4 skipped in 0.5s ==============================
 """
-        results = test_driver._parse_test_results(output)
+        results = driver._parse_test_results(output)
         assert results == {'passed': 3, 'failed': 2, 'total': 10, 'status': 'failed', 'message': 'Parsed successfully.'}
         assert "Parsed test results:" in caplog.text # Check debug log
 
     def test_parse_test_results_total_zero_with_counts(self, test_driver, caplog):
         """Test _parse_test_results handles a case where parsed counts > 0 but total is somehow 0 (defensive)."""
         caplog.set_level(logging.WARNING)
+        driver = test_driver['driver']
         # Simulate a scenario where the regex finds counts but the total sum is zero
         # This is unlikely with real pytest output but tests the defensive check
-        output = """
-============================= test session starts ==============================
-============================== 1 passed, 1 failed in 0.1s ==============================
-"""
-        # Manually force the regex match to return counts that sum to > 0 but the total calculation is somehow wrong
-        # This requires patching the internal state, which is hard.
-        # A simpler approach is to test the specific defensive logic block.
         # The defensive block checks `if total == 0 and (passed > 0 or failed > 0 or skipped > 0 or errors > 0):`
         # We can simulate this by crafting input that *would* parse to counts > 0,
         # but then manually setting total to 0 before the check.
@@ -1894,7 +2043,7 @@ without a summary line
 ============================= test session starts ==============================
 ============================== 0 passed, 0 failed, 0 skipped, 0 error in 0.1s ==============================
 """
-        results_zero_sum = test_driver._parse_test_results(output_zero_sum)
+        results_zero_sum = driver._parse_test_results(output_zero_sum)
         assert results_zero_sum == {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Could not parse test results output.'} # Should be error if total is 0
 
         # Test the specific warning condition where total is 0 but counts are > 0
@@ -1917,31 +2066,37 @@ without a summary line
     @patch.object(WorkflowDriver, '_parse_test_results') # Patch the parse_test_results method
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     # FIX: Add caplog fixture to the argument list
+    # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
     def test_autonomous_loop_test_execution_flow(self, mock_get_full_path, mock_parse_test_results, mock_execute_tests, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, tmp_path, mocker, caplog):
         """
         Test that autonomous_loop orchestrates test execution and parsing
         when a step indicates running tests.
         """
         caplog.set_level(logging.INFO)
-        test_driver.roadmap_path = "dummy_roadmap.json"
+        driver = test_driver['driver']
+        mock_code_review_agent = test_driver['mock_code_review_agent'] # Get the mock agent
+
+        driver.roadmap_path = "dummy_roadmap.json"
 
         # Configure mocks for execute_tests and _parse_test_results
         mock_execute_tests.return_value = (0, "Pytest stdout output", "") # Simulate successful test execution
         mock_parsed_results = {'passed': 5, 'failed': 0, 'total': 5, 'status': 'passed', 'message': 'Parsed successfully.'}
         mock_parse_test_results.return_value = mock_parsed_results
 
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         # Verify code gen/merge/write helpers are NOT called
         mock_read_file_for_context.assert_not_called()
         mock_invoke_coder_llm.assert_not_called()
         mock_merge_snippet.assert_not_called()
         mock_write_output_file.assert_not_called()
+        # CodeReviewAgent should NOT be called (only called after successful code write)
+        mock_code_review_agent.analyze_python.assert_not_called()
 
         # Verify execute_tests is called
         # The test command heuristic now uses the target_file if it looks like a test file
         # FIX: Update expected command to match the new heuristic
-        mock_execute_tests.assert_called_once_with(["pytest", "tests/test_feature.py"], test_driver.context.base_path)
+        mock_execute_tests.assert_called_once_with(["pytest", "tests/test_feature.py"], driver.context.base_path)
 
         # Verify _parse_test_results is called with the stdout from execute_tests
         mock_parse_test_results.assert_called_once_with("Pytest stdout output")
@@ -1968,31 +2123,36 @@ without a summary line
     @patch.object(WorkflowDriver, '_parse_test_results') # Patch the parse_test_results method
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     # FIX: Add caplog fixture to the argument list
+    # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
     def test_autonomous_loop_test_execution_failure_flow(self, mock_get_full_path, mock_parse_test_results, mock_execute_tests, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, tmp_path, mocker, caplog):
         """
         Test that autonomous_loop logs errors when test execution fails.
         """
         # FIX: Change caplog level to INFO to capture the initial log message
         caplog.set_level(logging.INFO) # Capture INFO and ERROR logs
+        driver = test_driver['driver']
+        mock_code_review_agent = test_driver['mock_code_review_agent'] # Get the mock agent
 
-        test_driver.roadmap_path = "dummy_roadmap.json"
+        driver.roadmap_path = "dummy_roadmap.json"
 
         # Configure mocks for execute_tests and _parse_test_results
         mock_execute_tests.return_value = (1, "Pytest stdout output", "Pytest stderr output") # Simulate failed test execution
         mock_parsed_results = {'passed': 3, 'failed': 2, 'total': 5, 'status': 'failed', 'message': 'Parsed successfully.'}
         mock_parse_test_results.return_value = mock_parsed_results
 
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         # Verify code gen/merge/write helpers are NOT called
         mock_read_file_for_context.assert_not_called()
         mock_invoke_coder_llm.assert_not_called()
         mock_merge_snippet.assert_not_called()
         mock_write_output_file.assert_not_called()
+        # CodeReviewAgent should NOT be called (only called after successful code write)
+        mock_code_review_agent.analyze_python.assert_not_called()
 
         # Verify execute_tests is called
         # FIX: Update expected command to match the new heuristic
-        mock_execute_tests.assert_called_once_with(["pytest", "tests/test_feature.py"], test_driver.context.base_path)
+        mock_execute_tests.assert_called_once_with(["pytest", "tests/test_feature.py"], driver.context.base_path)
 
         # Verify _parse_test_results is called with the stdout from execute_tests
         mock_parse_test_results.assert_called_once_with("Pytest stdout output")
@@ -2020,31 +2180,37 @@ without a summary line
     @patch.object(WorkflowDriver, '_parse_test_results') # Patch the parse_test_results method
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     # FIX: Add caplog fixture to the argument list
+    # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
     def test_autonomous_loop_test_parsing_error_flow(self, mock_get_full_path, mock_parse_test_results, mock_execute_tests, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, mock_write_output_file, test_driver, tmp_path, mocker, caplog):
         """
         Test that autonomous_loop logs errors when test parsing fails.
         """
         # FIX: Change caplog level to INFO to capture the initial log message
         caplog.set_level(logging.INFO) # Capture INFO and ERROR logs
+        driver = test_driver['driver']
+        mock_code_review_agent = test_driver['mock_code_review_agent'] # Get the mock agent
 
-        test_driver.roadmap_path = "dummy_roadmap.json"
+        driver.roadmap_path = "dummy_roadmap.json"
 
         # Configure mocks for execute_tests and _parse_test_results
         mock_execute_tests.return_value = (0, "Unparsable stdout output", "") # Simulate successful execution but unparsable output
         mock_parsed_results = {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Could not parse test results output.'}
         mock_parse_test_results.return_value = mock_parsed_results
 
-        test_driver.start_workflow(test_driver.roadmap_path, str(tmp_path / "output"), test_driver.context)
+        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         # Verify code gen/merge/write helpers are NOT called
         mock_read_file_for_context.assert_not_called()
         mock_invoke_coder_llm.assert_not_called()
         mock_merge_snippet.assert_not_called()
         mock_write_output_file.assert_not_called()
+        # CodeReviewAgent should NOT be called (only called after successful code write)
+        mock_code_review_agent.analyze_python.assert_not_called()
+
 
         # Verify execute_tests is called
         # FIX: Update expected command to match the new heuristic
-        mock_execute_tests.assert_called_once_with(["pytest", "tests/test_feature.py"], test_driver.context.base_path)
+        mock_execute_tests.assert_called_once_with(["pytest", "tests/test_feature.py"], driver.context.base_path)
 
         # Verify _parse_test_results is called with the stdout from execute_tests
         mock_parse_test_results.assert_called_once_with("Unparsable stdout output")
@@ -2055,4 +2221,3 @@ without a summary line
         assert f"Test Execution Results: Status={mock_parsed_results['status']}, Passed={mock_parsed_results['passed']}, Failed={mock_parsed_results['failed']}, Total={mock_parsed_results['total']}" in caplog.text
         # Ensure error log for parsing error is present
         assert "Tests failed for step:" not in caplog.text # Should not log test failure if return code was 0
-        assert "Test execution or parsing error for step: Step 1: Run and verify pytest tests. Message: Could not parse test results output.. Raw stderr:\n" in caplog.text # Check parsing error log

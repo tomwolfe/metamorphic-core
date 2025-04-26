@@ -115,7 +115,8 @@ def genesis_ethical_analysis_endpoint():
 
             # Structure the results for the API response
             code_quality_results = {
-                "output": flake8_results.get('output', ''),
+                # --- CORRECTED: Use 'flake8_output' key to get raw output ---
+                "output": flake8_results.get('flake8_output', ''),
                 # --- REVISED: Use length of parsed static_analysis list ---
                 "issues_found": len(flake8_results.get('static_analysis', [])),
             }
@@ -165,4 +166,3 @@ def genesis_ethical_analysis_endpoint():
     except Exception as e:
         logger.error(f"Unexpected error in /analyze-ethical: {e}", exc_info=True)
         # Ensure a 500 is returned for truly unexpected errors
-

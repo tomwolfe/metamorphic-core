@@ -396,6 +396,7 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
 Your task is to generate a step-by-step solution plan for the following development task from the Metamorphic Software Genesis Ecosystem roadmap.
 
 Task Name: {task_name}
+
 Task Description:
 {description}
 
@@ -933,3 +934,5 @@ Requirements:
         }
 
         logger.debug(f"Parsed test results: {results}")
+        # ADDED: Return the results dictionary
+        return results

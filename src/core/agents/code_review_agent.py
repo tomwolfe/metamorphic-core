@@ -178,5 +178,5 @@ class CodeReviewAgent:
 
     def _merge_results(self, flake8_results: dict, bandit_results: dict) -> dict:
         """Merge parsed results from Flake8 and Bandit."""
-        merged_static_analysis = flake8_results.get('static_analysis', []) + self._parse_bandit_results(bandit_results)
+        merged_static_analysis = flake8_results.get('static_analysis', []) + bandit_results.get('findings', [])
         return {'static_analysis': merged_static_analysis}

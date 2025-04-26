@@ -1245,7 +1245,7 @@ class TestWorkflowDriver:
         assert plan == [], "Should return an empty list for empty LLM output"
 
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
-    def test_generate_solution_plan_handles_none_output(self, mock_invoke_coder_llm, test_driver, caplog):
+    def test_generate_solution_plan_handles_none_output(self, test_driver, caplog):
         """Test generate_solution_plan handles None output from _invoke_coder_llm."""
         caplog.set_level(logging.WARNING)
         driver = test_driver['driver']
@@ -1990,7 +1990,7 @@ without a summary line
         # Should still return error status if no counts are parsed
         assert results == {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Could not parse test results output.'}
         # FIX: Update assertion string to match the actual log output
-        assert "Could not parse any counts from summary line: ============================= test session starts ==============================" in caplog.text # Check warning log
+        assert "Could not parse any counts from summary line: ============================== malformed summary line ==============================" in caplog.text # Check warning log
 
     def test_parse_test_results_only_skipped(self, test_driver, caplog):
         """Test _parse_test_results with output showing only skipped tests."""

@@ -871,6 +871,19 @@ Requirements:
 
         # Regex to find the final summary line(s)
         # Look for lines starting with '==' and containing 'test session' or test counts
+        # The regex for summary lines was slightly too strict, only matching lines with counts.
+        # It should match any line starting with '==' that looks like a summary line header or footer.
+        # Let's simplify the summary line detection to just lines starting with '=='
+        # and rely on the counts_pattern to find the actual results.
+        # However, the original regex was intended to filter out non-summary '==' lines.
+        # Let's keep the original regex but understand its limitation: it might miss
+        # some summary lines if they don't contain the keywords.
+        # The current issue is that the test input `============================== malformed summary line ==============================`
+        # does *not* match the filter `('test session' in line or 'passed' in line or 'failed' in line or 'skipped' in line or 'error' in line)`.
+        # This causes `summary_lines` to be empty, triggering the "Could not find pytest summary lines" error message.
+        # The test *intends* to test the case where a summary line *is* found, but counts cannot be parsed.
+        # To fix this, the test input needs to include a line that *does* match the summary_lines filter,
+        # but *doesn't* contain parsable counts. The "test session starts" line is a good candidate.
         summary_lines = [line for line in raw_output.splitlines() if line.strip().startswith('==') and ('test session' in line or 'passed' in line or 'failed' in line or 'skipped' in line or 'error' in line)]
 
         if not summary_lines:

@@ -77,7 +77,8 @@ class CodeReviewAgent:
                     elif bandit_output:
                         try:
                             bandit_json = json.loads(bandit_output)
-                            bandit_results['findings'] = bandit_json.get('results', [])
+                            # FIX: Call _parse_bandit_results to map keys and severity
+                            bandit_results['findings'] = self._parse_bandit_results(bandit_json)
                         except json.JSONDecodeError as e:
                             logger.error(f"Error parsing Bandit JSON output: {e}. Raw output:\n{bandit_output}", exc_info=True)
                             bandit_results['error'] = True
@@ -109,6 +110,7 @@ class CodeReviewAgent:
         overall_status = "success"
         if flake8_results.get('error') or bandit_results.get('error'):
             overall_status = "error"
+        # Check for findings with severity 'error' (from Flake8 E/F) or 'security_high' (from Bandit HIGH)
         elif any(f.get('severity', '').startswith('error') or f.get('severity', '').startswith('security_high') for f in merged_findings.get('static_analysis', [])):
              overall_status = "failed" # Consider errors or high security issues as failure
 
@@ -131,6 +133,8 @@ class CodeReviewAgent:
             if match:
                 details = match.groupdict()
                 details["severity"] = self._determine_severity(details["code"])
+                # CORRECTED: Ensure 'message' key is used consistently
+                details['message'] = details.pop('message') # Rename 'message' group to 'message' key
                 findings.append(details)
         return findings
 
@@ -149,7 +153,7 @@ class CodeReviewAgent:
             'T': 'info'       # Type hints
         }
         # Default to 'info' if code prefix is not in map
-        return severity_map.get(code[0], 'info') if code else 'info'
+        return severity_map.get(code[0], 'info') if code and len(code) > 0 else 'info' # Added check for empty code string
 
     def _parse_bandit_results(self, bandit_json: dict) -> list:
         """Parse Bandit JSON output into structured findings."""
@@ -159,8 +163,8 @@ class CodeReviewAgent:
                 'file': issue.get('filename', 'N/A'),
                 'line': str(issue.get('line_number', 'N/A')),
                 'col': 'N/A', # Bandit doesn't provide column
-                'code': issue.get('test_id', 'N/A'),
-                'message': issue.get('issue_text', 'N/A'),
+                'code': issue.get('test_id', 'N/A'), # Map test_id to 'code'
+                'message': issue.get('issue_text', 'N/A'), # Map issue_text to 'message'
                 'severity': self._map_bandit_severity(issue.get('issue_severity', 'UNKNOWN')),
                 'confidence': issue.get('issue_confidence', 'UNKNOWN')
             })
@@ -178,5 +182,7 @@ class CodeReviewAgent:
 
     def _merge_results(self, flake8_results: dict, bandit_results: dict) -> dict:
         """Merge parsed results from Flake8 and Bandit."""
+        # flake8_results['static_analysis'] contains findings parsed by _parse_flake8_results
+        # bandit_results['findings'] contains findings parsed by _parse_bandit_results
         merged_static_analysis = flake8_results.get('static_analysis', []) + bandit_results.get('findings', [])
         return {'static_analysis': merged_static_analysis}

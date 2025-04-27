@@ -12,6 +12,8 @@ from unittest.mock import MagicMock
 from src.cli.write_file import write_file  # Ensure write_file is imported
 import subprocess # Import subprocess for execute_tests
 from src.core.agents.code_review_agent import CodeReviewAgent # Import CodeReviewAgent
+from src.core.ethics.governance import EthicalGovernanceEngine # Import EthicalGovernanceEngine
+from datetime import datetime # Import datetime for report timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +27,35 @@ METAMORPHIC_INSERT_POINT = "# METAMORPHIC_INSERT_POINT"
 class Context:
     def __init__(self, base_path):
         self.base_path = base_path
+        # Resolve base_path immediately for safety checks
+        try:
+            self._resolved_base_path = Path(self.base_path).resolve()
+        except Exception as e:
+            logger.error(f"Error resolving base path '{self.base_path}': {e}", exc_info=True)
+            self._resolved_base_path = None # Indicate resolution failure
 
     def get_full_path(self, relative_path):
         """Resolves a relative path against the context's base path."""
-        if not isinstance(relative_path, str):
-             # Handle non-string input gracefully
+        if self._resolved_base_path is None:
+             logger.error(f"Base path failed to resolve. Cannot resolve relative path '{relative_path}'.")
              return None
-        try:
-            # Use Path.resolve() to handle '..' and symlinks safely
-            # Check if the resolved path is still within the base path
-            full_requested_path = Path(self.base_path) / relative_path
-            resolved_path = full_requested_path.resolve()
-            resolved_base_path = Path(self.base_path).resolve()
 
-            if not str(resolved_path).startswith(str(resolved_base_path)):
+        if not isinstance(relative_path, str) or not relative_path: # Added check for empty string
+             # Handle non-string or empty input gracefully
+             # An empty string relative path should resolve to the base path itself
+             if relative_path == "":
+                 return str(self._resolved_base_path)
+             logger.warning(f"Attempted to resolve path with invalid input: {relative_path}")
+             return None
+
+        try:
+            # Resolve the requested path relative to the base path
+            full_requested_path = self._resolved_base_path / relative_path
+            resolved_path = full_requested_path.resolve()
+
+            # Check if the resolved path starts with the resolved base path
+            # This prevents '..' traversal and absolute paths resolving outside the base
+            if not str(resolved_path).startswith(str(self._resolved_base_path)):
                  logger.warning(f"Path traversal attempt detected during resolution: {relative_path} resolved to {resolved_path}")
                  return None # Return None if path resolves outside the base directory
 
@@ -62,6 +79,7 @@ class WorkflowDriver:
     def __init__(self, context: Context):
         self.context = context
         self.tasks = []  # Will be loaded by start_workflow
+        self._current_task_results = {} # Dictionary to store results for the current task iteration # ADDED
 
         # Initialize LLM Orchestrator - Pass placeholder dependencies for now
         self.llm_orchestrator = EnhancedLLMOrchestrator(
@@ -71,6 +89,22 @@ class WorkflowDriver:
         )
         # Instantiate CodeReviewAgent
         self.code_review_agent = CodeReviewAgent()
+
+        # Instantiate EthicalGovernanceEngine and load default policy # ADDED BLOCK
+        self.ethical_governance_engine = EthicalGovernanceEngine()
+        # Use context.get_full_path for safety when loading the policy file
+        default_policy_path = self.context.get_full_path("policies/policy_bias_risk_strict.json")
+        if default_policy_path:
+            try:
+                self.default_policy_config = self.ethical_governance_engine.load_policy_from_json(default_policy_path)
+                logger.info(f"Loaded default ethical policy: {self.default_policy_config.get('policy_name')}")
+            except Exception as e:
+                logger.error(f"Failed to load default ethical policy from {default_policy_path}: {e}", exc_info=True)
+                self.default_policy_config = None # Set to None if loading fails
+        else:
+            logger.error("Could not resolve path for default ethical policy. Ethical analysis may be impacted.")
+            self.default_policy_config = None
+        # END ADDED BLOCK
 
 
     def start_workflow(self, roadmap_path: str, output_dir: str, context: Context):
@@ -109,12 +143,13 @@ class WorkflowDriver:
         and file management steps to drive the development process autonomously.
         """
         # Ensure roadmap_path is set before trying to load
-        if not hasattr(self, 'roadmap_path') or not self.roadmap_path:
+        if not hasattr(self, 'roadmap_path') or (self.roadmap_path is None): # Check for None explicitly
             logger.error("Roadmap path not set. Cannot start autonomous loop.")
             return # Exit if roadmap path is not set
 
         while True:
             logger.info('Starting autonomous loop iteration')
+            self._current_task_results = {} # Reset results for the new task iteration # ADDED
 
             # Load the roadmap inside the loop to get the latest status updates
             try:
@@ -149,7 +184,6 @@ class WorkflowDriver:
                                                     "add logic to"]
                         file_writing_keywords = ["write file", "create file", "save to file",
                                                  "output file", "generate file"]
-                        # FIX: Added "pytest" and "test suite" to test execution keywords
                         test_execution_keywords = ["run tests", "execute tests", "verify tests", "pytest", "test suite"]
 
                         # Determine the actual filepath to use: prioritize target_file from task
@@ -166,7 +200,7 @@ class WorkflowDriver:
                         needs_coder_llm = any(
                             keyword in step_lower for keyword in code_generation_keywords)
 
-                        is_test_execution_step = any(keyword in step_lower for keyword in test_execution_keywords) # ADDED: Check if it's a test execution step
+                        is_test_execution_step = any(keyword in step_lower for keyword in test_execution_keywords)
 
                         generated_output = None  # Initialize generated_output for this step
                         content_to_write = None # Initialize content_to_write
@@ -180,16 +214,19 @@ class WorkflowDriver:
                              # A more sophisticated approach would infer the target test file from the previous steps or task metadata
                              # For now, if a target_file is specified and looks like a test file, use it. Otherwise, default.
                              test_command = ["pytest"]
-                             if filepath_to_use and ('test_' in filepath_to_use or filepath_to_use.endswith('_test.py')):
+                             # FIX: Simplify test command heuristic - use filepath_to_use if available
+                             if filepath_to_use:
                                  test_command.append(filepath_to_use)
                              else:
                                  test_command.append("tests/") # Default to running all tests in tests/
+
 
                              # Execute tests
                              return_code, stdout, stderr = self.execute_tests(test_command, self.context.base_path)
 
                              # Parse test results
                              test_results = self._parse_test_results(stdout)
+                             self._current_task_results['test_results'] = test_results # Store test results # ADDED
 
                              # Log parsed results
                              logger.info(f"Test Execution Results: Status={test_results['status']}, Passed={test_results['passed']}, Failed={test_results['failed']}, Total={test_results['total']}")
@@ -197,11 +234,6 @@ class WorkflowDriver:
                                  logger.error(f"Tests failed for step: {step}. Raw stderr:\n{stderr}")
                              elif test_results['status'] == 'error':
                                  logger.error(f"Test execution or parsing error for step: {step}. Message: {test_results['message']}. Raw stderr:\n{stderr}")
-
-                             # Store test_results for later use (e.g., Grade Report)
-                             # This would typically be stored in a list or dict associated with the current task iteration
-                             # For now, we just log it. In task_1_6f_generate_report, we'll need to retrieve this.
-                             # Placeholder: self.current_task_test_results = test_results # Example storage
 
                         # Prioritize code generation steps targeting a specific file
                         elif needs_coder_llm and filepath_to_use:
@@ -248,16 +280,30 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                                     self._write_output_file(filepath_to_use, merged_content, overwrite=True)
                                     logger.info(f"Successfully wrote merged content to {filepath_to_use}.")
 
-                                    # --- ADDED: Call CodeReviewAgent after successful write ---
+                                    # --- ADDED: Call CodeReviewAgent and Ethical Analysis after successful write ---
                                     try:
                                         logger.info(f"Running code review and security scan for {filepath_to_use}...")
                                         review_results = self.code_review_agent.analyze_python(merged_content)
+                                        self._current_task_results['code_review_results'] = review_results # Store code review/security results # ADDED
                                         logger.info(f"Code Review and Security Scan Results for {filepath_to_use}: {review_results}")
-                                        # Store review_results for later use (e.g., Grade Report)
-                                        # Placeholder: self.current_task_review_results = review_results # Example storage
                                     except Exception as review_e:
                                         logger.error(f"Error running code review/security scan for {filepath_to_use}: {review_e}", exc_info=True)
+                                        self._current_task_results['code_review_results'] = {'status': 'error', 'message': str(review_e)} # Store error
+
+                                    if self.default_policy_config:
+                                        try:
+                                            logger.info(f"Running ethical analysis for {filepath_to_use}...")
+                                            ethical_analysis_results = self.ethical_governance_engine.enforce_policy(merged_content, self.default_policy_config)
+                                            self._current_task_results['ethical_analysis_results'] = ethical_analysis_results # Store ethical analysis results # ADDED
+                                            logger.info(f"Ethical Analysis Results for {filepath_to_use}: {ethical_analysis_results}")
+                                        except Exception as ethical_e:
+                                            logger.error(f"Error running ethical analysis for {filepath_to_use}: {ethical_e}", exc_info=True)
+                                            self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': str(ethical_e)} # Store error
+                                    else:
+                                        logger.warning("Default ethical policy not loaded. Skipping ethical analysis.")
+                                        self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded.'} # Indicate skipped
                                     # --- END ADDED BLOCK ---
+
 
                                 except FileExistsError:
                                     # This should not happen with overwrite=True, but handle defensively
@@ -297,6 +343,14 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                             logger.info(
                                 f"Step not identified as code generation, file writing, or test execution. Skipping agent invocation/file write for step: {step}")
                         # --- END MODIFIED LOGIC FOR STEP PROCESSING ---
+
+                    # --- ADDED: Generate and Log Grade Report after all steps for the task ---
+                    logger.info("Generating Grade Report...")
+                    # Ensure task_id is available here (it's available from the selected_task dict)
+                    task_id = next_task.get('task_id', 'Unknown ID') # Get task_id from the task dict
+                    grade_report_json = self.generate_grade_report(task_id, self._current_task_results)
+                    logger.info(f"--- GRADE REPORT for Task {task_id} ---\n{grade_report_json}\n--- END GRADE REPORT ---")
+                    # END ADDED BLOCK
 
 
                 else: # This 'else' corresponds to 'if solution_plan:'
@@ -639,15 +693,13 @@ Requirements:
             if full_path is None: # Check if context path resolution failed
                  logger.warning(f"Failed to resolve path for existence check: {relative_file_path}")
                  return False
-            resolved_path = Path(full_path).resolve()
+            # No need to call resolve() again here, get_full_path already returns a resolved path
+            resolved_path = Path(full_path)
         except Exception as e:
             logger.error(f"Error resolving filepath {relative_file_path} for existence check: {e}",
                          exc_info=True)
             return False
 
-        # No need to check startswith(resolved_base_path) here because context.get_full_path
-        # and Path.resolve() handle '..' and absolute paths relative to the base path.
-        # Path.resolve() will raise if the path doesn't exist or can't be resolved.
         # The primary check is whether the resolved path actually exists and is a file.
         return os.path.exists(resolved_path) and os.path.isfile(resolved_path)
 
@@ -656,27 +708,26 @@ Requirements:
         base_path = self.context.base_path
         entries = []
         try:
-            resolved_base_path = Path(base_path).resolve()
+            # Use the resolved base path from the context
+            resolved_base_path_str = self.context.get_full_path("") # Resolve empty string to get base path
+            if resolved_base_path_str is None:
+                 logger.error(f"Failed to resolve base path for listing: {base_path}")
+                 return []
+            resolved_base_path = Path(resolved_base_path_str)
+
             if not resolved_base_path.is_dir():
                 logger.error(f"Base path is not a valid directory: {base_path}")
                 return []
 
             # Use resolved_base_path for listing
             for name in os.listdir(resolved_base_path):
-                full_path = resolved_base_path / name # Use Path object for joining
-                # No need to validate filename here if we trust os.listdir and resolved_base_path
-                # The _is_valid_filename check was primarily for user-provided paths.
-                # However, keeping a basic check might be prudent if the environment is untrusted.
-                # Let's simplify this check slightly for names from os.listdir, focusing on traversal.
-                # A simple check for '..' and '/' might be sufficient here.
-                # Re-using the task_id regex might be too strict for filenames.
-                # Let's keep the previous regex but clarify its primary use case.
-                # The regex `^[a-zA-Z0-9][a-zA-Z0-9_.-]*$` is suitable for file paths relative to the base.
-                # Let's use this regex.
+                # Add check using _is_valid_filename # ADDED
                 if not self._is_valid_filename(name):
                      logger.warning(f"Skipping listing of potentially unsafe filename: {name}")
                      continue
+                # END ADDED
 
+                full_path = resolved_base_path / name # Use Path object for joining
 
                 if full_path.is_file(): # Use Path object methods
                     entries.append({'name': name, 'status': 'file'})
@@ -696,7 +747,7 @@ Requirements:
         if '..' in filename or '/' in filename or '\\' in filename:
             return False
         # Ensure it's not just a dot or dot-dot
-        if filename in ['.', '..']: # Corrected from ['.', '.']
+        if filename in ['.', '..']:
             return False
         # Allow alphanumeric, underscores, hyphens, and dots. Must start with alphanumeric.
         # This regex is primarily for validating *user-provided* filenames/paths,
@@ -734,16 +785,11 @@ Requirements:
             if full_path is None: # Check if context path resolution failed
                  logger.error(f"Failed to resolve path for writing: {filepath}")
                  return False
-            resolved_filepath = Path(full_path).resolve()
+            # No need to call resolve() again here, get_full_path already returns a resolved path
+            resolved_filepath = Path(full_path)
         except Exception as e:
             logger.error(f"Error resolving filepath {filepath} for writing: {e}", exc_info=True)
             return False
-
-        # Ensure the resolved path is within the resolved base path (redundant if context.get_full_path is safe, but defensive)
-        # resolved_base_path = Path(self.context.base_path).resolve()
-        # if not str(resolved_filepath).startswith(str(resolved_base_path)):
-        #     logger.error(f"Attempt to write outside base path: {filepath} (Resolved: {resolved_filepath})")
-        #     return False
 
         # Ensure the directory exists before writing
         parent_dir = resolved_filepath.parent
@@ -814,7 +860,6 @@ Requirements:
 
         return return_code, stdout, stderr
 
-    # ADDED: Implementation of _merge_snippet method
     def _merge_snippet(self, existing_content: str, snippet: str) -> str:
         """
         Merges a generated code snippet into existing file content.
@@ -846,7 +891,7 @@ Requirements:
             if not existing_content:
                 return snippet # If existing is empty, just return snippet
             # Ensure a newline before appending if existing content doesn't end with one
-            if existing_content and not existing_content.endswith('\n'):
+            if existing_content and not existing_content.strip().endswith('\n'): # Added strip() for robustness
                  return existing_content + "\n" + snippet
             # If existing content ends with a newline, just append the snippet
             return existing_content + snippet
@@ -929,3 +974,178 @@ Requirements:
 
         logger.debug(f"Parsed test results: {results}")
         return results
+
+    # ADDED: Implementation of generate_grade_report and _calculate_grades
+    def generate_grade_report(self, task_id: str, validation_results: dict) -> str:
+        """
+        Generates a structured JSON Grade Report based on validation results.
+
+        Args:
+            task_id: The ID of the task being reported on.
+            validation_results: A dictionary containing results from automated validation steps.
+                                Expected keys: 'test_results', 'code_review_results',
+                                'ethical_analysis_results'. (Security results are within code_review_results)
+
+        Returns:
+            A JSON string representing the Grade Report.
+        """
+        report = {
+            "task_id": task_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "validation_results": {
+                "tests": validation_results.get('test_results', {}),
+                "code_review": validation_results.get('code_review_results', {}), # Includes static analysis and bandit
+                "ethical_analysis": validation_results.get('ethical_analysis_results', {})
+            },
+            "grades": self._calculate_grades(validation_results)
+        }
+
+        # Use standard json.dumps for now
+        return json.dumps(report, indent=2)
+
+    def _calculate_grades(self, validation_results: dict) -> dict:
+        """
+        Calculates probability-based grades based on validation results.
+
+        Weights:
+        - Probability of Non-Regression: 20%
+        - Probability of Test Success: 30%
+        - Code Style Compliance Probability: 10%
+        - Probability of Ethical Policy Compliance Probability: 20%
+        - Probability of Security Soundness: 20%
+
+        Args:
+            validation_results: Dictionary of validation results.
+
+        Returns:
+            A dictionary with dimension-specific grades and an overall grade.
+        """
+        grades = {
+            "non_regression": {"percentage": 0, "justification": "No non-regression tests executed."}, # Placeholder
+            "test_success": {"percentage": 0, "justification": "No test results available."},
+            "code_style": {"percentage": 0, "justification": "No code review results available."},
+            "ethical_policy": {"percentage": 0, "justification": "No ethical analysis results available."},
+            "security_soundness": {"percentage": 0, "justification": "No security results available."}
+        }
+
+        # Calculate Test Success Grade (30%)
+        test_results = validation_results.get('test_results')
+        if test_results and test_results.get('status') != 'error' and test_results.get('total', 0) > 0:
+            percentage = 100 * (test_results.get('passed', 0) / test_results.get('total')) # Partial credit based on pass rate
+            grades['test_success'] = {
+                "percentage": round(percentage),
+                "justification": f"Tests executed: {test_results.get('total')}, Passed: {test_results.get('passed')}, Failed: {test_results.get('failed')}, Status: {test_results.get('status')}"
+            }
+        elif test_results and test_results.get('status') == 'error':
+             grades['test_success'] = {
+                "percentage": 0,
+                "justification": f"Test execution or parsing error: {test_results.get('message')}"
+            }
+
+
+        # Calculate Code Style Grade (10%) and Security Soundness Grade (20%)
+        code_review_results = validation_results.get('code_review_results')
+        if code_review_results and code_review_results.get('status') != 'error':
+            all_findings = code_review_results.get('static_analysis', [])
+
+            # Separate findings into Code Style and Security based on severity prefix
+            code_style_findings = [f for f in all_findings if not f.get('severity', '').startswith('security')]
+            security_findings = [f for f in all_findings if f.get('severity', '').startswith('security')]
+
+            # --- Code Style Grade Calculation ---
+            # Count high severity style findings (errors, warnings, style, info) - adjust based on desired strictness
+            # Let's consider 'error' and 'warning' from Flake8 as style issues for this grade
+            high_style_issues = [f for f in code_style_findings if f.get('severity') in ['error', 'warning']]
+            other_style_issues = [f for f in code_style_findings if f.get('severity') not in ['error', 'warning']]
+
+            style_high_penalty = 15 # Each high style issue reduces score by 15%
+            style_other_penalty = 3 # Each other style issue reduces score by 3%
+
+            calculated_style_percentage = 100 - (len(high_style_issues) * style_high_penalty + len(other_style_issues) * style_other_penalty)
+            style_percentage = max(0, calculated_style_percentage) # Cap at 0%
+
+            grades['code_style'] = {
+                "percentage": style_percentage,
+                "justification": f"Code review found {len(code_style_findings)} style issues ({len(high_style_issues)} high severity style). Status: {code_review_results.get('status')}"
+            }
+
+            # --- Security Soundness Grade Calculation ---
+            high_security_findings = [f for f in security_findings if f.get('severity') == 'security_high']
+            medium_security_findings = [f for f in security_findings if f.get('severity') == 'security_medium']
+            low_security_findings = [f for f in security_findings if f.get('severity') == 'security_low']
+
+            # Arbitrary penalty factors for security findings
+            high_sec_penalty = 50 # Each high security issue reduces score by 50%
+            medium_sec_penalty = 10 # Each medium security issue reduces score by 10%
+            low_sec_penalty = 2 # Each low security issue reduces score by 2%
+
+            calculated_security_percentage = 100 - (len(high_security_findings) * high_sec_penalty +
+                                                    len(medium_security_findings) * medium_sec_penalty +
+                                                    len(low_security_findings) * low_sec_penalty)
+            security_percentage = max(0, calculated_security_percentage) # Cap at 0%
+
+            grades['security_soundness'] = {
+                "percentage": security_percentage,
+                "justification": f"Security scan found {len(security_findings)} security findings ({len(high_security_findings)} high, {len(medium_security_findings)} medium, {len(low_security_findings)} low)."
+            }
+
+        elif code_review_results and code_review_results.get('status') == 'error':
+             error_justification = f"Code review/security execution error: {code_review_results.get('errors', {}).get('flake8', 'N/A')}, {code_review_results.get('errors', {}).get('bandit', 'N/A')}"
+             grades['code_style'] = {
+                "percentage": 0,
+                "justification": error_justification
+            }
+             grades['security_soundness'] = {
+                "percentage": 0,
+                "justification": error_justification
+            }
+
+
+        # Calculate Ethical Policy Grade (20%)
+        # FIX: Correct the key lookup from 'ethical_analysis' to 'ethical_analysis_results'
+        ethical_results = validation_results.get('ethical_analysis_results') # CORRECTED KEY
+        if ethical_results and ethical_results.get('overall_status') != 'error':
+            percentage = 100 if ethical_results.get('overall_status') == 'approved' else 0
+            justification = f"Ethical analysis status: {ethical_results.get('overall_status')}. Policy: {ethical_results.get('policy_name', 'N/A')}"
+            if ethical_results.get('overall_status') == 'rejected':
+                violations = [k for k, v in ethical_results.items() if isinstance(v, dict) and v.get('status') == 'violation']
+                justification += f". Violations: {', '.join(violations)}"
+            elif ethical_results.get('overall_status') == 'skipped':
+                 percentage = 0 # Skipped is treated as 0 for grading
+                 justification = f"Ethical analysis skipped: {ethical_results.get('message', 'Unknown reason')}"
+
+            # FIX: Add the missing assignment here - THIS WAS ALREADY PRESENT, NO CHANGE NEEDED HERE
+            grades['ethical_policy'] = {
+                "percentage": percentage,
+                "justification": justification
+            }
+        elif ethical_results and ethical_results.get('overall_status') == 'error':
+             grades['ethical_policy'] = {
+                "percentage": 0,
+                "justification": f"Ethical analysis execution error: {ethical_results.get('message', 'Unknown error')}"
+            }
+
+
+        # Calculate Non-Regression Grade (20%) - Placeholder for now
+        # This requires comparing current state/behavior to previous, which is complex.
+        # For 1.6f, this will be a placeholder.
+        # Simple heuristic: 100% if Test Success is 100%, 0% otherwise.
+        grades['non_regression'] = {
+             "percentage": 100 if grades['test_success']['percentage'] == 100 else 0,
+             "justification": "Non-regression testing is a placeholder. Graded based on Test Success (100% if tests passed, 0% otherwise)."
+        }
+
+
+        # Calculate Overall Percentage Grade
+        # Weights: Non-Regression (20%), Test Success (30%), Code Style (10%), Ethical Policy (20%), Security Soundness (20%)
+        overall_percentage = (
+            grades['non_regression']['percentage'] * 0.20 +
+            grades['test_success']['percentage'] * 0.30 +
+            grades['code_style']['percentage'] * 0.10 +
+            grades['ethical_policy']['percentage'] * 0.20 +
+            grades['security_soundness']['percentage'] * 0.20
+        )
+
+        grades['overall_percentage_grade'] = round(overall_percentage)
+
+        return grades

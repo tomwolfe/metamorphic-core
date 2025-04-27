@@ -105,7 +105,7 @@ class WorkflowDriver:
                 logger.error(f"Failed to load default ethical policy from {default_policy_path}: {e}", exc_info=True)
                 self.default_policy_config = None # Set to None if loading fails
         else:
-            logger.error("Could not resolve path for default ethical policy. Ethical analysis may be impacted.")
+            logger.warning("Could not resolve path for default ethical policy. Ethical analysis may be impacted.")
             self.default_policy_config = None
 
 
@@ -1151,3 +1151,69 @@ Requirements:
         grades['overall_percentage_grade'] = round(overall_percentage)
 
         return grades
+
+    def _parse_and_evaluate_grade_report(self, grade_report_json: str) -> dict:
+        """
+        Parses a JSON Grade Report, evaluates results, and determines the recommended next action.
+
+        Args:
+            grade_report_json: The JSON string representing the Grade Report.
+
+        Returns:
+            A dictionary containing the recommended_action and justification.
+        """
+        logger.info("Parsing and evaluating Grade Report...")
+        try:
+            report_data = json.loads(grade_report_json)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse Grade Report JSON: {e}", exc_info=True)
+            return {
+                "recommended_action": "Manual Review Required",
+                "justification": f"Failed to parse Grade Report JSON: {e}"
+            }
+
+        # Extract key metrics, handling missing keys
+        grades = report_data.get('grades', {})
+        validation_results = report_data.get('validation_results', {})
+
+        overall_percentage_grade = grades.get('overall_percentage_grade', 0)
+        test_results = validation_results.get('tests', {})
+        code_review_results = validation_results.get('code_review', {})
+        ethical_analysis_results = validation_results.get('ethical_analysis', {})
+
+        logger.info(f"Grade Report Metrics: Overall Grade={overall_percentage_grade}%, Test Status={test_results.get('status')}, Ethical Status={ethical_analysis_results.get('overall_status')}, Code Review Status={code_review_results.get('status')}")
+
+        recommended_action = "Manual Review Required"
+        justification = "Default action based on unhandled scenario."
+
+        # Rule 1: Perfect Score
+        if overall_percentage_grade == 100:
+            recommended_action = "Completed"
+            justification = "Overall grade is 100%."
+        # Rule 2: Critical Ethical Violation
+        elif ethical_analysis_results.get('overall_status') == 'rejected':
+            recommended_action = "Blocked"
+            justification = "Ethical analysis rejected the code."
+        # Rule 3: High-Risk Security Finding
+        elif code_review_results.get('static_analysis') and any(f.get('severity') == 'security_high' for f in code_review_results['static_analysis']):
+             recommended_action = "Blocked"
+             justification = "High-risk security findings detected."
+        # Rule 4: Test Failures
+        elif test_results.get('status') == 'failed':
+            recommended_action = "Regenerate Code"
+            justification = "Automated tests failed."
+        # Rule 5: Below Perfect but Acceptable for Regeneration
+        elif overall_percentage_grade >= 80: # Threshold for regeneration
+            recommended_action = "Regenerate Code"
+            justification = f"Overall grade ({overall_percentage_grade}%) is below 100% but meets regeneration threshold."
+        # Default: Manual Review Required
+        else:
+            recommended_action = "Manual Review Required"
+            justification = f"Overall grade ({overall_percentage_grade}%) is below regeneration threshold or other issues require manual review."
+
+        logger.info(f"Recommended Action: {recommended_action}. Justification: {justification}")
+
+        return {
+            "recommended_action": recommended_action,
+            "justification": justification
+        }

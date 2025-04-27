@@ -248,6 +248,9 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content") # Mock the new merge method
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     # CORRECTED ARGUMENT ORDER TO MATCH PATCHES (BOTTOM-UP)
+    # NEW: Add assertions for CodeReviewAgent call
+    # MODIFIED: Use mocker.patch.object for _write_output_file
+    # FIX: Remove class patches for CodeReviewAgent and EthicalGovernanceEngine
     def test_autonomous_loop_calls_write_file_with_generated_content(self, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop calls _write_output_file with generated content when step is code gen + file write."""
         caplog.set_level(logging.INFO) # Keep INFO
@@ -313,15 +316,15 @@ class TestWorkflowDriver:
 
 
     # MODIFIED: Adjust assertions for load_roadmap and get_full_path calls, and _write_output_file call count
-    # MODIFIED: Update assertions to match the new prompt format for snippet generation
-    # MODIFIED: Change plan step phrasing to trigger needs_coder_llm
+    # MODIFIED: Mock src.cli.write_file.write_file instead of WorkflowDriver._write_output_file
+    # CORRECTED MOCK ARGUMENT ORDER
     # MODIFIED: Add mock for _merge_snippet (even though it won't be called in this specific test scenario)
-    # NEW: Add assertions for CodeReviewAgent call
+    # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
     # MODIFIED: Use mocker.patch.object for _write_output_file
     # PATCHING OPEN AND GET_FULL_PATH INSIDE THE TEST METHOD
     # CORRECTED ARGUMENT ORDER TO MATCH PATCHES (BOTTOM-UP)
     # NEW: Add caplog fixture
-    # NEW: Add assertions for CodeReviewAgent call
+    # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
     # ***** CORRECTED SIGNATURE: Removed mock_get_full_path *****
     # FIX: Remove class patches for CodeReviewAgent and EthicalGovernanceEngine
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True") # Mock LLM to return generated code
@@ -438,6 +441,11 @@ class TestWorkflowDriver:
     # MODIFIED: Add mock for _merge_snippet (even though it won't be called in this specific test scenario)
     # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
     # MODIFIED: Use mocker.patch.object for _write_output_file
+    # PATCHING OPEN AND GET_FULL_PATH INSIDE THE TEST METHOD
+    # CORRECTED ARGUMENT ORDER TO MATCH PATCHES (BOTTOM-UP)
+    # NEW: Add caplog fixture
+    # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
+    # ***** CORRECTED SIGNATURE: Removed mock_get_full_path *****
     # FIX: Remove class patches for CodeReviewAgent and EthicalGovernanceEngine
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value=None)
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to error.txt", "Step 2: Another step."])
@@ -694,6 +702,12 @@ class TestWorkflowDriver:
             "tasks": [
                 "not a dict",
                 {
+                    "task_id": "t3",
+                    "priority": "Not Specified",
+                    "task_name": "Test Task 3",
+                    "status": "Not Started"
+                },
+                {
                     "task_id": "t1",
                     "priority": "High",
                     "task_name": "Test Task 1",
@@ -711,11 +725,14 @@ class TestWorkflowDriver:
         """
         roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
         tasks = driver.load_roadmap(roadmap_file)
-        # Should load task t1 and skip the invalid string and task t2 (missing description)
-        assert len(tasks) == 1
-        assert tasks[0]['task_id'] == 't1'
+        # Should load task t1, skip the invalid string and tasks t3 and t2 (missing description)
+        # select_next_task will pick t1 first.
+        assert len(tasks) == 1 # FIX: Changed assertion from 2 to 1
+        assert tasks[0]['task_id'] == 't1' # FIX: Changed assertion from t3 to t1
         assert "Skipping invalid task (not a dictionary): not a dict" in caplog.text
+        assert "Task missing required keys: {'task_id': 't3', 'priority': 'Not Specified', 'task_name': 'Test Task 3', 'status': 'Not Started'}" in caplog.text
         assert "Task missing required keys: {'task_id': 't2', 'priority': 'Low', 'task_name': 'Test Task 2', 'status': 'Completed'}" in caplog.text
+
 
     def test_load_roadmap_list_with_invalid_task_id(self, test_driver, tmp_path, caplog):
         """Test load_roadmap skips tasks with invalid task_id format."""
@@ -733,6 +750,13 @@ class TestWorkflowDriver:
                     "task_name": "Test Task",
                     "status": "Not Started",
                     "description": "A test task description."
+                },
+                {
+                    "task_id": "t2",
+                    "priority": "High",
+                    "task_name": "Test Task 2",
+                    "status": "Not Started",
+                    "description": "Another test task description."
                 }
             ],
             "next_phase_actions": [],
@@ -741,10 +765,12 @@ class TestWorkflowDriver:
         """
         roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
         tasks = driver.load_roadmap(roadmap_file)
-        assert len(tasks) == 0 # Task should be skipped due to invalid ID
-        # Check for the log message about the invalid task_id format
-        # CORRECTED ASSERTION TO MATCH LOG FORMAT
+        assert len(tasks) == 1 # Task with valid ID should be loaded
+        assert tasks[0]['task_id'] == 't2'
+        # Check for the log message about the invalid task_id
+        # Removed single quotes from the assertion string to match the actual log format
         assert "Skipping task with invalid task_id format: 'invalid/id'" in caplog.text
+
 
     def test_load_roadmap_task_name_too_long(self, test_driver, tmp_path, caplog):
         caplog.set_level(logging.WARNING)
@@ -1145,7 +1171,7 @@ class TestWorkflowDriver:
         assert next_task['task_id'] == 't2' # Should select the next valid task
         # Check for the log message about the invalid task_id
         # Removed single quotes from the assertion string to match the actual log format
-        assert "Skipping task with invalid task_id format: invalid/id" in caplog.text # FIX: Removed single quotes
+        assert "Skipping task with invalid task_id format: invalid/id" in caplog.text
 
     # --- New tests for _is_valid_task_id (Task 15_3a2) ---
     def test_is_valid_task_id_valid_formats(self, test_driver):
@@ -2180,7 +2206,7 @@ without a summary line
         caplog.set_level(logging.INFO)
         driver = test_driver['driver']
         mock_code_review_agent = test_driver['mock_code_review_agent'] # Get the mock agent instance
-        mock_ethical_governance_engine = test_driver['mock_ethical_governance_engine'] # Get the mock ethical engine instance # ADDED
+        mock_ethical_governance_engine = test_driver['mock_ethical_governance_engine'] # Get the mock ethical engine # ADDED
         mock_write = mocker.patch.object(driver, '_write_output_file', return_value=True) # Patch _write_output_file and make it return True
 
         # Explicitly set default_policy_config to None on the driver instance
@@ -2471,4 +2497,176 @@ without a summary line
 
     # --- Update list_files to use _is_valid_filename ---
     # Modify the list_files method in src/core/automation/workflow_driver.py
-    # Add a check using self._is_valid_filename(name) before appending to entries.
+
+    # --- New tests for _parse_and_evaluate_grade_report (Task 1_6g_parse_report) ---
+    def test_parse_and_evaluate_grade_report_completed(self, test_driver):
+        """Test _parse_and_evaluate_grade_report returns 'Completed' for 100% grade."""
+        driver = test_driver['driver']
+        report_json = json.dumps({
+            "task_id": "test_task",
+            "grades": {"overall_percentage_grade": 100},
+            "validation_results": {
+                "tests": {"status": "passed"},
+                "code_review": {"status": "success", "static_analysis": []},
+                "ethical_analysis": {"overall_status": "approved"}
+            }
+        })
+        result = driver._parse_and_evaluate_grade_report(report_json)
+        assert result["recommended_action"] == "Completed"
+        assert result["justification"] == "Overall grade is 100%."
+
+    def test_parse_and_evaluate_grade_report_blocked_ethical(self, test_driver):
+        """Test _parse_and_evaluate_grade_report returns 'Blocked' for ethical rejection."""
+        driver = test_driver['driver']
+        report_json = json.dumps({
+            "task_id": "test_task",
+            "grades": {"overall_percentage_grade": 70}, # Below 100
+            "validation_results": {
+                "tests": {"status": "passed"},
+                "code_review": {"status": "success", "static_analysis": []},
+                "ethical_analysis": {"overall_status": "rejected"} # Ethical rejection
+            }
+        })
+        result = driver._parse_and_evaluate_grade_report(report_json)
+        assert result["recommended_action"] == "Blocked"
+        assert result["justification"] == "Ethical analysis rejected the code."
+
+    def test_parse_and_evaluate_grade_report_blocked_security(self, test_driver):
+        """Test _parse_and_evaluate_grade_report returns 'Blocked' for high-risk security."""
+        driver = test_driver['driver']
+        report_json = json.dumps({
+            "task_id": "test_task",
+            "grades": {"overall_percentage_grade": 70}, # Below 100
+            "validation_results": {
+                "tests": {"status": "passed"},
+                "code_review": {"status": "failed", "static_analysis": [{"severity": "security_high", "code": "B101"}]}, # High security finding
+                "ethical_analysis": {"overall_status": "approved"}
+            }
+        })
+        result = driver._parse_and_evaluate_grade_report(report_json)
+        assert result["recommended_action"] == "Blocked"
+        assert result["justification"] == "High-risk security findings detected."
+
+    def test_parse_and_evaluate_grade_report_regenerate_tests_failed(self, test_driver):
+        """Test _parse_and_evaluate_grade_report returns 'Regenerate Code' for test failures."""
+        driver = test_driver['driver']
+        report_json = json.dumps({
+            "task_id": "test_task",
+            "grades": {"overall_percentage_grade": 95}, # High grade, but tests failed
+            "validation_results": {
+                "tests": {"status": "failed", "passed": 5, "failed": 5, "total": 10}, # Test failures
+                "code_review": {"status": "success", "static_analysis": []},
+                "ethical_analysis": {"overall_status": "approved"}
+            }
+        })
+        result = driver._parse_and_evaluate_grade_report(report_json)
+        assert result["recommended_action"] == "Regenerate Code"
+        assert result["justification"] == "Automated tests failed."
+
+    def test_parse_and_evaluate_grade_report_regenerate_grade_below_100_above_80(self, test_driver):
+        """Test _parse_and_evaluate_grade_report returns 'Regenerate Code' for grade >= 80 but < 100."""
+        driver = test_driver['driver']
+        report_json = json.dumps({
+            "task_id": "test_task",
+            "grades": {"overall_percentage_grade": 85}, # Grade >= 80 and < 100
+            "validation_results": {
+                "tests": {"status": "passed"}, # Tests passed
+                "code_review": {"status": "failed", "static_analysis": [{"severity": "error", "code": "E001"}]}, # Style issues
+                "ethical_analysis": {"overall_status": "approved"}
+            }
+        })
+        result = driver._parse_and_evaluate_grade_report(report_json)
+        assert result["recommended_action"] == "Regenerate Code"
+        assert result["justification"] == "Overall grade (85%) is below 100% but meets regeneration threshold."
+
+    def test_parse_and_evaluate_grade_report_manual_review_grade_below_80(self, test_driver):
+        """Test _parse_and_evaluate_grade_report returns 'Manual Review Required' for grade < 80."""
+        driver = test_driver['driver']
+        report_json = json.dumps({
+            "task_id": "test_task",
+            "grades": {"overall_percentage_grade": 79}, # Grade < 80
+            "validation_results": {
+                "tests": {"status": "passed"},
+                "code_review": {"status": "failed", "static_analysis": [{"severity": "error", "code": "E001"}]}, # Style issues
+                "ethical_analysis": {"overall_status": "approved"}
+            }
+        })
+        result = driver._parse_and_evaluate_grade_report(report_json)
+        assert result["recommended_action"] == "Manual Review Required"
+        assert result["justification"] == "Overall grade (79%) is below regeneration threshold or other issues require manual review."
+
+    def test_parse_and_evaluate_grade_report_json_decode_error(self, test_driver, caplog):
+        """Test _parse_and_evaluate_grade_report handles invalid JSON input."""
+        caplog.set_level(logging.ERROR)
+        driver = test_driver['driver']
+        invalid_json = "{ not valid json }"
+        result = driver._parse_and_evaluate_grade_report(invalid_json)
+        assert result["recommended_action"] == "Manual Review Required"
+        assert "Failed to parse Grade Report JSON:" in result["justification"]
+        assert "Failed to parse Grade Report JSON:" in caplog.text
+
+    def test_parse_and_evaluate_grade_report_missing_keys(self, test_driver, caplog):
+        """Test _parse_and_evaluate_grade_report handles missing keys gracefully."""
+        caplog.set_level(logging.INFO) # Capture INFO log for metrics
+        driver = test_driver['driver']
+        report_json = json.dumps({
+            "task_id": "test_task",
+            # Missing 'grades' and 'validation_results' keys
+        })
+        result = driver._parse_and_evaluate_grade_report(report_json)
+        # Default values should lead to Manual Review Required
+        assert result["recommended_action"] == "Manual Review Required"
+        assert "Overall grade (0%) is below regeneration threshold or other issues require manual review." in result["justification"]
+        # Check that default values were used and logged
+        assert "Grade Report Metrics: Overall Grade=0%, Test Status=None, Ethical Status=None, Code Review Status=None" in caplog.text
+
+    def test_parse_and_evaluate_grade_report_ethical_error(self, test_driver):
+        """Test _parse_and_evaluate_grade_report handles ethical analysis error."""
+        driver = test_driver['driver']
+        report_json = json.dumps({
+            "task_id": "test_task",
+            "grades": {"overall_percentage_grade": 90},
+            "validation_results": {
+                "tests": {"status": "passed"},
+                "code_review": {"status": "success", "static_analysis": []},
+                "ethical_analysis": {"overall_status": "error", "message": "Analysis failed"} # Ethical error
+            }
+        })
+        result = driver._parse_and_evaluate_grade_report(report_json)
+        # Should not trigger 'rejected' rule, falls through to regeneration based on grade
+        assert result["recommended_action"] == "Regenerate Code"
+        assert "Overall grade (90%) is below 100% but meets regeneration threshold." in result["justification"]
+
+    def test_parse_and_evaluate_grade_report_security_error(self, test_driver):
+        """Test _parse_and_evaluate_grade_report handles code review/security error."""
+        driver = test_driver['driver']
+        report_json = json.dumps({
+            "task_id": "test_task",
+            "grades": {"overall_percentage_grade": 90},
+            "validation_results": {
+                "tests": {"status": "passed"},
+                "code_review": {"status": "error", "errors": {"bandit": "Scan failed"}}, # Code review/security error
+                "ethical_analysis": {"overall_status": "approved"}
+            }
+        })
+        result = driver._parse_and_evaluate_grade_report(report_json)
+        # Should not trigger 'security_high' rule, falls through to regeneration based on grade
+        assert result["recommended_action"] == "Regenerate Code"
+        assert "Overall grade (90%) is below 100% but meets regeneration threshold." in result["justification"]
+
+    def test_parse_and_evaluate_grade_report_test_error(self, test_driver):
+        """Test _parse_and_evaluate_grade_report handles test execution/parsing error."""
+        driver = test_driver['driver']
+        report_json = json.dumps({
+            "task_id": "test_task",
+            "grades": {"overall_percentage_grade": 90},
+            "validation_results": {
+                "tests": {"status": "error", "message": "Execution failed"}, # Test error
+                "code_review": {"status": "success", "static_analysis": []},
+                "ethical_analysis": {"overall_status": "approved"}
+            }
+        })
+        result = driver._parse_and_evaluate_grade_report(report_json)
+        # Should not trigger 'failed' rule, falls through to regeneration based on grade
+        assert result["recommended_action"] == "Regenerate Code"
+        assert "Overall grade (90%) is below 100% but meets regeneration threshold." in result["justification"]

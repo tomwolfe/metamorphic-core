@@ -1,6 +1,4 @@
 # src/core/automation/workflow_driver.py
-# workflow_driver.py
-# src/core/automation/workflow_driver.py
 import logging
 import html
 import os
@@ -92,6 +90,11 @@ class WorkflowDriver:
 
         # Instantiate EthicalGovernanceEngine and load default policy # ADDED BLOCK
         self.ethical_governance_engine = EthicalGovernanceEngine()
+        self._load_default_policy() # Extract policy loading to a separate method
+        # END ADDED BLOCK
+
+    def _load_default_policy(self):
+        """Load the default ethical policy from file."""
         # Use context.get_full_path for safety when loading the policy file
         default_policy_path = self.context.get_full_path("policies/policy_bias_risk_strict.json")
         if default_policy_path:
@@ -104,7 +107,6 @@ class WorkflowDriver:
         else:
             logger.error("Could not resolve path for default ethical policy. Ethical analysis may be impacted.")
             self.default_policy_config = None
-        # END ADDED BLOCK
 
 
     def start_workflow(self, roadmap_path: str, output_dir: str, context: Context):

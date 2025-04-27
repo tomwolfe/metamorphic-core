@@ -851,7 +851,6 @@ Requirements:
             # If existing content ends with a newline, just append the snippet
             return existing_content + snippet
 
-    # METAMORPHIC_INSERT_POINT
 
     def _parse_test_results(self, raw_output: str) -> dict:
         """
@@ -871,19 +870,6 @@ Requirements:
 
         # Regex to find the final summary line(s)
         # Look for lines starting with '==' and containing 'test session' or test counts
-        # The regex for summary lines was slightly too strict, only matching lines with counts.
-        # It should match any line starting with '==' that looks like a summary line header or footer.
-        # Let's simplify the summary line detection to just lines starting with '=='
-        # and rely on the counts_pattern to find the actual results.
-        # However, the original regex was intended to filter out non-summary '==' lines.
-        # Let's keep the original regex but understand its limitation: it might miss
-        # some summary lines if they don't contain the keywords.
-        # The current issue is that the test input `============================== malformed summary line ==============================`
-        # does *not* match the filter `('test session' in line or 'passed' in line or 'failed' in line or 'skipped' in line or 'error' in line)`.
-        # This causes `summary_lines` to be empty, triggering the "Could not find pytest summary lines" error message.
-        # The test *intends* to test the case where a summary line *is* found, but counts cannot be parsed.
-        # To fix this, the test input needs to include a line that *does* match the summary_lines filter,
-        # but *doesn't* contain parsable counts. The "test session starts" line is a good candidate.
         summary_lines = [line for line in raw_output.splitlines() if line.strip().startswith('==') and ('test session' in line or 'passed' in line or 'failed' in line or 'skipped' in line or 'error' in line)]
 
         if not summary_lines:
@@ -894,8 +880,6 @@ Requirements:
         final_summary_line = summary_lines[-1]
 
         # Regex to extract counts (passed, failed, skipped, error)
-        # This regex is more robust to different orderings and presence of counts
-        # It looks for patterns like "N status" where status is one of the keywords
         counts_pattern = re.compile(r'(\d+) (passed|failed|skipped|error)')
         matches = counts_pattern.findall(final_summary_line)
 
@@ -922,9 +906,7 @@ Requirements:
         total = passed + failed + skipped + errors
 
         if total == 0 and (passed > 0 or failed > 0 or skipped > 0 or errors > 0):
-             # This case should ideally not happen if parsing is correct, but handle defensively
              logger.warning(f"Parsed counts ({passed}p, {failed}f, {skipped}s, {errors}e) but total is 0. Summary line: {final_summary_line}")
-             # Attempt to calculate total from counts if the sum was somehow zero
              total = passed + failed + skipped + errors
 
 
@@ -933,7 +915,6 @@ Requirements:
              status = 'error' # If no tests ran, consider it an error state for parsing
 
         if total == 0 and not matches:
-             # If no matches were found at all, it's a parsing error
              logger.warning(f"Could not parse any counts from summary line: {final_summary_line}")
              return {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Could not parse test results output.'}
 
@@ -947,5 +928,4 @@ Requirements:
         }
 
         logger.debug(f"Parsed test results: {results}")
-        # ADDED: Return the results dictionary
         return results

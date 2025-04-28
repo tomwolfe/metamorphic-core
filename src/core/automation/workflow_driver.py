@@ -12,6 +12,7 @@ import subprocess # Import subprocess for execute_tests
 from src.core.agents.code_review_agent import CodeReviewAgent # Import CodeReviewAgent
 from src.core.ethics.governance import EthicalGovernanceEngine # Import EthicalGovernanceEngine
 from datetime import datetime # Import datetime for report timestamp
+import uuid # Import uuid for temporary file naming
 
 logger = logging.getLogger(__name__)
 
@@ -217,7 +218,7 @@ class WorkflowDriver:
                              # For now, if a target_file is specified and looks like a test file, use it. Otherwise, default.
                              test_command = ["pytest"]
                              # FIX: Simplify test command heuristic - use filepath_to_use if available
-                             if filepath_to_use:
+                             if filepath_to_use and "test_" in filepath_to_use.lower(): # Check if target_file looks like a test file
                                  test_command.append(filepath_to_use)
                              else:
                                  test_command.append("tests/") # Default to running all tests in tests/
@@ -279,6 +280,7 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                                 # 4. Write merged content back to file (overwrite=True)
                                 logger.info(f"Attempting to write merged content to {filepath_to_use}.")
                                 try:
+                                    # Use _write_output_file for writing the merged content
                                     self._write_output_file(filepath_to_use, merged_content, overwrite=True)
                                     logger.info(f"Successfully wrote merged content to {filepath_to_use}.")
 
@@ -352,6 +354,69 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                     task_id = next_task.get('task_id', 'Unknown ID') # Get task_id from the task dict
                     grade_report_json = self.generate_grade_report(task_id, self._current_task_results)
                     logger.info(f"--- GRADE REPORT for Task {task_id} ---\n{grade_report_json}\n--- END GRADE REPORT ---")
+                    # END ADDED BLOCK
+
+                    # --- ADDED: Parse and Evaluate Grade Report ---
+                    evaluation_result = self._parse_and_evaluate_grade_report(grade_report_json)
+                    recommended_action = evaluation_result.get("recommended_action", "Manual Review Required")
+                    justification = evaluation_result.get("justification", "Evaluation failed.")
+                    logger.info(f"Grade Report Evaluation: Recommended Action='{recommended_action}', Justification='{justification}'")
+                    # END ADDED BLOCK
+
+                    # --- ADDED: Update Roadmap Status based on Evaluation ---
+                    # Only update status if the action is 'Completed', 'Blocked', or 'Regenerate Code'
+                    # For 'Regenerate Code', we might set status to 'In Progress' or leave it as 'Not Started'
+                    # Let's set 'Completed' or 'Blocked' for now, and leave 'Not Started' for Regenerate.
+                    new_status = next_task['status'] # Default to current status
+                    if recommended_action == "Completed":
+                         new_status = "Completed"
+                    elif recommended_action == "Blocked":
+                         new_status = "Blocked"
+                    # For 'Regenerate Code', we leave it as 'Not Started' so it gets picked up again
+
+                    if new_status != next_task['status']:
+                         logger.info(f"Updating task status from '{next_task['status']}' to '{new_status}' for task {task_id}")
+                         # Use the new safe write method to update the roadmap
+                         # Need to load the full roadmap, update the specific task, and write it back
+                         try:
+                             full_roadmap_path = self.context.get_full_path(self.roadmap_path)
+                             if full_roadmap_path:
+                                 # --- FIX: Re-load the roadmap data here before updating ---
+                                 # This ensures we are modifying the latest version of the roadmap
+                                 # as it might have been changed by other processes or previous loop iterations.
+                                 # This block was the source of the FileNotFoundError in the test.
+                                 # The test needs to mock the 'open' call within this block.
+                                 try:
+                                     with open(full_roadmap_path, 'r') as f:
+                                         roadmap_data = json.load(f)
+                                 except FileNotFoundError:
+                                     logger.error(f"Error updating roadmap status for task {task_id}: Roadmap file not found at {full_roadmap_path}")
+                                     # Continue the loop or break, depending on desired behavior
+                                     # For now, log and skip the status update for this task
+                                     continue # Skip to the next loop iteration
+
+                                 # Find the task by ID and update its status
+                                 task_found = False
+                                 for task_entry in roadmap_data.get('tasks', []):
+                                     if task_entry.get('task_id') == task_id:
+                                         task_entry['status'] = new_status
+                                         task_found = True
+                                         break
+
+                                 if task_found:
+                                     # Use the safe write method
+                                     if self._safe_write_roadmap_json(self.roadmap_path, roadmap_data):
+                                         logger.info(f"Successfully updated status for task {task_id} in {self.roadmap_path}")
+                                     else:
+                                         logger.error(f"Failed to safely write updated roadmap for task {task_id}")
+                                 else:
+                                     logger.warning(f"Task {task_id} not found in roadmap file {self.roadmap_path} for status update.")
+                             else:
+                                 logger.error(f"Cannot update roadmap status: Invalid roadmap path provided: {self.roadmap_path}")
+                         except Exception as e:
+                             logger.error(f"Error updating roadmap status for task {task_id}: {e}", exc_info=True)
+                    else:
+                         logger.info(f"Task status for {task_id} remains '{new_status}' based on evaluation.")
                     # END ADDED BLOCK
 
 
@@ -1216,4 +1281,62 @@ Requirements:
         return {
             "recommended_action": recommended_action,
             "justification": justification
-        }
+        } # FIX: Added missing closing brace for the return dictionary
+
+
+    def _safe_write_roadmap_json(self, roadmap_path: str, new_content: dict) -> bool:
+        """
+        Safely writes updated content to the ROADMAP.json file using an atomic write pattern.
+
+        Args:
+            roadmap_path: The relative path to the roadmap file (e.g., "ROADMAP.json").
+            new_content: The new content for the roadmap file as a dictionary.
+
+        Returns:
+            True if the write was successful, False otherwise.
+        """
+        # 1. Resolve the full path safely
+        resolved_filepath = self.context.get_full_path(roadmap_path)
+        if resolved_filepath is None:
+            logger.error(f"Security alert: Path traversal attempt detected for roadmap file: {roadmap_path}")
+            return False
+
+        # 2. Validate content structure
+        if not isinstance(new_content, dict):
+            logger.error(f"Invalid content provided for roadmap file {roadmap_path}: Content is not a dictionary.")
+            return False
+        if 'tasks' not in new_content:
+            logger.error(f"Invalid content provided for roadmap file {roadmap_path}: Missing 'tasks' key.")
+            return False
+
+        # 3. Implement atomic write
+        resolved_filepath_obj = Path(resolved_filepath)
+        roadmap_dir = resolved_filepath_obj.parent
+        temp_filename = f".{resolved_filepath_obj.name}.{uuid.uuid4()}.tmp"
+        temp_filepath = roadmap_dir / temp_filename
+
+        try:
+            # Write to temporary file
+            with open(temp_filepath, 'w', encoding='utf-8') as f:
+                json.dump(new_content, f, indent=2)
+
+            # Atomically replace the original file
+            os.replace(temp_filepath, resolved_filepath)
+
+            logger.info(f"Successfully wrote updated roadmap to {roadmap_path}")
+            return True
+
+        except (IOError, OSError, PermissionError, json.JSONDecodeError) as e:
+            logger.error(f"Error writing roadmap file {roadmap_path}: {e}", exc_info=True)
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during roadmap file write {roadmap_path}: {e}", exc_info=True)
+            return False
+        finally:
+            # Clean up temporary file
+            if temp_filepath.exists():
+                try:
+                    os.remove(temp_filepath)
+                    logger.debug(f"Cleaned up temporary file: {temp_filepath}")
+                except (FileNotFoundError, PermissionError, OSError) as e:
+                    logger.warning(f"Failed to clean up temporary file {temp_filepath}: {e}")

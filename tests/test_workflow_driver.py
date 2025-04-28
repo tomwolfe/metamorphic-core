@@ -16,6 +16,7 @@ import re # Import re for plan parsing tests
 from src.core.agents.code_review_agent import CodeReviewAgent # Import CodeReviewAgent for mocking
 from src.core.ethics.governance import EthicalGovernanceEngine # Import EthicalGovernanceEngine for mocking
 from datetime import datetime # Import datetime for report timestamp
+import uuid # Import uuid for temporary file naming
 
 # Set up logging for tests
 # Use basicConfig only if no handlers are already configured
@@ -327,7 +328,7 @@ class TestWorkflowDriver:
     # NEW: Add assertions for CodeReviewAgent call (should NOT be called)
     # ***** CORRECTED SIGNATURE: Removed mock_get_full_path *****
     # FIX: Remove class patches for CodeReviewAgent and EthicalGovernanceEngine
-    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True") # Mock LLM to return generated code
+    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True") # Ensure this is NOT called
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/feature.py"]) # Step is both code gen + file write
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'mock_task_code_write_exists', 'task_name': 'Task Code Write Exists', 'status': 'Not Started', 'description': 'Desc Code Write Exists', 'priority': 'High', 'target_file': 'src/feature.py'},
@@ -2448,7 +2449,18 @@ without a summary line
         mock_code_review_agent = test_driver['mock_code_review_agent'] # Get the mock agent instance
         mock_ethical_governance_engine = test_driver['mock_ethical_governance_engine'] # Get the mock ethical engine instance # ADDED
         mock_write = mocker.patch.object(driver, '_write_output_file') # Patch _write_output_file inside the test
-        mock_generate_report = mocker.patch.object(driver, 'generate_grade_report') # Patch generate_grade_report
+        # FIX: Patch generate_grade_report and provide a return_value that is a JSON string
+        mock_generate_report = mocker.patch.object(driver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 100}, "validation_results": {}}))
+        # FIX: Patch _parse_and_evaluate_grade_report as it will now be called with the JSON string
+        mock_parse_and_evaluate = mocker.patch.object(driver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed", "justification": "Mock evaluation"})
+        # FIX: Patch _safe_write_roadmap_json as it will be called if status changes
+        mock_safe_write_roadmap = mocker.patch.object(driver, '_safe_write_roadmap_json', return_value=True)
+
+        # FIX: Patch builtins.open to simulate reading the roadmap file during the status update block
+        # The read_data should be the original roadmap content structure
+        original_roadmap_data = [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Not Started', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}]
+        mock_open = mocker.patch('builtins.open', new_callable=mocker.mock_open, read_data=json.dumps({'tasks': original_roadmap_data}))
+
 
         driver.roadmap_path = "dummy_roadmap.json"
 
@@ -2471,7 +2483,8 @@ without a summary line
         mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value) # Called for step 1
         mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config) # Called for step 1
 
-        mock_execute_tests.assert_called_once_with(["pytest", "src/feature.py"], driver.context.base_path) # Called for step 2 (heuristic uses target_file if available)
+        # FIX: Update expected command to match the new heuristic (it should use tests/ as target_file is not a test file)
+        mock_execute_tests.assert_called_once_with(["pytest", "tests/"], driver.context.base_path) # Called for step 2 (heuristic defaults to tests/ as target_file doesn't look like a test file)
         mock_parse_test_results.assert_called_once_with("Pytest output") # Called for step 2
 
 
@@ -2489,14 +2502,25 @@ without a summary line
         assert 'code_review_results' in called_results
         assert 'ethical_analysis_results' in called_results
 
-        # Verify the generated report was logged
+        # Verify _parse_and_evaluate_grade_report was called once with the JSON string from mock_generate_report
+        mock_parse_and_evaluate.assert_called_once_with(mock_generate_report.return_value)
+
+        # Verify _safe_write_roadmap_json was called (because the mock evaluation returns "Completed", changing status)
+        mock_safe_write_roadmap.assert_called_once()
+        # Check that it was called with the roadmap path and the updated data (which includes the status change)
+        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, ANY) # Use ANY for the data structure
+
+        # Verify logs
         assert "Generating Grade Report..." in caplog.text
         # The log message includes the report content, so we check for the start/end markers
-        assert "--- GRADE REPORT for Task task_report_gen ---" in caplog.text
-        assert "--- END GRADE REPORT ---" in caplog.text
+        # FIX: The log now prints the return value of the *patched* generate_grade_report
+        assert f"--- GRADE REPORT for Task task_report_gen ---\n{mock_generate_report.return_value}\n--- END GRADE REPORT ---" in caplog.text
+        # Verify the evaluation log
+        assert f"Grade Report Evaluation: Recommended Action='{mock_parse_and_evaluate.return_value['recommended_action']}', Justification='{mock_parse_and_evaluate.return_value['justification']}'" in caplog.text
+        # Verify the status update log
+        assert "Updating task status from 'Not Started' to 'Completed' for task task_report_gen" in caplog.text
+        assert f"Successfully updated status for task task_report_gen in {driver.roadmap_path}" in caplog.text
 
-    # --- Update list_files to use _is_valid_filename ---
-    # Modify the list_files method in src/core/automation/workflow_driver.py
 
     # --- New tests for _parse_and_evaluate_grade_report (Task 1_6g_parse_report) ---
     def test_parse_and_evaluate_grade_report_completed(self, test_driver):

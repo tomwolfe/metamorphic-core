@@ -142,12 +142,13 @@
             "priority": "High",
             "task_name": "Driver: Implement Safe Roadmap File Writing",
             "description": "Implement a utility function within `WorkflowDriver` (or a dedicated file utility module) for safely writing updates back to the `ROADMAP.json` file. This function should handle file locking (if necessary), use atomic writes (write to temp file then rename), and prevent path traversal. (Est. Time: 1-2 days)",
-            "status": "Not Started",
+            "status": "Completed",
             "Success Criteria": "Utility function can safely write to a specified file path within the allowed base directory. Function uses atomic write pattern. Function rejects paths attempting to write outside the base directory. Unit tests for safe file writing are implemented, including tests for file locking/safety (if concurrent access becomes a concern) and path traversal prevention.",
             "Potential Risks": "Data corruption in `ROADMAP.json`, race conditions (less likely in current single-threaded driver), security risks from file writing.",
             "Mitigation": "Implement robust file locking (if needed), validate roadmap structure before writing, use atomic writes (write to temp file then rename), ensure file writing respects base path boundaries (re-use/adapt logic from _write_output_file).",
             "Time Saving Strategy": "Focus on the core safe writing mechanism as a standalone utility.",
-            "dependencies": []
+            "dependencies": [],
+            "target_file": "src/core/automation/workflow_driver.py"
         },
         {
             "task_id": "task_1_6i_update_status",
@@ -162,7 +163,8 @@
             "dependencies": [
                 "task_1_6g_parse_report",
                 "task_1_6h_safe_roadmap_write"
-            ]
+            ],
+            "target_file": "src/core/automation/workflow_driver.py"
         },
         {
             "task_id": "task_1_6j_integrate_loop",

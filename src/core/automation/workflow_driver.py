@@ -39,7 +39,7 @@ class Context:
              logger.error(f"Base path failed to resolve. Cannot resolve relative path '{relative_path}'.")
              return None
 
-        if not isinstance(relative_path, str) or not relative_path: # Added check for empty string
+        if not isinstance(relative_path, str) or relative_path == "": # Added check for empty string
              # Handle non-string or empty input gracefully
              # An empty string relative path should resolve to the base path itself
              if relative_path == "":
@@ -178,6 +178,9 @@ class WorkflowDriver:
                 if solution_plan:
                     logger.info(
                         f"Executing plan for task {task_id} with {len(solution_plan)} steps.")
+                    # Flag to track if any code was written in this iteration
+                    code_written_in_iteration = False
+
                     for step_index, step in enumerate(solution_plan):
                         logger.info(f"Executing step {step_index + 1}/{len(solution_plan)}: {step}")
 
@@ -186,24 +189,33 @@ class WorkflowDriver:
                                                     "write function", "modify file",
                                                     "add logic to"]
                         file_writing_keywords = ["write file", "create file", "save to file",
-                                                 "output file", "generate file"]
+                                                 "output file", "generate file", "write output to"] # Added "write output to"
                         test_execution_keywords = ["run tests", "execute tests", "verify tests", "pytest", "test suite"]
 
-                        # Determine the actual filepath to use: prioritize target_file from task
-                        task_target_file = next_task.get('target_file')
-                        # Fallback: Check for a file path match using the regex
+                        # --- REVISED LOGIC FOR DETERMINING STEP TYPE AND FILE PATH ---
+                        # Determine file path from step description first
                         filepath_match = re.search(
                             r'(\S+\.(py|md|json|txt|yml|yaml))', step, re.IGNORECASE)
                         filepath_from_step = filepath_match.group(1) if filepath_match else None
-                        filepath_to_use = task_target_file if task_target_file else filepath_from_step
 
-                        is_file_writing_step = (filepath_to_use is not None) or any(
+                        # Determine if the step description explicitly indicates file writing (by keyword or path)
+                        is_step_explicitly_file_writing = (filepath_from_step is not None) or any(
                             keyword in step_lower for keyword in file_writing_keywords)
 
                         needs_coder_llm = any(
                             keyword in step_lower for keyword in code_generation_keywords)
 
                         is_test_execution_step = any(keyword in step_lower for keyword in test_execution_keywords)
+
+                        # Determine the actual filepath to use for the operation
+                        # Prioritize path from step, fallback to task target_file if step is file-related
+                        filepath_to_use = None
+                        if filepath_from_step:
+                             filepath_to_use = filepath_from_step
+                        elif is_step_explicitly_file_writing or needs_coder_llm: # Only use task_target_file if step is file-related but didn't specify a path
+                             filepath_to_use = next_task.get('target_file')
+                        # --- END REVISED LOGIC ---
+
 
                         generated_output = None  # Initialize generated_output for this step
                         content_to_write = None # Initialize content_to_write
@@ -218,27 +230,35 @@ class WorkflowDriver:
                              # For now, if a target_file is specified and looks like a test file, use it. Otherwise, default.
                              test_command = ["pytest"]
                              # FIX: Simplify test command heuristic - use filepath_to_use if available
-                             if filepath_to_use and "test_" in filepath_to_use.lower(): # Check if target_file looks like a test file
+                             # Note: filepath_to_use here is derived from the *current* step or task target_file
+                             if filepath_to_use and "test_" in filepath_to_use.lower(): # Check if resolved filepath looks like a test file
                                  test_command.append(filepath_to_use)
                              else:
                                  test_command.append("tests/") # Default to running all tests in tests/
 
 
                              # Execute tests
-                             return_code, stdout, stderr = self.execute_tests(test_command, self.context.base_path)
+                             try: # Added try-except around execute_tests
+                                 return_code, stdout, stderr = self.execute_tests(test_command, self.context.base_path)
 
-                             # Parse test results
-                             test_results = self._parse_test_results(stdout)
-                             self._current_task_results['test_results'] = test_results # Store test results # ADDED
+                                 # Parse test results
+                                 test_results = self._parse_test_results(stdout)
+                                 self._current_task_results['test_results'] = test_results # Store test results # ADDED
 
-                             # Log parsed results
-                             logger.info(f"Test Execution Results: Status={test_results['status']}, Passed={test_results['passed']}, Failed={test_results['failed']}, Total={test_results['total']}")
-                             if test_results['status'] == 'failed':
-                                 logger.error(f"Tests failed for step: {step}. Raw stderr:\n{stderr}")
-                             elif test_results['status'] == 'error':
-                                 logger.error(f"Test execution or parsing error for step: {step}. Message: {test_results['message']}. Raw stderr:\n{stderr}")
+                                 # Log parsed results
+                                 logger.info(f"Test Execution Results: Status={test_results['status']}, Passed={test_results['passed']}, Failed={test_results['failed']}, Total={test_results['total']}")
+                                 if test_results['status'] == 'failed':
+                                     logger.error(f"Tests failed for step: {step}. Raw stderr:\n{stderr}")
+                                 elif test_results['status'] == 'error':
+                                     logger.error(f"Test execution or parsing error for step: {step}. Message: {test_results['message']}. Raw stderr:\n{stderr}")
+                             except Exception as e:
+                                 logger.error(f"An unexpected error occurred during command execution: {e}", exc_info=True)
+                                 # Store error results
+                                 self._current_task_results['test_results'] = {'status': 'error', 'passed': 0, 'failed': 0, 'total': 0, 'message': str(e)}
+
 
                         # Prioritize code generation steps targeting a specific file
+                        # Check needs_coder_llm AND if a filepath_to_use was successfully determined
                         elif needs_coder_llm and filepath_to_use:
                             logger.info(
                                 f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.")
@@ -283,6 +303,7 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                                     # Use _write_output_file for writing the merged content
                                     self._write_output_file(filepath_to_use, merged_content, overwrite=True)
                                     logger.info(f"Successfully wrote merged content to {filepath_to_use}.")
+                                    code_written_in_iteration = True # Mark that code was written
 
                                     # --- ADDED: Call CodeReviewAgent and Ethical Analysis after successful write ---
                                     try:
@@ -318,7 +339,8 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                                 logger.warning(f"Coder LLM returned empty or None snippet for step {step_index + 1}. Skipping file write.")
 
                         # Handle steps identified as file writing, but NOT code generation (e.g., writing a report)
-                        elif is_file_writing_step and not needs_coder_llm and filepath_to_use:
+                        # Check if it's explicitly a file writing step (by keyword or path in step) AND not code gen AND a filepath_to_use was determined
+                        elif is_step_explicitly_file_writing and not needs_coder_llm and filepath_to_use:
                              logger.info(f"Step identified as file writing (non-code-gen). Processing file operation for step: {step}")
                              # For now, use placeholder content. In future tasks, this would involve
                              # invoking a different agent or logic to generate the file content.
@@ -330,6 +352,7 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                                  # unless the step explicitly indicates overwrite.
                                  # This logic might need refinement in future tasks.
                                  self._write_output_file(filepath_to_use, content_to_write, overwrite=False)
+                                 # Note: Non-code files don't trigger code review/ethical analysis currently
                              except FileExistsError:
                                  logger.warning(
                                      f"File {filepath_to_use} already exists. Skipping write as overwrite=False.")
@@ -337,13 +360,9 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                                  logger.error(f"Failed to write file {filepath_to_use}: {e}",
                                               exc_info=True)
 
-                        # Handle steps identified as file writing or code generation, but without a determined filepath
-                        elif (is_file_writing_step or needs_coder_llm) and not filepath_to_use:
-                             logger.warning(
-                                 f"Step identified as file operation or code generation but could not determine filepath for step '{step}'. Skipping file operation.")
-
                         # Log if the step was not identified as involving file operations, code generation, or test execution
-                        else: # not needs_coder_llm and not is_file_writing_step and not is_test_execution_step
+                        # This 'else' block should cover cases where filepath_to_use was not determined, or the step wasn't file-related/code-gen/test
+                        else: # not is_test_execution_step and not (needs_coder_llm and filepath_to_use) and not (is_step_explicitly_file_writing and not needs_coder_llm and filepath_to_use)
                             logger.info(
                                 f"Step not identified as code generation, file writing, or test execution. Skipping agent invocation/file write for step: {step}")
                         # --- END MODIFIED LOGIC FOR STEP PROCESSING ---
@@ -391,6 +410,7 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                                  # This block was the source of the FileNotFoundError in the test.
                                  # The test needs to mock the 'open' call within this block.
                                  try:
+                                     # Use builtins.open explicitly for mocking in tests
                                      with open(full_roadmap_path, 'r') as f:
                                          roadmap_data = json.load(f)
                                  except FileNotFoundError:
@@ -401,11 +421,13 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
 
                                  # Find the task by ID and update its status
                                  task_found = False
-                                 for task_entry in roadmap_data.get('tasks', []):
-                                     if task_entry.get('task_id') == task_id:
-                                         task_entry['status'] = new_status
-                                         task_found = True
-                                         break
+                                 # Ensure roadmap_data is a dict and has a 'tasks' list
+                                 if isinstance(roadmap_data, dict) and isinstance(roadmap_data.get('tasks'), list):
+                                     for task_entry in roadmap_data['tasks']:
+                                         if isinstance(task_entry, dict) and task_entry.get('task_id') == task_id:
+                                             task_entry['status'] = new_status
+                                             task_found = True
+                                             break
 
                                  if task_found:
                                      # Use the safe write method
@@ -444,7 +466,7 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
             The content of the file as a string, or an empty string if reading fails
             or the file exceeds the size limit.
         """
-        if not isinstance(relative_file_path, str) or not relative_file_path:
+        if not isinstance(relative_file_path, str) or relative_file_path == "":
             logger.warning(f"Attempted to read file with invalid path: {relative_file_path}")
             return ""
 
@@ -845,8 +867,8 @@ Requirements:
         Raises:
             FileExistsError: If overwrite is False and the file already exists.
         """
-        if not isinstance(filepath, str):
-             logger.error(f"_write_output_file received non-string filepath: {type(filepath)}")
+        if not isinstance(filepath, str) or filepath == "":
+             logger.error(f"_write_output_file received invalid filepath: {filepath}")
              return False
         try:
             # Resolve the path relative to the base_path first, then resolve the full path
@@ -1319,6 +1341,15 @@ Requirements:
         temp_filename = f".{resolved_filepath_obj.name}.{uuid.uuid4()}.tmp"
         temp_filepath = roadmap_dir / temp_filename
 
+        # Clean up potential leftover temporary file from a previous failed attempt
+        if temp_filepath.exists():
+            try:
+                os.remove(temp_filepath)
+                logger.debug(f"Cleaned up leftover temporary file: {temp_filepath}")
+            except Exception as cleanup_e:
+                logger.warning(f"Failed to clean up leftover temporary file {temp_filepath}: {cleanup_e}")
+
+
         try:
             # Write to temporary file
             with open(temp_filepath, 'w', encoding='utf-8') as f:
@@ -1332,16 +1363,21 @@ Requirements:
 
         except (IOError, OSError, PermissionError, json.JSONDecodeError) as e:
             logger.error(f"Error writing roadmap file {roadmap_path}: {e}", exc_info=True)
+            # Clean up temporary file in case of failure *after* temp file is created but *before* replace
+            if temp_filepath.exists():
+                 try:
+                     os.remove(temp_filepath)
+                     logger.debug(f"Cleaned up temporary file after error: {temp_filepath}")
+                 except Exception as cleanup_e:
+                     logger.warning(f"Failed to clean up temporary file {temp_filepath} after error: {cleanup_e}")
             return False
         except Exception as e:
             logger.error(f"Unexpected error during roadmap file write {roadmap_path}: {e}", exc_info=True)
-            return False
-        finally:
-            # Clean up temporary file
+            # Clean up temporary file in case of unexpected failure
             if temp_filepath.exists():
-                try:
-                    os.remove(temp_filepath)
-                    logger.debug(f"Cleaned up temporary file: {temp_filepath}")
-                except (FileNotFoundError, PermissionError, OSError) as e:
-                    # Log cleanup errors but don't fail the main process
-                    pass # Ignore cleanup errors
+                 try:
+                     os.remove(temp_filepath)
+                     logger.debug(f"Cleaned up temporary file after unexpected error: {temp_filepath}")
+                 except Exception as cleanup_e:
+                     logger.warning(f"Failed to clean up temporary file {temp_filepath} after unexpected error: {cleanup_e}")
+            return False

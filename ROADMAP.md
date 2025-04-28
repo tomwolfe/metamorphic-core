@@ -4,78 +4,38 @@
 
 **NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**
 
-*   **Task ID**: task_1_6a
+*   **Task ID**: task_2_2a
     *   **Priority**: High
-    *   **Task Name**: Implement /genesis/drive_workflow API Endpoint
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6b
-    *   **Priority**: High
-    *   **Task Name**: Automate Initial Prompt Submission from CLI
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6_file_read
-    *   **Priority**: High
-    *   **Task Name**: Driver: Implement Robust File Reading for Context
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6_llm_snippet
-    *   **Priority**: High
-    *   **Task Name**: Driver: Modify LLM Prompt for Code Snippet Generation
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6_code_merge
-    *   **Priority**: High
-    *   **Task Name**: Driver: Implement Code Snippet Merging/Patching Logic
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6_integrate_file_flow
-    *   **Priority**: Critical
-    *   **Task Name**: Driver: Integrate Read-Generate-Merge-Write File Flow
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6c_exec_tests
-    *   **Priority**: High
-    *   **Task Name**: Driver: Automate Test Execution
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6d_parse_tests
-    *   **Priority**: High
-    *   **Task Name**: Driver: Parse Test Results
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6e_exec_review
-    *   **Priority**: High
-    *   **Task Name**: Driver: Automate Code Review & Security Scan Execution
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6f_generate_report
-    *   **Priority**: High
-    *   **Task Name**: Driver: Generate Structured JSON Grade Report
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6g_parse_report
-    *   **Priority**: High
-    *   **Task Name**: Driver: Parse & Evaluate JSON Grade Report
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6h_safe_roadmap_write
-    *   **Priority**: High
-    *   **Task Name**: Driver: Implement Safe Roadmap File Writing
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6i_update_status
-    *   **Priority**: High
-    *   **Task Name**: Driver: Automate Roadmap Status Update Logic
-    *   **Status**: Completed
-
-*   **Task ID**: task_1_6j_integrate_loop
-    *   **Priority**: Critical
-    *   **Task Name**: Driver: Integrate Automated Steps into Autonomous Loop
+    *   **Task Name**: Enhance TestGenerationAgent for Semantic Understanding
     *   **Status**: Not Started
 
-*   **Task ID**: task_1_6k_tests
+*   **Task ID**: task_2_2b
     *   **Priority**: High
-    *   **Task Name**: Add Comprehensive Tests for Phase 1.6 Automation
+    *   **Task Name**: Enhance CodeReviewAgent with Semantic Analysis
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_2c
+    *   **Priority**: Critical
+    *   **Task Name**: Expand Knowledge Graph Schema for Code Semantics
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_2d
+    *   **Priority**: High
+    *   **Task Name**: Implement KG Query Methods for Agent Context
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_2e
+    *   **Priority**: Critical
+    *   **Task Name**: Integrate Enhanced Agents with WorkflowDriver & KG
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_2f
+    *   **Priority**: Medium
+    *   **Task Name**: Implement Basic AI-Driven Debugging/Refactoring Agent Placeholder
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_2g
+    *   **Priority**: High
+    *   **Task Name**: Add Comprehensive Tests for Phase 2 Iteration 2
     *   **Status**: Not Started
 

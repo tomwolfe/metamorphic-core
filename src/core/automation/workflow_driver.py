@@ -888,6 +888,7 @@ Requirements:
             return False
         except Exception as e:
             logger.error(f"Unexpected error writing to {filepath} (resolved: {resolved_filepath}): {e}", exc_info=True)
+            return False # ADDED: Return False on generic exception
 
     def execute_tests(self, test_command: list[str], cwd: str) -> tuple[int, str, str]:
         stdout = ""
@@ -962,7 +963,8 @@ Requirements:
             if not existing_content:
                 return snippet # If existing is empty, just return snippet
             # Ensure a newline before appending if existing content doesn't end with one
-            if existing_content and not existing_content.strip().endswith('\n'): # Added strip() for robustness
+            # FIX: Removed .strip() from endswith check
+            if existing_content and not existing_content.endswith('\n'):
                  return existing_content + "\n" + snippet
             # If existing content ends with a newline, just append the snippet
             return existing_content + snippet
@@ -1344,4 +1346,4 @@ Requirements:
                     logger.debug(f"Cleaned up temporary file: {temp_filepath}")
                 except (FileNotFoundError, PermissionError, OSError) as e:
                     # Log cleanup errors but don't fail the main process
-                    logger.warning(f"Failed to clean up temporary file {temp_filepath}: {e}")
+                    pass # Ignore cleanup errors

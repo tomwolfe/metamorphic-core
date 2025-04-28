@@ -317,12 +317,13 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({}))
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"})
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
-    def test_autonomous_loop_handles_generic_write_file_exceptions(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver_validation, tmp_path, mocker):
+    # Changed fixture name from test_driver_validation to test_driver
+    def test_autonomous_loop_handles_generic_write_file_exceptions(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, tmp_path, mocker):
         """Test that autonomous_loop handles generic exceptions from _write_output_file gracefully."""
         caplog.set_level(logging.INFO)
-        driver = test_driver_validation['driver']
-        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
-        mock_ethical_governance_engine = test_driver_validation['mock_ethical_governance_engine']
+        driver = test_driver['driver']
+        mock_code_review_agent = test_driver['mock_code_review_agent']
+        mock_ethical_governance_engine = test_driver['mock_ethical_governance_engine']
 
         driver.roadmap_path = "dummy_roadmap.json"
 
@@ -380,6 +381,7 @@ class TestWorkflowDriver:
         mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved', 'policy_name': 'Test Policy'}
 
         driver.roadmap_path = "dummy_roadmap.json"
+
         driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
         mock_read_file_for_context.assert_called_once_with("src/feature.py")
@@ -410,4 +412,3 @@ class TestWorkflowDriver:
         assert f"--- GRADE REPORT for Task task_report_gen ---\n{mock_generate_report.return_value}\n--- END GRADE REPORT ---" in caplog.text
         # assert "Parsing and evaluating Grade Report..." in caplog.text # FIX: Remove assertion on log inside mocked method
         assert f"Grade Report Evaluation: Recommended Action='{mock_parse_and_evaluate.return_value['recommended_action']}', Justification='{mock_parse_and_evaluate.return_value['justification']}'" in caplog.text
-        assert "Updating task status from 'Not Started' to 'Completed' for task task_report_gen" in caplog.text

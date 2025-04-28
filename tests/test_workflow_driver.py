@@ -2516,6 +2516,7 @@ without a summary line
         # FIX: The log now prints the return value of the *patched* generate_grade_report
         assert f"--- GRADE REPORT for Task task_report_gen ---\n{mock_generate_report.return_value}\n--- END GRADE REPORT ---" in caplog.text
         # Verify the evaluation log
+        assert "Parsing and evaluating Grade Report..." in caplog.text
         assert f"Grade Report Evaluation: Recommended Action='{mock_parse_and_evaluate.return_value['recommended_action']}', Justification='{mock_parse_and_evaluate.return_value['justification']}'" in caplog.text
         # Verify the status update log
         assert "Updating task status from 'Not Started' to 'Completed' for task task_report_gen" in caplog.text

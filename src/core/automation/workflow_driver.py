@@ -363,22 +363,26 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
                     logger.info(f"Grade Report Evaluation: Recommended Action='{recommended_action}', Justification='{justification}'")
                     # END ADDED BLOCK
 
-                    # --- ADDED: Update Roadmap Status based on Evaluation ---
-                    # Only update status if the action is 'Completed', 'Blocked', or 'Regenerate Code'
-                    # For 'Regenerate Code', we might set status to 'In Progress' or leave it as 'Not Started'
-                    # Let's set 'Completed' or 'Blocked' for now, and leave 'Not Started' for Regenerate.
+                    # --- ADDED: Update Roadmap Status based on Evaluation (Task 1_6i) ---
+                    # Determine the new status based on the recommended action
                     new_status = next_task['status'] # Default to current status
                     if recommended_action == "Completed":
                          new_status = "Completed"
                     elif recommended_action == "Blocked":
                          new_status = "Blocked"
-                    # For 'Regenerate Code', we leave it as 'Not Started' so it gets picked up again
+                    # For 'Regenerate Code' or 'Manual Review Required', leave status as 'Not Started'
+                    # (assuming the task was 'Not Started' when selected)
+                    # If the task was already 'In Progress', we might want to keep it that way.
+                    # For simplicity in 1.6i, we only explicitly set 'Completed' or 'Blocked'.
+                    # If the action is 'Regenerate Code' or 'Manual Review Required', the status
+                    # will remain whatever it was (likely 'Not Started' if selected from that state).
 
                     if new_status != next_task['status']:
                          logger.info(f"Updating task status from '{next_task['status']}' to '{new_status}' for task {task_id}")
                          # Use the new safe write method to update the roadmap
                          # Need to load the full roadmap, update the specific task, and write it back
                          try:
+                             # Use the context's get_full_path for safety when loading the roadmap
                              full_roadmap_path = self.context.get_full_path(self.roadmap_path)
                              if full_roadmap_path:
                                  # --- FIX: Re-load the roadmap data here before updating ---
@@ -1339,4 +1343,5 @@ Requirements:
                     os.remove(temp_filepath)
                     logger.debug(f"Cleaned up temporary file: {temp_filepath}")
                 except (FileNotFoundError, PermissionError, OSError) as e:
+                    # Log cleanup errors but don't fail the main process
                     logger.warning(f"Failed to clean up temporary file {temp_filepath}: {e}")

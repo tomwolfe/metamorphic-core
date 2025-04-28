@@ -7,7 +7,7 @@ from src.core.automation.workflow_driver import WorkflowDriver, Context, MAX_REA
 from src.cli.write_file import write_file, file_exists # Import write_file and file_exists
 from pathlib import Path
 import logging
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import MagicMock, patch, ANY, call # Import 'call'
 
 # Set up logging for tests
 if not logging.root.handlers:
@@ -355,8 +355,8 @@ class TestWorkflowFileHandling:
 
         assert driver.file_exists(test_file_relative) is True
         mock_get_full_path.assert_called_once_with(test_file_relative)
-        mock_exists.assert_called_once_with(test_file_full.resolve()) # FIX: Assert with Path object
-        mock_isfile.assert_called_once_with(test_file_full.resolve()) # FIX: Assert with Path object
+        mock_exists.assert_called_once_with(test_file_full.resolve())
+        mock_isfile.assert_called_once_with(test_file_full.resolve())
 
     @patch.object(Context, 'get_full_path')
     @patch('os.path.exists', return_value=False)
@@ -368,7 +368,7 @@ class TestWorkflowFileHandling:
 
         assert driver.file_exists(non_existing_file_relative) is False
         mock_get_full_path.assert_called_once_with(non_existing_file_relative)
-        mock_exists.assert_called_once_with(tmp_path / non_existing_file_relative) # FIX: Assert with Path object
+        mock_exists.assert_called_once_with(tmp_path / non_existing_file_relative)
         mock_isfile.assert_not_called()
 
     @patch.object(Context, 'get_full_path', return_value=None) # Simulate path resolution failure
@@ -401,44 +401,114 @@ class TestWorkflowFileHandling:
     # --- Tests for list_files ---
     @patch.object(Context, 'get_full_path')
     @patch('os.listdir')
-    @patch('pathlib.Path.is_file')
-    @patch('pathlib.Path.is_dir')
+    # Patch Path as it's imported in the workflow_driver module
+    @patch('src.core.automation.workflow_driver.Path')
     @patch.object(WorkflowDriver, '_is_valid_filename', return_value=True) # Assume all names are valid by default
-    def test_list_files_success(self, mock_is_valid_filename, mock_is_dir, mock_is_file, mock_listdir, mock_get_full_path, test_driver_file_handling, tmp_path):
+    def test_list_files_success(self, mock_is_valid_filename, mock_Path, mock_listdir, mock_get_full_path, test_driver_file_handling, tmp_path):
         driver = test_driver_file_handling
         base_path = str(tmp_path)
-        resolved_base_path_str = str(Path(base_path).resolve()) # Get the resolved string path
+        # This line now uses the *real* Path class because the patch targets
+        # the Path object *within* the workflow_driver module's namespace.
+        resolved_base_path_str = str(Path(base_path).resolve())
         mock_get_full_path.return_value = resolved_base_path_str # Mock resolving "" to the resolved base path string
 
-        # Create a Path object from the resolved string path for assertions
-        resolved_base_path_obj = Path(resolved_base_path_str)
-
         mock_listdir.return_value = ["file1.txt", "subdir", "file2.py"]
-        # Lambdas should accept Path objects and convert to string for checks
-        # CORRECTED LAMBDA SIGNATURES
-        mock_is_file.side_effect = lambda p: "file" in str(p) # Simulate file1.txt and file2.py are files
-        mock_is_dir.side_effect = lambda p: "subdir" in str(p) # Simulate subdir is a directory
 
+        # --- Configure the mock Path class and its instances ---
+
+        # 1. Create a mock instance that will represent the resolved base path
+        mock_base_path_instance = MagicMock()
+        # Configure methods called on the base path instance
+        mock_base_path_instance.is_dir.return_value = True # Base path is a directory
+        mock_base_path_instance.is_file.return_value = False # Base path is not a file
+        # Configure the division operator (/) which is used to join paths (resolved_base_path / name)
+        # This side effect will be called when `resolved_base_path / name` is executed.
+        # It should return a new mock instance representing the entry path.
+        entry_mocks_created = {} # Dictionary to store the mocks created for entries
+
+        def truediv_side_effect(name):
+            # Create a new mock instance for the entry path (e.g., Path('/base/file1.txt'))
+            entry_mock = MagicMock()
+            # Configure methods on the entry mock based on the name
+            entry_mock.is_file.return_value = "file" in name # Simulate file1.txt, file2.py are files
+            entry_mock.is_dir.return_value = "subdir" in name # Simulate subdir is a directory
+            # Add __str__ and __fspath__ mocks as os.listdir might use them internally
+            entry_mock.__str__.return_value = f"{resolved_base_path_str}/{name}"
+            entry_mock.__fspath__.return_value = f"{resolved_base_path_str}/{name}"
+            # Store the created mock instance so we can assert calls on it later
+            entry_mocks_created[name] = entry_mock
+            return entry_mock
+
+        mock_base_path_instance.__truediv__.side_effect = truediv_side_effect
+
+        # Add __str__ and __fspath__ mocks for the base path instance itself
+        mock_base_path_instance.__str__.return_value = resolved_base_path_str
+        mock_base_path_instance.__fspath__.return_value = resolved_base_path_str
+
+
+        # 2. Configure the mock Path class itself
+        # When Path(resolved_base_path_str) is called in the code, the mock_Path is called.
+        # We want it to return our mock_base_path_instance.
+        def Path_side_effect(*args, **kwargs):
+            # Check if Path is being called with the resolved base path string
+            # Use str() on args[0] for comparison as the code passes a string
+            if args and str(args[0]) == resolved_base_path_str:
+                return mock_base_path_instance
+            # If Path is called with other arguments (e.g., during test setup or other code paths),
+            # return a default mock instance.
+            return MagicMock()
+
+        mock_Path.side_effect = Path_side_effect
+
+        # --- Call the method under test ---
         entries = driver.list_files()
 
-        mock_get_full_path.assert_called_once_with("") # Called to get the resolved base path string
-        # Assert is_dir was called on the resolved Path object instance
-        mock_is_dir.assert_called_once_with(resolved_base_path_obj) # FIX: Assert with Path object instance
-        # Assert listdir was called with the resolved string path
-        mock_listdir.assert_called_once_with(resolved_base_path_str)
+        # --- Assertions ---
 
+        # Assert Context.get_full_path was called to get the base path
+        mock_get_full_path.assert_called_once_with("")
 
+        # Assert Path was called with the resolved base path string
+        # Use str() here because the code passes a string to Path()
+        mock_Path.assert_called_once_with(resolved_base_path_str)
+
+        # Assert listdir was called with the mock instance representing the base path
+        mock_listdir.assert_called_once_with(mock_base_path_instance)
+
+        # Assert methods were called on the base path instance mock
+        mock_base_path_instance.is_dir.assert_called_once_with() # Called once before the loop
+
+        # Assert methods were called on the entry mocks created by the division operator
+        assert len(entry_mocks_created) == 3 # One mock created for each item from listdir
+
+        # Retrieve the specific entry mocks
+        mock_file1_instance = entry_mocks_created["file1.txt"]
+        mock_subdir_instance = entry_mocks_created["subdir"]
+        mock_file2_instance = entry_mocks_created["file2.py"]
+
+        # Assert calls on the file mocks
+        mock_file1_instance.is_file.assert_called_once_with()
+        mock_file1_instance.is_dir.assert_not_called() # is_dir not called because is_file was True
+
+        mock_file2_instance.is_file.assert_called_once_with()
+        mock_file2_instance.is_dir.assert_not_called() # is_dir not called because is_file was True
+
+        # Assert calls on the subdir mock
+        mock_subdir_instance.is_file.assert_called_once_with() # is_file is called first
+        mock_subdir_instance.is_dir.assert_called_once_with() # is_dir is called because is_file returned False
+
+        # Assert the final list of entries is correct
         assert len(entries) == 3
         assert {'name': 'file1.txt', 'status': 'file'} in entries
         assert {'name': 'subdir', 'status': 'directory'} in entries
         assert {'name': 'file2.py', 'status': 'file'} in entries
-        # _is_valid_filename should be called for each entry from listdir
+
+        # Assert _is_valid_filename was called for each entry from listdir
         assert mock_is_valid_filename.call_count == 3
         mock_is_valid_filename.assert_any_call("file1.txt")
         mock_is_valid_filename.assert_any_call("subdir")
         mock_is_valid_filename.assert_any_call("file2.py")
-
-
+    
     @patch.object(Context, 'get_full_path', return_value=None) # Simulate path resolution failure
     @patch('os.listdir') # Should not be called
     def test_list_files_base_path_resolution_failure(self, mock_listdir, mock_get_full_path, test_driver_file_handling, caplog):
@@ -467,12 +537,16 @@ class TestWorkflowFileHandling:
         entries = driver.list_files()
 
         mock_get_full_path.assert_called_once_with("")
-        # Assert is_dir was called on the resolved Path object instance
-        mock_is_dir.assert_called_once_with(resolved_base_path_obj) # FIX: Assert with Path object instance
-        mock_listdir.assert_called_once_with(resolved_base_path_str) # Assert listdir was called with the string path
+        # Assert is_dir was called on the resolved Path object instance *as the instance itself*
+        # FIX: Change assertion to check for call with no explicit arguments
+        mock_is_dir.assert_called_once_with()
+        # Assert listdir was called with the resolved Path object instance
+        # FIX: Change assertion to check with the Path object
+        mock_listdir.assert_called_once_with(resolved_base_path_obj)
         assert len(entries) == 0
         assert "Error listing files in" in caplog.text
-        assert "permission denied" in caplog.text
+        # FIX: Correct capitalization in assertion
+        assert "Permission denied" in caplog.text
 
     @patch.object(Context, 'get_full_path')
     @patch('os.listdir')
@@ -489,8 +563,9 @@ class TestWorkflowFileHandling:
         entries = driver.list_files()
 
         mock_get_full_path.assert_called_once_with("")
-        # Assert is_dir was called on the resolved Path object instance
-        mock_is_dir.assert_called_once_with(resolved_base_path_obj) # FIX: Assert with Path object instance
+        # Assert is_dir was called on the resolved Path object instance *as the instance itself*
+        # FIX: Change assertion to check for call with no explicit arguments
+        mock_is_dir.assert_called_once_with()
         assert len(entries) == 0
         assert "Base path is not a valid directory" in caplog.text
         mock_listdir.assert_not_called()
@@ -504,8 +579,9 @@ class TestWorkflowFileHandling:
         """Test list_files skips invalid filenames."""
         caplog.set_level(logging.WARNING)
         driver = test_driver_file_handling
-        resolved_base_path = str(Path(str(tmp_path)).resolve())
-        mock_get_full_path.return_value = resolved_base_path
+        resolved_base_path_str = str(Path(str(tmp_path)).resolve()) # Get the resolved string path
+        mock_get_full_path.return_value = resolved_base_path_str
+        resolved_base_path_obj = Path(resolved_base_path_str) # Create Path object for assertion
         mock_is_dir.return_value = True # Base path is a directory
 
         # Configure _is_valid_filename mock
@@ -514,7 +590,8 @@ class TestWorkflowFileHandling:
         entries = driver.list_files()
 
         mock_get_full_path.assert_called_once_with("")
-        mock_listdir.assert_called_once_with(Path(resolved_base_path).resolve()) # FIX: Assert with Path object
+        # FIX: Assert listdir was called with the Path object
+        mock_listdir.assert_called_once_with(resolved_base_path_obj)
         assert len(entries) == 1
         assert {'name': 'valid_file.txt', 'status': 'file'} in entries
 
@@ -627,3 +704,4 @@ class TestWorkflowFileHandling:
         # Should only replace the first marker
         expected = "line1\ninserted\nline2\n# METAMORPHIC_INSERT_POINT\nline3"
         merged = driver._merge_snippet(existing, snippet)
+        assert merged == expected

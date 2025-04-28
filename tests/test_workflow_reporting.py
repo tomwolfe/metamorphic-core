@@ -6,6 +6,7 @@ from src.core.automation.workflow_driver import WorkflowDriver, Context
 import logging
 from unittest.mock import MagicMock, patch
 from datetime import datetime
+from pathlib import Path # <-- ADDED THIS IMPORT
 
 # Set up logging for tests
 if not logging.root.handlers:
@@ -21,14 +22,25 @@ def test_driver_reporting(tmp_path):
          patch('src.core.automation.workflow_driver.EthicalGovernanceEngine') as MockEthicalGovernanceEngine:
         mock_code_review_agent_instance = MockCodeReviewAgent.return_value
         mock_ethical_governance_engine_instance = MockEthicalGovernanceEngine.return_value
-        mock_ethical_governance_engine_instance.load_policy_from_json.return_value = {'policy_name': 'Mock Policy'}
+        # Mock load_policy_from_json on the ethical engine instance
+        # Use a side_effect lambda that returns a mock policy dict, but crucially,
+        # it needs access to the real Path class if the Context mock uses it.
+        # Since we fixed the Context mock in test_workflow_driver.py to use Path
+        # within its side_effect, we need Path here too.
+        mock_ethical_governance_engine_instance.load_policy_from_json.side_effect = lambda path: {'policy_name': 'Mock Policy'}
 
         driver = WorkflowDriver(context)
         # driver.llm_orchestrator = MagicMock() # Not needed for these tests
         # Ensure the driver instance uses the mocked CodeReviewAgent and EthicalGovernanceEngine
         driver.code_review_agent = mock_code_review_agent_instance
         driver.ethical_governance_engine = mock_ethical_governance_engine_instance
-        driver.default_policy_config = {'policy_name': 'Mock Policy'} # Ensure default policy is set for tests
+        # The default policy config is now loaded via _load_default_policy which calls load_policy_from_json
+        # driver.default_policy_config = {'policy_name': 'Mock Policy'} # This line is no longer strictly needed if _load_default_policy is called
+
+        # Call _load_default_policy manually after setting up mocks if needed,
+        # or rely on the WorkflowDriver __init__ to call it.
+        # The fixture setup already patches the classes before the driver is instantiated,
+        # so the __init__ call to _load_default_policy will use the mocks.
 
         # YIELD A DICTIONARY instead of the driver directly
         yield {
@@ -411,6 +423,7 @@ class TestWorkflowReporting:
     @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
     @patch.object(WorkflowDriver, 'execute_tests') # Ensure this is NOT called
     @patch.object(WorkflowDriver, '_parse_test_results') # Ensure this is NOT called
+    # The side_effect lambda here now correctly uses Path because it's imported
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Patch _write_output_file and make it return True
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({})) # Mock report generation
@@ -459,6 +472,7 @@ class TestWorkflowReporting:
     @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
     @patch.object(WorkflowDriver, 'execute_tests') # Ensure this is NOT called
     @patch.object(WorkflowDriver, '_parse_test_results') # Ensure this is NOT called
+    # The side_effect lambda here now correctly uses Path because it's imported
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Patch _write_output_file and make it return True
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({})) # Mock report generation
@@ -488,3 +502,4 @@ class TestWorkflowReporting:
 
         assert "Running code review and security scan for src/feature.py..." in caplog.text
         assert "Default ethical policy not loaded. Skipping ethical analysis." in caplog.text
+        assert "Running ethical analysis for src/feature.py..." not in caplog.text

@@ -318,7 +318,7 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"})
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
     # Changed fixture name from test_driver_validation to test_driver
-    def test_autonomous_loop_handles_generic_write_file_exceptions(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, tmp_path, mocker):
+    def test_autonomous_loop_handles_generic_write_file_exceptions(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, tmp_path, mocker, caplog):
         """Test that autonomous_loop handles generic exceptions from _write_output_file gracefully."""
         caplog.set_level(logging.INFO)
         driver = test_driver['driver']

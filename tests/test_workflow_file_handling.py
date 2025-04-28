@@ -415,16 +415,18 @@ class TestWorkflowFileHandling:
 
         mock_listdir.return_value = ["file1.txt", "subdir", "file2.py"]
         # Lambdas should accept Path objects and convert to string for checks
+        # CORRECTED LAMBDA SIGNATURES
         mock_is_file.side_effect = lambda p: "file" in str(p) # Simulate file1.txt and file2.py are files
         mock_is_dir.side_effect = lambda p: "subdir" in str(p) # Simulate subdir is a directory
 
         entries = driver.list_files()
 
         mock_get_full_path.assert_called_once_with("") # Called to get the resolved base path string
-        # Assert listdir was called with the resolved string path
-        mock_listdir.assert_called_once_with(resolved_base_path_str)
         # Assert is_dir was called on the resolved Path object instance
         mock_is_dir.assert_called_once_with(resolved_base_path_obj) # FIX: Assert with Path object instance
+        # Assert listdir was called with the resolved string path
+        mock_listdir.assert_called_once_with(resolved_base_path_str)
+
 
         assert len(entries) == 3
         assert {'name': 'file1.txt', 'status': 'file'} in entries
@@ -550,7 +552,7 @@ class TestWorkflowFileHandling:
         assert driver._is_valid_filename("") is False
         assert driver._is_valid_filename(None) is False
         assert driver._is_valid_filename(123) is False
-        assert driver._is_valid_filename("task.") is False
+        assert driver._is_valid_filename("task.") is False # This should now pass with the fix
         assert driver._is_valid_filename(".hidden_file.txt") is False
         assert driver._is_valid_filename("-file.txt") is False
         assert driver._is_valid_filename("_file.txt") is False

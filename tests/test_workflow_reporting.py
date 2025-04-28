@@ -17,17 +17,31 @@ logger = logging.getLogger(__name__)
 def test_driver_reporting(tmp_path):
     context = Context(str(tmp_path))
     # Patch the CodeReviewAgent and EthicalGovernanceEngine instantiation as they are not needed for reporting tests
-    with patch('src.core.automation.workflow_driver.CodeReviewAgent'), \
-         patch('src.core.automation.workflow_driver.EthicalGovernanceEngine'):
+    with patch('src.core.automation.workflow_driver.CodeReviewAgent') as MockCodeReviewAgent, \
+         patch('src.core.automation.workflow_driver.EthicalGovernanceEngine') as MockEthicalGovernanceEngine:
+        mock_code_review_agent_instance = MockCodeReviewAgent.return_value
+        mock_ethical_governance_engine_instance = MockEthicalGovernanceEngine.return_value
+        mock_ethical_governance_engine_instance.load_policy_from_json.return_value = {'policy_name': 'Mock Policy'}
+
         driver = WorkflowDriver(context)
         # driver.llm_orchestrator = MagicMock() # Not needed for these tests
-        yield driver
+        # Ensure the driver instance uses the mocked CodeReviewAgent and EthicalGovernanceEngine
+        driver.code_review_agent = mock_code_review_agent_instance
+        driver.ethical_governance_engine = mock_ethical_governance_engine_instance
+        driver.default_policy_config = {'policy_name': 'Mock Policy'} # Ensure default policy is set for tests
+
+        # YIELD A DICTIONARY instead of the driver directly
+        yield {
+            'driver': driver,
+            'mock_code_review_agent': mock_code_review_agent_instance,
+            'mock_ethical_governance_engine': mock_ethical_governance_engine_instance
+        }
 
 class TestWorkflowReporting:
 
     # --- Tests for generate_grade_report ---
     def test_generate_grade_report(self, test_driver_reporting):
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         task_id = "test_task_1"
         mock_validation_results = {
             'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
@@ -63,7 +77,7 @@ class TestWorkflowReporting:
     # --- Tests for _calculate_grades ---
 
     def test__calculate_grades_all_pass(self, test_driver_reporting):
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         mock_validation_results = {
             'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
             'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
@@ -79,7 +93,7 @@ class TestWorkflowReporting:
         assert grades['overall_percentage_grade'] == 100
 
     def test__calculate_grades_tests_fail(self, test_driver_reporting):
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         mock_validation_results = {
             'test_results': {'status': 'failed', 'passed': 5, 'failed': 5, 'total': 10, 'message': 'Parsed successfully.'},
             'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
@@ -95,7 +109,7 @@ class TestWorkflowReporting:
         assert grades['overall_percentage_grade'] == 65
 
     def test__calculate_grades_code_style_issues(self, test_driver_reporting):
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         mock_validation_results = {
             'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
             'code_review_results': {
@@ -120,7 +134,7 @@ class TestWorkflowReporting:
         assert grades['overall_percentage_grade'] == 96
 
     def test__calculate_grades_ethical_violation(self, test_driver_reporting):
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         mock_validation_results = {
             'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
             'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
@@ -136,7 +150,7 @@ class TestWorkflowReporting:
         assert grades['overall_percentage_grade'] == 80
 
     def test__calculate_grades_security_violation_high(self, test_driver_reporting):
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         mock_validation_results = {
             'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
             'code_review_results': {
@@ -158,7 +172,7 @@ class TestWorkflowReporting:
         assert grades['overall_percentage_grade'] == 90
 
     def test__calculate_grades_missing_results(self, test_driver_reporting):
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         mock_validation_results = {
             # Missing test_results, code_review_results, ethical_analysis_results
         }
@@ -176,7 +190,7 @@ class TestWorkflowReporting:
         assert grades['overall_percentage_grade'] == 0
 
     def test__calculate_grades_execution_errors(self, test_driver_reporting):
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         mock_validation_results = {
             'test_results': {'status': 'error', 'message': 'Test execution failed.'},
             'code_review_results': {'status': 'error', 'errors': {'flake8': 'Flake8 error', 'bandit': 'Bandit error'}},
@@ -196,7 +210,7 @@ class TestWorkflowReporting:
         assert grades['overall_percentage_grade'] == 0
 
     def test__calculate_grades_ethical_skipped(self, test_driver_reporting):
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         mock_validation_results = {
             'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
             'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
@@ -215,7 +229,7 @@ class TestWorkflowReporting:
     # --- Tests for _parse_and_evaluate_grade_report ---
     def test_parse_and_evaluate_grade_report_completed(self, test_driver_reporting):
         """Test _parse_and_evaluate_grade_report returns 'Completed' for 100% grade."""
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         report_json = json.dumps({
             "task_id": "test_task",
             "grades": {"overall_percentage_grade": 100},
@@ -231,7 +245,7 @@ class TestWorkflowReporting:
 
     def test_parse_and_evaluate_grade_report_blocked_ethical(self, test_driver_reporting):
         """Test _parse_and_evaluate_grade_report returns 'Blocked' for ethical rejection."""
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         report_json = json.dumps({
             "task_id": "test_task",
             "grades": {"overall_percentage_grade": 70},
@@ -247,7 +261,7 @@ class TestWorkflowReporting:
 
     def test_parse_and_evaluate_grade_report_blocked_security(self, test_driver_reporting):
         """Test _parse_and_evaluate_grade_report returns 'Blocked' for high-risk security."""
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         report_json = json.dumps({
             "task_id": "test_task",
             "grades": {"overall_percentage_grade": 70},
@@ -263,7 +277,7 @@ class TestWorkflowReporting:
 
     def test_parse_and_evaluate_grade_report_regenerate_tests_failed(self, test_driver_reporting):
         """Test _parse_and_evaluate_grade_report returns 'Regenerate Code' for test failures."""
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         report_json = json.dumps({
             "task_id": "test_task",
             "grades": {"overall_percentage_grade": 95},
@@ -279,7 +293,7 @@ class TestWorkflowReporting:
 
     def test_parse_and_evaluate_grade_report_regenerate_grade_below_100_above_80(self, test_driver_reporting):
         """Test _parse_and_evaluate_grade_report returns 'Regenerate Code' for grade >= 80 but < 100."""
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         report_json = json.dumps({
             "task_id": "test_task",
             "grades": {"overall_percentage_grade": 85},
@@ -295,7 +309,7 @@ class TestWorkflowReporting:
 
     def test_parse_and_evaluate_grade_report_manual_review_grade_below_80(self, test_driver_reporting):
         """Test _parse_and_evaluate_grade_report returns 'Manual Review Required' for grade < 80."""
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         report_json = json.dumps({
             "task_id": "test_task",
             "grades": {"overall_percentage_grade": 79},
@@ -312,7 +326,7 @@ class TestWorkflowReporting:
     def test_parse_and_evaluate_grade_report_json_decode_error(self, test_driver_reporting, caplog):
         """Test _parse_and_evaluate_grade_report handles invalid JSON input."""
         caplog.set_level(logging.ERROR)
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         invalid_json = "{ not valid json }"
         result = driver._parse_and_evaluate_grade_report(invalid_json)
         assert result["recommended_action"] == "Manual Review Required"
@@ -322,7 +336,7 @@ class TestWorkflowReporting:
     def test_parse_and_evaluate_grade_report_missing_keys(self, test_driver_reporting, caplog):
         """Test _parse_and_evaluate_grade_report handles missing keys gracefully."""
         caplog.set_level(logging.INFO)
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         report_json = json.dumps({
             "task_id": "test_task",
             # Missing 'grades' and 'validation_results' keys
@@ -334,7 +348,7 @@ class TestWorkflowReporting:
 
     def test_parse_and_evaluate_grade_report_ethical_error(self, test_driver_reporting):
         """Test _parse_and_evaluate_grade_report handles ethical analysis error."""
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         report_json = json.dumps({
             "task_id": "test_task",
             "grades": {"overall_percentage_grade": 90},
@@ -350,7 +364,7 @@ class TestWorkflowReporting:
 
     def test_parse_and_evaluate_grade_report_security_error(self, test_driver_reporting):
         """Test _parse_and_evaluate_grade_report handles code review/security error."""
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         report_json = json.dumps({
             "task_id": "test_task",
             "grades": {"overall_percentage_grade": 90},
@@ -366,7 +380,7 @@ class TestWorkflowReporting:
 
     def test_parse_and_evaluate_grade_report_test_error(self, test_driver_reporting):
         """Test _parse_and_evaluate_grade_report handles test execution/parsing error."""
-        driver = test_driver_reporting
+        driver = test_driver_reporting['driver'] # Access driver from dict
         report_json = json.dumps({
             "task_id": "test_task",
             "grades": {"overall_percentage_grade": 90},
@@ -409,9 +423,9 @@ class TestWorkflowReporting:
         after a successful code write.
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver_reporting['driver']
-        mock_code_review_agent = test_driver_reporting['mock_code_review_agent']
-        mock_ethical_governance_engine = test_driver_reporting['mock_ethical_governance_engine']
+        driver = test_driver_reporting['driver'] # Access driver from dict
+        mock_code_review_agent = test_driver_reporting['mock_code_review_agent'] # Access mock from dict
+        mock_ethical_governance_engine = test_driver_reporting['mock_ethical_governance_engine'] # Access mock from dict
 
         mock_review_results = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
         mock_code_review_agent.analyze_python.return_value = mock_review_results
@@ -456,9 +470,9 @@ class TestWorkflowReporting:
         Test that autonomous_loop skips ethical analysis if default policy is not loaded.
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver_reporting['driver']
-        mock_code_review_agent = test_driver_reporting['mock_code_review_agent']
-        mock_ethical_governance_engine = test_driver_reporting['mock_ethical_governance_engine']
+        driver = test_driver_reporting['driver'] # Access driver from dict
+        mock_code_review_agent = test_driver_reporting['mock_code_review_agent'] # Access mock from dict
+        mock_ethical_governance_engine = test_driver_reporting['mock_ethical_governance_engine'] # Access mock from dict
 
         driver.default_policy_config = None # Explicitly set default_policy_config to None
 

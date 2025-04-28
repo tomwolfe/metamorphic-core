@@ -821,15 +821,13 @@ Requirements:
         if filename in ['.', '..']:
             return False
         # Allow alphanumeric, underscores, hyphens, and dots. Must start with alphanumeric.
-        # This regex is primarily for validating *user-provided* filenames/paths,
-        # less critical for names from os.listdir if the base_path is trusted.
-        # Let's simplify this check slightly for names from os.listdir, focusing on traversal.
-        # A simple check for '..' and '/' might be sufficient here.
-        # Re-using the task_id regex might be too strict for filenames.
-        # Let's keep the previous regex but clarify its primary use case.
-        # The regex `^[a-zA-Z0-9][a-zA-Z0-9_.-]*$` is suitable for file paths relative to the base.
-        # Let's use this regex.
-        return bool(re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]*$', filename))
+        # Disallow trailing dot.
+        # CORRECTED REGEX and added explicit check for trailing dot
+        if not re.fullmatch(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]*$', filename):
+             return False
+        if filename.endswith('.'): # Explicitly disallow trailing dot
+             return False
+        return True
 
 
     def _write_output_file(self, filepath, content, overwrite=False):

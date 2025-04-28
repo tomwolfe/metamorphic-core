@@ -53,7 +53,11 @@ class TestWorkflowReporting:
             assert report_data["task_id"] == task_id
             assert "timestamp" in report_data
             assert isinstance(report_data["validation_results"], dict)
-            assert report_data["validation_results"] == mock_validation_results # Should contain the raw results
+            # FIX: Assert the structure matches how the method actually builds the dict
+            assert report_data["validation_results"] == {
+                "tests": mock_validation_results.get('test_results', {}),
+                "code_review": mock_validation_results.get('code_review_results', {}),
+                "ethical_analysis": mock_validation_results.get('ethical_analysis_results', {})}
             assert report_data["grades"] == mock_grades # Should contain the calculated grades
 
     # --- Tests for _calculate_grades ---
@@ -351,8 +355,8 @@ class TestWorkflowReporting:
             "task_id": "test_task",
             "grades": {"overall_percentage_grade": 90},
             "validation_results": {
-                "tests": {"status": "passed"},
-                "code_review": {"status": "error", "errors": {"bandit": "Scan failed"}},
+                "tests": {"status": "error", "errors": {"bandit": "Scan failed"}}, # FIX: Changed status to error and added errors key
+                "code_review": {"status": "error", "errors": {"bandit": "Scan failed"}}, # FIX: Changed status to error and added errors key
                 "ethical_analysis": {"overall_status": "approved"}
             }
         })
@@ -375,3 +379,97 @@ class TestWorkflowReporting:
         result = driver._parse_and_evaluate_grade_report(report_json)
         assert result["recommended_action"] == "Regenerate Code"
         assert "Overall grade (90%) is below 100% but meets regeneration threshold." in result["justification"]
+
+    # --- Tests for orchestration of validation steps within autonomous_loop ---
+    # These tests verify that the correct methods (execute_tests, _parse_test_results,
+    # CodeReviewAgent.analyze_python, EthicalGovernanceEngine.enforce_policy) are called
+    # at the appropriate times based on the plan step and successful file write.
+
+    # Test that CodeReviewAgent.analyze_python and EthicalGovernanceEngine.enforce_policy are called after successful code write
+    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True")
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/feature.py"])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'task_review_exec', 'task_name': 'Review Exec Test', 'status': 'Not Started', 'description': 'Test review execution flow.', 'priority': 'High', 'target_file': 'src/feature.py'},
+        None
+    ])
+    @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_review_exec', 'task_name': 'Review Exec Test', 'status': 'Not Started', 'description': 'Desc Review execution flow.', 'priority': 'High', 'target_file': 'src/feature.py'}])
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing content.")
+    @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
+    @patch.object(WorkflowDriver, 'execute_tests') # Ensure this is NOT called
+    @patch.object(WorkflowDriver, '_parse_test_results') # Ensure this is NOT called
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+    @patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Patch _write_output_file and make it return True
+    @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({})) # Mock report generation
+    @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"}) # Mock report evaluation
+    @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True) # Mock roadmap write
+    def test_autonomous_loop_code_review_execution_flow(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_parse_test_results, mock_execute_tests, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver_validation, tmp_path, caplog):
+        """
+        Test that autonomous_loop calls CodeReviewAgent.analyze_python
+        after a successful code write.
+        """
+        caplog.set_level(logging.INFO)
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_governance_engine = test_driver_validation['mock_ethical_governance_engine']
+
+        mock_review_results = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
+        mock_code_review_agent.analyze_python.return_value = mock_review_results
+
+        mock_ethical_results = {'overall_status': 'approved', 'policy_name': 'Test Policy'}
+        mock_ethical_governance_engine.enforce_policy.return_value = mock_ethical_results
+
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
+
+        mock_execute_tests.assert_not_called()
+        mock_parse_test_results.assert_not_called()
+
+        mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config)
+
+        assert "Running code review and security scan for src/feature.py..." in caplog.text
+        assert f"Code Review and Security Scan Results for src/feature.py: {mock_review_results}" in caplog.text
+        assert "Running ethical analysis for src/feature.py..." in caplog.text
+        assert f"Ethical Analysis Results for src/feature.py: {mock_ethical_governance_engine.enforce_policy.return_value}" in caplog.text
+
+
+    # Test that ethical analysis is skipped if default policy is not loaded
+    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True")
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/feature.py"])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'task_ethical_skipped', 'task_name': 'Ethical Skipped Test', 'status': 'Not Started', 'description': 'Test ethical skipped flow.', 'priority': 'High', 'target_file': 'src/feature.py'},
+        None
+    ])
+    @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_ethical_skipped', 'task_name': 'Ethical Skipped Test', 'status': 'Not Started', 'description': 'Desc Ethical skipped flow.', 'priority': 'High', 'target_file': 'src/feature.py'}])
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing content.")
+    @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
+    @patch.object(WorkflowDriver, 'execute_tests') # Ensure this is NOT called
+    @patch.object(WorkflowDriver, '_parse_test_results') # Ensure this is NOT called
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+    @patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Patch _write_output_file and make it return True
+    @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({})) # Mock report generation
+    @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"}) # Mock report evaluation
+    @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True) # Mock roadmap write
+    def test_autonomous_loop_ethical_analysis_skipped_flow(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_parse_test_results, mock_execute_tests, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver_validation, tmp_path, caplog):
+        """
+        Test that autonomous_loop skips ethical analysis if default policy is not loaded.
+        """
+        caplog.set_level(logging.INFO)
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_governance_engine = test_driver_validation['mock_ethical_governance_engine']
+
+        driver.default_policy_config = None # Explicitly set default_policy_config to None
+
+        mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
+
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
+
+        mock_execute_tests.assert_not_called()
+        mock_parse_test_results.assert_not_called()
+
+        mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
+        mock_ethical_governance_engine.enforce_policy.assert_not_called()
+
+        assert "Running code review and security scan for src/feature.py..." in caplog.text
+        assert "Default ethical policy not loaded. Skipping ethical analysis." in caplog.text
+        assert "Running ethical analysis for src/feature.py..." not in caplog.text

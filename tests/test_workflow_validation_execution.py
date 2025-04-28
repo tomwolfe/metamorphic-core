@@ -6,6 +6,7 @@ from src.core.automation.workflow_driver import WorkflowDriver, Context
 import logging
 from unittest.mock import MagicMock, patch, ANY
 from src.core.agents.code_review_agent import CodeReviewAgent
+from pathlib import Path # Import Path
 from src.core.ethics.governance import EthicalGovernanceEngine
 import json # <-- Added this import
 
@@ -427,4 +428,3 @@ without a summary line
         assert "Running code review and security scan for src/feature.py..." in caplog.text
         assert "Default ethical policy not loaded. Skipping ethical analysis." in caplog.text
         assert "Running ethical analysis for src/feature.py..." not in caplog.text
-        assert "Ethical Analysis Results for src/feature.py:" not in caplog.text

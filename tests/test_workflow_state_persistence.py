@@ -58,7 +58,7 @@ class TestWorkflowStatePersistence:
         mock_open.assert_called_once_with(temp_filepath, 'w', encoding='utf-8')
 
         # Check that os.replace was called with the correct paths
-        mock_replace.assert_called_once_with(temp_filepath, Path(full_resolved_path))
+        mock_replace.assert_called_once_with(temp_filepath, full_resolved_path) # FIX: Assert with string path, not Path object
 
         # Check that os.remove was called for cleanup
         mock_remove.assert_called_once_with(temp_filepath)

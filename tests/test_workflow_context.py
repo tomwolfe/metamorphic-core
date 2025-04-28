@@ -5,6 +5,7 @@ import os
 from src.core.automation.workflow_driver import Context
 from pathlib import Path
 import logging
+from unittest.mock import patch # Import patch
 
 # Set up logging for tests
 if not logging.root.handlers:

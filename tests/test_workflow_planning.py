@@ -261,4 +261,3 @@ class TestWorkflowPlanning:
             driver.generate_user_actionable_steps([1, 2, 3])
         with pytest.raises(TypeError):
             driver.generate_user_actionable_steps(["valid", 123])
-

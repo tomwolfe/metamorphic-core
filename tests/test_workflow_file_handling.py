@@ -114,12 +114,12 @@ class TestWorkflowFileHandling:
         content = "new content"
         mock_exists.side_effect = lambda p: Path(p).name == "path" # Simulate 'path' exists, but not 'path/to'
 
-        result = driver._write_output_file(filepath, new_content, overwrite=True)
+        result = driver._write_output_file(filepath, content, overwrite=True)
 
         assert result is True
         mock_get_full_path.assert_called_once_with(filepath)
         mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
-        mock_write_file.assert_called_once_with("/resolved/path/to/overwrite.txt", new_content, overwrite=True)
+        mock_write_file.assert_called_once_with("/resolved/path/to/overwrite.txt", content, overwrite=True)
         assert "Successfully wrote to" in caplog.text
 
     @patch.object(Context, 'get_full_path', return_value=None) # Simulate path resolution failure
@@ -355,8 +355,8 @@ class TestWorkflowFileHandling:
 
         assert driver.file_exists(test_file_relative) is True
         mock_get_full_path.assert_called_once_with(test_file_relative)
-        mock_exists.assert_called_once_with(str(test_file_full.resolve()))
-        mock_isfile.assert_called_once_with(str(test_file_full.resolve()))
+        mock_exists.assert_called_once_with(test_file_full.resolve()) # FIX: Assert with Path object
+        mock_isfile.assert_called_once_with(test_file_full.resolve()) # FIX: Assert with Path object
 
     @patch.object(Context, 'get_full_path')
     @patch('os.path.exists', return_value=False)
@@ -368,7 +368,7 @@ class TestWorkflowFileHandling:
 
         assert driver.file_exists(non_existing_file_relative) is False
         mock_get_full_path.assert_called_once_with(non_existing_file_relative)
-        mock_exists.assert_called_once_with(str(tmp_path / non_existing_file_relative))
+        mock_exists.assert_called_once_with(tmp_path / non_existing_file_relative) # FIX: Assert with Path object
         mock_isfile.assert_not_called()
 
     @patch.object(Context, 'get_full_path', return_value=None) # Simulate path resolution failure
@@ -417,7 +417,7 @@ class TestWorkflowFileHandling:
         entries = driver.list_files()
 
         mock_get_full_path.assert_called_once_with("") # Called to get the resolved base path
-        mock_listdir.assert_called_once_with(resolved_base_path)
+        mock_listdir.assert_called_once_with(Path(resolved_base_path).resolve()) # FIX: Assert with Path object
         assert len(entries) == 3
         assert {'name': 'file1.txt', 'status': 'file'} in entries
         assert {'name': 'subdir', 'status': 'directory'} in entries
@@ -454,7 +454,7 @@ class TestWorkflowFileHandling:
         entries = driver.list_files()
 
         mock_get_full_path.assert_called_once_with("")
-        mock_is_dir.assert_called_once_with(Path(resolved_base_path))
+        mock_is_dir.assert_called_once_with(Path(resolved_base_path).resolve()) # FIX: Assert with Path object
         mock_listdir.assert_called_once_with(resolved_base_path)
         assert len(entries) == 0
         assert "Error listing files in" in caplog.text
@@ -472,7 +472,7 @@ class TestWorkflowFileHandling:
         entries = driver.list_files()
 
         mock_get_full_path.assert_called_once_with("")
-        mock_is_dir.assert_called_once_with(Path(resolved_base_path))
+        mock_is_dir.assert_called_once_with(Path(resolved_base_path).resolve()) # FIX: Assert with Path object
         assert len(entries) == 0
         assert "Base path is not a valid directory" in caplog.text
         mock_listdir.assert_not_called()
@@ -496,7 +496,7 @@ class TestWorkflowFileHandling:
         entries = driver.list_files()
 
         mock_get_full_path.assert_called_once_with("")
-        mock_listdir.assert_called_once_with(resolved_base_path)
+        mock_listdir.assert_called_once_with(Path(resolved_base_path).resolve()) # FIX: Assert with Path object
         assert len(entries) == 1
         assert {'name': 'valid_file.txt', 'status': 'file'} in entries
 
@@ -526,7 +526,7 @@ class TestWorkflowFileHandling:
     def test_is_valid_filename_invalid_formats(self, test_driver_file_handling):
         """Test _is_valid_filename with invalid filename formats."""
         driver = test_driver_file_handling
-        assert driver._is_valid_filename("invalid/name") is False # Contains slash
+        assert driver._is_valid_filename("invalid/id") is False # Contains slash
         assert driver._is_valid_filename("invalid\\name") is False # Contains backslash
         assert driver._is_valid_filename("..") is False # Path traversal
         assert driver._is_valid_filename("../file.txt") is False # Path traversal
@@ -599,5 +599,14 @@ class TestWorkflowFileHandling:
         existing = "line1\n# METAMORPHIC_INSERT_POINT"
         snippet = "inserted"
         expected = "line1\ninserted"
+        merged = driver._merge_snippet(existing, snippet)
+        assert merged == expected
+
+    def test__merge_snippet_multiple_markers(self, test_driver_file_handling):
+        driver = test_driver_file_handling
+        existing = "line1\n# METAMORPHIC_INSERT_POINT\nline2\n# METAMORPHIC_INSERT_POINT\nline3"
+        snippet = "inserted"
+        # Should only replace the first marker
+        expected = "line1\ninserted\nline2\n# METAMORPHIC_INSERT_POINT\nline3"
         merged = driver._merge_snippet(existing, snippet)
         assert merged == expected

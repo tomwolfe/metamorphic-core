@@ -1,0 +1,379 @@
+# tests/test_workflow_task_management.py
+
+import pytest
+import os
+import json
+import html
+from src.core.automation.workflow_driver import WorkflowDriver, Context
+import logging
+from unittest.mock import MagicMock, patch
+
+# Set up logging for tests
+if not logging.root.handlers:
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Fixture for a WorkflowDriver instance with a Context
+@pytest.fixture
+def test_driver_task_management(tmp_path):
+    context = Context(str(tmp_path))
+    # Patch the CodeReviewAgent and EthicalGovernanceEngine instantiation as they are not needed for task management tests
+    with patch('src.core.automation.workflow_driver.CodeReviewAgent'), \
+         patch('src.core.automation.workflow_driver.EthicalGovernanceEngine'):
+        driver = WorkflowDriver(context)
+        # driver.llm_orchestrator = MagicMock() # Not needed for these tests
+        yield driver
+
+def create_mock_roadmap_file(content, tmp_path, is_json=True):
+    """Creates a mock roadmap file in the temporary directory."""
+    if is_json:
+        file_path = tmp_path / "ROADMAP.json"
+    else:
+        file_path = tmp_path / "ROADMAP.txt"
+    with open(file_path, "w") as f:
+        f.write(content)
+    return str(file_path)
+
+class TestWorkflowTaskManagement:
+
+    # --- Tests for load_roadmap ---
+    def test_load_roadmap_valid_json(self, test_driver_task_management, tmp_path):
+        driver = test_driver_task_management
+        roadmap_content = """
+        {
+            "phase": "Test Phase",
+            "phase_goal": "Goal",
+            "success_metrics": [],
+            "tasks": [
+                {
+                    "task_id": "Task1",
+                    "priority": "High",
+                    "task_name": "Test Task",
+                    "status": "Not Started",
+                    "description": "A test task description."
+                }
+            ],
+            "next_phase_actions": [],
+            "current_focus": "Test focus"
+        }
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        # load_roadmap is called with the full path by start_workflow, but we test it directly here
+        # It needs to use the provided path directly.
+        tasks = driver.load_roadmap(roadmap_file)
+        assert len(tasks) == 1
+        assert tasks[0]["task_id"] == "Task1"
+        assert tasks[0]["priority"] == "High"
+        assert tasks[0]["task_name"] == "Test Task"
+        assert tasks[0]["status"] == "Not Started"
+        assert tasks[0]["description"] == "A test task description."
+
+    def test_load_roadmap_file_not_found(self, test_driver_task_management, tmp_path, caplog):
+        caplog.set_level(logging.ERROR)
+        driver = test_driver_task_management
+        non_existent_file = str(tmp_path / "NON_EXISTENT_ROADMAP.json")
+        tasks = driver.load_roadmap(non_existent_file)
+        assert len(tasks) == 0
+        assert f"ROADMAP.json file not found at path: {non_existent_file}" in caplog.text
+
+    def test_load_roadmap_invalid_json(self, test_driver_task_management, tmp_path, caplog):
+        caplog.set_level(logging.ERROR)
+        driver = test_driver_task_management
+        roadmap_content = "This is not a valid JSON file."
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+        assert len(tasks) == 0
+        assert "Invalid JSON in roadmap file" in caplog.text
+
+    def test_load_roadmap_file_size_limit(self, test_driver_task_management, tmp_path, caplog):
+        caplog.set_level(logging.ERROR)
+        driver = test_driver_task_management
+        long_string = "A" * 20000
+        roadmap_content = f"""
+        {{
+            "phase": "Test Phase",
+            "phase_goal": "Goal",
+            "success_metrics": [],
+            "tasks": [
+                {{
+                    "task_id": "Task1",
+                    "priority": "High",
+                    "task_name": "Test Task",
+                    "status": "Not Started",
+                    "description": "{long_string}"
+                }}
+            ],
+            "next_phase_actions": [],
+            "current_focus": "Test focus"
+        }}
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+        assert len(tasks) == 0
+        assert "file exceeds maximum allowed size" in caplog.text
+
+    def test_load_roadmap_missing_tasks_key(self, test_driver_task_management, tmp_path, caplog):
+        caplog.set_level(logging.ERROR)
+        driver = test_driver_task_management
+        roadmap_content = """
+        {
+            "phase": "Test Phase",
+            "phase_goal": "Goal",
+            "success_metrics": [],
+            "next_phase_actions": [],
+            "current_focus": "Test focus"
+        }
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+        assert len(tasks) == 0
+        assert "ROADMAP.json must contain a 'tasks' key." in caplog.text
+
+    def test_load_roadmap_tasks_not_a_list(self, test_driver_task_management, tmp_path, caplog):
+        caplog.set_level(logging.ERROR)
+        driver = test_driver_task_management
+        roadmap_content = """
+        {
+            "phase": "Test Phase",
+            "phase_goal": "Goal",
+            "success_metrics": [],
+            "tasks": "not a list",
+            "next_phase_actions": [],
+            "current_focus": "Test focus"
+        }
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+        assert len(tasks) == 0
+        assert "'tasks' must be a list" in caplog.text
+
+    def test_load_roadmap_invalid_task_format(self, test_driver_task_management, tmp_path, caplog):
+        """Test load_roadmap skips invalid task formats within the list."""
+        caplog.set_level(logging.WARNING)
+        driver = test_driver_task_management
+        roadmap_content = """
+        {
+            "tasks": [
+                "not a dict",
+                {
+                    "task_id": "t3",
+                    "priority": "Not Specified",
+                    "task_name": "Test Task 3",
+                    "status": "Not Started"
+                },
+                {
+                    "task_id": "t1",
+                    "priority": "High",
+                    "task_name": "Test Task 1",
+                    "status": "Not Started",
+                    "description": "A test task description."
+                },
+                {
+                    "task_id": "t2",
+                    "priority": "Low",
+                    "task_name": "Test Task 2",
+                    "status": "Completed"
+                }
+            ]
+        }
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+        assert len(tasks) == 1
+        assert tasks[0]['task_id'] == 't1'
+        assert "Skipping invalid task (not a dictionary): not a dict" in caplog.text
+        assert "Task missing required keys: {'task_id': 't3', 'priority': 'Not Specified', 'task_name': 'Test Task 3', 'status': 'Not Started'}" in caplog.text
+        assert "Task missing required keys: {'task_id': 't2', 'priority': 'Low', 'task_name': 'Test Task 2', 'status': 'Completed'}" in caplog.text
+
+
+    def test_load_roadmap_list_with_invalid_task_id(self, test_driver_task_management, tmp_path, caplog):
+        """Test load_roadmap skips tasks with invalid task_id format."""
+        caplog.set_level(logging.WARNING)
+        driver = test_driver_task_management
+        roadmap_content = """
+        {
+            "phase": "Test Phase",
+            "phase_goal": "Goal",
+            "success_metrics": [],
+            "tasks": [
+                {
+                    "task_id": "invalid/id",
+                    "priority": "High",
+                    "task_name": "Test Task",
+                    "status": "Not Started",
+                    "description": "A test task description."
+                },
+                {
+                    "task_id": "t2",
+                    "priority": "High",
+                    "task_name": "Test Task 2",
+                    "status": "Not Started",
+                    "description": "Another test task description."
+                }
+            ],
+            "next_phase_actions": [],
+            "current_focus": "Test focus"
+        }
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+        assert len(tasks) == 1
+        assert tasks[0]['task_id'] == 't2'
+        assert "Skipping task with invalid task_id format: 'invalid/id'" in caplog.text
+
+
+    def test_load_roadmap_task_name_too_long(self, test_driver_task_management, tmp_path, caplog):
+        caplog.set_level(logging.WARNING)
+        driver = test_driver_task_management
+        long_task_name = "A" * 151
+        roadmap_content = f"""
+        {{
+            "phase": "Test Phase",
+            "phase_goal": "Goal",
+            "success_metrics": [],
+            "tasks": [
+                {{
+                    "task_id": "LongTask",
+                    "priority": "High",
+                    "task_name": "{long_task_name}",
+                    "status": "Not Started",
+                    "description": "A test task description."
+                }}
+            ],
+            "next_phase_actions": [],
+            "current_focus": "Test focus"
+        }}
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+        assert len(tasks) == 0
+        assert "Task Name" in caplog.text and "exceeds 150 characters" in caplog.text
+
+    def test_load_roadmap_handles_html_in_description(self, test_driver_task_management, tmp_path, caplog):
+        """Tests that description field is escaped to prevent JS injection"""
+        caplog.set_level(logging.ERROR)
+        driver = test_driver_task_management
+        roadmap_content = f"""
+        {{
+            "phase": "Test Phase",
+            "phase_goal": "Goal",
+            "success_metrics": [],
+            "tasks": [
+                {{
+                    "task_id": "HtmlTask",
+                    "priority": "High",
+                    "task_name": "Test Name",
+                    "status": "Not Started",
+                    "description": "<script> test</script>"
+                }}
+            ],
+            "next_phase_actions": [],
+            "current_focus": "Test focus"
+        }}
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+        assert len(tasks) == 1
+        expected_description = html.escape("<script> test</script>")
+        assert tasks[0]["description"] == expected_description, f"Expected escaped version of '<script> test</script>', got '{tasks[0]['description']}'"
+
+    # --- Tests for select_next_task ---
+    def test_select_next_task_valid_list_with_not_started(self, test_driver_task_management):
+        """Test select_next_task returns the first 'Not Started' task."""
+        driver = test_driver_task_management
+        tasks = [
+            {'task_id': 't1', 'status': 'Completed', 'task_name': 'Task 1', 'description': 'Desc', 'priority': 'Low'},
+            {'task_id': 't2', 'status': 'Not Started', 'task_name': 'Task 2', 'description': 'Desc', 'priority': 'High'},
+            {'task_id': 't3', 'status': 'Not Started', 'task_name': 'Task 3', 'description': 'Desc', 'priority': 'Medium'}
+        ]
+        next_task = driver.select_next_task(tasks)
+        assert next_task is not None
+        assert next_task['task_id'] == 't2'
+
+    def test_select_next_task_valid_list_no_not_started(self, test_driver_task_management):
+        """Test select_next_task returns None when no 'Not Started' tasks exist."""
+        driver = test_driver_task_management
+        tasks = [
+            {'task_id': 't1', 'status': 'Completed', 'task_name': 'Task 1', 'description': 'Desc', 'priority': 'Low'},
+            {'task_id': 't2', 'status': 'Completed', 'task_name': 'Task 2', 'description': 'Desc', 'priority': 'High'}
+        ]
+        next_task = driver.select_next_task(tasks)
+        assert next_task is None
+
+    def test_select_next_task_empty_list(self, test_driver_task_management):
+        """Test select_next_task returns None for an empty list."""
+        driver = test_driver_task_management
+        tasks = []
+        next_task = driver.select_next_task(tasks)
+        assert next_task is None
+
+    def test_select_next_task_invalid_input_not_list(self, test_driver_task_management, caplog):
+        """Test select_next_task handles non-list input gracefully."""
+        caplog.set_level(logging.WARNING)
+        driver = test_driver_task_management
+        tasks = "not a list"
+        next_task = driver.select_next_task(tasks)
+        assert next_task is None
+        assert "select_next_task received non-list input" in caplog.text
+
+
+    def test_select_next_task_list_with_invalid_task_format(self, test_driver_task_management, caplog):
+        """Test select_next_task skips invalid task formats within the list."""
+        caplog.set_level(logging.WARNING)
+        driver = test_driver_task_management
+        tasks = [
+            "not a dict",
+            {'task_id': 't3', 'status': 'Not Started'},
+            {'task_id': 't1', 'status': 'Completed', 'task_name': 'Task 1', 'description': 'Desc', 'priority': 'High'},
+            {'task_id': 't2', 'status': 'Not Started', 'task_name': 'Task 2', 'description': 'Desc', 'priority': 'High'}
+        ]
+        next_task = driver.select_next_task(tasks)
+        assert next_task is not None
+        assert next_task['task_id'] == 't3'
+
+        assert "Skipping invalid task format in list: not a dict" in caplog.text
+
+    def test_select_next_task_list_with_invalid_task_id(self, test_driver_task_management, caplog):
+        """Test select_next_task skips tasks with invalid task_id format."""
+        caplog.set_level(logging.WARNING)
+        driver = test_driver_task_management
+        tasks = [
+            {'task_id': 'invalid/id', 'status': 'Not Started', 'task_name': 'Task Invalid', 'description': 'Desc', 'priority': 'High'},
+            {'task_id': 't2', 'status': 'Not Started', 'task_name': 'Task 2', 'description': 'Desc', 'priority': 'High'}
+        ]
+        next_task = driver.select_next_task(tasks)
+        assert next_task is not None
+        assert next_task['task_id'] == 't2'
+        assert "Skipping task with invalid task_id format: invalid/id" in caplog.text
+
+    # --- Tests for _is_valid_task_id ---
+    def test_is_valid_task_id_valid_formats(self, test_driver_task_management):
+        """Test _is_valid_task_id with valid task ID formats."""
+        driver = test_driver_task_management
+        assert driver._is_valid_task_id("task_1_1") is True
+        assert driver._is_valid_task_id("Task-ID-2") is True
+        assert driver._is_valid_task_id("task123") is True
+        assert driver._is_valid_task_id("a_b-c_1-2") is True
+        assert driver._is_valid_task_id("justletters") is True
+        assert driver._is_valid_task_id("just123") is True
+        assert driver._is_valid_task_id("a") is True
+        assert driver._is_valid_task_id("1") is True
+        assert driver._is_valid_task_id("a-") is True
+        assert driver._is_valid_task_id("a_") is True
+
+
+    def test_is_valid_task_id_invalid_formats(self, test_driver_task_management):
+        """Test _is_valid_task_id with invalid task ID formats."""
+        driver = test_driver_task_management
+        assert driver._is_valid_task_id("invalid/id") is False
+        assert driver._is_valid_task_id("..") is False
+        assert driver._is_valid_task_id("../task") is False
+        assert driver._is_valid_task_id("task id") is False
+        assert driver._is_valid_task_id("task!@#") is False
+        assert driver._is_valid_task_id("") is False
+        assert driver._is_valid_task_id(None) is False
+        assert driver._is_valid_task_id(123) is False
+        assert driver._is_valid_task_id("task.") is False
+        assert driver._is_valid_task_id(".task") is False
+        assert driver._is_valid_task_id("-task") is False
+        assert driver._is_valid_task_id("_task") is False

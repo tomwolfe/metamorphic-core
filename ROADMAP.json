@@ -129,7 +129,7 @@
             "task_name": "Driver: Parse & Evaluate JSON Grade Report",
             "description": "Implement logic within `WorkflowDriver` to parse the structured JSON Grade Report it generated (`task_1_6f_generate_report`). Implement logic to evaluate the report (e.g., check overall percentage grade, number of high-risk violations, test results) and determine the recommended next action (e.g., trigger code regeneration, mark task for manual review, proceed to roadmap update). (Est. Time: 1-2 days)",
             "status": "Completed",
-            "Success Criteria": "Driver can parse its own generated JSON Grade Report. Driver can extract key metrics (grade, violations, test status). Driver can log a recommended next action based on predefined rules (e.g., if tests failed, recommend regeneration; if high-risk security issues, recommend manual review). Unit tests for report parsing and basic action logic are implemented.",
+            "Success Criteria": "Driver can parse its own generated JSON Grade Report. Driver can extract key metrics (grade, violations). Driver can log a recommended next action based on predefined rules (e.g., if tests failed, recommend regeneration; if high-risk security issues, recommend manual review). Unit tests for report parsing and basic action logic are implemented.",
             "Potential Risks": "Complexity in defining action rules, ensuring robust JSON parsing.",
             "Mitigation": "Start with simple rules (e.g., Pass/Fail based on test results or a single grade threshold), use standard JSON parsing libraries, log the decision logic.",
             "Time Saving Strategy": "Implement basic pass/fail logic first, defer complex multi-metric decision making.",
@@ -155,7 +155,7 @@
             "priority": "High",
             "task_name": "Driver: Automate Roadmap Status Update Logic",
             "description": "Modify the `WorkflowDriver` to use the safe file writing utility (`task_1_6h_safe_roadmap_write`) to update the status of the current task in `ROADMAP.json` based on the recommended action determined in `task_1_6g_parse_report` (e.g., mark 'Completed' if the iteration was successful, 'Blocked' if critical issues persist). (Est. Time: 1 day)",
-            "status": "Not Started",
+            "status": "Completed",
             "Success Criteria": "Driver calls the safe write utility to modify `ROADMAP.json`. Task status in the file is updated correctly based on the outcome of the iteration. Unit tests for the status update logic are implemented.",
             "Potential Risks": "Incorrectly updating roadmap status, potential issues with file access.",
             "Mitigation": "Ensure clear mapping between iteration outcome and status update, rely on the safety guarantees of `task_1_6h_safe_roadmap_write`.",
@@ -189,7 +189,7 @@
             "task_id": "task_1_6k_tests",
             "priority": "High",
             "task_name": "Add Comprehensive Tests for Phase 1.6 Automation",
-            "description": "Write comprehensive unit and integration tests covering all new functionality added in Phase 1.6 tasks (API endpoint, CLI automation, all Driver sub-tasks: execution, parsing, reporting, decision, roadmap update). Ensure high code coverage for the new automation logic. (Est. Time: 2-3 days)",
+            "description": "Write comprehensive unit and integration tests covering all new functionality added in Phase 1.6 tasks (API endpoint, CLI automation, all Driver sub-tasks: execution, parsing, reporting, decision, roadmap update). Ensure high code coverage for the automation logic. (Est. Time: 2-3 days)",
             "status": "Not Started",
             "Success Criteria": "Test suite covers the core functionality of tasks 1_6a through 1_6j. Code coverage metrics for the relevant modules (e.g., `src/api/routes/`, `src/cli/`, `src/core/automation/workflow_driver.py`) are significantly increased, aiming for >= 90%. Tests are integrated into the CI pipeline.",
             "Potential Risks": "Complexity in mocking external dependencies (API calls, subprocess), ensuring realistic test scenarios.",
@@ -197,7 +197,8 @@
             "Time Saving Strategy": "Prioritize core logic tests first, add edge case and error handling tests iteratively.",
             "dependencies": [
                 "task_1_6j_integrate_loop"
-            ]
+            ],
+            "target_file": "tests/test_workflow_driver.py"
         }
     ],
     "next_phase_actions": [

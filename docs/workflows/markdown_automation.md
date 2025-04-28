@@ -100,4 +100,3 @@ To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to 
     *   `"task_name"`: A concise string description of the task (150 characters or less).
     *   `"status"`: A string indicating the task's current status. Allowed values: `"Not Started"`, `"In Progress"`, `"Completed"`, or `"Blocked"`.
     *   `"description"`: A string providing a more detailed description of the task. HTML characters in this field will be automatically escaped to prevent XSS vulnerabilities.
-    *   `"target_file"`: **(Optional)** A string specifying the primary file path targeted by this task. This is used by the Driver for file operations. This *cannot* contain `/` or `..` sequences relative to the base path (to prevent path traversal vulnerabilities).

@@ -2,27 +2,28 @@
 
 [![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
-[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.6_IN_PROGRESS-blue)](ROADMAP.md)
+[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.6_COMPLETED-green)](ROADMAP.md)
 
-**🎯 CURRENT FOCUS: PHASE 1.6 - Enhanced Workflow Automation 🚀**
+**🎯 CURRENT FOCUS: PHASE 2 Iteration 2 - Enhanced Agents & Knowledge Graph 🧠**
 
-Phase 1 MVP is complete, and **Phase 1.5: Workflow Automation is now also complete!** We successfully implemented the Markdown-Only Automation Workflow, achieving autonomous execution of development tasks (task selection, planning, agent invocation, file writing) once the Driver LLM is initiated. We are now transitioning into **Phase 1.6**, focusing on completing the end-to-end automation layer by automating workflow initiation, validation execution, feedback processing, and roadmap status updates. This will establish a robust, self-driving development loop before we proceed to Phase 2's focus on enhancing agent intelligence and Knowledge Graph integration. See the [Roadmap](#further-documentation) for details.
+Phase 1 MVP is complete, Phase 1.5: Workflow Automation is complete, and **Phase 1.6: Enhanced Workflow Automation is now also complete!** We successfully implemented the end-to-end automation layer, automating workflow initiation, validation execution, feedback processing, and roadmap status updates. This establishes a robust, self-driving development loop. We are now transitioning into **Phase 2 Iteration 2**, focusing on significantly enhancing core AI agents (Test Generation, Code Review) with deeper code understanding and integrating them with an expanded Knowledge Graph for improved context management and generation quality. See the [Roadmap](#further-documentation) for details.
 
 ---
 
-**Strategic Impact of Phase 1.5:**
+**Strategic Impact of Phase 1.6:**
 
-Phase 1.5 focused on implementing a Markdown-Only Automation Workflow to enhance the efficiency and consistency of our development process. **With the successful completion of Phase 1.5 Stage 3, we have achieved a robust foundation for significant acceleration and improved quality in later phases by automating the core Driver LLM loop.** This focus on refining our *own* development processes aligns with our core ethical principles of transparency, continuous improvement, and efficient resource utilization. This also supports more robust and reliable AI-driven code generation and validation.
+Phase 1.6 focused on completing the end-to-end automation layer by automating workflow initiation, validation execution, feedback processing, and roadmap status updates. **With the successful completion of Phase 1.6, we have established a robust, self-driving development loop that significantly accelerates iteration cycles and improves the consistency and reliability of the development process.** This strategic investment in our own development process is crucial before proceeding to Phase 2's focus on enhancing agent intelligence and Knowledge Graph integration. This also supports more robust and reliable AI-driven code generation and validation by ensuring automated feedback loops are closed.
 
-**Three-Stage Approach to Markdown-Only Automation (Completed):**
+**Three-Stage Approach to Markdown-Only Automation (Completed in Phase 1.5 & 1.6):**
 
-Phase 1.5 was implemented in three key stages. Stage 1 established the fundamental markdown automation workflow and CLI driver. Stage 2 enhanced the workflow driver with key functionalities like secure file handling, automated Coder LLM invocation, automated `write_file` tool execution, LLM prompt generation and integration, and well-defined, actionable steps. **Stage 3 successfully achieved full Driver loop automation, enabling the Driver LLM to autonomously select tasks, generate plans, invoke agents, and manage files based on the roadmap.**
+Phase 1.5 established the fundamental markdown automation workflow and CLI driver, achieving autonomous execution of development tasks (task selection, planning, agent invocation, file writing) once initiated. **Phase 1.6 built upon this by automating the initiation via CLI/API, integrating automated execution of validation steps (tests, code review, security), parsing the Grade Report, and automatically updating the roadmap status.** The workflow is now fully automated from initial CLI command through validation and roadmap update.
 
 **Estimated Potential Benefits (Long-Term, Full Integration):**
 
-*   **MSGE (Without Phase 1.5):** Represents a baseline system with manual operations and loosely coupled components, delivering a starting-point project success likelihood of 65%.
+*   **MSGE (Without Phase 1.5/1.6):** Represents a baseline system with manual operations and loosely coupled components, delivering a starting-point project success likelihood of 65%.
 *   **Phase 1.5 (Completed):** Successfully automated key routine workflow operations (task processing, agent invocation, file writing), improving developer experience by an estimated 85% in those specific tasks once fully integrated.
-*   **MSGE (With Phase 1.5):** The long-term objective is a fully integrated system achieving up to a 95% grade in overall developer efficiency. Faster iteration cycles and more consistent code quality are expected. Successful execution of the Markdown-Only Automation Workflow is intended to enhance adherence to evolving ethical standards.
+*   **Phase 1.6 (Completed):** Completed the end-to-end automation loop (initiation, validation execution, reporting, status update), significantly enhancing the overall efficiency, consistency, and reliability of the autonomous development process. This is estimated to contribute a further 10-15% improvement in overall developer efficiency and project success likelihood compared to Phase 1.5 alone.
+*   **MSGE (With Phase 1.6):** The long-term objective is a fully integrated system achieving up to a 95% grade in overall developer efficiency. Faster iteration cycles and more consistent code quality are expected. Successful execution of the Markdown-Only Automation Workflow is intended to enhance adherence to evolving ethical standards.
 
 ---
 
@@ -50,7 +51,7 @@ Phase 1.5 was implemented in three key stages. Stage 1 established the fundament
 
 ## <a name="about"></a>About the Metamorphic Software Genesis Ecosystem
 
-The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications. It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision was the implementation of Phase 1.5, which is now complete.** Phase 1.5 focused on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, enabling autonomous task selection, planning, agent invocation, and file writing.** This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system. We are now focused on **Phase 1.6: Enhanced Workflow Automation**, completing the end-to-end automation layer by automating workflow initiation, validation execution, feedback processing, and roadmap status updates. This will establish a robust, self-driving development loop before we proceed to Phase 2's focus on enhancing the core AI agents and deepening their integration with the Knowledge Graph.
+The Metamorphic Software Genesis Ecosystem is an AI-driven framework designed to autonomously generate, maintain, and evolve secure, ethical, and high-performance software solutions from high-level specifications. It continuously refines its capabilities through feedback and self-improvement. **A key strategic decision was the implementation of Phase 1.5 and Phase 1.6, which are now complete.** Phase 1.5 focused on improving the *development process itself* by implementing a Markdown-Only Automation Workflow. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, enabling autonomous task selection, planning, agent invocation, and file writing.** **Phase 1.6 completed the end-to-end automation layer by automating workflow initiation, validation execution, feedback processing, and roadmap status updates.** This is aimed at faster testing, rapid prototyping and easier iterative grading, and will amplify the value and efficiency of the overall system. We are now focused on **Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph**, focusing on significantly enhancing core AI agents (Test Generation, Code Review) with deeper code understanding and integrating them with an expanded Knowledge Graph for improved context management and generation quality.
 
 **Key Objectives:**
 
@@ -153,7 +154,7 @@ Examine the JSON response for `code_quality` and `ethical_analysis` sections.
 
 ### <a name="quickstart-guide-to-markdown-only-automation"></a>Quickstart Guide to Markdown-Only Automation
 
-For a streamlined, AI-driven development experience, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, including task selection, solution planning, automated Coder LLM invocation, automated `write_file` tool execution, and iterative processing of plan steps.**
+For a streamlined, AI-driven development experience, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, including task selection, solution planning, automated Coder LLM invocation, automated `write_file` tool execution, and iterative processing of plan steps.** **With the completion of Phase 1.6, the entire loop from initiation via CLI/API through validation execution, grade report parsing, and roadmap status updates is automated.**
 
 **(As of Phase 1.6, the manual step of constructing and submitting the initial comprehensive prompt to the Driver LLM API endpoint is automated via the CLI. The Workflow Driver, initiated by the API call, now autonomously selects tasks, generates plans, invokes agents, manages files, executes validation steps (tests, code review, security), parses the Grade Report, and updates the roadmap status.)**
 
@@ -185,7 +186,7 @@ For a streamlined, AI-driven development experience, you can use the **"Markdown
 
 **Example Quickstart Scenario (Post-Phase 1.6):**
 
-Let's assume you want to work on **Task ID: task_1_6a** (Implement /genesis/drive_workflow API Endpoint) from your `ROADMAP.json`.
+Let's assume you want to work on the first 'Not Started' task from your `ROADMAP.json`.
 
 1.  **Ensure the API server is running:**
     ```bash
@@ -199,8 +200,8 @@ Let's assume you want to work on **Task ID: task_1_6a** (Implement /genesis/driv
     python src/cli/main.py
     ```
 
-4.  **Review the CLI and API server logs.** The CLI will print messages indicating it's constructing the prompt and calling the API. **The API server logs will show the receipt of the request by `/genesis/drive_workflow`, the initiation of the WorkflowDriver**, starting, selecting `task_1_6a` (if it's the first 'Not Started' task), generating a plan, executing steps (which might involve generating code for the API endpoint and writing it), automatically running tests/reviews, and finally updating the status of `task_1_6a` in `ROADMAP.json`.
-5.  **Check the updated `ROADMAP.json`** to see the status of `task_1_6a`.
+4.  **Review the CLI and API server logs.** The CLI will print messages indicating it's constructing the prompt and calling the API. **The API server logs will show the receipt of the request by `/genesis/drive_workflow`, the initiation of the WorkflowDriver**, starting, selecting the next 'Not Started' task, generating a plan, executing steps (which might involve generating code and writing it), automatically running tests/reviews, and finally updating the status of the task in `ROADMAP.json`.
+5.  **Check the updated `ROADMAP.json`** to see the status of the task.
 6.  **Review any generated code** (e.g., in `src/api/routes/`) and the logs for details on the execution and Grade Report.
 
 **For detailed instructions and the structure of the "Ideal Self-Driving Prompt" (which is now constructed automatically by the CLI), please refer to the [Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md).** Note that the `ROADMAP.md` file is now autogenerated from `ROADMAP.json`.
@@ -295,8 +296,9 @@ The following table summarizes the anticipated cumulative improvements in key ar
 
 *(Roadmap for future phases - examples)*
 
-*   **Phase 1.6 (Enhanced Workflow Automation):** Current focus - completing the end-to-end automation layer.
-*   **Phase 2 (Enhanced Intelligence):** Advanced AI planning, reinforcement learning for agent optimization, deeper KG integration, semantic code search, AI-driven debugging/refactoring. (Phase 2 Iteration 2 will be the first iteration focusing on agent and KG enhancements).
+*   **Phase 1.6 (Enhanced Workflow Automation):** **Completed** - Completed the end-to-end automation layer.
+*   **Phase 2 Iteration 2 (Enhanced Agents & Knowledge Graph):** Current focus - Advanced AI planning, reinforcement learning for agent optimization, deeper KG integration, semantic code search, AI-driven debugging/refactoring. (Phase 2 Iteration 2 will be the first iteration focusing on agent and KG enhancements).
+*   **Phase 2 Iteration 3 (Ethical Governance & API Expansion):** Deepen ethical governance integration, expand API endpoints for broader functionality and external integration.
 *   **Phase 3 (Cyber-Physical Systems Focus):** Integration with robotics frameworks (ROS 2), hardware-in-the-loop (HIL) testing, formal verification of safety-critical embedded code, real-time ethical monitoring for autonomous systems.
 *   **Phase 4 (Quantum-Augmented Genesis):** Full integration of quantum computing for optimization, risk prediction, and potentially code generation, quantum-resistant security measures.
 
@@ -310,4 +312,3 @@ The following table summarizes the anticipated cumulative improvements in key ar
 
     *   **Data-Driven Evolution:** Base all improvements on measurable KPIs and empirical data, leveraging telemetry and user feedback.
     *   **Proactive Threat Mitigation:** Continuously monitor for emerging security threats and ethical risks, implementing proactive countermeasures.
-    *   **Community-Centric Innovation:** Foster a vibrant community of contributors to drive innovation and address evolving needs.

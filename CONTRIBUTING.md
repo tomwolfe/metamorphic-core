@@ -34,7 +34,7 @@ We enthusiastically welcome contributions to the Metamorphic Software Genesis Ec
 
 **Contribution Guidelines:**
 
-1.  **Review the Roadmap & Specification:** Familiarize yourself with the [ROADMAP.json](ROADMAP.json) and [SPECIFICATION.md](SPECIFICATION.md) to understand the project's direction and goals. **Note that `ROADMAP.md` is automatically generated from `ROADMAP.json`.  Do not edit `ROADMAP.md` directly! All roadmap contributions must be made by editing `ROADMAP.json`.**
+1.  **Review the Roadmap & Specification:** Familiarize yourself with the [ROADMAP.json](ROADMAP.json) and [SPECIFICATION.md](SPECIFICATION.md) to understand the project's direction and goals. **Note that `ROADMAP.md` is automatically generated from `ROADMAP.json`. Do not edit `ROADMAP.md` directly! All roadmap contributions must be made by editing `ROADMAP.json`.**
 2.  **Check for Existing Issues:** Before starting significant work, check the [issue tracker](link-to-github-issues) for existing issues related to your intended contribution. Comment on an existing issue or create a new one to discuss your plans and get feedback.
 3.  **Fork the Repository:** Fork the `metamorphic-core` repository to your GitHub account.
 4.  **Create a Branch:** Create a dedicated branch for your contribution (e.g., `feature/new-test-agent` or `fix/bug-in-llm-orch`).
@@ -58,7 +58,7 @@ We enthusiastically welcome contributions to the Metamorphic Software Genesis Ec
 
 7.  **Toolchain Setup & Iterative Process**
 
-    *   The Metamorphic Ecosystem development workflow is now largely automated via the Driver LLM. You initiate the process via the CLI (`python src/cli/main.py`), and the Driver autonomously selects tasks, generates plans, invokes agents (including the Coder LLM for code generation), writes files, runs validation (tests, code review, security), generates a Grade Report, and updates the roadmap status.
+    *   The Metamorphic Ecosystem development workflow is now largely automated via the Driver LLM. **With the completion of Phase 1.6, you initiate the process via the CLI (`python src/cli/main.py`), and the Driver autonomously selects tasks, generates plans, invokes agents (including the Coder LLM for code generation), writes files, runs validation (tests, code review, security), generates a Grade Report, and updates the roadmap status.**
     *   Your role involves:
         *   Ensuring the API server is running.
         *   Initiating the workflow via the CLI.
@@ -84,10 +84,10 @@ We enthusiastically welcome contributions to the Metamorphic Software Genesis Ec
 
 To maintain the high quality standards of the Metamorphic Software Genesis Ecosystem, we use an iterative review process for all contributions, based on **Multi-Dimensional Grading**. When you submit a contribution, it will be evaluated using this process, which involves:
 
-*   **Multi-Dimensional Quality and Risk Assessment:** Your contribution will be rigorously assessed across multiple quality dimensions: Probability of Non-Regression, Probability of Test Success, Code Style Compliance Probability, Ethical Policy Compliance Probability, and Probability of Security Soundness.
+*   **Multi-Dimensional Quality and Risk Assessment:** Your contribution will be rigorously assessed across multiple quality dimensions: Probability of Non-Regression, Probability of Test Success, Code Style Compliance Probability, Probability of Ethical Policy Compliance Probability, and Probability of Security Soundness.
 *   **Probability Percentage Grades & Feedback:** For each dimension, a probability percentage grade will be assigned, reflecting the estimated confidence in that aspect of the contribution. You will receive an **Iterative Grading Report** with:
 
-    *   **Overall Percentage Grade:** A combined grade reflecting overall quality and confidence. ***IMPORTANT:*** *Your goal is to achieve a 100% Overall Percentage Grade. Any grade below 100% indicates that further iteration and refinement are REQUIRED.  You must use the dimension-specific feedback to improve your contribution and resubmit for review.*
+    *   **Overall Percentage Grade:** A combined grade reflecting overall quality and confidence. ***IMPORTANT:*** *Your goal is to achieve a 100% Overall Percentage Grade. Any grade below 100% indicates that further iteration and refinement are REQUIRED. You must use the dimension-specific feedback to improve your contribution and resubmit for review.*
 
         *   *The weights reflect the importance of each dimension. For example, Test Success receives the highest weighting, and code style gets the lowest weighting*
         *   *Therefore, if you are only able to achieve small gains in code style, but can achieve moderate gains in test success rate, you should focus on increasing the testing success rate.*
@@ -117,7 +117,7 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
 <div style="background-color:#f0f0f0; border: 1px solid #ccc; padding: 10px;">
 **--- LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE ---**
 
-**LLM INSTRUCTION: When acting as a "reviewer" for a hypothetical code contribution (based on a task from ROADMAP.json),  use the "Iterative Grading Process" described above, paying particular attention to the "Multi-Dimensional Quality and Risk Assessment". Specifically:**
+**LLM INSTRUCTION: When acting as a "reviewer" for a hypothetical code contribution (based on a task from ROADMAP.json), use the "Iterative Grading Process" described above, paying particular attention to the "Multi-Dimensional Quality and Risk Assessment". Specifically:**
 
 1.  **Assume you have received a code contribution (imagine it's for the task you selected from ROADMAP.json).**
 2.  **Perform a "Multi-Dimensional Grading" of this hypothetical contribution, rigorously assessing it across the following quality dimensions (as defined in detail in the "Iterative Grading Process" section):**
@@ -148,7 +148,7 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
         *   Ensure that all code follows python guidelines.
         *   For any code that deviates from python guidelines, resolve this prior to finishing the code.
 
-    *   **Actionable feedback Examples: Ethical Policy Compliance Probability:**
+    *   **Actionable feedback Examples: Probability of Ethical Policy Compliance Probability:**
 
         *   Address the code and ensure it doesn't have problems, or the LLM cannot be allowed to generate code as it could lead to more problems.
         *   All code needs to be within guidelines
@@ -179,13 +179,15 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
 
         *   *Actionable Feedback: Review module X to verify test validity.*
 
+</div>
+
 ### Contributing to the `ROADMAP.json` File <a name="contributing-to-roadmap-json"></a>
 
-The `ROADMAP.json` file defines the project's development roadmap.  It is *critical* that this file be well-formed and accurate. **The `ROADMAP.md` file is automatically generated from `ROADMAP.json`. DO NOT EDIT `ROADMAP.md` directly!** All roadmap contributions must be made by editing `ROADMAP.json`.
+The `ROADMAP.json` file defines the project's development roadmap. It is *critical* that this file be well-formed and accurate. **The `ROADMAP.md` file is automatically generated from `ROADMAP.json`. DO NOT EDIT `ROADMAP.md` directly!** All roadmap contributions must be made by editing `ROADMAP.json`.
 
 **`ROADMAP.json` Structure:**
 
-The `ROADMAP.json` file must adhere to the following JSON structure.  Any deviation from this structure will cause errors in the CI/CD pipeline or unexpected behavior.
+The `ROADMAP.json` file must adhere to the following JSON structure. Any deviation from this structure will cause errors in the CI/CD pipeline or unexpected behavior.
 
 ```json
 {
@@ -214,11 +216,11 @@ The `ROADMAP.json` file must adhere to the following JSON structure.  Any deviat
 *   The value associated with the `"tasks"` key *must* be a JSON array.
 *   Each element in the `"tasks"` array *must* be a JSON object (dictionary) representing a single task.
 *   Each task object *must* contain the following keys:
-    *   `"task_id"`:  A unique string identifying the task (e.g., `"task_2_3"`).  This *cannot* contain `/` or `..` sequences (to prevent path traversal vulnerabilities).
-    *   `"priority"`:  A string indicating the task's priority. Allowed values: `"High"`, `"Medium"`, or `"Low"`.
-    *   `"task_name"`:  A concise string description of the task (150 characters or less).
+    *   `"task_id"`: A unique string identifying the task (e.g., `"task_2_3"`). This *cannot* contain `/` or `..` sequences (to prevent path traversal vulnerabilities).
+    *   `"priority"`: A string indicating the task's priority. Allowed values: `"High"`, `"Medium"`, or `"Low"`.
+    *   `"task_name"`: A concise string description of the task (150 characters or less).
     *   `"status"`: A string indicating the task's current status. Allowed values: `"Not Started"`, `"In Progress"`, `"Completed"`, or `"Blocked"`.
-    *   `"description"`: A string providing a more detailed description of the task.  HTML characters in this field will be automatically escaped to prevent XSS vulnerabilities.
+    *   `"description"`: A string providing a more detailed description of the task. HTML characters in this field will be automatically escaped to prevent XSS vulnerabilities.
     *   `"target_file"`: **(Optional)** A string specifying the primary file path targeted by this task. This is used by the Driver for file operations. This *cannot* contain `/` or `..` sequences relative to the base path (to prevent path traversal vulnerabilities).
 *   The `"phase"`, `"phase_goal"`, `"success_metrics"`, `"next_phase_actions"`, and `"current_focus"` fields are also required at the top level.
 
@@ -228,4 +230,3 @@ The `ROADMAP.json` file must adhere to the following JSON structure.  Any deviat
 *   After modifying `ROADMAP.json`, run `python scripts/generate_roadmap_md.py` locally to generate the `ROADMAP.md` file and visually inspect the output for any formatting issues or errors.
 
 ### File Format Considerations
-*   `ROADMAP.md` - see `docs/workflows/markdown_automation.md` for file format and formatting requirements. **The `ROADMAP.md` file is now automatically generated from `ROADMAP.json`.  DO NOT EDIT THIS FILE DIRECTLY!** All roadmap contributions must be made by editing `ROADMAP.json`. See `docs/workflows/markdown_automation.md` for details on the `ROADMAP.json` format and how to contribute to the roadmap.

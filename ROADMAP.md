@@ -4,38 +4,43 @@
 
 **NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**
 
-*   **Task ID**: task_2_2a
-    *   **Priority**: High
-    *   **Task Name**: Enhance TestGenerationAgent for Semantic Understanding
-    *   **Status**: Not Started
-
-*   **Task ID**: task_2_2b
-    *   **Priority**: High
-    *   **Task Name**: Enhance CodeReviewAgent with Semantic Analysis
-    *   **Status**: Not Started
-
-*   **Task ID**: task_2_2c
+*   **Task ID**: task_2_2_1
     *   **Priority**: Critical
-    *   **Task Name**: Expand Knowledge Graph Schema for Code Semantics
+    *   **Task Name**: Define KG Schema for Code Semantics
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_2d
+*   **Task ID**: task_2_2_2
+    *   **Priority**: Critical
+    *   **Task Name**: Implement KG Utility Methods for Storing Code Semantics
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_2_3
     *   **Priority**: High
     *   **Task Name**: Implement KG Query Methods for Agent Context
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_2e
+*   **Task ID**: task_2_2_4
+    *   **Priority**: High
+    *   **Task Name**: Enhance TestGenerationAgent using KG Context
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_2_5
+    *   **Priority**: High
+    *   **Task Name**: Enhance CodeReviewAgent using KG Context
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_2_6
+    *   **Priority**: Medium
+    *   **Task Name**: Implement Basic AI-Driven Debug/Refactor Agent Placeholder
+    *   **Status**: Not Started
+
+*   **Task ID**: task_2_2_7
     *   **Priority**: Critical
     *   **Task Name**: Integrate Enhanced Agents with WorkflowDriver & KG
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_2f
-    *   **Priority**: Medium
-    *   **Task Name**: Implement Basic AI-Driven Debugging/Refactoring Agent Placeholder
-    *   **Status**: Not Started
-
-*   **Task ID**: task_2_2g
+*   **Task ID**: task_2_2_8
     *   **Priority**: High
-    *   **Task Name**: Add Comprehensive Tests for Phase 2 Iteration 2
+    *   **Task Name**: Add Comprehensive Tests for Phase 2 Iteration 2 Features
     *   **Status**: Not Started
 

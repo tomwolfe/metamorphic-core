@@ -44,8 +44,8 @@ We enthusiastically welcome contributions to the Metamorphic Software Genesis Ec
     *   Follow Python coding conventions (PEP 8).
     *   Write clear, well-commented code.
     *   Include unit and integration tests for new features and bug fixes.
-    *   Ensure code is Flake8 compliant (run `flake8` locally.
-    *   Use pre-commit hooks (recommended - see [INSTALL.md](INSTALL.md)).
+    *   Ensure code is Flake8 compliant (run `flake8` locally).
+    *   Use pre-commit hooks (recommended - see [README.md - Installation](#installation)).
     *   When working with the LLM code, adhere to the following structure guidelines:
 
         *   Ensure that code that exists remains. If code is no longer needed, there needs to be valid reasons, that should also not have security or ethical problems. Do not delete code just to save memory.
@@ -113,75 +113,6 @@ To maintain the high quality standards of the Metamorphic Software Genesis Ecosy
         *   Provide accurate reports and testing results for each file you write.
         *   This is what the driver will use to determine if the outcome was successful.
 
-*   **Iterative Improvement:** We encourage you to use this feedback to refine your contribution and resubmit for review. The goal is to work iteratively, using the feedback to increase the probability percentages across all dimensions and achieve a 100% overall grade. This collaborative process ensures that all contributions meet our rigorous quality benchmarks and contribute to a robust and reliable system.
-
-<div style="background-color:#f0f0f0; border: 1px solid #ccc; padding: 10px;">
-**--- LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE ---**
-
-**LLM INSTRUCTION: When acting as a "reviewer" for a hypothetical code contribution (based on a task from ROADMAP.json), use the "Iterative Grading Process" described above, paying particular attention to the "Multi-Dimensional Quality and Risk Assessment". Specifically:**
-
-1.  **Assume you have received a code contribution (imagine it's for the task you selected from ROADMAP.json).**
-2.  **Perform a "Multi-Dimensional Grading" of this hypothetical contribution, rigorously assessing it across the following quality dimensions (as defined in detail in the "Iterative Grading Process" section):**
-
-    *   Probability of Non-Regression
-    *   Probability of Test Success
-    *   Code Style Compliance Probability
-    *   Probability of Ethical Policy Compliance Probability
-    *   Probability of Security Soundness
-
-3.  **For each dimension, assign a probability percentage grade (0-100%) and provide actionable feedback (as if you were giving feedback to a developer, focusing on concrete steps to improve the grade).**
-
-    *   **Actionable feedback Examples: Probability of Non-Regression:**
-
-        *   Add unit tests that have over 95% branch test coverage.
-        *   Analyze the output and see what code blocks are potentially failing.
-        *   Check which code blocks change most of the high order functions, and see how that could affect the output.
-
-    *   **Actionable feedback Examples: Probability of Test Success:**
-
-        *   Address testing frameworks that may not work, and verify test pass with a secondary review.
-        *   When creating tests, the tests should be accurate and account for any edge cases that are missed.
-        *   The tests need to have minimal mocking code, and directly test functionality rather than mocking functionality.
-
-    *   **Actionable feedback Examples: Code Style Compliance Probability:**
-
-        *   Lint code, and follow established linting standards.
-        *   Ensure that all code follows python guidelines.
-        *   For any code that deviates from python guidelines, resolve this prior to finishing the code.
-
-    *   **Actionable feedback Examples: Probability of Ethical Policy Compliance Probability:**
-
-        *   Address the code and ensure it doesn't have problems, or the LLM cannot be allowed to generate code as it could lead to more problems.
-        *   All code needs to be within guidelines
-        *   There is no reason for code to violate these requirements, and this must always be addressed.
-        *   Take feedback and use the appropriate policy to verify compliance.
-        *   Review code and ensure it adheres to high transparency.
-
-    *   **Actionable feedback Examples: Probability of Security Soundness:**
-
-        *   Security is of the highest importance
-        *   No code is too inefficient to be secure, all code must pass security review.
-        *   Implement industry standard methods to verify security.
-
-4.  **Calculate an "Overall Percentage Grade" based on the dimension-specific grades (consider using a weighted average if certain dimensions are more critical for this specific task). Weights are defined in the "Probability Percentage Grades & Feedback" section.**
-
-5.  **Generate a structured "Grade Report" in markdown format, designed for developer actionability. The report should include:**
-
-    *   ***IMPORTANT:*** *Any Grade Report that is not 100% requires that you use these findings to generate updated code. Ensure that your next call to write_file contains the code with these revisions. You must also include the Grade Report in the generated output as a JSON object.*
-    *   Overall Percentage Grade
-    *   Dimension-Specific Probability Percentages: For each dimension, state the percentage grade and provide a clear justification for this grade, referencing specific aspects of the hypothetical contribution.
-    *   Actionable Feedback for each dimension: Provide concrete, step-by-step feedback for each dimension, explaining *how* the developer can improve their contribution to increase the probability percentage and reach a 100% overall grade. This feedback should be directly linked to the quality dimensions and the "Iterative Grading Process". *Be sure to reference the "Actionable Insights for Phase 1.6" from the [Competitive Landscape Analysis](COMPETITIVE_LANDSCAPE.md#actionable-insights-for-phase-1-6) when providing feedback related to project goals and priorities.*
-
-**Example Grade Report:**
-+***IMPORTANT:*** *Any Grade Report that is not 100% requires that you use these findings to generate updated code. Ensure that your next call to write_file contains the code with these revisions.*
-*   Overall Percentage Grade: 92%
-
-    *   Probability of Non-Regression: 90% - Excellent test coverage for core logic. Potential impact on module X needs further review.
-
-        *   *Actionable Feedback: Review module X to verify test validity.*
-
-</div>
-
 ### Contributing to the `ROADMAP.json` File <a name="contributing-to-roadmap-json"></a>
 
 The `ROADMAP.json` file defines the project's development roadmap. It is *critical* that this file be well-formed and accurate. **The `ROADMAP.md` file is automatically generated from `ROADMAP.json`. DO NOT EDIT `ROADMAP.md` directly!** All roadmap contributions must be made by editing `ROADMAP.json`.
@@ -202,7 +133,7 @@ The `ROADMAP.json` file must adhere to the following JSON structure. Any deviati
             "task_name": "Example Task",
             "description": "Details of the task",
             "status": "Not Started",
-            "target_file": "optional/target/file.py"  // <-- ADDED THIS LINE
+            "target_file": "optional/target/file.py"
         }
     ],
     "next_phase_actions": [],
@@ -228,4 +159,3 @@ The `ROADMAP.json` file must adhere to the following JSON structure. Any deviati
 **Validation:**
 
 *   Before submitting a pull request that modifies `ROADMAP.json`, please ensure that your changes are valid JSON and conform to the structure described above. You can use a JSON validator (many are available online) to check the syntax. The CI build includes similar validation, but it's always best to catch errors early.
-*   After modifying `ROADMAP.json`, run `python scripts/generate_roadmap_md.py` locally to generate the `ROADMAP.md` file and visually inspect the output for any formatting issues or errors.

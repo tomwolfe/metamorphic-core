@@ -113,7 +113,7 @@ To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to 
             "task_name": "Example Task",
             "description": "Details of the task",
             "status": "Not Started",
-            "target_file": "optional/target/file.py"  // <-- ADDED THIS LINE
+            "target_file": "optional/target/file.py"
         }
     ],
     "next_phase_actions": [],
@@ -139,4 +139,3 @@ To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to 
 **Validation:**
 
 *   Before submitting a pull request that modifies `ROADMAP.json`, please ensure that your changes are valid JSON and conform to the structure described above. You can use a JSON validator (many are available online) to check the syntax. The CI build includes similar validation, but it's always best to catch errors early.
-*   After modifying `ROADMAP.json`, run `python scripts/generate_roadmap_md.py` locally to generate the `ROADMAP.md` file and visually inspect the output for any formatting issues or errors.

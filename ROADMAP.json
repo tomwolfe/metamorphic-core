@@ -2,63 +2,79 @@
     "phase": "Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph",
     "phase_goal": "Significantly enhance core AI agents (Test Generation, Code Review) with deeper code understanding and integrate them with an expanded Knowledge Graph for improved context management and generation quality.",
     "success_metrics": [
-        "Enhanced TestGenerationAgent generates meaningful tests (e.g., basic unit tests) based on code structure/purpose.",
-        "Enhanced CodeReviewAgent performs semantic analysis (beyond static linting) and identifies logical issues.",
-        "Knowledge Graph schema supports storing AST, control flow, and data flow information.",
-        "Agents can effectively query the KG to retrieve relevant code context and relationships.",
-        "WorkflowDriver successfully orchestrates enhanced agents using KG context.",
+        "KG schema supports storing AST, control flow, and data flow information.",
+        "KG utility methods can store and retrieve AST, control flow, and data flow data.",
+        "KG query methods effectively retrieve relevant code context for agents.",
+        "Enhanced TestGenerationAgent uses KG context to generate basic, meaningful unit tests.",
+        "Enhanced CodeReviewAgent uses KG context to perform basic semantic analysis.",
         "Basic AI-driven debugging/refactoring agent placeholder is functional.",
+        "WorkflowDriver successfully orchestrates enhanced agents using KG context.",
         "Comprehensive tests for Phase 2 Iteration 2 features achieve >= 90% code coverage."
     ],
     "tasks": [
         {
-            "task_id": "task_2_2a",
-            "priority": "High",
-            "task_name": "Enhance TestGenerationAgent for Semantic Understanding",
-            "description": "Modify TestGenerationAgent to use AST analysis and potentially LLM calls to understand code structure and purpose, generating basic, meaningful unit tests instead of placeholders. (Est. Time: 3-5 days)",
-            "status": "Not Started"
-        },
-        {
-            "task_id": "task_2_2b",
-            "priority": "High",
-            "task_name": "Enhance CodeReviewAgent with Semantic Analysis",
-            "description": "Add capabilities to CodeReviewAgent to perform basic semantic code analysis (e.g., simple dead code detection, potential logic errors) using AST or LLMs, beyond current static analysis. (Est. Time: 3-5 days)",
-            "status": "Not Started"
-        },
-        {
-            "task_id": "task_2_2c",
+            "task_id": "task_2_2_1",
             "priority": "Critical",
-            "task_name": "Expand Knowledge Graph Schema for Code Semantics",
-            "description": "Define and implement the KG schema to store richer code semantics including AST nodes, control flow, and data flow relationships. Update KG utility methods to support this. (Est. Time: 4-6 days)",
-            "status": "Not Started"
+            "task_name": "Define KG Schema for Code Semantics",
+            "description": "Define and document the Knowledge Graph schema to store richer code semantics including AST nodes, control flow, and data flow relationships.",
+            "status": "Not Started",
+            "target_file": "src/core/knowledge_graph.py"
         },
         {
-            "task_id": "task_2_2d",
+            "task_id": "task_2_2_2",
+            "priority": "Critical",
+            "task_name": "Implement KG Utility Methods for Storing Code Semantics",
+            "description": "Implement methods in the Knowledge Graph module to parse code and store AST, control flow, and data flow information according to the defined schema (task_2_2_1).",
+            "status": "Not Started",
+            "target_file": "src/core/knowledge_graph.py"
+        },
+        {
+            "task_id": "task_2_2_3",
             "priority": "High",
             "task_name": "Implement KG Query Methods for Agent Context",
-            "description": "Add specific query methods to the Knowledge Graph interface that agents can use to retrieve relevant code context, such as finding related functions, class definitions, or dependencies for a given code snippet. (Est. Time: 2-3 days)",
-            "status": "Not Started"
+            "description": "Add specific query methods to the Knowledge Graph interface that agents can use to retrieve relevant code context, such as finding related functions, class definitions, or dependencies for a given code snippet (leveraging schema and data from task_2_2_1, task_2_2_2).",
+            "status": "Not Started",
+            "target_file": "src/core/knowledge_graph.py"
         },
         {
-            "task_id": "task_2_2e",
-            "priority": "Critical",
-            "task_name": "Integrate Enhanced Agents with WorkflowDriver & KG",
-            "description": "Modify the WorkflowDriver to orchestrate the enhanced TestGenerationAgent and CodeReviewAgent, enabling them to query and utilize the expanded Knowledge Graph for context during their execution. (Est. Time: 3-4 days)",
-            "status": "Not Started"
+            "task_id": "task_2_2_4",
+            "priority": "High",
+            "task_name": "Enhance TestGenerationAgent using KG Context",
+            "description": "Modify TestGenerationAgent to use the KG query methods (task_2_2_3) to understand code structure and purpose, generating basic, meaningful unit tests instead of placeholders.",
+            "status": "Not Started",
+            "target_file": "src/core/agents/test_generator.py"
+        },
+        {
+            "task_id": "task_2_2_5",
+            "priority": "High",
+            "task_name": "Enhance CodeReviewAgent using KG Context",
+            "description": "Add capabilities to CodeReviewAgent to perform basic semantic code analysis (e.g., simple dead code detection, potential logic errors) by querying the KG (task_2_2_3), beyond current static analysis.",
+            "status": "Not Started",
+            "target_file": "src/core/agents/code_review_agent.py"
         },
          {
-            "task_id": "task_2_2f",
+            "task_id": "task_2_2_6",
             "priority": "Medium",
-            "task_name": "Implement Basic AI-Driven Debugging/Refactoring Agent Placeholder",
-            "description": "Create a new agent (e.g., DebugRefactorAgent) with placeholder logic for AI-driven debugging suggestions or simple refactoring tasks, laying the groundwork for future enhancements. (Est. Time: 2-3 days)",
-            "status": "Not Started"
+            "task_name": "Implement Basic AI-Driven Debug/Refactor Agent Placeholder",
+            "description": "Create a new agent (e.g., DebugRefactorAgent) with placeholder logic for AI-driven debugging suggestions or simple refactoring tasks, laying the groundwork for future enhancements.",
+            "status": "Not Started",
+            "target_file": "src/core/agents/debug_refactor_agent.py"
         },
         {
-            "task_id": "task_2_2g",
+            "task_id": "task_2_2_7",
+            "priority": "Critical",
+            "task_name": "Integrate Enhanced Agents with WorkflowDriver & KG",
+            "description": "Modify the WorkflowDriver to orchestrate the enhanced TestGenerationAgent (task_2_2_4), CodeReviewAgent (task_2_2_5), and Debug/Refactor Agent (task_2_2_6), enabling them to query and utilize the expanded Knowledge Graph (task_2_2_3) for context during their execution.",
+            "status": "Not Started",
+            "target_file": "src/core/automation/workflow_driver.py"
+        },
+        {
+            "task_id": "task_2_2_8",
             "priority": "High",
-            "task_name": "Add Comprehensive Tests for Phase 2 Iteration 2",
-            "description": "Write comprehensive unit and integration tests covering the enhanced agents, expanded KG schema, KG query methods, and their integration with the WorkflowDriver. Aim for >= 90% code coverage for new logic. (Est. Time: 4-6 days)",
-            "status": "Not Started"
+            "task_name": "Add Comprehensive Tests for Phase 2 Iteration 2 Features",
+            "description": "Write comprehensive unit and integration tests covering the new KG schema/methods (task_2_2_1, 2.2.2, 2.2.3), enhanced agents (task_2_2_4, 2.2.5, 2.2.6), and their integration with the WorkflowDriver (task_2_2_7). Aim for >= 90% code coverage for new logic.",
+            "status": "Not Started",
+            "target_file": "tests/test_phase2_iteration2.py"
         }
     ],
     "next_phase_actions": [

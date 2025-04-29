@@ -64,6 +64,39 @@ The "Markdown-Only Automation" workflow, as implemented through Phase 1.5 and Ph
 
         **Your response MUST begin with one of the letters above (A, B, C, or D) followed by a colon and a space, then your message.** For example: "B: Task marked as Blocked..."
 
+## Quickstart Steps (Post-Phase 1.6)
+
+This section provides a quick guide to initiating and interacting with the automated workflow after Phase 1.6 completion.
+
+1.  **Ensure the API server is running:** Open a terminal in the project root and run `python src/api/server.py`. Keep this terminal open.
+2.  **Prepare `ROADMAP.json`:** Ensure your `ROADMAP.json` file is correctly formatted and contains at least one task with the status `"Not Started"`. The Driver will automatically select the first such task it finds.
+3.  **Initiate the Workflow via CLI:** Open a *new* terminal in the project root and run the CLI command:
+    ```bash
+    python src/cli/main.py
+    ```
+    *   *(Optional)* Specify a different roadmap file: `python src/cli/main.py --roadmap path/to/your/roadmap.json`
+    *   *(Optional)* Specify an output directory (where files like the Grade Report might be written, though code files are typically written to their source paths): `python src/cli/main.py --output-dir ./my_output`
+4.  **Monitor the API Server Logs:** Switch back to the terminal running the API server. You will see detailed logs from the `WorkflowDriver` as it executes the autonomous loop. Pay attention to:
+    *   Task selection (`INFO - Selected task: ID=...`)
+    *   Plan generation (`INFO - Generated plan: ...`)
+    *   Execution of plan steps (`INFO - Executing step ...`)
+    *   File operations (`INFO - Attempting to write...`, `INFO - Successfully wrote...`)
+    *   Validation execution (`INFO - Running code review...`, `INFO - Running ethical analysis...`, `INFO - Executing command: pytest...`)
+    *   Validation results (`INFO - Code Review and Security Scan Results...`, `INFO - Ethical Analysis Results...`, `INFO - Test Execution Results...`)
+    *   The full JSON Grade Report (`--- GRADE REPORT for Task ... ---`)
+    *   The Grade Report Evaluation and Recommended Action (`INFO - Grade Report Evaluation: Recommended Action=...`)
+    *   Roadmap status updates (`INFO - Updating task status...`, `INFO - Successfully updated status...`)
+5.  **Review Outputs:**
+    *   Check the `ROADMAP.json` file to see the updated status of the task the Driver worked on.
+    *   Review any code files that were generated or modified during the iteration.
+    *   Carefully read the Grade Report and the evaluation logs in the API server terminal.
+6.  **Intervene if Necessary:**
+    *   If the task status was updated to `"Completed"`, you can move on to the next task (by running the CLI again) or manually review the changes before committing.
+    *   If the task status was updated to `"Blocked"` or the evaluation recommended `"Manual Review Required"`, you must manually investigate the logs and generated code to understand why the autonomous process failed. You may need to fix code, update policies, refine the task description in `ROADMAP.json`, or manually complete parts of the task before running the CLI again.
+    *   If the evaluation recommended `"Regenerate Code"`, you can typically just run the CLI again, and the Driver will attempt the task again, potentially using the feedback implicitly.
+
+This process allows for rapid iteration while maintaining human oversight and control over critical decisions and complex failures.
+
 ## ROADMAP.json Format
 
 To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to a specific format. Each task entry should be structured as follows:
@@ -100,3 +133,10 @@ To ensure proper parsing and automation, the `ROADMAP.json` file must adhere to 
     *   `"task_name"`: A concise string description of the task (150 characters or less).
     *   `"status"`: A string indicating the task's current status. Allowed values: `"Not Started"`, `"In Progress"`, `"Completed"`, or `"Blocked"`.
     *   `"description"`: A string providing a more detailed description of the task. HTML characters in this field will be automatically escaped to prevent XSS vulnerabilities.
+    *   `"target_file"`: **(Optional)** A string specifying the primary file path targeted by this task. This is used by the Driver for file operations. This *cannot* contain `/` or `..` sequences relative to the base path (to prevent path traversal vulnerabilities).
+*   The `"phase"`, `"phase_goal"`, `"success_metrics"`, `"next_phase_actions"`, and `"current_focus"` fields are also required at the top level.
+
+**Validation:**
+
+*   Before submitting a pull request that modifies `ROADMAP.json`, please ensure that your changes are valid JSON and conform to the structure described above. You can use a JSON validator (many are available online) to check the syntax. The CI build includes similar validation, but it's always best to catch errors early.
+*   After modifying `ROADMAP.json`, run `python scripts/generate_roadmap_md.py` locally to generate the `ROADMAP.md` file and visually inspect the output for any formatting issues or errors.

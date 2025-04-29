@@ -156,12 +156,12 @@ Examine the JSON response for `code_quality` and `ethical_analysis` sections.
 
 For a streamlined, AI-driven development experience, you can use the **"Markdown-Only Automation" workflow**. This workflow leverages the "Ideal Self-Driving Prompt" and augmented `.md` documentation to guide an LLM to autonomously drive development tasks. **With the successful completion of Phase 1.5 Stage 3, the core Driver LLM loop is now automated, including task selection, solution planning, automated Coder LLM invocation, automated `write_file` tool execution, and iterative processing of plan steps.** **With the completion of Phase 1.6, the entire loop from initiation via CLI/API through validation execution, grade report parsing, and roadmap status updates is automated.**
 
-**(As of Phase 1.6, the manual step of constructing and submitting the initial comprehensive prompt to the Driver LLM API endpoint is automated via the CLI. The Workflow Driver, initiated by the API call, now autonomously selects tasks, generates plans, invokes agents, manages files, executes validation steps (tests, code review, security), parses the Grade Report, and updates the roadmap status.)**
+**(As of Phase 1.6, the manual step of constructing and submitting the initial comprehensive prompt to the Driver LLM API endpoint is automated via the CLI. The Workflow Driver, initiated by the API call, now autonomously selects tasks, generates plans, invokes agents (including the Coder LLM for code generation), writes files, runs validation (tests, code review, security), generates a Grade Report, and updates the roadmap status.)**
 
 **Quickstart Steps (Post-Phase 1.6):**
 
-1.  **Ensure the API server is running** (`python src/api/server.py`). This server now hosts the `/genesis/drive_workflow` endpoint.
-2.  Prepare your `ROADMAP.json` and codebase text as described in the [Full Guide](docs/workflows/markdown_automation.md). The roadmap is now managed in `ROADMAP.json`, not `ROADMAP.md`.
+1.  **Ensure the API server is running** (`python src/api/server.py`). This server now hosts the `/genesis/drive_workflow` endpoint. Keep this terminal window open.
+2.  Prepare your `ROADMAP.json` and codebase text as described in the [Full Guide](docs/workflows/markdown_automation.md). The roadmap is now managed in `ROADMAP.json`, not `ROADMAP.md`. Ensure `ROADMAP.json` contains tasks with status "Not Started".
 3.  Open your terminal in the `metamorphic-core` project directory.
 4.  **Run the CLI to initiate the automated workflow:**
 
@@ -169,20 +169,16 @@ For a streamlined, AI-driven development experience, you can use the **"Markdown
     python src/cli/main.py
     ```
     (You can optionally specify a different roadmap file or output directory using `--roadmap` and `--output-dir` arguments as described in the [Full Markdown-Only Automation Workflow Guide](docs/workflows/markdown_automation.md#cli-integration-and-execution)).
-5.  **The CLI will automatically:**
-    *   Read the necessary documentation files (`SPECIFICATION.md`, `ROADMAP.json`, `CONTRIBUTING.md`, `docs/workflows/markdown_automation.md`, `COMPETITIVE_LANDSCAPE.md`).
-    *   Construct the comprehensive prompt for the Driver LLM.
-    *   **Call the new `/genesis/drive_workflow` API endpoint** to initiate the autonomous loop, passing the roadmap and output directory paths.
-6.  **Monitor the API server logs and CLI output.** The Driver LLM (running within the API process, triggered by the CLI) will now autonomously:
-    *   Select the next task from `ROADMAP.json` (using the path passed to the API).
+5.  **Monitor the API server logs.** The Driver LLM (running within the API process, triggered by the CLI) will now autonomously:
+    *   Select the next task with status "Not Started" from `ROADMAP.json`.
     *   Generate a solution plan.
-    *   Execute plan steps, including invoking the Coder LLM and writing files.
+    *   Execute plan steps, including invoking the Coder LLM, reading/writing files, and triggering automated validation.
     *   **Automatically execute tests (`pytest`).**
     *   **Automatically execute code review (`CodeReviewAgent`) and security checks (`SecurityAgent`).**
-    *   Generate a Grade Report.
+    *   Generate a Grade Report based on validation results.
     *   **Parse the Grade Report and determine the outcome.**
-    *   **Automatically update the task status in `ROADMAP.json`.**
-7.  **Review the outputs:** Check the updated `ROADMAP.json`, any generated/modified code files, and the logs for the Grade Report and workflow status.
+    *   **Automatically update the task status in `ROADMAP.json`** based on the evaluation (e.g., "Completed", "Blocked").
+6.  **Review the outputs:** After the autonomous loop iteration completes (indicated by logs), check the updated `ROADMAP.json`, any generated/modified code files, and the API server logs for the detailed Grade Report and workflow status. Address any tasks marked "Blocked" or issues highlighted in the report manually before initiating the workflow again.
 
 **Example Quickstart Scenario (Post-Phase 1.6):**
 
@@ -200,7 +196,7 @@ Let's assume you want to work on the first 'Not Started' task from your `ROADMAP
     python src/cli/main.py
     ```
 
-4.  **Review the CLI and API server logs.** The CLI will print messages indicating it's constructing the prompt and calling the API. **The API server logs will show the receipt of the request by `/genesis/drive_workflow`, the initiation of the WorkflowDriver**, starting, selecting the next 'Not Started' task, generating a plan, executing steps (which might involve generating code and writing it), automatically running tests/reviews, and finally updating the status of the task in `ROADMAP.json`.
+4.  **Review the API server logs.** The logs will show the `WorkflowDriver` starting, selecting the next 'Not Started' task, generating a plan, executing steps (which might involve generating code and writing it), automatically running tests/reviews, and finally updating the status of the task in `ROADMAP.json`.
 5.  **Check the updated `ROADMAP.json`** to see the status of the task.
 6.  **Review any generated code** (e.g., in `src/api/routes/`) and the logs for details on the execution and Grade Report.
 

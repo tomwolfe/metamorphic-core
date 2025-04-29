@@ -58,14 +58,15 @@ We enthusiastically welcome contributions to the Metamorphic Software Genesis Ec
 
 7.  **Toolchain Setup & Iterative Process**
 
-    *   The Metamorphic Ecosystem development workflow is now largely automated via the Driver LLM. **With the completion of Phase 1.6, you initiate the process via the CLI (`python src/cli/main.py`), and the Driver autonomously selects tasks, generates plans, invokes agents (including the Coder LLM for code generation), writes files, runs validation (tests, code review, security), generates a Grade Report, and updates the roadmap status.**
+    *   The Metamorphic Ecosystem development workflow is now largely automated via the Driver LLM. **With the completion of Phase 1.6, you initiate the process via the CLI (`python src/cli/main.py`), and the Driver autonomously selects tasks from `ROADMAP.json`, generates plans, invokes agents (including the Coder LLM for code generation), writes files, runs validation (tests, code review, security), generates a Grade Report, parses and evaluates it, and updates the roadmap status.**
     *   Your role involves:
-        *   Ensuring the API server is running.
-        *   Initiating the workflow via the CLI.
-        *   Monitoring the logs for progress, Grade Reports, and User Actionable Steps (if any).
-        *   Reviewing the generated/modified code and the results of the automated validation steps.
-        *   Providing feedback to the Driver LLM via the specified response codes if manual intervention or clarification is needed.
-        *   Manually addressing any issues that the Driver cannot resolve autonomously (e.g., complex errors, design decisions).
+        *   Ensuring the API server is running (`python src/api/server.py`).
+        *   Initiating the workflow by running the CLI command (`python src/cli/main.py`).
+        *   Monitoring the API server logs for progress, the full Grade Report, and the evaluation outcome (recommended action).
+        *   Reviewing the generated/modified code and the results of the automated validation steps as detailed in the logs/report.
+        *   Checking the updated `ROADMAP.json` status for the task.
+        *   Manually addressing any issues that the Driver cannot resolve autonomously (e.g., complex errors, design decisions, tasks marked as "Blocked").
+        *   Refining task descriptions in `ROADMAP.json` or providing manual fixes based on the Grade Report feedback before initiating the workflow again for the same task (if it wasn't marked "Completed").
     *   You no longer need to manually copy and paste code blocks between the Driver and Coder LLMs or manually run tests/linters for every iteration – these steps are automated.
 
 8.  **Submit a Pull Request (PR):**
@@ -228,5 +229,3 @@ The `ROADMAP.json` file must adhere to the following JSON structure. Any deviati
 
 *   Before submitting a pull request that modifies `ROADMAP.json`, please ensure that your changes are valid JSON and conform to the structure described above. You can use a JSON validator (many are available online) to check the syntax. The CI build includes similar validation, but it's always best to catch errors early.
 *   After modifying `ROADMAP.json`, run `python scripts/generate_roadmap_md.py` locally to generate the `ROADMAP.md` file and visually inspect the output for any formatting issues or errors.
-
-### File Format Considerations

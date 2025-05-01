@@ -192,8 +192,8 @@ class WorkflowDriver:
                                                  "output file", "generate file", "write output to"] # Added "write output to"
                         test_execution_keywords = ["run tests", "execute tests", "verify tests", "pytest", "test suite"]
 
-                        # --- REVISED LOGIC FOR DETERMINING STEP TYPE AND FILE PATH ---
-                        # Determine file path from step description first
+                        # --- REVISED LOGIC FOR DETERMINING STEP TYPE AND FILE PATH (PRIORITIZE target_file) ---
+                        # Determine file path from step description first (still useful for logging/context)
                         filepath_match = re.search(
                             r'(\S+\.(py|md|json|txt|yml|yaml))', step, re.IGNORECASE)
                         filepath_from_step = filepath_match.group(1) if filepath_match else None
@@ -208,13 +208,18 @@ class WorkflowDriver:
                         is_test_execution_step = any(keyword in step_lower for keyword in test_execution_keywords)
 
                         # Determine the actual filepath to use for the operation
-                        # Prioritize path from step, fallback to task target_file if step is file-related
-                        filepath_to_use = None
-                        if filepath_from_step:
+                        # NEW LOGIC: Prioritize the target_file from the task metadata
+                        filepath_to_use = next_task.get('target_file')
+
+                        # If the task doesn't have a target_file, but the step mentions one and is file-related, use the one from the step.
+                        # This handles tasks that might involve multiple files not captured by a single target_file.
+                        # However, for task_2_2_1, target_file *is* present, so the line above will be used.
+                        if not filepath_to_use and (is_step_explicitly_file_writing or needs_coder_llm) and filepath_from_step:
                              filepath_to_use = filepath_from_step
-                        elif is_step_explicitly_file_writing or needs_coder_llm: # Only use task_target_file if step is file-related but didn't specify a path
-                             filepath_to_use = next_task.get('target_file')
-                        # --- END REVISED LOGIC ---
+
+                        # If after all this, filepath_to_use is still None, then the step isn't related to a specific file operation we handle.
+                        # The subsequent 'elif needs_coder_llm and filepath_to_use:' etc. checks will correctly skip.
+                        # --- END REVISED LOGIC (PRIORITIZE target_file) ---
 
 
                         generated_output = None  # Initialize generated_output for this step
@@ -527,17 +532,17 @@ Generate *only* the Python code snippet needed to fulfill the "Specific Plan Ste
         task_name = task['task_name']
         description = task['description']
 
-        # --- ADDED CONTEXT ABOUT THE TARGET FILE ---
-        # This is a heuristic based on the task name/description.
-        # A more robust system might infer this from the Knowledge Graph or task metadata.
+        # --- ADDED CONTEXT ABOUT THE TARGET FILE (Corrected Logic) ---
         target_file_context = ""
         task_target_file = task.get('target_file')
+
+        # Corrected Logic: Always include target_file context if present
         if task_target_file:
              target_file_context = f"The primary file being modified for this task is specified as `{task_target_file}` in the task metadata. Focus your plan steps on actions related to this file."
-        elif "WorkflowDriver" in task_name or "workflow_driver.py" in description:
-             target_file_context = "The primary file being modified for this task is `src/core/automation/workflow_driver.py`."
-        # Add more heuristics here for other common files if needed
-        # --- END ADDED BLOCK ---
+        # Removed the 'elif' condition that checked for specific keywords
+
+        # --- END ADDED CONTEXT ---
+
 
         planning_prompt = f"""You are an AI assistant specializing in software development workflows.
 Your task is to generate a step-by-step solution plan for the following development task from the Metamorphic Software Genesis Ecosystem roadmap.
@@ -1380,4 +1385,3 @@ Requirements:
                      logger.debug(f"Cleaned up temporary file after unexpected error: {temp_filepath}")
                  except Exception as cleanup_e:
                      logger.warning(f"Failed to clean up temporary file {temp_filepath} after unexpected error: {cleanup_e}")
-            return False

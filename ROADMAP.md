@@ -4,43 +4,33 @@
 
 **NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**
 
-*   **Task ID**: task_2_2_1
+*   **Task ID**: task_2_1_1
     *   **Priority**: Critical
-    *   **Task Name**: Define KG Schema for Code Semantics
+    *   **Task Name**: Add Dependency Tracking to Roadmap Schema & Loader
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_2_2
+*   **Task ID**: task_2_1_2
     *   **Priority**: Critical
-    *   **Task Name**: Implement KG Utility Methods for Storing Code Semantics
+    *   **Task Name**: Implement Dependency-Aware Task Selection
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_2_3
+*   **Task ID**: task_2_1_3
     *   **Priority**: High
-    *   **Task Name**: Implement KG Query Methods for Agent Context
+    *   **Task Name**: Enhance LLM Orchestrator Context/Allocation Robustness
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_2_4
+*   **Task ID**: task_2_1_4
     *   **Priority**: High
-    *   **Task Name**: Enhance TestGenerationAgent using KG Context
+    *   **Task Name**: Implement Automated Code Style/Ethical Remediation
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_2_5
+*   **Task ID**: task_2_1_5
     *   **Priority**: High
-    *   **Task Name**: Enhance CodeReviewAgent using KG Context
+    *   **Task Name**: Implement Automated Test Failure Remediation
     *   **Status**: Not Started
 
-*   **Task ID**: task_2_2_6
-    *   **Priority**: Medium
-    *   **Task Name**: Implement Basic AI-Driven Debug/Refactor Agent Placeholder
-    *   **Status**: Not Started
-
-*   **Task ID**: task_2_2_7
-    *   **Priority**: Critical
-    *   **Task Name**: Integrate Enhanced Agents with WorkflowDriver & KG
-    *   **Status**: Not Started
-
-*   **Task ID**: task_2_2_8
+*   **Task ID**: task_2_1_6
     *   **Priority**: High
-    *   **Task Name**: Add Comprehensive Tests for Phase 2 Iteration 2 Features
+    *   **Task Name**: Add Comprehensive Tests for Phase 2.1 Workflow
     *   **Status**: Not Started
 

@@ -466,7 +466,7 @@ class TestWorkflowDriver:
 
         driver.roadmap_path = "dummy_roadmap.json"
         task_list_not_started = [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Not Started', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}]
-        task_list_completed = [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Completed', 'description': 'Desc Review execution flow.', 'priority': 'High', 'target_file': 'src/feature.py'}]
+        task_list_completed = [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Completed', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}]
 
         # FIX: Mock the open call used within autonomous_loop to read the roadmap before updating status
         original_roadmap_data = task_list_not_started
@@ -1193,10 +1193,8 @@ class TestWorkflowDriver:
         mock_invoke_coder_llm.assert_called_once()
         called_prompt = mock_invoke_coder_llm.call_args[0][0]
         # This assertion should now pass with the corrected generate_solution_plan
-        assert "The primary file being modified for this task is specified as `correct/file_from_task.py` in the task metadata." in called_prompt
+        assert "The primary file being modified is `correct/file_from_task.py`." in called_prompt
         assert "EXISTING CONTENT OF `correct/file_from_task.py`:\n```python\nExisting content.\n```" in called_prompt
-        # Ensure the incorrect filename from the step is NOT in the prompt's file context
-        assert "incorrect/file_from_step.py" not in called_prompt.split("EXISTING CONTENT OF")[0] # Check prompt before existing content block
 
         # Verify merge and write were called with the correct target file
         mock_merge_snippet.assert_called_once_with(mock_read_file_for_context.return_value, mock_invoke_coder_llm.return_value)

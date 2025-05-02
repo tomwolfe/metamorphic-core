@@ -6,7 +6,10 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./src:/app/src
+      # Change this line:
+      # - ./src:/app/src
+      # To this line to mount the entire project root:
+      - .:/app
     networks:
       - metamorphic
     depends_on:

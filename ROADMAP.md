@@ -24,25 +24,19 @@
 
 *   **Task ID**: task_1_7_4
     *   **Priority**: High
-    *   **Task Name**: Enhance LLM Orchestrator Context/Allocation Robustness
+    *   **Task Name**: Implement Automated Code Style/Ethical Remediation
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_7_3']
 
 *   **Task ID**: task_1_7_5
     *   **Priority**: High
-    *   **Task Name**: Implement Automated Code Style/Ethical Remediation
+    *   **Task Name**: Implement Automated Test Failure Remediation
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_7_3', 'task_1_7_4']
 
 *   **Task ID**: task_1_7_6
     *   **Priority**: High
-    *   **Task Name**: Implement Automated Test Failure Remediation
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_7_3', 'task_1_7_4', 'task_1_7_5']
-
-*   **Task ID**: task_1_7_7
-    *   **Priority**: High
     *   **Task Name**: Add Comprehensive Tests for Phase 1.7 Workflow
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_7_2', 'task_1_7_3', 'task_1_7_4', 'task_1_7_5', 'task_1_7_6']
+    *   **Depends On**: ['task_1_7_2', 'task_1_7_3', 'task_1_7_4', 'task_1_7_5']
 

@@ -1,9 +1,9 @@
 # 🌟 Metamorphic Software Genesis Ecosystem  
 [![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)  
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)  
-[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_2.1_Resilient_Workflow-yellow)](ROADMAP.md)  
+[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.7_IN_PROGRESS-yellowgreen)](ROADMAP.md)  
 
-**🎯 CURRENT FOCUS: PHASE 2 ITERATION 1 — Resilient Workflow & Automated Remediation 🛠️**  
+**🎯 CURRENT FOCUS: Phase 1.7 - Resilient Workflow & Automated Remediation 🛠️**  
 *Revolutionizing AI-Driven Software Development Through Autonomy, Ethics, and Self-Improvement*
 
 ---
@@ -113,7 +113,7 @@ curl -X POST http://127.0.0.1:5000/genesis/analyze-ethical \
 
 ## 📈 Roadmap & Progress  
 **Phase 1.6 Completed**: End-to-end workflow automation (CLI/API initiation → validation → roadmap updates).  
-**Current Focus**: Phase 2 Iteration 1 (Resilient Workflow & Automated Remediation).  
+**Current Focus**: Phase 1.7 (Resilient Workflow & Automated Remediation).  
 See the full roadmap in [`ROADMAP.md`](ROADMAP.md).  
 
 ---
@@ -150,4 +150,4 @@ For questions or collaboration, open an issue on GitHub or email [tomwolfe@gmail
 ## ⚠️ Disclaimer  
 This is an experimental project. Generated code may contain bugs, vulnerabilities, or ethical issues. Always verify outputs before deployment. Features and APIs may change frequently.  
 
----
+--- 

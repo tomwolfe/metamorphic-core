@@ -1,18 +1,18 @@
 {
-    "phase": "Phase 2 Iteration 1: Resilient Workflow & Automated Remediation",
+    "phase": "Phase 1.7: Resilient Workflow & Automated Remediation",
     "phase_goal": "Enhance workflow autonomy with dependency awareness, automated self-correction for common validation failures, and improved LLM orchestration resilience.",
     "success_metrics": [
         "Workflow driver successfully loads and respects task dependencies defined in ROADMAP.json, including skipping tasks with 'Blocked' dependencies.",
         "Driver correctly implements dependency-aware task selection logic.",
         "Driver attempts automated remediation for Code Style violations by parsing Grade Report feedback (e.g., specific linting errors), formulating a targeted feedback prompt for the Coder LLM, re-prompting with code and feedback, and re-running validation (max 2 attempts).",
         "Driver attempts automated remediation for Ethical (TransparencyScore) violations by parsing Grade Report feedback, formulating a targeted feedback prompt for the Coder LLM, re-prompting with code and feedback, and re-running validation (max 2 attempts).",
-        "Driver attempts automated remediation for Test failures by parsing test output/Grade Report (e.g., tracebacks, failure messages), formulating a targeted feedback prompt for the Coder LLM, re-prompting (or invoking Debug Agent if task_2_2_6 completed), and re-running tests (max 2 attempts).",
+        "Driver attempts automated remediation for Test failures by parsing test output/Grade Report (e.g., tracebacks, failure messages), formulating a targeted feedback prompt for the Coder LLM with test failure details, re-prompt Coder LLM (or invoking Debug Agent if task_2_2_6 is completed), and re-running tests (max 2 attempts).",
         "LLM Orchestrator handles large contexts and token allocation failures more gracefully, reducing 'Insufficient tokens'/'No ethical allocation' errors through refined chunking, summarization, allocation, and error fallback strategies.",
-        "Phase 2 Iteration 1 tests achieve >= 90% code coverage for new logic."
+        "Phase 1.7 tests achieve >= 90% code coverage for new logic."
     ],
     "tasks": [
         {
-            "task_id": "task_2_1_1",
+            "task_id": "task_1_7_1",
             "priority": "Critical",
             "task_name": "Add Dependency Tracking to Roadmap Schema & Loader",
             "description": "Modify ROADMAP.json schema validation and WorkflowDriver.load_roadmap to support an optional 'depends_on' field (list of task_ids). Update schema validation to enforce format.",
@@ -21,54 +21,54 @@
             "depends_on": []
         },
         {
-            "task_id": "task_2_1_2",
+            "task_id": "task_1_7_2",
             "priority": "Critical",
             "task_name": "Implement Dependency-Aware Task Selection",
             "description": "Modify WorkflowDriver.select_next_task to only choose 'Not Started' tasks whose 'depends_on' tasks are all marked as 'Completed' in the current roadmap state. Tasks with 'Blocked' dependencies should be skipped.",
             "status": "Not Started",
             "target_file": "src/core/automation/workflow_driver.py",
-            "depends_on": ["task_2_1_1"]
+            "depends_on": ["task_1_7_1"]
         },
          {
-            "task_id": "task_2_1_3",
+            "task_id": "task_1_7_3",
             "priority": "High",
             "task_name": "Enhance LLM Orchestrator Context/Allocation Robustness",
             "description": "Investigate and improve handling of large contexts and token allocation failures in EnhancedLLMOrchestrator to reduce 'Insufficient tokens'/'No ethical allocation' errors. Refine chunking, summarization, allocation, and error fallback strategies.",
             "status": "Not Started",
             "target_file": "src/core/llm_orchestration.py",
-            "depends_on": ["task_2_1_2"]
+            "depends_on": ["task_1_7_2"]
         },
         {
-            "task_id": "task_2_1_4",
+            "task_id": "task_1_7_4",
             "priority": "High",
             "task_name": "Implement Automated Code Style/Ethical Remediation",
             "description": "Add logic to WorkflowDriver's post-validation step to analyze Grade Report. If Code Style or Ethical (TransparencyScore) violations are found, parse specific feedback (e.g., specific linting errors), formulate a targeted feedback prompt for the Coder LLM, re-prompt the Coder LLM with the code and feedback, then re-run validation for the modified file. Limit to a maximum of 2 automated remediation attempts per task iteration.",
             "status": "Not Started",
             "target_file": "src/core/automation/workflow_driver.py",
-            "depends_on": ["task_2_1_2", "task_2_1_3"]
+            "depends_on": ["task_1_7_2", "task_1_7_3"]
         },
          {
-            "task_id": "task_2_1_5",
+            "task_id": "task_1_7_5",
             "priority": "High",
             "task_name": "Implement Automated Test Failure Remediation",
             "description": "Add logic to WorkflowDriver's post-validation step. If tests fail, capture test output (stderr, tracebacks), parse relevant details, formulate a targeted feedback prompt for the Coder LLM with test failure details, re-prompt Coder LLM (or invoke Debug Agent if task_2_2_6 is completed) to generate a fix, then re-run tests. Limit to a maximum of 2 automated remediation attempts per task iteration.",
             "status": "Not Started",
             "target_file": "src/core/automation/workflow_driver.py",
-            "depends_on": ["task_2_1_2", "task_2_1_3", "task_2_1_4"]
+            "depends_on": ["task_1_7_2", "task_1_7_3", "task_1_7_4"]
         },
          {
-            "task_id": "task_2_1_6",
+            "task_id": "task_1_7_6",
             "priority": "High",
-            "task_name": "Add Comprehensive Tests for Phase 2.1 Workflow",
-            "description": "Write comprehensive unit/integration tests covering the new dependency scheduling, automated remediation loops, and Orchestrator robustness features implemented in Phase 2.1.",
+            "task_name": "Add Comprehensive Tests for Phase 1.7 Workflow",
+            "description": "Write comprehensive unit/integration tests covering the new dependency scheduling, automated remediation loops, and Orchestrator robustness features implemented in Phase 1.7.",
             "status": "Not Started",
-            "target_file": "tests/test_phase2_1_workflow.py",
-            "depends_on": ["task_2_1_1", "task_2_1_2", "task_2_1_3", "task_2_1_4", "task_2_1_5"]
+            "target_file": "tests/test_phase1_7_workflow.py",
+            "depends_on": ["task_1_7_1", "task_1_7_2", "task_1_7_3", "task_1_7_4", "task_1_7_5"]
         }
     ],
     "next_phase_actions": [
-         "Set `status`: `Completed` on all Phase 2 Iteration 1 tasks.",
+         "Set `status`: `Completed` on all Phase 1.7 tasks.",
          "Update the `phase`, `phase_goal`, and `current_focus` fields to 'Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph'."
     ],
-    "current_focus": "🎯 CURRENT FOCUS: Phase 2 Iteration 1 - Resilient Workflow & Automated Remediation 🛠️"
+    "current_focus": "🎯 CURRENT FOCUS: Phase 1.7 - Resilient Workflow & Automated Remediation 🛠️"
 }

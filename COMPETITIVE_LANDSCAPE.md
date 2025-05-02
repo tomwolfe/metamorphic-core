@@ -36,7 +36,7 @@ Understanding the competitive terrain is crucial. While no single entity perfect
     *   *Focus:* Blurring the lines between low-code and AI assistance.
     *   *Metamorphic Differentiation:* Strong emphasis on verifiable ethics, security, and formal methods, often lacking in these platforms. **The structured, automated workflow from Phase 1.6 provides the necessary framework to integrate and enforce these advanced considerations consistently and autonomously.**
     *   *Intensity:* Moderate but Increasing Rapidly.
-    *   **Roadmap Link:** Underscores the need to showcase verifiable ethics and security features, directly addressed in Phase 2 Iteration 1 (Security Integration) and Phase 2 Iteration 3 (Ethical Governance).
+    *   **Roadmap Link:** Underscores the need to showcase verifiable ethics and security features, directly addressed in Phase 1.7 (Resilient Workflow & Automated Remediation - includes security integration) and Phase 2 Iteration 3 (Ethical Governance).
 
 ### 3. MLOps/DevOps with AI Integration
 
@@ -52,7 +52,7 @@ Understanding the competitive terrain is crucial. While no single entity perfect
     *   *Focus:* Automating test creation, execution, visual regression, and bug detection.
     *   *Metamorphic Differentiation:* Quality and ethics are "built-in" via generation, review, and verification, not just "tested-in" after the fact. Includes formal methods beyond traditional testing. **The automated Driver loop from Phase 1.6 provides the framework to integrate and orchestrate these quality and verification steps autonomously within the development process, including the automated execution of tests and reviews.**
     *   *Intensity:* Moderate to High.
-    *   **Roadmap Link:** Justifies the strong emphasis on automated quality and security features, directly driving the focus of Phase 1.6 (Automated Validation Execution - Completed), Phase 2 Iteration 1 (Security Integration), and Phase 3 (Formal Verification).
+    *   **Roadmap Link:** Justifies the strong emphasis on automated quality and security features, directly driving the focus of Phase 1.6 (Automated Validation Execution - Completed), Phase 1.7 (Resilient Workflow & Automated Remediation - includes security integration), and Phase 3 (Formal Verification).
 
 ### 4. Academic & Research Initiatives
 
@@ -68,7 +68,7 @@ Understanding the competitive terrain is crucial. While no single entity perfect
 1.  **Emphasize the "Genesis Ecosystem":** Highlight the unique, holistic, end-to-end integration across the entire SDLC. **Phase 1.5 and the completed Phase 1.6 are key steps in realizing this by automating the core development loop, including initiation, execution, validation, and feedback.**
     *   **Roadmap Action:** Consistently emphasize the "ecosystem" aspect in all roadmap descriptions and documentation across all phases.
 2.  **Highlight Ethical & Verification Pillars:** These are strong, defensible differentiators against purely productivity-focused tools. **The automated workflow from Phase 1.6 provides the necessary structure to consistently enforce and verify these aspects autonomously.**
-    *   **Roadmap Action:** Prioritize ethical governance and formal verification features in Phase 2 Iteration 3 and Phase 3. Dedicate specific documentation sections to highlight these features.
+    *   **Roadmap Action:** Prioritize ethical governance and formal verification features in Phase 1.7 (Resilient Workflow & Automated Remediation), Phase 2 Iteration 3, and Phase 3. Dedicate specific documentation sections to highlight these features.
 3.  **Showcase Long-Context & Complexity Handling:** Demonstrate capability beyond simple functions or apps. **Phase 1.5's automation, enhanced in Phase 1.6, allows for the processing of more complex tasks with multiple steps, agent interactions, and automated validation.**
     *   **Roadmap Action:** In Phase 2 Iteration 2 (Enhanced Agents & KG), focus on improving context handling and complexity management within agents and the KG. Plan demos showcasing handling complex code examples and multi-step tasks within the automated loop.
 4.  **Build a Strong Open-Source Community:** Leverage the AGPLv3 license and community focus as a strategic asset.
@@ -93,4 +93,3 @@ Based on the competitive landscape analysis and the completion of Phase 1.5, the
     *   **Action for Phase 1.6:** Focused on the robustness, error handling, and logging within the `WorkflowDriver` and the new automation tasks. Ensured the automated validation steps captured results accurately. **(Related to all Phase 1.6 tasks - ensured robust implementation and comprehensive testing (`task_1_6g`)).**
 
 3.  **Prepared for Enhanced Agent Integration (Phase 2.2 and beyond):**
-    *   **Insight:** While Phase 1.6 focused on *automating the execution* of current agents (like basic TestGen and CodeReview), the framework was designed to easily integrate the *enhanced* agents planned for Phase 2.2.

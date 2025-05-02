@@ -629,30 +629,76 @@ When generating steps that involve modifying the primary file for this task, ens
             return None
 
     def select_next_task(self, tasks: list) -> dict | None:
-        """Selects the next task with status 'Not Started' from the list.
+        """
+        Selects the next task with status 'Not Started' from the list,
+        respecting 'depends_on' dependencies.
 
         Args:
-            tasks: A list of task dictionaries. Each task must contain a 'status' key.
+            tasks: A list of task dictionaries. Each task must contain 'task_id',
+                   'status', and optionally 'depends_on'.
 
         Returns:
-            The first task dictionary with a status of 'Not Started', or None if no such task exists or the list is empty.
+            The first task dictionary with a status of 'Not Started' whose
+            dependencies are all 'Completed', or None if no such task exists.
         """
         if not isinstance(tasks, list):
             logger.warning(f"select_next_task received non-list input: {type(tasks)}")
             return None
 
-        for task in tasks:
-            if isinstance(task, dict) and 'status' in task and 'task_id' in task:
-                task_id = task.get('task_id')
-                if task['status'] == 'Not Started':
-                    if task_id and self._is_valid_task_id(task_id):
-                        return task
-                    elif task_id:
-                        logger.warning(f"Skipping task with invalid task_id format: {task_id}")
-            else:
-                logger.warning(f"Skipping invalid task format in list: {task}")
+        # Create a quick lookup for task statuses by ID
+        task_status_map = {
+            task.get('task_id'): task.get('status')
+            for task in tasks if isinstance(task, dict) and 'task_id' in task and 'status' in task
+        }
 
+        for task in tasks:
+            if not isinstance(task, dict) or 'task_id' not in task or 'status' not in task or 'description' not in task or 'priority' not in task:
+                logger.warning(f"Skipping invalid task format in list: {task}")
+                continue
+
+            task_id = task.get('task_id')
+            if not self._is_valid_task_id(task_id):
+                logger.warning(f"Skipping task with invalid task_id format: '{task_id}'. Task IDs can only contain alphanumeric characters, underscores, and hyphens.")
+                continue
+
+            if task['status'] == 'Not Started':
+                depends_on = task.get('depends_on', [])
+
+                # Validate 'depends_on' field format
+                if not isinstance(depends_on, list):
+                    logger.warning(f"Skipping task {task_id}: 'depends_on' field is not a list.")
+                    continue
+
+                # Check if all dependencies are 'Completed'
+                all_dependencies_completed = True
+                for dep_task_id in depends_on:
+                    # Validate dependency task ID format
+                    if not isinstance(dep_task_id, str) or not self._is_valid_task_id(dep_task_id):
+                        logger.warning(f"Skipping task {task_id}: Invalid task_id '{dep_task_id}' found in 'depends_on' list.")
+                        all_dependencies_completed = False
+                        break # Stop checking dependencies for this task
+
+                    dep_status = task_status_map.get(dep_task_id)
+
+                    if dep_status is None:
+                        # Dependency task not found in the roadmap
+                        logger.debug(f"Skipping task {task_id}: Dependency '{dep_task_id}' not found in roadmap.")
+                        all_dependencies_completed = False
+                        break
+                    elif dep_status != 'Completed':
+                        # Dependency is not completed (Not Started, In Progress, Blocked)
+                        logger.debug(f"Skipping task {task_id}: Dependency '{dep_task_id}' status is '{dep_status}' (requires 'Completed').")
+                        all_dependencies_completed = False
+                        break
+
+                if all_dependencies_completed:
+                    # Found a selectable task
+                    return task
+            # If status is not 'Not Started', or if dependencies are not met, continue to the next task
+
+        # No selectable task found
         return None
+
 
     def generate_coder_llm_prompts(self, task, solution_plan):
         # This method is currently not used in the autonomous_loop for generating code prompts.
@@ -1406,4 +1452,3 @@ Requirements:
                      logger.debug(f"Cleaned up temporary file after unexpected error: {cleanup_e}")
                  except Exception as cleanup_e:
                      logger.warning(f"Failed to clean up temporary file {temp_filepath} after error: {cleanup_e}")
-            return False

@@ -35,7 +35,7 @@
       "priority": "Critical",
       "task_name": "Implement Dependency-Aware Task Selection",
       "description": "Modify WorkflowDriver.select_next_task to only choose 'Not Started' tasks whose 'depends_on' tasks are all marked as 'Completed' in the current roadmap state. Tasks with 'Blocked' dependencies should be skipped.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_7_2"
@@ -56,7 +56,7 @@
       "task_id": "task_1_7_5",
       "priority": "High",
       "task_name": "Implement Automated Code Style/Ethical Remediation",
-      "description": "Add logic to WorkflowDriver's post-validation step to analyze Grade Report. If Code Style or Ethical (TransparencyScore) violations are found, parse specific feedback (e.g., specific linting errors), formulate a targeted feedback prompt for the Coder LLM, re-prompt the Coder LLM with the code and feedback, then re-run validation for the modified file. Limit to a maximum of 2 automated remediation attempts per task iteration.",
+      "description": "Add logic to WorkflowDriver's post-validation step to analyze Grade Report. If Code Style or Ethical (TransparencyScore) violations are found, parse specific feedback (e.g., specific linting errors), formulate a targeted feedback prompt for the Coder LLM, re-prompting with code and feedback, and re-running validation for the modified file. Limit to a maximum of 2 automated remediation attempts per task iteration.",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
@@ -68,7 +68,7 @@
       "task_id": "task_1_7_6",
       "priority": "High",
       "task_name": "Implement Automated Test Failure Remediation",
-      "description": "Add logic to WorkflowDriver's post-validation step. If tests fail, capture test output (stderr, tracebacks), parse relevant details, formulate a targeted feedback prompt for the Coder LLM with test failure details, re-prompt Coder LLM (or invoke Debug Agent if task_2_2_6 is completed) to generate a fix, then re-run tests. Limit to a maximum of 2 automated remediation attempts per task iteration.",
+      "description": "Add logic to WorkflowDriver's post-validation step. If tests fail, capture test output (stderr, tracebacks), parse relevant details, formulate a targeted feedback prompt for the Coder LLM with test failure details, re-prompt Coder LLM (or invoking Debug Agent if task_2_2_6 is completed) to generate a fix, then re-run tests. Limit to a maximum of 2 automated remediation attempts per task iteration.",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [

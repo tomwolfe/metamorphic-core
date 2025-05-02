@@ -3,14 +3,13 @@
 **Roadmap Update - Phase 2 Iteration 1 Focus:** <--- UPDATED SECTION HEADING
 Following the internal MVP release and the successful completion of **Phase 1.5: Workflow Automation Side Project** and **Phase 1.6: Enhanced Workflow Automation**, we are now transitioning into the next phase, **Phase 2 Iteration 1: Resilient Workflow & Automated Remediation**. See [ROADMAP.md](ROADMAP.md) for the updated roadmap and details on Phase 2 Iteration 1.
 
-**Purpose of this Release:** Internal testing and feedback on core functionality (Ethical Governance Engine, Flake8 Code Quality).
-
 **Key Features (MVP Highlights):**
 
 *   **Code Analysis (Flake8):** Static analysis integrated into `/genesis/analyze-ethical` API. **Verified and functional.**
 *   **Security Scanning (ZAP - CI Pipeline Only):** Automated DAST via OWASP ZAP in CI pipeline. **Local ZAP in `docker-compose.yml` is NOT reliably functional in this MVP release - use CI reports for security scans.**
 *   **Ethical Assessment:** JSON-configurable `EthicalGovernanceEngine` with policy enforcement. **API integration tested and refined.**
 *   **API Endpoint (`/genesis/analyze-ethical`):** Core functionality (Ethics + Flake8 Quality) integrated and verified.
+*   **Automated Workflow Initiation Script (`dev_run.py`):** Added a helper script (`dev_run.py`) to automate restarting the `metamorphic-core` Docker service and initiating the automated workflow via the CLI. This simplifies the developer setup for running the autonomous loop. **(Completed as part of Phase 1.7 Task 1)**
 
 **Known Issues & Limitations (MVP Scope):**
 
@@ -65,4 +64,3 @@ Following the internal MVP release and the successful completion of **Phase 1.5:
 
 *   **MVP Status - Not Production Ready.**
 *   **API Stability:** API endpoints may change in future releases.
-*   **Focus on Core Functionality:** MVP focuses on ethics and code quality. Many planned features are not yet implemented.

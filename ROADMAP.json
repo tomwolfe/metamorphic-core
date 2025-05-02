@@ -17,7 +17,7 @@
       "priority": "High",
       "task_name": "Add Dev Script for Automated Workflow Initiation",
       "description": "Create a Python script (e.g., dev_run.py) in the project root that executes `docker-compose restart metamorphic-core` and then calls `python src/cli/main.py` with appropriate arguments. This automates the setup step for developers.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "dev_run.py",
       "depends_on": []
     },
@@ -97,5 +97,5 @@
     "Set `status`: `Completed` on all Phase 1.7 tasks.",
     "Update the `phase`, `phase_goal`, and `current_focus` fields to 'Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph'."
   ],
-  "current_focus": "\ud83c\udfaf CURRENT FOCUS: Phase 1.7 - Resilient Workflow & Automated Remediation \ud83d\udee0\ufe0f"
+  "current_focus": "🎯 CURRENT FOCUS: Phase 1.7 - Resilient Workflow & Automated Remediation 🛠️"
 }

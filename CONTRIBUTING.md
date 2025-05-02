@@ -59,12 +59,13 @@ We enthusiastically welcome contributions to the Metamorphic Software Genesis Ec
 7.  **Toolchain Setup & Iterative Process**
 
     *   The Metamorphic Ecosystem development workflow is now largely automated via the Driver LLM. **With the completion of Phase 1.6, you initiate the process via the CLI (`python src/cli/main.py`), and the Driver autonomously selects tasks from `ROADMAP.json`, generates plans, invokes agents (including the Coder LLM for code generation), writes files, runs validation (tests, code review, security), generates a Grade Report, parses and evaluates it, and updates the roadmap status.**
+    *   **With the completion of Phase 1.7 Task 1 (`task_1_7_1`), the recommended way to initiate this automated workflow is now using the `dev_run.py` script.** This script handles restarting the necessary Docker services and calling the main CLI.
     *   Your role involves:
-        *   Ensuring the API server is running (`python src/api/server.py`).
-        *   Initiating the workflow by running the CLI command (`python src/cli/main.py`).
+        *   Ensuring Docker Desktop is running and the `metamorphic-core` service is available.
+        *   **Initiating the workflow by running the `dev_run.py` script (`python dev_run.py`).**
         *   Monitoring the API server logs for progress, the full Grade Report, and the evaluation outcome (recommended action).
-        *   Reviewing the generated/modified code and the results of the automated validation steps as detailed in the logs/report.
-        *   Checking the updated `ROADMAP.json` status for the task.
+        *   Review the generated/modified code and the results of the automated validation steps as detailed in the logs/report.
+        *   Check the updated `ROADMAP.json` status for the task.
         *   Manually addressing any issues that the Driver cannot resolve autonomously (e.g., complex errors, design decisions, tasks marked as "Blocked").
         *   Refining task descriptions in `ROADMAP.json` or providing manual fixes based on the Grade Report feedback before initiating the workflow again for the same task (if it wasn't marked "Completed").
     *   You no longer need to manually copy and paste code blocks between the Driver and Coder LLMs or manually run tests/linters for every iteration – these steps are automated.

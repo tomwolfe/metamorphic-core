@@ -83,13 +83,17 @@ curl -X POST http://127.0.0.1:5000/genesis/analyze-ethical \
 ---
 
 ## 🔄 Automated Workflow (Post-Phase 1.6)  
-1. **Start the API server** (`python src/api/server.py`).  
-2. **Prepare `ROADMAP.json`**: Mark tasks as `"Not Started"`.  
-3. **Run the CLI workflow**:  
-   ```bash
-   python src/cli/main.py  # Auto-triggers `/genesis/drive_workflow`
-   ```
-4. **Monitor logs**: View validation results, grade reports, and roadmap updates.  
+The primary way to run the automated development workflow is now using the `dev_run.py` helper script. This script handles restarting the necessary Docker services (like `metamorphic-core`) and then calling the main CLI entry point to initiate the autonomous loop.
+
+1.  **Ensure the API server is running:** While `dev_run.py` attempts to restart the `metamorphic-core` service, it's good practice to ensure Docker is running and the service is available.
+2.  **Prepare `ROADMAP.json`**: Ensure your `ROADMAP.json` file is correctly formatted and contains at least one task with the status `"Not Started"`. The Driver will automatically select the first such task it finds.
+3.  **Run the development runner script**:  
+    ```bash
+    python dev_run.py  # Restarts docker service and auto-triggers `/genesis/drive_workflow` via CLI
+    ```
+    *   *(Optional)* Specify a different roadmap file: `python dev_run.py --roadmap path/to/your/roadmap.json`
+    *   *(Optional)* Specify an output directory: `python dev_run.py --output-dir ./my_output`
+4.  **Monitor logs**: View validation results, grade reports, and roadmap updates in the API server terminal.  
 
 ---
 
@@ -149,5 +153,3 @@ For questions or collaboration, open an issue on GitHub or email [tomwolfe@gmail
 
 ## ⚠️ Disclaimer  
 This is an experimental project. Generated code may contain bugs, vulnerabilities, or ethical issues. Always verify outputs before deployment. Features and APIs may change frequently.  
-
---- 

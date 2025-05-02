@@ -44,10 +44,10 @@
     {
       "task_id": "task_1_7_4",
       "priority": "High",
-      "task_name": "Enhance LLM Orchestrator Context/Allocation Robustness",
-      "description": "Investigate and improve handling of large contexts and token allocation failures in EnhancedLLMOrchestrator to reduce 'Insufficient tokens'/'No ethical allocation' errors. Refine chunking, summarization, allocation, and error fallback strategies.",
+      "task_name": "Implement Automated Code Style/Ethical Remediation",
+      "description": "Add logic to WorkflowDriver's post-validation step to analyze Grade Report. If Code Style or Ethical (TransparencyScore) violations are found, parse specific feedback (e.g., specific linting errors), formulate a targeted feedback prompt for the Coder LLM, re-prompting with code and feedback, and re-running validation for the modified file. Limit to a maximum of 2 automated remediation attempts per task iteration.",
       "status": "Not Started",
-      "target_file": "src/core/llm_orchestration.py",
+      "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_7_3"
       ]
@@ -55,8 +55,8 @@
     {
       "task_id": "task_1_7_5",
       "priority": "High",
-      "task_name": "Implement Automated Code Style/Ethical Remediation",
-      "description": "Add logic to WorkflowDriver's post-validation step to analyze Grade Report. If Code Style or Ethical (TransparencyScore) violations are found, parse specific feedback (e.g., specific linting errors), formulate a targeted feedback prompt for the Coder LLM, re-prompting with code and feedback, and re-running validation for the modified file. Limit to a maximum of 2 automated remediation attempts per task iteration.",
+      "task_name": "Implement Automated Test Failure Remediation",
+      "description": "Add logic to WorkflowDriver's post-validation step. If tests fail, capture test output (stderr, tracebacks), parse relevant details, formulate a targeted feedback prompt for the Coder LLM with test failure details, re-prompt Coder LLM (or invoking Debug Agent if task_2_2_6 is completed) to generate a fix, then re-run tests. Limit to a maximum of 2 automated remediation attempts per task iteration.",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
@@ -67,19 +67,6 @@
     {
       "task_id": "task_1_7_6",
       "priority": "High",
-      "task_name": "Implement Automated Test Failure Remediation",
-      "description": "Add logic to WorkflowDriver's post-validation step. If tests fail, capture test output (stderr, tracebacks), parse relevant details, formulate a targeted feedback prompt for the Coder LLM with test failure details, re-prompt Coder LLM (or invoking Debug Agent if task_2_2_6 is completed) to generate a fix, then re-run tests. Limit to a maximum of 2 automated remediation attempts per task iteration.",
-      "status": "Not Started",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_7_3",
-        "task_1_7_4",
-        "task_1_7_5"
-      ]
-    },
-    {
-      "task_id": "task_1_7_7",
-      "priority": "High",
       "task_name": "Add Comprehensive Tests for Phase 1.7 Workflow",
       "description": "Write comprehensive unit/integration tests covering the new dependency scheduling, automated remediation loops, and Orchestrator robustness features implemented in Phase 1.7.",
       "status": "Not Started",
@@ -88,8 +75,7 @@
         "task_1_7_2",
         "task_1_7_3",
         "task_1_7_4",
-        "task_1_7_5",
-        "task_1_7_6"
+        "task_1_7_5"
       ]
     }
   ],

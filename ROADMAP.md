@@ -13,7 +13,7 @@
 *   **Task ID**: task_1_7_2
     *   **Priority**: Critical
     *   **Task Name**: Add Dependency Tracking to Roadmap Schema & Loader
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: []
 
 *   **Task ID**: task_1_7_3

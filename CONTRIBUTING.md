@@ -134,7 +134,8 @@ The `ROADMAP.json` file must adhere to the following JSON structure. Any deviati
             "task_name": "Example Task",
             "description": "Details of the task",
             "status": "Not Started",
-            "target_file": "optional/target/file.py"
+            "target_file": "optional/target/file.py",
+            "depends_on": []
         }
     ],
     "next_phase_actions": [],
@@ -155,6 +156,7 @@ The `ROADMAP.json` file must adhere to the following JSON structure. Any deviati
     *   `"status"`: A string indicating the task's current status. Allowed values: `"Not Started"`, `"In Progress"`, `"Completed"`, or `"Blocked"`.
     *   `"description"`: A string providing a more detailed description of the task. HTML characters in this field will be automatically escaped to prevent XSS vulnerabilities.
     *   `"target_file"`: **(Optional)** A string specifying the primary file path targeted by this task. This is used by the Driver for file operations. This *cannot* contain `/` or `..` sequences relative to the base path (to prevent path traversal vulnerabilities).
+    *   `"depends_on"`: **(Optional)** A list of strings (task_ids) representing tasks that must be "Completed" before this task can be selected.
 *   The `"phase"`, `"phase_goal"`, `"success_metrics"`, `"next_phase_actions"`, and `"current_focus"` fields are also required at the top level.
 
 **Validation:**

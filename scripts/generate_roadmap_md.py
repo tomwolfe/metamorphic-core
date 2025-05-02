@@ -26,11 +26,13 @@ def generate_roadmap_md(json_path="ROADMAP.json", md_path="ROADMAP.md"):
                 priority = task.get('priority', 'UNKNOWN')
                 task_name = task.get('task_name', 'NO_NAME')
                 status = task.get('status', 'NOT_SPECIFIED')
+                depends_on = task.get('depends_on', [])
 
                 md_file.write(f"*   **Task ID**: {task_id}\n")
                 md_file.write(f"    *   **Priority**: {priority}\n")
                 md_file.write(f"    *   **Task Name**: {task_name}\n")
-                md_file.write(f"    *   **Status**: {status}\n\n")
+                md_file.write(f"    *   **Status**: {status}\n")
+                md_file.write(f"    *   **Depends On**: {depends_on}\n\n")
         print(f"Successfully generated {md_path} from {json_path}")
 
     except FileNotFoundError:

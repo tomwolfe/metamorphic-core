@@ -26,7 +26,7 @@
       "priority": "Critical",
       "task_name": "Add Dependency Tracking to Roadmap Schema & Loader",
       "description": "Modify ROADMAP.json schema validation and WorkflowDriver.load_roadmap to support an optional 'depends_on' field (list of task_ids). Update schema validation to enforce format.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": []
     },

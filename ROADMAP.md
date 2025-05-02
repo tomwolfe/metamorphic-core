@@ -8,34 +8,41 @@
     *   **Priority**: High
     *   **Task Name**: Add Dev Script for Automated Workflow Initiation
     *   **Status**: Completed
+    *   **Depends On**: []
 
 *   **Task ID**: task_1_7_2
     *   **Priority**: Critical
     *   **Task Name**: Add Dependency Tracking to Roadmap Schema & Loader
     *   **Status**: Not Started
+    *   **Depends On**: []
 
 *   **Task ID**: task_1_7_3
     *   **Priority**: Critical
     *   **Task Name**: Implement Dependency-Aware Task Selection
     *   **Status**: Not Started
+    *   **Depends On**: ['task_1_7_2']
 
 *   **Task ID**: task_1_7_4
     *   **Priority**: High
     *   **Task Name**: Enhance LLM Orchestrator Context/Allocation Robustness
     *   **Status**: Not Started
+    *   **Depends On**: ['task_1_7_3']
 
 *   **Task ID**: task_1_7_5
     *   **Priority**: High
     *   **Task Name**: Implement Automated Code Style/Ethical Remediation
     *   **Status**: Not Started
+    *   **Depends On**: ['task_1_7_3', 'task_1_7_4']
 
 *   **Task ID**: task_1_7_6
     *   **Priority**: High
     *   **Task Name**: Implement Automated Test Failure Remediation
     *   **Status**: Not Started
+    *   **Depends On**: ['task_1_7_3', 'task_1_7_4', 'task_1_7_5']
 
 *   **Task ID**: task_1_7_7
     *   **Priority**: High
     *   **Task Name**: Add Comprehensive Tests for Phase 1.7 Workflow
     *   **Status**: Not Started
+    *   **Depends On**: ['task_1_7_2', 'task_1_7_3', 'task_1_7_4', 'task_1_7_5', 'task_1_7_6']
 

@@ -760,13 +760,34 @@ Requirements:
             # Escape HTML characters in the description to prevent XSS in logs/prompts
             escaped_description = html.escape(task_description)
 
+            # --- ADDED: Load and validate 'depends_on' field ---
+            depends_on = task_data.get('depends_on', [])
+            if not isinstance(depends_on, list):
+                logger.warning(f"Skipping task {task_id}: 'depends_on' field is not a list.")
+                continue # Skip task if depends_on is not a list
+
+            is_depends_on_valid = True
+            validated_depends_on = []
+            for dep_task_id in depends_on:
+                if not isinstance(dep_task_id, str) or not self._is_valid_task_id(dep_task_id):
+                    logger.warning(f"Skipping task {task_id}: Invalid task_id '{dep_task_id}' found in 'depends_on' list.")
+                    is_depends_on_valid = False
+                    break # Stop processing depends_on for this task if any invalid ID is found
+                validated_depends_on.append(dep_task_id)
+
+            if not is_depends_on_valid:
+                continue # Skip the task if any dependency ID was invalid
+            # --- END ADDED ---
+
+
             task = {
                 'task_id': task_id,
                 'priority': task_data['priority'],
                 'task_name': task_name,
                 'status': task_data['status'],
                 'description': escaped_description,
-                'target_file': task_data.get('target_file')
+                'target_file': task_data.get('target_file'),
+                'depends_on': validated_depends_on # ADDED: Store the validated depends_on list
             }
             tasks.append(task)
         return tasks
@@ -1312,7 +1333,7 @@ Requirements:
         return {
             "recommended_action": recommended_action,
             "justification": justification
-        } # FIX: Added missing closing brace for the return dictionary
+        }
 
 
     def _safe_write_roadmap_json(self, roadmap_path: str, new_content: dict) -> bool:
@@ -1376,12 +1397,13 @@ Requirements:
                  except Exception as cleanup_e:
                      logger.warning(f"Failed to clean up temporary file {temp_filepath} after error: {cleanup_e}")
             return False
-        except Exception as e:
-            logger.error(f"Unexpected error during roadmap file write {roadmap_path}: {e}", exc_info=True)
+        except Exception as cleanup_e: # Corrected indentation for this except block
+            logger.error(f"Unexpected error during roadmap file write {roadmap_path}: {cleanup_e}", exc_info=True)
             # Clean up temporary file in case of unexpected failure
             if temp_filepath.exists():
                  try:
                      os.remove(temp_filepath)
-                     logger.debug(f"Cleaned up temporary file after unexpected error: {temp_filepath}")
+                     logger.debug(f"Cleaned up temporary file after unexpected error: {cleanup_e}")
                  except Exception as cleanup_e:
-                     logger.warning(f"Failed to clean up temporary file {temp_filepath} after unexpected error: {cleanup_e}")
+                     logger.warning(f"Failed to clean up temporary file {temp_filepath} after error: {cleanup_e}")
+            return False

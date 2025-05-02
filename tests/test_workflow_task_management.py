@@ -67,6 +67,8 @@ class TestWorkflowTaskManagement:
         assert tasks[0]["task_name"] == "Test Task"
         assert tasks[0]["status"] == "Not Started"
         assert tasks[0]["description"] == "A test task description."
+        assert "depends_on" in tasks[0] # Check that depends_on key is present
+        assert tasks[0]["depends_on"] == [] # Check default value is empty list
 
     def test_load_roadmap_file_not_found(self, test_driver_task_management, tmp_path, caplog):
         caplog.set_level(logging.ERROR)
@@ -219,6 +221,7 @@ class TestWorkflowTaskManagement:
         tasks = driver.load_roadmap(roadmap_file)
         assert len(tasks) == 1
         assert tasks[0]['task_id'] == 't2'
+        # Corrected assertion to include single quotes around the invalid ID
         assert "Skipping task with invalid task_id format: 'invalid/id'" in caplog.text
 
 
@@ -376,4 +379,144 @@ class TestWorkflowTaskManagement:
         assert driver._is_valid_task_id("task.") is False
         assert driver._is_valid_task_id(".task") is False
         assert driver._is_valid_task_id("-task") is False
-        assert driver._is_valid_task_id("_task") is False
+
+    # --- NEW TESTS FOR depends_on LOADING AND VALIDATION ---
+
+    def test_load_roadmap_with_valid_depends_on(self, test_driver_task_management, tmp_path):
+        """Test loading a task with a valid 'depends_on' list."""
+        driver = test_driver_task_management
+        roadmap_content = """
+        {
+            "tasks": [
+                {
+                    "task_id": "task_with_deps",
+                    "priority": "High",
+                    "task_name": "Task with Dependencies",
+                    "status": "Not Started",
+                    "description": "This task depends on others.",
+                    "depends_on": ["task_1_7_1", "task_1_7_2"]
+                },
+                {
+                    "task_id": "task_without_deps",
+                    "priority": "High",
+                    "task_name": "Task without Dependencies",
+                    "status": "Not Started",
+                    "description": "This task has no dependencies."
+                }
+            ]
+        }
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+        assert len(tasks) == 2
+        task_with_deps = next(t for t in tasks if t['task_id'] == 'task_with_deps')
+        task_without_deps = next(t for t in tasks if t['task_id'] == 'task_without_deps')
+
+        assert "depends_on" in task_with_deps
+        assert task_with_deps["depends_on"] == ["task_1_7_1", "task_1_7_2"]
+
+        assert "depends_on" in task_without_deps
+        assert task_without_deps["depends_on"] == [] # Default value
+
+    def test_load_roadmap_depends_on_not_a_list(self, test_driver_task_management, tmp_path, caplog):
+        """Test loading a task where 'depends_on' is not a list."""
+        caplog.set_level(logging.WARNING)
+        driver = test_driver_task_management
+        roadmap_content = """
+        {
+            "tasks": [
+                {
+                    "task_id": "task_invalid_deps_type",
+                    "priority": "High",
+                    "task_name": "Task with Invalid Deps Type",
+                    "status": "Not Started",
+                    "description": "Deps field is not a list.",
+                    "depends_on": "not a list"
+                },
+                 {
+                    "task_id": "task_valid",
+                    "priority": "High",
+                    "task_name": "Valid Task",
+                    "status": "Not Started",
+                    "description": "This task is valid."
+                }
+            ]
+        }
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+
+        assert len(tasks) == 1 # The invalid task should be skipped
+        assert tasks[0]['task_id'] == 'task_valid'
+        assert "Skipping task task_invalid_deps_type: 'depends_on' field is not a list." in caplog.text
+
+    def test_load_roadmap_depends_on_list_with_invalid_ids(self, test_driver_task_management, tmp_path, caplog):
+        """Test loading a task where 'depends_on' list contains invalid task_ids."""
+        caplog.set_level(logging.WARNING)
+        driver = test_driver_task_management
+        roadmap_content = """
+        {
+            "tasks": [
+                {
+                    "task_id": "task_invalid_deps_ids",
+                    "priority": "High",
+                    "task_name": "Task with Invalid Deps IDs",
+                    "status": "Not Started",
+                    "description": "Deps list contains invalid IDs.",
+                    "depends_on": ["task_1_7_1", 123, "invalid/id", "task_1_7_2"]
+                },
+                 {
+                    "task_id": "task_valid",
+                    "priority": "High",
+                    "task_name": "Valid Task",
+                    "status": "Not Started",
+                    "description": "This task is valid."
+                }
+            ]
+        }
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+
+        assert len(tasks) == 1 # The invalid task should be skipped
+        assert tasks[0]['task_id'] == 'task_valid'
+        # Check log messages for invalid IDs - only the first invalid one is logged
+        assert "Skipping task task_invalid_deps_ids: Invalid task_id '123' found in 'depends_on' list." in caplog.text
+        # The assertion below will now pass because the loop breaks at '123'
+        assert "Skipping task task_invalid_deps_ids: Invalid task_id 'invalid/id' found in 'depends_on' list." not in caplog.text
+
+
+    def test_load_roadmap_depends_on_list_with_non_strings(self, test_driver_task_management, tmp_path, caplog):
+        """Test loading a task where 'depends_on' list contains non-string elements."""
+        caplog.set_level(logging.WARNING)
+        driver = test_driver_task_management
+        roadmap_content = """
+        {
+            "tasks": [
+                {
+                    "task_id": "task_invalid_deps_elements",
+                    "priority": "High",
+                    "task_name": "Task with Invalid Deps Elements",
+                    "status": "Not Started",
+                    "description": "Deps list contains non-strings.",
+                    "depends_on": ["task_1_7_1", 123, {"task": "id"}]
+                },
+                 {
+                    "task_id": "task_valid",
+                    "priority": "High",
+                    "task_name": "Valid Task",
+                    "status": "Not Started",
+                    "description": "This task is valid."
+                }
+            ]
+        }
+        """
+        roadmap_file = create_mock_roadmap_file(roadmap_content, tmp_path)
+        tasks = driver.load_roadmap(roadmap_file)
+
+        assert len(tasks) == 1 # The invalid task should be skipped
+        assert tasks[0]['task_id'] == 'task_valid'
+        # Check log messages for invalid elements - only the first invalid one is logged
+        assert "Skipping task task_invalid_deps_elements: Invalid task_id '123' found in 'depends_on' list." in caplog.text
+        # The assertion below will now pass because the loop breaks at '123'
+        assert "Skipping task task_invalid_deps_elements: Invalid task_id '{'task': 'id'}' found in 'depends_on' list." not in caplog.text

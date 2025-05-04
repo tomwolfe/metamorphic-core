@@ -5,7 +5,7 @@
     "Workflow driver successfully loads and respects task dependencies defined in ROADMAP.json, including skipping tasks with 'Blocked' dependencies.",
     "Driver correctly implements dependency-aware task selection logic.",
     "Driver attempts automated remediation for Code Style violations by parsing Grade Report feedback (e.g., specific linting errors), formulating a targeted feedback prompt for the Coder LLM, re-prompting with code and feedback, and re-running validation (max 2 attempts).",
-    "Driver attempts automated remediation for Ethical (TransparencyScore) violations by parsing Grade Report feedback, formulating a targeted feedback prompt for the Coder LLM, re-prompting with code and feedback, and re-running validation (max 2 attempts).",
+    "Driver attempts automated remediation for Ethical (TransparencyScore) violations by parsing Grade Report feedback, formulating a targeted feedback prompt for the Coder LLM with code and feedback, re-prompting with code and feedback, and re-running validation (max 2 attempts).",
     "Driver attempts automated remediation for Test failures by parsing test output/Grade Report (e.g., tracebacks, failure messages), formulating a targeted feedback prompt for the Coder LLM with test failure details, re-prompt Coder LLM (or invoking Debug Agent if task_2_2_6 is completed), and re-running tests (max 2 attempts).",
     "LLM Orchestrator handles large contexts and token allocation failures more gracefully, reducing 'Insufficient tokens'/'No ethical allocation' errors through refined chunking, summarization, allocation, and error fallback strategies.",
     "Phase 1.7 tests achieve >= 90% code coverage for new logic.",
@@ -46,7 +46,7 @@
       "priority": "High",
       "task_name": "Implement Automated Code Style/Ethical Remediation",
       "description": "Add logic to WorkflowDriver's post-validation step to analyze Grade Report. If Code Style or Ethical (TransparencyScore) violations are found, parse specific feedback (e.g., specific linting errors), formulate a targeted feedback prompt for the Coder LLM, re-prompting with code and feedback, and re-running validation for the modified file. Limit to a maximum of 2 automated remediation attempts per task iteration.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_7_3"

@@ -1,3 +1,4 @@
+# File: src/core/automation/workflow_driver.py
 import logging
 import html
 import os
@@ -14,6 +15,7 @@ from datetime import datetime # Import datetime for report timestamp
 import uuid # Import uuid for temporary file naming
 import builtins # Import builtins for mocking open
 
+# Use name for the logger name
 logger = logging.getLogger(__name__) # Corrected logger name
 
 # Define a maximum file size for reading (e.g., 1MB)
@@ -36,16 +38,16 @@ class Context:
     def get_full_path(self, relative_path):
         """Resolves a relative path against the context's base path."""
         if self._resolved_base_path is None:
-             logger.error(f"Base path failed to resolve. Cannot resolve relative path '{relative_path}'.")
-             return None
+            logger.error(f"Base path failed to resolve. Cannot resolve relative path '{relative_path}'.")
+            return None
 
         if not isinstance(relative_path, str) or relative_path == "": # Added check for empty string
-             # Handle non-string or empty input gracefully
-             # An empty string relative path should resolve to the base path itself
-             if relative_path == "":
-                 return str(self._resolved_base_path)
-             logger.warning(f"Attempted to resolve path with invalid input: {relative_path}")
-             return None
+            # Handle non-string or empty input gracefully
+            # An empty string relative path should resolve to the base path itself
+            if relative_path == "":
+                return str(self._resolved_base_path)
+            logger.warning(f"Attempted to resolve path with invalid input: {relative_path}")
+            return None
 
         try:
             # Resolve the requested path relative to the base path
@@ -55,13 +57,13 @@ class Context:
             # Check if the resolved path starts with the resolved base path
             # This prevents '..' traversal and absolute paths resolving outside the base
             if not str(resolved_path).startswith(str(self._resolved_base_path)):
-                 logger.warning(f"Path traversal attempt detected during resolution: {relative_path} resolved to {resolved_path}")
-                 return None # Return None if path resolves outside the base directory
+                logger.warning(f"Path traversal attempt detected during resolution: {relative_path} resolved to {resolved_path}")
+                return None # Return None if path resolves outside the base directory
 
             return str(resolved_path)
         except Exception as e:
-             logger.error(f"Error resolving path '{relative_path}' relative to '{self.base_path}': {e}", exc_info=True)
-             return None
+            logger.error(f"Error resolving path '{relative_path}' relative to '{self.base_path}': {e}", exc_info=True)
+            return None
 
 
     def __eq__(self, other):
@@ -71,13 +73,14 @@ class Context:
         return self.base_path == other.base_path
 
     def __repr__(self):
-         return f"Context(base_path='{self.base_path}')"
+        return f"Context(base_path='{self.base_path}')"
 
 class WorkflowDriver:
     def __init__(self, context: Context):
         self.context = context
         self.tasks = [] # Will be loaded by start_workflow
         self._current_task_results = {} # Dictionary to store results for the current task iteration # ADDED
+        self.remediation_attempts = 0 # Initialize remediation counter # ADDED for 1.7.4
 
 
         # Initialize LLM Orchestrator - Pass placeholder dependencies for now
@@ -127,13 +130,15 @@ class WorkflowDriver:
             # Use the context's get_full_path for safety when loading the roadmap
             full_roadmap_path = self.context.get_full_path(self.roadmap_path)
             if full_roadmap_path is None:
-                 logger.error(f"Invalid roadmap path provided: {self.roadmap_path}")
-                 return # Exit if roadmap path is invalid after resolving
+                logger.error(f"Invalid roadmap path provided: {self.roadmap_path}")
+                return # Exit if roadmap path is invalid after resolving
             self.tasks = self.load_roadmap(full_roadmap_path) # Load from the resolved path
         except Exception as e:
             logger.error(f"Failed to reload roadmap from {self.roadmap_path}: {e}",
                          exc_info=True)
-            return # Exit if roadmap reloading fails
+            # This break was inside the while loop in the original code,
+            # but start_workflow should just return on failure.
+            return # Exit if roadmap loading fails
         self.context = context  # Update context if needed (though it's set in __init__)
         logger.info(f"Workflow initiated with roadmap: {roadmap_path}, output: {output_dir}")
         self.autonomous_loop()
@@ -150,9 +155,12 @@ class WorkflowDriver:
             logger.error("Roadmap path not set. Cannot start autonomous loop.")
             return # Exit if roadmap path is not set
 
+        MAX_REMEDIATION_ATTEMPTS = 2 # Define max attempts here
+
         while True:
             logger.info('Starting autonomous loop iteration')
             self._current_task_results = {} # Reset results for the new task iteration # ADDED
+            self.remediation_occurred_in_pass = False # Flag to track if *any* remediation attempt in this pass succeeded in writing
 
             # Load the roadmap inside the loop to get the latest status updates
             try:
@@ -172,9 +180,6 @@ class WorkflowDriver:
                 task_id = next_task.get('task_id', 'Unknown ID')
                 logger.info(f'Selected task: ID={task_id}')
 
-                # Initialize remediation counter for the new task
-                self.remediation_attempts = 0
-
                 solution_plan = self.generate_solution_plan(next_task)
                 logger.info(f'Generated plan: {solution_plan}')
 
@@ -183,6 +188,7 @@ class WorkflowDriver:
                         f"Executing plan for task {task_id} with {len(solution_plan)} steps.")
                     # Flag to track if any code was written in this iteration
                     code_written_in_iteration = False
+                    filepath_to_use = next_task.get('target_file') # Initialize filepath_to_use from task
 
                     for step_index, step in enumerate(solution_plan):
                         logger.info(f"Executing step {step_index + 1}/{len(solution_plan)}: {step}")
@@ -196,12 +202,10 @@ class WorkflowDriver:
                         test_execution_keywords = ["run tests", "execute tests", "verify tests", "pytest", "test suite"]
 
                         # --- REVISED LOGIC FOR DETERMINING STEP TYPE AND FILE PATH (PRIORITIZE target_file) ---
-                        # Determine file path from step description first (still useful for logging/context)
                         filepath_match = re.search(
                             r'(\S+\.(py|md|json|txt|yml|yaml))', step, re.IGNORECASE)
                         filepath_from_step = filepath_match.group(1) if filepath_match else None
 
-                        # Determine if the step description explicitly indicates file writing (by keyword or path)
                         is_step_explicitly_file_writing = (filepath_from_step is not None) or any(
                             keyword in step_lower for keyword in file_writing_keywords)
 
@@ -211,18 +215,15 @@ class WorkflowDriver:
                         is_test_execution_step = any(keyword in step_lower for keyword in test_execution_keywords)
 
                         # Determine the actual filepath to use for the operation
-                        # NEW LOGIC: Prioritize the target_file from the task metadata
-                        filepath_to_use = next_task.get('target_file')
+                        # Prioritize the target_file from the task metadata
+                        # Store this at the task level if not already set
+                        if filepath_to_use is None:
+                            filepath_to_use = next_task.get('target_file')
 
                         # If the task doesn't have a target_file, but the step mentions one and is file-related, use the one from the step.
-                        # This handles tasks that might involve multiple files not captured by a single target_file.
-                        # However, for task_2_2_1, target_file *is* present, so the line above will be used.
                         if not filepath_to_use and (is_step_explicitly_file_writing or needs_coder_llm) and filepath_from_step:
-                             filepath_to_use = filepath_from_step
-
-                        # If after all this, filepath_to_use is still None, then the step isn't related to a specific file operation we handle.
-                        # The subsequent 'elif needs_coder_llm and filepath_to_use:' etc. checks will correctly skip.
-                        # --- END REVISED LOGIC (PRIORITIZE target_file) ---
+                            filepath_to_use = filepath_from_step
+                        # --- END REVISED LOGIC ---
 
 
                         generated_output = None  # Initialize generated_output for this step
@@ -232,50 +233,35 @@ class WorkflowDriver:
                         # --- START MODIFIED LOGIC FOR STEP PROCESSING (REORDERED) ---
                         # Prioritize test execution steps
                         if is_test_execution_step:
-                             logger.info(f"Step identified as test execution. Running tests for step: {step}")
-                             # Determine test command - This is a simplification for Phase 1.6
-                             # A more sophisticated approach would infer the target test file from the previous steps or task metadata
-                             # For now, if a target_file is specified and looks like a test file, use it. Otherwise, default.
-                             test_command = ["pytest"]
-                             # FIX: Simplify test command heuristic - use filepath_to_use if available
-                             # Note: filepath_to_use here is derived from the *current* step or task target_file
-                             if filepath_to_use and "test_" in filepath_to_use.lower(): # Check if resolved filepath looks like a test file
-                                 test_command.append(filepath_to_use)
-                             else:
-                                 test_command.append("tests/") # Default to running all tests in tests/
+                            logger.info(f"Step identified as test execution. Running tests for step: {step}")
+                            test_command = ["pytest"]
+                            if filepath_to_use and "test_" in filepath_to_use.lower():
+                                test_command.append(filepath_to_use)
+                            else:
+                                test_command.append("tests/")
 
-
-                             # Execute tests
-                             try: # Added try-except around execute_tests
-                                 return_code, stdout, stderr = self.execute_tests(test_command, self.context.base_path)
-
-                                 # Parse test results
-                                 test_results = self._parse_test_results(stdout)
-                                 self._current_task_results['test_results'] = test_results # Store test results # ADDED
-
-                                 # Log parsed results
-                                 logger.info(f"Test Execution Results: Status={test_results['status']}, Passed={test_results['passed']}, Failed={test_results['failed']}, Total={test_results['total']}")
-                                 if test_results['status'] == 'failed':
-                                     logger.error(f"Tests failed for step: {step}. Raw stderr:\n{stderr}")
-                                 elif test_results['status'] == 'error':
-                                     logger.error(f"Test execution or parsing error for step: {step}. Message: {test_results['message']}. Raw stderr:\n{stderr}")
-                             except Exception as e:
-                                 logger.error(f"An unexpected error occurred during command execution: {e}", exc_info=True)
-                                 # Store error results
-                                 self._current_task_results['test_results'] = {'status': 'error', 'passed': 0, 'failed': 0, 'total': 0, 'message': str(e)}
-
+                            try:
+                                return_code, stdout, stderr = self.execute_tests(test_command, self.context.base_path)
+                                test_results = self._parse_test_results(stdout)
+                                self._current_task_results['test_results'] = test_results
+                                # FIX: Ensure all keys are present before logging
+                                logger.info(f"Test Execution Results: Status={test_results.get('status')}, Passed={test_results.get('passed')}, Failed={test_results.get('failed')}, Total={test_results.get('total')}")
+                                if test_results.get('status') == 'failed':
+                                    logger.error(f"Tests failed for step: {step}. Raw stderr:\n{stderr}")
+                                elif test_results.get('status') == 'error':
+                                    logger.error(f"Test execution or parsing error for step: {step}. Message: {test_results.get('message')}. Raw stderr:\n{stderr}")
+                            except Exception as e:
+                                logger.error(f"An unexpected error occurred during command execution: {e}", exc_info=True)
+                                self._current_task_results['test_results'] = {'status': 'error', 'passed': 0, 'failed': 0, 'total': 0, 'message': str(e)}
 
                         # Prioritize code generation steps targeting a specific file
-                        # Check needs_coder_llm AND if a filepath_to_use was successfully determined
                         elif needs_coder_llm and filepath_to_use:
                             logger.info(
                                 f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.")
 
-                            # 1. Read existing content
                             existing_content = self._read_file_for_context(filepath_to_use)
                             logger.debug(f"Read {len(existing_content)} characters from {filepath_to_use}.")
 
-                            # 2. Construct prompt and invoke Coder LLM for snippet
                             coder_prompt = f"""You are a Coder LLM expert in Python.
 Your task is to generate only the code snippet required to implement the following specific step from a larger development plan.
 
@@ -302,223 +288,230 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                                 logger.info(
                                     f"Coder LLM generated snippet (first 100 chars): {generated_snippet[:100]}...")
 
-                                # 3. Merge snippet into existing content
                                 merged_content = self._merge_snippet(existing_content, generated_snippet)
                                 logger.debug("Snippet merged.")
 
-                                # 4. Write merged content back to file (overwrite=True)
                                 logger.info(f"Attempting to write merged content to {filepath_to_use}.")
                                 try:
-                                    # Use _write_output_file for writing the merged content
                                     self._write_output_file(filepath_to_use, merged_content, overwrite=True)
                                     logger.info(f"Successfully wrote merged content to {filepath_to_use}.")
                                     code_written_in_iteration = True # Mark that code was written
 
-                                    # --- ADDED: Call CodeReviewAgent and Ethical Analysis after successful write ---
+                                    # --- Run Initial Validations after successful write ---
                                     try:
                                         logger.info(f"Running code review and security scan for {filepath_to_use}...")
                                         review_results = self.code_review_agent.analyze_python(merged_content)
-                                        self._current_task_results['code_review_results'] = review_results # Store code review/security results # ADDED
+                                        self._current_task_results['code_review_results'] = review_results
                                         logger.info(f"Code Review and Security Scan Results for {filepath_to_use}: {review_results}")
                                     except Exception as review_e:
                                         logger.error(f"Error running code review/security scan for {filepath_to_use}: {review_e}", exc_info=True)
-                                        self._current_task_results['code_review_results'] = {'status': 'error', 'message': str(review_e)} # Store error
+                                        self._current_task_results['code_review_results'] = {'status': 'error', 'message': str(review_e)}
 
                                     if self.default_policy_config:
                                         try:
                                             logger.info(f"Running ethical analysis for {filepath_to_use}...")
                                             ethical_analysis_results = self.ethical_governance_engine.enforce_policy(merged_content, self.default_policy_config)
-                                            self._current_task_results['ethical_analysis_results'] = ethical_analysis_results # Store ethical analysis results # ADDED
+                                            self._current_task_results['ethical_analysis_results'] = ethical_analysis_results
                                             logger.info(f"Ethical Analysis Results for {filepath_to_use}: {ethical_analysis_results}")
                                         except Exception as ethical_e:
                                             logger.error(f"Error running ethical analysis for {filepath_to_use}: {ethical_e}", exc_info=True)
-                                            self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': str(ethical_e)} # Store error
+                                            self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': str(ethical_e)}
                                     else:
                                         logger.warning("Default ethical policy not loaded. Skipping ethical analysis.")
-                                        self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded.'} # Indicate skipped
-                                    # --- END ADDED BLOCK ---
-
+                                        self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded.'}
+                                    # --- END Initial Validations ---
 
                                 except FileExistsError:
-                                    # This should not happen with overwrite=True, but handle defensively
                                     logger.error(f"Unexpected FileExistsError when writing merged content to {filepath_to_use} with overwrite=True.")
                                 except Exception as e:
                                     logger.error(f"Failed to write merged content to {filepath_to_use}: {e}", exc_info=True)
                             else:
                                 logger.warning(f"Coder LLM returned empty or None snippet for step {step_index + 1}. Skipping file write.")
 
-                        # Handle steps identified as file writing, but NOT code generation (e.g., writing a report)
-                        # Check if it's explicitly a file writing step (by keyword or path in step) AND not code gen AND a filepath_to_use was determined
+                        # Handle steps identified as file writing, but NOT code generation
                         elif is_step_explicitly_file_writing and not needs_coder_llm and filepath_to_use:
-                             logger.info(f"Step identified as file writing (non-code-gen). Processing file operation for step: {step}")
-                             # For now, use placeholder content. In future tasks, this would involve
-                             # invoking a different agent or logic to generate the file content.
-                             content_to_write = f"// Placeholder content for step: {step}"
-                             logger.info(f"Using placeholder content for file: {filepath_to_use}")
-                             logger.info(f"Attempting to write file: {filepath_to_use}.")
-                             try:
-                                 # Use overwrite=False as a default for non-code-gen writes,
-                                 # unless the step explicitly indicates overwrite.
-                                 # This logic might need refinement in future tasks.
-                                 self._write_output_file(filepath_to_use, content_to_write, overwrite=False)
-                                 # Note: Non-code files don't trigger code review/ethical analysis currently
-                             except FileExistsError:
-                                 logger.warning(
-                                     f"File {filepath_to_use} already exists. Skipping write as overwrite=False.")
-                             except Exception as e:
-                                 logger.error(f"Failed to write file {filepath_to_use}: {e}",
-                                              exc_info=True)
+                            logger.info(f"Step identified as file writing (non-code-gen). Processing file operation for step: {step}")
+                            content_to_write = f"// Placeholder content for step: {step}"
+                            logger.info(f"Using placeholder content for file: {filepath_to_use}")
+                            logger.info(f"Attempting to write file: {filepath_to_use}.")
+                            try:
+                                self._write_output_file(filepath_to_use, content_to_write, overwrite=False)
+                            except FileExistsError:
+                                logger.warning(
+                                    f"File {filepath_to_use} already exists. Skipping write as overwrite=False.")
+                            except Exception as e:
+                                logger.error(f"Failed to write file {filepath_to_use}: {e}",
+                                             exc_info=True)
 
                         # Log if the step was not identified as involving file operations, code generation, or test execution
-                        # This 'else' block should cover cases where filepath_to_use was not determined, or the step wasn't file-related/code-gen/test
-                        else: # not is_test_execution_step and not (needs_coder_llm and filepath_to_use) and not (is_step_explicitly_file_writing and not needs_coder_llm and filepath_to_use)
+                        else:
                             logger.info(
                                 f"Step not identified as code generation, file writing, or test execution. Skipping agent invocation/file write for step: {step}")
                         # --- END MODIFIED LOGIC FOR STEP PROCESSING ---
 
-                    # --- ADDED: Generate and Log Grade Report after all steps for the task ---
+                    # --- Post-Step Execution Logic (Inside the 'if solution_plan:' block) ---
                     logger.info("Generating Grade Report...")
-                    # Ensure task_id is available here (it's available from the selected_task dict)
-                    task_id = next_task.get('task_id', 'Unknown ID') # Get task_id from the task dict
                     grade_report_json = self.generate_grade_report(task_id, self._current_task_results)
                     logger.info(f"--- GRADE REPORT for Task {task_id} ---\n{grade_report_json}\n--- END GRADE REPORT ---")
-                    # END ADDED BLOCK
 
-                    # --- ADDED: Parse and Evaluate Grade Report ---
                     evaluation_result = self._parse_and_evaluate_grade_report(grade_report_json)
                     recommended_action = evaluation_result.get("recommended_action", "Manual Review Required")
                     justification = evaluation_result.get("justification", "Evaluation failed.")
-                    logger.info(f"Grade Report Evaluation: Recommended Action='{recommended_action}', Justification='{justification}'")
-                    # END ADDED BLOCK
+                    logger.info(f"Initial Grade Report Evaluation: Recommended Action='{recommended_action}', Justification='{justification}'")
 
-                    # --- BEGIN: Remediation Logic Structure ---
-                    MAX_REMEDIATION_ATTEMPTS = 2
-                    remediation_occurred = False
+                    # --- BEGIN: Remediation Logic ---
+                    # Check if remediation is needed based on the initial evaluation
+                    if recommended_action == "Regenerate Code":
+                        # Check if remediation attempts are available
+                        if self.remediation_attempts < MAX_REMEDIATION_ATTEMPTS:
+                            logger.info(f"Attempting automated remediation (Attempt {self.remediation_attempts + 1}/{MAX_REMEDIATION_ATTEMPTS})...")
+                            self.remediation_occurred_in_pass = False # Flag to track if *any* remediation attempt in this pass succeeded in writing
 
-                    if recommended_action not in ["Completed", "Blocked", "Manual Review Required"] and self.remediation_attempts < MAX_REMEDIATION_ATTEMPTS:
-                        logger.info(f"Attempting automated remediation (Attempt {self.remediation_attempts + 1}/{MAX_REMEDIATION_ATTEMPTS})...")
-                        remediation_success = False
+                            # Read file content once at the start of the remediation pass
+                            current_file_content = self._read_file_for_context(filepath_to_use)
 
-                        # Placeholder for identifying failure type and calling specific remediation
-                        # This will be expanded in the next prompts
-                        failure_type = self._identify_remediation_target(grade_report_json)
+                            if current_file_content and filepath_to_use:
+                                # --- Attempt Style/Ethical Remediation if applicable ---
+                                # Identify the primary failure type based on the initial report
+                                failure_type = self._identify_remediation_target(grade_report_json) # Use the report from the initial evaluation
 
-                        # Need the file path and current content for remediation
-                        # The variable `filepath_to_use` from the loop is the target file.
-                        # We need the code content *currently* in that file.
-                        current_file_content = self._read_file_for_context(filepath_to_use)
+                                style_ethical_attempt_success = False
+                                if failure_type == "Code Style":
+                                    style_ethical_attempt_success = self._attempt_code_style_remediation(grade_report_json, next_task, "Code Style Remediation", filepath_to_use, current_file_content)
+                                elif failure_type == "Ethical Transparency":
+                                    style_ethical_attempt_success = self._attempt_ethical_transparency_remediation(grade_report_json, next_task, "Ethical Transparency Remediation", filepath_to_use, current_file_content)
 
-                        if current_file_content:
-                            if failure_type == "Code Style":
-                                remediation_success = self._attempt_code_style_remediation(grade_report_json, next_task, step, filepath_to_use, current_file_content)
-
-                            elif failure_type == "Ethical Transparency":
-                                remediation_success = self._attempt_ethical_transparency_remediation(grade_report_json, next_task, step, filepath_to_use, current_file_content)
-                            else:
-                                logger.warning(f"Automated remediation not supported for failure type: {failure_type}")
-                        else:
-                            logger.error(f"Failed to read current file content for remediation: {filepath_to_use}. Cannot attempt remediation.")
-
-
-                        if remediation_success:
-                            logger.info("Remediation attempt seems successful (code written). Re-evaluating...")
-                            # Re-generate grade report and re-evaluate
-                            grade_report_json = self.generate_grade_report(task_id, self._current_task_results) # Use potentially updated results
-                            logger.info(f"--- REVISED GRADE REPORT for Task {task_id} ---\n{grade_report_json}\n--- END REVISED GRADE REPORT ---")
-                            evaluation_result = self._parse_and_evaluate_grade_report(grade_report_json)
-                            recommended_action = evaluation_result.get("recommended_action", "Manual Review Required") # Update action
-                            justification = evaluation_result.get("justification", "Evaluation failed.")
-                            logger.info(f"Revised Grade Report Evaluation: Recommended Action='{recommended_action}', Justification='{justification}'")
-                            remediation_occurred = True # Mark that remediation happened
-                        else:
-                             logger.warning("Remediation attempt failed (write unsuccessful) or no specific target identified.")
-
-                        self.remediation_attempts += 1
-                        # After a remediation attempt (successful or not), re-evaluate the task's status
-                        # based on the potentially updated evaluation_result.
-                        # The loop will then check if recommended_action is "Completed" or "Blocked"
-                        # and either update the roadmap or continue the loop if it's "Regenerate Code"
-                        # or "Manual Review Required" (and attempts are not exhausted).
-                        # If attempts are exhausted, the 'else' block below will handle the final status.
-                    else:
-                        if recommended_action not in ["Completed", "Blocked", "Manual Review Required"]:
-                             logger.warning(f"Maximum remediation attempts ({MAX_REMEDIATION_ATTEMPTS}) reached for task {task_id}. Proceeding with current evaluation.")
-                        # else: No remediation needed based on initial evaluation
-                    # --- END: Remediation Logic Structure ---
+                                if style_ethical_attempt_success:
+                                    logger.info("Style/Ethical remediation attempt seems successful (code written).")
+                                    self.remediation_occurred_in_pass = True
+                                    # Re-evaluate immediately after a successful write
+                                    grade_report_json = self.generate_grade_report(task_id, self._current_task_results) # Use potentially updated results
+                                    logger.info(f"--- REVISED GRADE REPORT (Style/Ethical) for Task {task_id} ---\n{grade_report_json}\n--- END REVISED GRADE REPORT ---")
+                                    evaluation_result = self._parse_and_evaluate_grade_report(grade_report_json)
+                                    recommended_action = evaluation_result.get("recommended_action", "Manual Review Required") # Update action
+                                    justification = evaluation_result.get("justification", "Evaluation failed.")
+                                    logger.info(f"Revised Grade Report Evaluation (Style/Ethical): Recommended Action='{recommended_action}', Justification='{justification}'")
+                                elif failure_type in ["Code Style", "Ethical Transparency"]: # Log warning only if an attempt was actually made
+                                    logger.warning(f"{failure_type} remediation attempt failed.")
 
 
-                    # --- ADDED: Update Roadmap Status based on Evaluation (Task 1_6i) ---
-                    # Determine the new status based on the recommended action
+                                # --- Attempt Test Failure Remediation if applicable ---
+                                # Re-check test status *after* potential style/ethical fix
+                                test_status = self._current_task_results.get('test_results', {}).get('status')
+
+                                # Only attempt test remediation if tests still failed AND we haven't reached max attempts yet
+                                # (The outer if already checks max attempts, but re-check here for clarity/safety)
+                                test_remediation_attempt_success = False
+                                if test_status == 'failed' and self.remediation_attempts < MAX_REMEDIATION_ATTEMPTS: # Check attempts again before this specific attempt
+                                    logger.info(f"Attempting test failure remediation (Attempt {self.remediation_attempts + 1}/{MAX_REMEDIATION_ATTEMPTS})...")
+                                    # Read file content again for test remediation if needed (might have changed from style/ethical fix)
+                                    current_file_content_for_test_remediation = self._read_file_for_context(filepath_to_use)
+
+                                    if current_file_content_for_test_remediation and filepath_to_use:
+                                        test_remediation_attempt_success = self._attempt_test_failure_remediation(
+                                            grade_report_json, next_task, "Test Failure Remediation", filepath_to_use, current_file_content_for_test_remediation
+                                        )
+                                        if test_remediation_attempt_success:
+                                            logger.info("Test failure remediation successful.")
+                                            self.remediation_occurred_in_pass = True # Mark that remediation happened
+                                            # Re-evaluate immediately after a successful write
+                                            grade_report_json = self.generate_grade_report(task_id, self._current_task_results) # Use potentially updated results
+                                            logger.info(f"--- REVISED GRADE REPORT (Test Remediation) for Task {task_id} ---\n{grade_report_json}\n--- END REVISED GRADE REPORT ---")
+                                            evaluation_result = self._parse_and_evaluate_grade_report(grade_report_json)
+                                            recommended_action = evaluation_result.get("recommended_action", "Manual Review Required") # Update action
+                                            justification = evaluation_result.get("justification", "Evaluation failed.")
+                                            logger.info(f"Revised Grade Report Evaluation (Test Remediation): Recommended Action='{recommended_action}', Justification='{justification}'")
+                                        else:
+                                            logger.warning("Test failure remediation attempt failed.")
+                                    else:
+                                        logger.error(f"Failed to read current file content for {filepath_to_use} during test remediation. Cannot attempt remediation.")
+
+                                # Increment remediation attempts counter *once per pass* if any remediation attempt succeeded in writing
+                                if self.remediation_occurred_in_pass:
+                                    self.remediation_attempts += 1
+                                    logger.info(f"Remediation attempt {self.remediation_attempts} completed.")
+
+                            else: # This else belongs to `if current_file_content and filepath_to_use:` (the first read attempt)
+                                logger.error(f"Failed to read current file content for remediation: {filepath_to_use}. Cannot attempt remediation.")
+                                # If file read fails, we cannot attempt any code modification remediation.
+                                # The recommended_action remains "Regenerate Code", but no attempt was made.
+                                # The loop will continue, and the task might eventually be marked "Blocked" or require manual review.
+
+                        else: # This else belongs to `if recommended_action == "Regenerate Code":`
+                            # This means recommended_action was "Regenerate Code" but attempts were exhausted
+                            logger.warning(f"Maximum remediation attempts ({MAX_REMEDIATION_ATTEMPTS}) reached for task {task_id}. Proceeding without further automated remediation.")
+                            # The recommended_action remains "Regenerate Code" or whatever the last evaluation set it to.
+                            # The loop will continue, potentially leading to Manual Review or Blocked based on the final evaluation.
+                    # --- END Remediation Logic ---
+
+
+                    # --- Update Roadmap Status based on FINAL Evaluation ---
+                    # This block should run AFTER all potential remediation attempts for this pass
                     new_status = next_task['status'] # Default to current status
                     if recommended_action == "Completed":
-                         new_status = "Completed"
+                        new_status = "Completed"
                     elif recommended_action == "Blocked":
-                         new_status = "Blocked"
-                    # For 'Regenerate Code' or 'Manual Review Required', leave status as 'Not Started'
-                    # (assuming the task was 'Not Started' when selected)
-                    # If the task was already 'In Progress', we might want to keep it that way.
-                    # For simplicity in 1.6i, we only explicitly set 'Completed' or 'Blocked'.
-                    # If the action is 'Regenerate Code' or 'Manual Review Required', the status
-                    # will remain whatever it was (likely 'Not Started' if selected from that state).
+                        new_status = "Blocked"
+                    # Note: If recommended_action is "Regenerate Code" and attempts are not exhausted,
+                    # the status remains 'Not Started' or 'In Progress' (depending on initial state)
+                    # and the loop will pick it up again for another attempt.
 
                     if new_status != next_task['status']:
-                         logger.info(f"Updating task status from '{next_task['status']}' to '{new_status}' for task {task_id}")
-                         # Use the new safe write method to update the roadmap
-                         # Need to load the full roadmap, update the specific task, and write it back
-                         try:
-                             # Use the context's get_full_path for safety when loading the roadmap
-                             full_roadmap_path = self.context.get_full_path(self.roadmap_path)
-                             if full_roadmap_path:
-                                 # --- FIX: Re-load the roadmap data here before updating ---
-                                 # This ensures we are modifying the latest version of the roadmap
-                                 # as it might have been changed by other processes or previous loop iterations.
-                                 # This block was the source of the FileNotFoundError in the test.
-                                 # The test needs to mock the 'open' call within this block.
-                                 try:
-                                     # Use builtins.open explicitly for mocking in tests
-                                     with builtins.open(full_roadmap_path, 'r') as f:
-                                         roadmap_data = json.load(f)
-                                 except FileNotFoundError:
-                                     logger.error(f"Error updating roadmap status for task {task_id}: Roadmap file not found at {full_roadmap_path}")
-                                     # Continue the loop or break, depending on desired behavior
-                                     # For now, log and skip the status update for this task
-                                     continue # Skip to the next loop iteration
+                        logger.info(f"Updating task status from '{next_task['status']}' to '{new_status}' for task {task_id}")
+                        try:
+                            full_roadmap_path = self.context.get_full_path(self.roadmap_path)
+                            if full_roadmap_path:
+                                try:
+                                    with builtins.open(full_roadmap_path, 'r') as f:
+                                        roadmap_data = json.load(f)
+                                except FileNotFoundError:
+                                    logger.error(f"Error updating roadmap status for task {task_id}: Roadmap file not found at {full_roadmap_path}")
+                                    # Continue loop, but status update failed
+                                    continue
 
-                                 # Find the task by ID and update its status
-                                 task_found = False
-                                 # Ensure roadmap_data is a dict and has a 'tasks' list
-                                 if isinstance(roadmap_data, dict) and isinstance(roadmap_data.get('tasks'), list):
-                                     for task_entry in roadmap_data['tasks']:
-                                         if isinstance(task_entry, dict) and task_entry.get('task_id') == task_id:
-                                             task_entry['status'] = new_status
-                                             task_found = True
-                                             break
+                                task_found = False
+                                if isinstance(roadmap_data, dict) and isinstance(roadmap_data.get('tasks'), list):
+                                    for task_entry in roadmap_data['tasks']:
+                                        if isinstance(task_entry, dict) and task_entry.get('task_id') == task_id:
+                                            task_entry['status'] = new_status
+                                            task_found = True
+                                            break
 
-                                 if task_found:
-                                     # Use the safe write method
-                                     if self._safe_write_roadmap_json(self.roadmap_path, roadmap_data):
-                                         logger.info(f"Successfully updated status for task {task_id} in {self.roadmap_path}")
-                                     else:
-                                         logger.error(f"Failed to safely write updated roadmap for task {task_id}")
-                                 else:
-                                     logger.warning(f"Task {task_id} not found in roadmap file {self.roadmap_path} for status update.")
-                             else:
-                                 logger.error(f"Cannot update roadmap status: Invalid roadmap path provided: {self.roadmap_path}")
-                         except Exception as e:
-                             logger.error(f"Error updating roadmap status for task {task_id}: {e}", exc_info=True)
+                                if task_found:
+                                    if self._safe_write_roadmap_json(self.roadmap_path, roadmap_data):
+                                        logger.info(f"Successfully updated status for task {task_id} in {self.roadmap_path}")
+                                    else:
+                                        logger.error(f"Failed to safely write updated roadmap for task {task_id}")
+                                else:
+                                    logger.warning(f"Task {task_id} not found in roadmap file {self.roadmap_path} for status update.")
+                            else:
+                                logger.error(f"Cannot update roadmap status: Invalid roadmap path provided: {self.roadmap_path}")
+                        except Exception as e:
+                            logger.error(f"Error updating roadmap status for task {task_id}: {e}", exc_info=True)
                     else:
-                         logger.info(f"Task status for {task_id} remains '{new_status}' based on evaluation.")
-                    # END ADDED BLOCK
-
+                        logger.info(f"Task status for {task_id} remains '{new_status}' based on evaluation.")
+                    # --- END Roadmap Update ---
 
                 else: # This 'else' corresponds to 'if solution_plan:'
                     logger.warning(f"No solution plan generated for task {task_id}.")
+                    # If no plan, task cannot be completed. Consider marking Blocked or Manual Review?
+                    # For now, it will just log and move to the next task.
+                    # A better approach might be to update the task status to 'Blocked' or 'Manual Review' here.
+                    # Let's add a placeholder log for this scenario.
+                    logger.info(f"Task {task_id} requires manual review due to failed plan generation.")
+                    # Optionally update status to 'Manual Review' here if desired.
+
 
             else: # This 'else' corresponds to 'if next_task:'
                 logger.info('No tasks available in Not Started status. Exiting autonomous loop.')
                 break # This break exits the while True loop
 
+            # Add a log to indicate the end of a successful or failed iteration before checking for the next task
+            logger.info('Simulated iteration successful. Ready for next task.')
+
+        # Log loop termination after the while loop exits
         logger.info('Autonomous loop terminated.')
+
 
     def _read_file_for_context(self, relative_file_path: str) -> str:
         """
@@ -546,8 +539,8 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
             return "" # Return empty string if file doesn't exist
 
         if not os.path.isfile(full_path):
-             logger.warning(f"Path is not a file: {relative_file_path}")
-             return "" # Return empty string if path is not a file
+            logger.warning(f"Path is not a file: {relative_file_path}")
+            return "" # Return empty string if path is not a file
 
         try:
             file_size = os.path.getsize(full_path)
@@ -598,7 +591,7 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
 
         # Corrected Logic: Always include target_file context if present
         if task_target_file:
-             target_file_context = f"The primary file being modified for this task is specified as `{task_target_file}` in the task metadata. Focus your plan steps on actions related to this file.\n\n" # Added newline for formatting
+            target_file_context = f"The primary file being modified for this task is specified as `{task_target_file}` in the task metadata. Focus your plan steps on actions related to this file.\n\n" # Added newline for formatting
         # Removed the 'elif' condition that checked for specific keywords
 
         # --- END ADDED CONTEXT ---
@@ -615,6 +608,7 @@ Task Description:
 {target_file_context}Please provide the plan as a numbered markdown list. Do not include any introductory or concluding remarks outside the list.
 When generating steps that involve modifying the primary file for this task, ensure you refer to the file identified in the context (e.g., src/core/automation/workflow_driver.py).
 """
+
         # The last sentence is kept to guide the LLM's natural language, but the Driver now relies on the target_file field.
 
         logger.debug(f"Sending planning prompt to LLM for task '{task_name}'.")
@@ -674,7 +668,7 @@ When generating steps that involve modifying the primary file for this task, ens
             if cleaned_response.startswith("```python"):
                 cleaned_response = cleaned_response[len("```python"):].lstrip()
             elif cleaned_response.startswith("```"):
-                 cleaned_response = cleaned_response[len("```"):].lstrip()
+                cleaned_response = cleaned_response[len("```"):].lstrip()
 
             # Remove trailing ``` followed by optional newline and whitespace
             if cleaned_response.endswith("```"):
@@ -790,6 +784,7 @@ Follow best practices for code quality and style.
 Prioritize security, and prevent code injection vulnerabilities.
 """
         return [prompt]
+
 
     def generate_user_actionable_steps(self, steps):
         if not isinstance(steps, list):
@@ -1086,6 +1081,13 @@ Prioritize security, and prevent code injection vulnerabilities.
             return_code = 1
             logger.error(error_msg)
 
+        # Store stdout/stderr for potential use in remediation
+        self._current_task_results['test_stdout'] = stdout
+        self._current_task_results['test_stderr'] = stderr
+        # --- ADDED: Store test command and cwd for potential re-execution ---
+        self._current_task_results['last_test_command'] = test_command
+        self._current_task_results['last_test_cwd'] = cwd
+        # --- END ADDED ---
         return return_code, stdout, stderr
 
     def _merge_snippet(self, existing_content: str, snippet: str) -> str:
@@ -1533,11 +1535,6 @@ Prioritize security, and prevent code injection vulnerabilities.
 
             # Prioritize critical failures first (though remediation might not apply)
             if validation.get('ethical_analysis', {}).get('overall_status') == 'rejected':
-                # Check if rejection is due to TransparencyScore specifically
-                # Note: The key in validation_results is 'ethical_analysis', but the key *within*
-                # the ethical analysis results for the transparency score is 'TransparencyScore'.
-                # The grade report structure shows 'ethical_analysis' containing 'TransparencyScore'.
-                # The code correctly uses validation.get('ethical_analysis', {}).get('TransparencyScore', {})
                 if validation.get('ethical_analysis', {}).get('TransparencyScore', {}).get('status') == 'violation':
                     logger.debug("Identified Ethical Transparency as remediation target.")
                     return "Ethical Transparency"
@@ -1546,22 +1543,20 @@ Prioritize security, and prevent code injection vulnerabilities.
                     # Continue to check code style remediation possibility
 
             # Check for Code Style issues if no specific ethical transparency issue was found
-            # or if ethical rejection was for another reason.
-            # Code style remediation is applicable if the code_style grade is below 100.
             code_style_grade = grades.get('code_style', {}).get('percentage', 100)
             if code_style_grade < 100: # Assuming 100 means no style issues
-                 # Also check if code_review status is failed, as that's how it's reported
-                 if validation.get('code_review', {}).get('status') == 'failed':
+                if validation.get('code_review', {}).get('status') == 'failed':
                     logger.debug("Identified Code Style as remediation target.")
                     return "Code Style"
-                 else:
-                     logger.debug("Code style grade below 100, but code review status not 'failed'.")
-                     # This case might happen if there are only low-severity style issues
-                     # or if the grading logic is slightly out of sync with the status.
-                     # For now, rely on the 'failed' status from code review results.
-                     pass # Continue to check other targets if any
+                else:
+                    logger.debug("Code style grade below 100, but code review status not 'failed'.")
+                    pass # Continue to check other targets if any
 
-            # Add more checks here if needed (e.g., test failures for task_1_7_5)
+            # <--- Add check for test failures here for task 1.7.5 --->
+            # Note: This method is primarily for identifying *which* remediation to attempt first
+            # if multiple issues exist. The autonomous_loop already checks test status directly.
+            # Adding a check here would allow prioritizing test failures if desired,
+            # but for now, the loop's logic is sufficient.
 
             logger.debug("No specific remediation target identified from grade report.")
             return None
@@ -1575,16 +1570,7 @@ Prioritize security, and prevent code injection vulnerabilities.
     def _attempt_code_style_remediation(self, grade_report_json: str, task: dict, step_desc: str, file_path: str, original_code: str) -> bool:
         """
         Attempts to remediate code style issues using LLM feedback.
-
-        Args:
-            grade_report_json: JSON string of the grade report.
-            task: The current task dictionary.
-            step_desc: The description of the plan step being executed.
-            file_path: The path to the file being modified.
-            original_code: The code content before the remediation attempt.
-
-        Returns:
-            True if remediation was attempted and write succeeded, False otherwise.
+        (Implementation as provided in the codebase)
         """
         logger.info(f"Attempting code style remediation for {file_path}...")
         try:
@@ -1592,7 +1578,6 @@ Prioritize security, and prevent code injection vulnerabilities.
             code_review_results = report_data.get('validation_results', {}).get('code_review', {})
             findings = code_review_results.get('static_analysis', [])
 
-            # Filter for style/linting errors/warnings (exclude security for this specific remediation)
             style_feedback = [
                 f"- {f.get('code')} at line {f.get('line')}: {f.get('message')}"
                 for f in findings if not f.get('severity', '').startswith('security')
@@ -1605,7 +1590,6 @@ Prioritize security, and prevent code injection vulnerabilities.
             feedback_str = "\n".join(style_feedback)
             logger.debug(f"Extracted code style feedback:\n{feedback_str}")
 
-            # Construct feedback prompt
             feedback_prompt = f"""You are a Coder LLM expert in Python code style (PEP 8, Flake8).
 The following Python code failed automated code style checks.
 
@@ -1614,7 +1598,6 @@ Original Task: "{task.get('task_name', 'Unknown Task')}"
 Plan Step: "{step_desc}"
 
 Code with Issues:
-
 ```python
 {original_code}
 ```
@@ -1632,63 +1615,46 @@ Output only the complete, corrected Python code. Do not include explanations or 
             logger.debug("Invoking Coder LLM for code style remediation...")
             corrected_code = self._invoke_coder_llm(feedback_prompt)
 
+
             if not corrected_code or corrected_code.strip() == original_code.strip():
                 logger.warning("LLM did not provide corrected code or code was unchanged.")
                 return False
 
             logger.info("LLM provided corrected code. Applying and re-validating...")
 
-            # Write the corrected code (overwrite)
             content_to_write = corrected_code
-            if self._write_output_file(file_path, content_to_write, overwrite=True):
-                # Write succeeded, now attempt re-validation
+            write_success = self._write_output_file(file_path, content_to_write, overwrite=True)
+
+            if write_success:
                 try:
                     logger.info(f"Re-running code review for {file_path} after remediation...")
                     new_review_results = self.code_review_agent.analyze_python(content_to_write)
-                    self._current_task_results['code_review_results'] = new_review_results # Update results
+                    self._current_task_results['code_review_results'] = new_review_results
                     logger.info(f"Code Review Results after remediation: {new_review_results}")
-                    # Check if the status improved (optional, but good for logging)
                     if new_review_results.get('status') == 'success':
                         logger.info("Code style remediation appears successful based on re-scan.")
                     elif new_review_results.get('status') == 'failed':
                         logger.warning("Code style issues persist after remediation attempt.")
-                    else: # status == 'error'
+                    else:
                         logger.error("Error occurred during code review re-scan after remediation.")
                 except Exception as e:
-                    # Catch and log re-validation errors, but don't return False
                     logger.error(f"Error occurred during code review re-scan after remediation: {e}", exc_info=True)
-                    # ADDED: Update results with error status
                     self._current_task_results['code_review_results'] = {'status': 'error', 'message': f"Re-validation error: {e}"}
-
-
-                return True # Remediation was attempted and write succeeded
-
+                return True # Return True if write succeeded, even if re-validation failed
             else:
-                # Write failed
                 logger.error(f"Failed to write corrected code to {file_path}. Aborting remediation.")
-                return False
-
+                return False # Return False if write failed
         except json.JSONDecodeError:
             logger.error("Failed to parse grade report JSON for code style remediation.")
             return False
         except Exception as e:
-            # Catch errors that occur *before* the write attempt (e.g., LLM invocation)
             logger.error(f"Error during code style remediation: {e}", exc_info=True)
             return False
 
     def _attempt_ethical_transparency_remediation(self, grade_report_json: str, task: dict, step_desc: str, file_path: str, original_code: str) -> bool:
         """
         Attempts to remediate ethical transparency issues (missing docstrings) using LLM feedback.
-
-        Args:
-            grade_report_json: JSON string of the grade report.
-            task: The current task dictionary.
-            step_desc: The description of the plan step being executed.
-            file_path: The path to the file being modified.
-            original_code: The code content before the remediation attempt.
-
-        Returns:
-            True if remediation was attempted and write succeeded, False otherwise.
+        (Implementation as provided in the codebase)
         """
         logger.info(f"Attempting ethical transparency remediation for {file_path}...")
         try:
@@ -1703,7 +1669,6 @@ Output only the complete, corrected Python code. Do not include explanations or 
             feedback_str = transparency_details.get('details', "Missing required docstring(s).")
             logger.debug(f"Extracted ethical transparency feedback: {feedback_str}")
 
-            # Construct feedback prompt
             feedback_prompt = f"""You are a Coder LLM expert in Python documentation and code transparency.
 The following Python code failed an automated ethical transparency check, likely due to missing docstrings.
 
@@ -1712,7 +1677,6 @@ Original Task: "{task.get('task_name', 'Unknown Task')}"
 Plan Step: "{step_desc}"
 
 Code with Issues:
-
 ```python
 {original_code}
 ```
@@ -1731,49 +1695,165 @@ Output only the complete, corrected Python code with added docstrings. Do not in
             logger.debug("Invoking Coder LLM for ethical transparency remediation...")
             corrected_code = self._invoke_coder_llm(feedback_prompt)
 
+
             if not corrected_code or corrected_code.strip() == original_code.strip():
                 logger.warning("LLM did not provide corrected code or code was unchanged.")
                 return False
 
             logger.info("LLM provided corrected code with docstrings. Applying and re-validating...")
 
-            # Write the corrected code (overwrite)
             content_to_write = corrected_code
-            if self._write_output_file(file_path, content_to_write, overwrite=True):
-                # Write succeeded, now attempt re-validation
+            write_success = self._write_output_file(file_path, content_to_write, overwrite=True)
+
+            if write_success:
                 if self.default_policy_config:
                     try:
                         logger.info(f"Re-running ethical analysis for {file_path} after remediation...")
                         new_ethical_results = self.ethical_governance_engine.enforce_policy(content_to_write, self.default_policy_config)
-                        self._current_task_results['ethical_analysis_results'] = new_ethical_results # Update results
+                        self._current_task_results['ethical_analysis_results'] = new_ethical_results
                         logger.info(f"Ethical Analysis Results after remediation: {new_ethical_results}")
-                        # Check if the status improved (optional, but good for logging)
                         if new_ethical_results.get('overall_status') == 'approved':
                             logger.info("Ethical transparency remediation appears successful based on re-scan.")
                         elif new_ethical_results.get('overall_status') == 'rejected':
                             logger.warning("Ethical transparency violation persists after remediation attempt.")
-                        else: # status == 'error' or 'skipped'
+                        else:
                             logger.error("Error or skip occurred during ethical analysis re-scan after remediation.")
                     except Exception as e:
-                        # Catch and log re-validation errors, but don't return False
                         logger.error(f"Error occurred during ethical analysis re-scan after remediation: {e}", exc_info=True)
-                        # ADDED: Update results with error status
                         self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': f"Re-validation error: {e}"}
                 else:
                     logger.warning("Cannot re-run ethical analysis after remediation: Default policy not loaded.")
                     self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded for re-scan.'}
-
-                return True # Remediation was attempted and write succeeded
-
+                return True # Return True if write succeeded, even if re-validation failed
             else:
-                # Write failed
                 logger.error(f"Failed to write corrected code to {file_path}. Aborting remediation.")
-                return False
-
+                return False # Return False if write failed
         except json.JSONDecodeError:
             logger.error("Failed to parse grade report JSON for ethical transparency remediation.")
             return False
         except Exception as e:
-            # Catch errors that occur *before* the write attempt (e.g., LLM invocation)
             logger.error(f"Error during ethical transparency remediation: {e}", exc_info=True)
+            return False
+
+    def _attempt_test_failure_remediation(self, grade_report_json: str, task: dict, step_desc: str, file_path: str, original_code: str) -> bool:
+        """
+        Attempts to remediate test failures using LLM feedback.
+
+        Args:
+            grade_report_json: JSON string of the grade report.
+            task: The current task dictionary.
+            step_desc: The description of the plan step being executed (e.g., "Test Failure Remediation").
+            file_path: The path to the file being modified.
+            original_code: The code content before the remediation attempt.
+
+        Returns:
+            True if remediation was attempted and write succeeded, False otherwise.
+        """
+        logger.info(f"Attempting test failure remediation for {file_path}...")
+        try:
+            # No need to parse grade_report_json here, test results are in _current_task_results
+            stdout = self._current_task_results.get('test_stdout', '')
+            stderr = self._current_task_results.get('test_stderr', '')
+            test_results = self._current_task_results.get('test_results', {})
+
+            if test_results.get('status') != 'failed':
+                logger.warning("Test failure remediation triggered, but test status is not 'failed'.")
+                return False
+
+            logger.debug(f"Test failure details - Stdout: {stdout}, Stderr: {stderr}")
+            # Read current file content again, as it might have been modified by previous remediation attempts
+            current_file_content = self._read_file_for_context(file_path)
+
+            if not current_file_content or not file_path:
+                logger.error(f"Failed to read current file content for {file_path} during test remediation. Cannot attempt remediation.")
+                return False
+
+            task_name = task.get('task_name', 'Unknown Task')
+            task_description = task.get('description', 'No description provided')
+
+            prompt = f"""
+You are tasked with fixing the following test failure in the Python code.
+
+Task: {task_name}
+Description: {task_description}
+File to modify: {file_path}
+Current code content:
+```python
+{current_file_content}
+```
+
+Test execution output:
+Stdout:
+```
+{stdout}
+```
+Stderr:
+```
+{stderr}
+```
+
+Instructions:
+
+Analyze the test failure output (Stdout and Stderr) and the current code content to identify the root cause of the test failures.
+Generate only the Python code snippet needed to fix the issue. This snippet should contain the necessary modifications to the code in {file_path}.
+Do NOT include any surrounding text, explanations, or markdown code block fences (```). Provide just the raw code lines that need to be added or modified.
+Maintain all original logic and functionality not related to the test failures.
+Adhere to PEP 8 style guidelines.
+Note: The Debug Agent (task_2_2_6) is NOT available; you must generate the fix directly based on the provided information.
+Your response should be the corrected code snippet that addresses the test failure based on the provided context and error messages.
+"""
+            logger.debug("Invoking Coder LLM for test failure remediation...")
+            fixed_snippet = self._invoke_coder_llm(prompt)
+
+
+            if not fixed_snippet or fixed_snippet.strip() == current_file_content.strip(): # Compare against current content
+                logger.warning("LLM did not provide corrected code or code was unchanged for test failure remediation.")
+                return False
+
+            logger.info("LLM provided corrected code for test failure. Applying and re-validating...")
+
+            merged_content = self._merge_snippet(current_file_content, fixed_snippet)
+            write_success = self._write_output_file(file_path, merged_content, overwrite=True)
+
+            if write_success:
+                logger.info(f"Successfully wrote fixed code to {file_path}")
+                # Re-run validations after applying the fix
+                try:
+                    logger.info(f"Re-running validations for {file_path} after test failure remediation...")
+                    # Retrieve the last used test command and cwd
+                    test_command = self._current_task_results.get('last_test_command', ['pytest', 'tests/'])
+                    cwd = self._current_task_results.get('last_test_cwd', self.context.base_path)
+
+                    return_code, new_stdout, new_stderr = self.execute_tests(test_command, cwd)
+                    self._current_task_results['test_stdout'] = new_stdout
+                    self._current_task_results['test_stderr'] = new_stderr
+                    self._current_task_results['test_results'] = self._parse_test_results(new_stdout) # Update test results
+
+                    # Re-run other validations on the merged content
+                    code_review_result = self.code_review_agent.analyze_python(merged_content) # Correct call
+                    ethical_result = self.ethical_governance_engine.enforce_policy(merged_content, self.default_policy_config) # Correct call
+                    self._current_task_results['code_review_results'] = code_review_result
+                    self._current_task_results['ethical_analysis_results'] = ethical_result
+
+                    logger.info(f"Validations re-run after test failure remediation.")
+                    # The calling loop will re-generate and re-evaluate the grade report
+
+                except Exception as e:
+                    logger.error(f"Error occurred during re-validation after test failure remediation: {e}", exc_info=True)
+                    # Update results with error status
+                    self._current_task_results['test_results'] = {'status': 'error', 'message': f"Re-validation error: {e}"}
+                    self._current_task_results['code_review_results'] = {'status': 'error', 'message': f"Re-validation error: {e}"}
+                    self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': f"Re-validation error: {e}"}
+
+                return True # Remediation was attempted and write succeeded
+
+            else:
+                logger.error(f"Failed to write fixed code to {file_path}. Aborting test failure remediation.")
+                return False # Remediation attempt failed (write failed)
+
+        except json.JSONDecodeError:
+            logger.error("Failed to parse grade report JSON for test failure remediation.")
+            return False
+        except Exception as e:
+            logger.error(f"Error during test failure remediation: {e}", exc_info=True)
             return False

@@ -1,13 +1,12 @@
 {
   "phase": "Phase 1.7: Resilient Workflow & Automated Remediation",
-  "phase_goal": "Enhance workflow autonomy with dependency awareness, automated self-correction for common validation failures, and improved LLM orchestration resilience.",
+  "phase_goal": "Enhance workflow autonomy with dependency awareness and automated self-correction for common validation failures",
   "success_metrics": [
     "Workflow driver successfully loads and respects task dependencies defined in ROADMAP.json, including skipping tasks with 'Blocked' dependencies.",
     "Driver correctly implements dependency-aware task selection logic.",
     "Driver attempts automated remediation for Code Style violations by parsing Grade Report feedback (e.g., specific linting errors), formulating a targeted feedback prompt for the Coder LLM, re-prompting with code and feedback, and re-running validation (max 2 attempts).",
     "Driver attempts automated remediation for Ethical (TransparencyScore) violations by parsing Grade Report feedback, formulating a targeted feedback prompt for the Coder LLM with code and feedback, re-prompting with code and feedback, and re-running validation (max 2 attempts).",
     "Driver attempts automated remediation for Test failures by parsing test output/Grade Report (e.g., tracebacks, failure messages), formulating a targeted feedback prompt for the Coder LLM with test failure details, re-prompt Coder LLM (or invoking Debug Agent if task_2_2_6 is completed), and re-running tests (max 2 attempts).",
-    "LLM Orchestrator handles large contexts and token allocation failures more gracefully, reducing 'Insufficient tokens'/'No ethical allocation' errors through refined chunking, summarization, allocation, and error fallback strategies.",
     "Phase 1.7 tests achieve >= 90% code coverage for new logic.",
     "A dedicated development script exists that automates the Docker Compose service restart and then calls the main CLI."
   ],
@@ -68,7 +67,7 @@
       "task_id": "task_1_7_6",
       "priority": "High",
       "task_name": "Add Comprehensive Tests for Phase 1.7 Workflow",
-      "description": "Write comprehensive unit/integration tests covering the new dependency scheduling, automated remediation loops, and Orchestrator robustness features implemented in Phase 1.7.",
+      "description": "Write comprehensive unit/integration tests covering the new dependency scheduling and automated remediation loops implemented in Phase 1.7.",
       "status": "Not Started",
       "target_file": "tests/test_phase1_7_workflow.py",
       "depends_on": [

@@ -4,39 +4,63 @@
 
 **NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**
 
-*   **Task ID**: task_1_7_1
-    *   **Priority**: High
-    *   **Task Name**: Add Dev Script for Automated Workflow Initiation
-    *   **Status**: Completed
-    *   **Depends On**: []
-
-*   **Task ID**: task_1_7_2
+*   **Task ID**: task_2_2_1
     *   **Priority**: Critical
-    *   **Task Name**: Add Dependency Tracking to Roadmap Schema & Loader
-    *   **Status**: Completed
-    *   **Depends On**: []
-
-*   **Task ID**: task_1_7_3
-    *   **Priority**: Critical
-    *   **Task Name**: Implement Dependency-Aware Task Selection
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_7_2']
-
-*   **Task ID**: task_1_7_4
-    *   **Priority**: High
-    *   **Task Name**: Implement Automated Code Style/Ethical Remediation
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_7_3']
-
-*   **Task ID**: task_1_7_5
-    *   **Priority**: High
-    *   **Task Name**: Implement Automated Test Failure Remediation
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_7_3', 'task_1_7_4']
-
-*   **Task ID**: task_1_7_6
-    *   **Priority**: High
-    *   **Task Name**: Add Comprehensive Tests for Phase 1.7 Workflow
+    *   **Task Name**: Define & Implement KG Schema for Code Artifacts
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_7_2', 'task_1_7_3', 'task_1_7_4', 'task_1_7_5']
+    *   **Depends On**: []
+
+*   **Task ID**: task_2_2_2
+    *   **Priority**: High
+    *   **Task Name**: Integrate KG Storage in Agents & Driver
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_2_2_1']
+
+*   **Task ID**: task_2_2_3
+    *   **Priority**: High
+    *   **Task Name**: Implement Semantic Search in KG
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_2_2_1']
+
+*   **Task ID**: task_2_2_4
+    *   **Priority**: Critical
+    *   **Task Name**: Update Driver to Use KG for Context Retrieval
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_2_2_2', 'task_2_2_3']
+
+*   **Task ID**: task_2_2_5
+    *   **Priority**: High
+    *   **Task Name**: Enhance Planning Agent with KG Context
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_2_2_4']
+
+*   **Task ID**: task_2_2_6
+    *   **Priority**: Medium
+    *   **Task Name**: Implement Basic AI-Driven Debugging Agent
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_2_2_4']
+
+*   **Task ID**: task_2_2_7
+    *   **Priority**: High
+    *   **Task Name**: Integrate Debugging Agent into Remediation Loop
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_7_5', 'task_2_2_6']
+
+*   **Task ID**: task_2_2_8
+    *   **Priority**: Medium
+    *   **Task Name**: Establish Basic Reinforcement Learning Framework
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_2_2_2']
+
+*   **Task ID**: task_2_2_9
+    *   **Priority**: Low
+    *   **Task Name**: Apply RL to Optimize Coder Agent Prompts
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_2_2_8', 'task_2_2_4']
+
+*   **Task ID**: task_2_2_10
+    *   **Priority**: High
+    *   **Task Name**: Add Comprehensive Tests for Phase 2.2 Features
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_2_2_1', 'task_2_2_2', 'task_2_2_3', 'task_2_2_4', 'task_2_2_5', 'task_2_2_6', 'task_2_2_7', 'task_2_2_8', 'task_2_2_9']
 

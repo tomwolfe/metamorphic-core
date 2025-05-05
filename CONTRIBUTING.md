@@ -59,6 +59,7 @@ We enthusiastically welcome contributions to the Metamorphic Software Genesis Ec
 7.  **Toolchain Setup & Iterative Process**
 
     *   The Metamorphic Ecosystem development workflow is now largely automated via the Driver LLM. **With the completion of Phase 1.6, you initiate the process via the CLI (`python src/cli/main.py`), and the Driver autonomously selects tasks from `ROADMAP.json`, generates plans, invokes agents (including the Coder LLM for code generation), writes files, runs validation (tests, code review, security), generates a Grade Report, parses and evaluates it, and updates the roadmap status.**
+    *   **With the completion of Phase 1.7, the Driver now attempts automated remediation for common validation failures (such as test failures, code style violations, and ethical transparency issues) based on the Grade Report feedback. You will need to manually address issues that automated remediation cannot fix, complex errors, design decisions, or tasks marked as "Blocked".**
     *   **With the completion of Phase 1.7 Task 1 (`task_1_7_1`), the recommended way to initiate this automated workflow is now using the `dev_run.py` script.** This script handles restarting the necessary Docker services and calling the main CLI.
     *   Your role involves:
         *   Ensuring Docker Desktop is running and the `metamorphic-core` service is available.

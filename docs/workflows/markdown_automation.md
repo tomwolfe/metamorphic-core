@@ -1,12 +1,12 @@
  Markdown-Only Automation Workflow for Metamorphic Genesis Ecosystem (Dual LLM)
 
-**Note:** This document describes the "Markdown-Only Automation" workflow as it functions *after* the successful completion of Phase 1.5 Stage 3 and the implementation of Phase 1.6. **Phase 1.5 Stage 3 is now complete, achieving a fully automated Driver LLM loop for task selection, planning, agent invocation, and file management.** **Phase 1.6 is now complete, automating the initial prompt submission via CLI/API, the execution of validation steps (tests, code review, security), the parsing of the Grade Report, and the updating of the roadmap status.** The workflow is now largely autonomous, initiated by a single CLI command. **Phase 1.7 Task 1 (`task_1_7_1`) is now complete, adding the `dev_run.py` script to automate the Docker service restart and CLI call.**
+**Note:** This document describes the "Markdown-Only Automation" workflow as it functions *after* the successful completion of Phase 1.5 Stage 3 and the implementation of Phase 1.6. **Phase 1.5 Stage 3 is now complete, achieving a fully automated Driver LLM loop for task selection, planning, agent invocation, and file management.** **Phase 1.6 is now complete, automating the initial prompt submission via CLI/API, the execution of validation steps (tests, code review, security), the parsing of the Grade Report, and the updating of the roadmap status.** The workflow is now largely autonomous, initiated by a single CLI command. **Phase 1.7 is now complete, adding automated remediation attempts for common validation failures (tests, code style, ethical transparency).** **Phase 1.7 Task 1 (`task_1_7_1`) is now complete, adding the `dev_run.py` script to automate the Docker service restart and CLI call.**
 
 This document describes the "Markdown-Only Automation" workflow for developing the Metamorphic Genesis Ecosystem, leveraging a dual-LLM architecture. This workflow uses specially crafted prompts and augmented `.md` documentation files (ROADMAP.md, CONTRIBUTING.md) to guide an orchestrator (Driver LLM) to autonomously drive development tasks, relying on a secondary model (Coder LLM) to generate code snippets. It enforces a strong emphasis on user oversight and security.
 
-## Overview of the Workflow (Post-Phase 1.6)
+## Overview of the Workflow (Post-Phase 1.7)
 
-The "Markdown-Only Automation" workflow, as implemented through Phase 1.5 and Phase 1.6, enables a **Driver LLM** to autonomously drive development tasks from initiation through validation and roadmap update. The workflow steps executed autonomously by the Driver LLM **(orchestrated via the `/genesis/drive_workflow` API endpoint, triggered by the CLI)** are:
+The "Markdown-Only Automation" workflow, as implemented through Phase 1.5, Phase 1.6, and Phase 1.7, enables a **Driver LLM** to autonomously drive development tasks from initiation through validation, automated remediation attempts, and roadmap update. The workflow steps executed autonomously by the Driver LLM **(orchestrated via the `/genesis/drive_workflow` API endpoint, triggered by the CLI)** are:
 
 1.  **Identify and select the next development task** from the project's `ROADMAP.json` file **(loaded using the path provided to the API endpoint)**. The `ROADMAP.md` file is now automatically generated *from* `ROADMAP.json`.
 2.  Generate a high-level solution plan for the selected task.
@@ -34,11 +34,12 @@ The "Markdown-Only Automation" workflow, as implemented through Phase 1.5 and Ph
 10. Automatically execute validation steps: The Driver automatically triggers execution of tests (e.g., `pytest`), code review (`CodeReviewAgent`), and security checks (`SecurityAgent`) on the generated/modified code artifacts. It captures the raw output and return code.
 11. Perform a self-assessment and grade the proposed solution using the metrics and guidelines defined in the "Iterative Grading Process" section of CONTRIBUTING.md and the "LLM INSTRUCTION: CONTRIBUTION REVIEW GUIDANCE" block in CONTRIBUTING.md. Generate a structured "Grade Report" in JSON format, including results from the automated validation steps.
 12. Automatically parse the Grade Report and determine the outcome: The Driver parses the JSON Grade Report and evaluates the results (e.g., test pass rate, severity of issues, overall grade). Based on predefined criteria, it determines if the task iteration was successful, requires regeneration, or needs manual intervention.
-13. Automatically update the task status in `ROADMAP.json`: Based on the outcome determined in the previous step, the Driver updates the status of the current task in `ROADMAP.json` (e.g., sets status to "Completed" if successful, "Blocked" if critical issues found).
+13. **Automated Remediation Attempts:** If the Grade Report evaluation recommends 'Regenerate Code' due to specific validation failures (e.g., test failures, code style violations, ethical transparency issues), the Driver will attempt to formulate a targeted feedback prompt for the Coder LLM, apply the suggested fix, and re-run validation. This is attempted up to a predefined limit per task iteration before the task is marked for manual review or blocked.
+14. Automatically update the task status in `ROADMAP.json`: Based on the outcome determined in the previous step (after any remediation attempts), the Driver updates the status of the current task in `ROADMAP.json` (e.g., sets status to "Completed" if successful, "Blocked" if critical issues found).
 
-**Primary Remaining Manual Step:** The user must initiate the workflow by running the `dev_run.py` script and review the outputs and logs after the autonomous iteration is complete.
+**Primary Remaining Manual Step:** The user must initiate the workflow by running the `dev_run.py` script and review the outputs and logs after the autonomous iteration (including any automated remediation attempts) is complete.
 
-14. Output the following in markdown format:
+15. Output the following in markdown format:
 
     *   The selected task name and description.
     *   The complete high-level solution plan.
@@ -64,9 +65,9 @@ The "Markdown-Only Automation" workflow, as implemented through Phase 1.5 and Ph
 
         **Your response MUST begin with one of the letters above (A, B, C, or D) followed by a colon and a space, then your message.** For example: "B: Task marked as Blocked..."
 
-## Quickstart Steps (Post-Phase 1.6)
+## Quickstart Steps (Post-Phase 1.7)
 
-This section provides a quick guide to initiating and interacting with the automated workflow after Phase 1.6 completion. **With the completion of Phase 1.7 Task 1 (`task_1_7_1`), the recommended way to initiate the workflow is now using the `dev_run.py` script.**
+This section provides a quick guide to initiating and interacting with the automated workflow after Phase 1.7 completion. **With the completion of Phase 1.7 Task 1 (`task_1_7_1`), the recommended way to initiate the workflow is now using the `dev_run.py` script.**
 
 1.  **Ensure Docker Desktop is running** and the `metamorphic-core` service is available. The `dev_run.py` script will attempt to restart the service.
 2.  **Ensure the API server is running:** Open a terminal in the project root and run `python src/api/server.py`. Keep this terminal open.
@@ -84,17 +85,18 @@ This section provides a quick guide to initiating and interacting with the autom
     *   File operations (`INFO - Attempting to write...`, `INFO - Successfully wrote...`)
     *   Validation execution (`INFO - Running code review...`, `INFO - Running ethical analysis...`, `INFO - Executing command: pytest...`)
     *   Validation results (`INFO - Code Review and Security Scan Results...`, `INFO - Ethical Analysis Results...`, `INFO - Test Execution Results...`)
+    *   **Automated Remediation Attempts:** Logs indicating remediation attempts (`INFO - Attempting automated remediation...`, `INFO - LLM provided corrected code...`, `INFO - Re-running code review...`, etc.)
     *   The full JSON Grade Report (`--- GRADE REPORT for Task ... ---`)
     *   The Grade Report Evaluation and Recommended Action (`INFO - Grade Report Evaluation: Recommended Action=...`)
     *   Roadmap status updates (`INFO - Updating task status...`, `INFO - Successfully updated status...`)
 6.  **Review Outputs:**
     *   Check the `ROADMAP.json` file to see the updated status of the task the Driver worked on.
-    *   Review any code files that were generated or modified during the iteration.
+    *   Review any code files that were generated or modified during the iteration (including remediation attempts).
     *   Carefully read the Grade Report and the evaluation logs in the API server terminal.
 7.  **Intervene if Necessary:**
     *   If the task status was updated to `"Completed"`, you can move on to the next task (by running `python dev_run.py` again) or manually review the changes before committing.
-    *   If the task status was updated to `"Blocked"` or the evaluation recommended `"Manual Review Required"`, you must manually investigate the logs and generated code to understand why the autonomous process failed. You may need to fix code, update policies, refine the task description in `ROADMAP.json`, or manually complete parts of the task before running `python dev_run.py` again.
-    *   If the evaluation recommended `"Regenerate Code"`, you can typically just run `python dev_run.py` again, and the Driver will attempt the task again, potentially using the feedback implicitly.
+    *   If the task status was updated to `"Blocked"` or the evaluation recommended `"Manual Review Required"`, you must manually investigate the logs and generated code to understand why the autonomous process failed (including why automated remediation attempts failed). You may need to fix code, update policies, refine the task description in `ROADMAP.json`, or manually complete parts of the task before running `python dev_run.py` again.
+    *   If the evaluation recommended `"Regenerate Code"`, the Driver should have attempted automated remediation. If attempts are exhausted or remediation failed, manual review is required. If attempts are not exhausted, running `python dev_run.py` again will trigger another attempt by the Driver.
 
 This process allows for rapid iteration while maintaining human oversight and control over critical decisions and complex failures.
 

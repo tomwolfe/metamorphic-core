@@ -14,7 +14,7 @@ The **Metamorphic Software Genesis Ecosystem (MSGES)** is an advanced AI framewo
 ### ✨ Key Features  
 - **Autonomous Code Generation**: Build applications from natural language specs.  
 - **Ethical Governance**: Enforce customizable policies for bias mitigation, transparency, and compliance.  
-- **Automated Validation**: Integrated testing, security scans (OWASP ZAP), and code reviews.  
+- **Automated Validation & Remediation**: Integrated testing, security scans (OWASP ZAP), and code reviews, with automated self-correction attempts for common failures.  
 - **Knowledge Graph Integration**: Neo4j-powered context management for smarter code generation.  
 - **Self-Improving Workflows**: Learn from feedback, metrics, and past iterations to optimize processes.  
 
@@ -82,7 +82,7 @@ curl -X POST http://127.0.0.1:5000/genesis/analyze-ethical \
 
 ---
 
-## 🔄 Automated Workflow (Post-Phase 1.6)  
+## 🔄 Automated Workflow (Post-Phase 1.7)  
 The primary way to run the automated development workflow is now using the `dev_run.py` helper script. This script handles restarting the necessary Docker services (like `metamorphic-core`) and then calling the main CLI entry point to initiate the autonomous loop.
 
 1.  **Ensure the API server is running:** While `dev_run.py` attempts to restart the `metamorphic-core` service, it's good practice to ensure Docker is running and the service is available.
@@ -116,8 +116,7 @@ The primary way to run the automated development workflow is now using the `dev_
 ---
 
 ## 📈 Roadmap & Progress  
-**Phase 1.6 Completed**: End-to-end workflow automation (CLI/API initiation → validation → roadmap updates).  
-**Current Focus**: Phase 1.7 (Resilient Workflow & Automated Remediation).  
+**Phase 1.7 IN PROGRESS**: Resilient Workflow & Automated Remediation (Automated remediation for tests, code style, ethics; dependency scheduling).  
 See the full roadmap in [`ROADMAP.md`](ROADMAP.md).  
 
 ---
@@ -151,5 +150,5 @@ For questions or collaboration, open an issue on GitHub or email [tomwolfe@gmail
 
 ---
 
-## ⚠️ Disclaimer  
+## ⚠️ Disclaimer
 This is an experimental project. Generated code may contain bugs, vulnerabilities, or ethical issues. Always verify outputs before deployment. Features and APIs may change frequently.  

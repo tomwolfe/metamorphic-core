@@ -1,9 +1,9 @@
 # 🌟 Metamorphic Software Genesis Ecosystem  
 [![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)  
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)  
-[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1.7_IN_PROGRESS-yellowgreen)](ROADMAP.md)  
+[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_2_Iteration_2-yellowgreen)](ROADMAP.md)  
 
-**🎯 CURRENT FOCUS: Phase 1.7 - Resilient Workflow & Automated Remediation 🛠️**  
+**🎯 CURRENT FOCUS: Phase 2 Iteration 2 - Enhanced Agents & Knowledge Graph 🧠**  
 *Revolutionizing AI-Driven Software Development Through Autonomy, Ethics, and Self-Improvement*
 
 ---
@@ -116,7 +116,9 @@ The primary way to run the automated development workflow is now using the `dev_
 ---
 
 ## 📈 Roadmap & Progress  
-**Phase 1.7 IN PROGRESS**: Resilient Workflow & Automated Remediation (Automated remediation for tests, code style, ethics; dependency scheduling).  
+**Phase 1.7 COMPLETED**: Resilient Workflow & Automated Remediation (Automated remediation for tests, code style, ethics; dependency scheduling).
+
+**Phase 2 Iteration 2 IN PROGRESS**: Enhanced Agents & Knowledge Graph (Advanced AI planning, RL for agent optimization, deeper KG integration).  
 See the full roadmap in [`ROADMAP.md`](ROADMAP.md).  
 
 ---

@@ -1,86 +1,142 @@
 {
-  "phase": "Phase 1.7: Resilient Workflow & Automated Remediation",
-  "phase_goal": "Enhance workflow autonomy with dependency awareness and automated self-correction for common validation failures",
+  "phase": "Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph",
+  "phase_goal": "Advance agent intelligence and leverage the Knowledge Graph for deeper context and improved workflow execution",
   "success_metrics": [
-    "Workflow driver successfully loads and respects task dependencies defined in ROADMAP.json, including skipping tasks with 'Blocked' dependencies.",
-    "Driver correctly implements dependency-aware task selection logic.",
-    "Driver attempts automated remediation for Code Style violations by parsing Grade Report feedback (e.g., specific linting errors), formulating a targeted feedback prompt for the Coder LLM, re-prompting with code and feedback, and re-running validation (max 2 attempts).",
-    "Driver attempts automated remediation for Ethical (TransparencyScore) violations by parsing Grade Report feedback, formulating a targeted feedback prompt for the Coder LLM with code and feedback, re-prompting with code and feedback, and re-running validation (max 2 attempts).",
-    "Driver attempts automated remediation for Test failures by parsing test output/Grade Report (e.g., tracebacks, failure messages), formulating a targeted feedback prompt for the Coder LLM with test failure details, re-prompt Coder LLM (or invoking Debug Agent if task_2_2_6 is completed), and re-running tests (max 2 attempts).",
-    "Phase 1.7 tests achieve >= 90% code coverage for new logic.",
-    "A dedicated development script exists that automates the Docker Compose service restart and then calls the main CLI."
+    "Knowledge Graph schema is defined and implemented for core code artifacts and relationships.",
+    "Code generation and analysis agents successfully store and retrieve relevant context from the KG.",
+    "Semantic search functionality within the KG is operational.",
+    "The Workflow Driver utilizes KG context during task planning and agent prompting.",
+    "The planning agent demonstrates improved task decomposition using KG information.",
+    "A basic AI-driven debugging agent is implemented and can suggest fixes for simple errors.",
+    "The automated remediation loop can optionally invoke the Debug Agent for test failures (if implemented).",
+    "A basic framework for reinforcement learning is established.",
+    "Initial RL application demonstrates measurable improvement in at least one agent's performance (e.g., Coder Agent prompt effectiveness).",
+    "Phase 2 Iteration 2 tests achieve >= 90% code coverage for new logic."
   ],
   "tasks": [
     {
-      "task_id": "task_1_7_1",
-      "priority": "High",
-      "task_name": "Add Dev Script for Automated Workflow Initiation",
-      "description": "Create a Python script (e.g., dev_run.py) in the project root that executes `docker-compose restart metamorphic-core` and then calls `python src/cli/main.py` with appropriate arguments. This automates the setup step for developers.",
-      "status": "Completed",
-      "target_file": "dev_run.py",
-      "depends_on": []
-    },
-    {
-      "task_id": "task_1_7_2",
+      "task_id": "task_2_2_1",
       "priority": "Critical",
-      "task_name": "Add Dependency Tracking to Roadmap Schema & Loader",
-      "description": "Modify ROADMAP.json schema validation and WorkflowDriver.load_roadmap to support an optional 'depends_on' field (list of task_ids). Update schema validation to enforce format.",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": []
-    },
-    {
-      "task_id": "task_1_7_3",
-      "priority": "Critical",
-      "task_name": "Implement Dependency-Aware Task Selection",
-      "description": "Modify WorkflowDriver.select_next_task to only choose 'Not Started' tasks whose 'depends_on' tasks are all marked as 'Completed' in the current roadmap state. Tasks with 'Blocked' dependencies should be skipped.",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_7_2"
-      ]
-    },
-    {
-      "task_id": "task_1_7_4",
-      "priority": "High",
-      "task_name": "Implement Automated Code Style/Ethical Remediation",
-      "description": "Add logic to WorkflowDriver's post-validation step to analyze Grade Report. If Code Style or Ethical (TransparencyScore) violations are found, parse specific feedback (e.g., specific linting errors), formulate a targeted feedback prompt for the Coder LLM, re-prompting with code and feedback, and re-running validation for the modified file. Limit to a maximum of 2 automated remediation attempts per task iteration.",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_7_3"
-      ]
-    },
-    {
-      "task_id": "task_1_7_5",
-      "priority": "High",
-      "task_name": "Implement Automated Test Failure Remediation",
-      "description": "Add logic to WorkflowDriver's post-validation step. If tests fail, capture test output (stderr, tracebacks), parse relevant details, formulate a targeted feedback prompt for the Coder LLM with test failure details, re-prompt Coder LLM (or invoking Debug Agent if task_2_2_6 is completed) to generate a fix, then re-run tests. Limit to a maximum of 2 automated remediation attempts per task iteration.",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_7_3",
-        "task_1_7_4"
-      ]
-    },
-    {
-      "task_id": "task_1_7_6",
-      "priority": "High",
-      "task_name": "Add Comprehensive Tests for Phase 1.7 Workflow",
-      "description": "Write comprehensive unit/integration tests covering the new dependency scheduling and automated remediation loops implemented in Phase 1.7.",
+      "task_name": "Define & Implement KG Schema for Code Artifacts",
+      "description": "Define a comprehensive schema for the Knowledge Graph to represent code chunks, functions, classes, modules, dependencies, and relationships (e.g., 'calls', 'imports', 'defines', 'tests'). Implement the initial data model.",
       "status": "Not Started",
-      "target_file": "tests/test_phase1_7_workflow.py",
+      "target_file": "src/core/knowledge_graph.py",
+      "depends_on": []
+    },
+    {
+      "task_id": "task_2_2_2",
+      "priority": "High",
+      "task_name": "Integrate KG Storage in Agents & Driver",
+      "description": "Modify relevant agents (e.g., SpecificationAnalysisAgent, CodeReviewAgent) and the WorkflowDriver to store generated/analyzed code artifacts and their metadata in the Knowledge Graph according to the defined schema.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_7_2",
-        "task_1_7_3",
-        "task_1_7_4",
-        "task_1_7_5"
+        "task_2_2_1"
+      ]
+    },
+    {
+      "task_id": "task_2_2_3",
+      "priority": "High",
+      "task_name": "Implement Semantic Search in KG",
+      "description": "Add functionality to the Knowledge Graph module to perform semantic search and retrieve relevant nodes and relationships based on natural language queries or code snippets.",
+      "status": "Not Started",
+      "target_file": "src/core/knowledge_graph.py",
+      "depends_on": [
+        "task_2_2_1"
+      ]
+    },
+    {
+      "task_id": "task_2_2_4",
+      "priority": "Critical",
+      "task_name": "Update Driver to Use KG for Context Retrieval",
+      "description": "Modify the WorkflowDriver and LLM Orchestration layer to query the Knowledge Graph using semantic search to retrieve relevant context (e.g., related code, previous analysis results, relevant policies) before generating prompts for agents.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_2_2_2",
+        "task_2_2_3"
+      ]
+    },
+    {
+      "task_id": "task_2_2_5",
+      "priority": "High",
+      "task_name": "Enhance Planning Agent with KG Context",
+      "description": "Refine the planning capabilities (currently within WorkflowDriver) to leverage the Knowledge Graph for more intelligent task decomposition, dependency identification, and risk assessment during plan generation.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_2_2_4"
+      ]
+    },
+    {
+      "task_id": "task_2_2_6",
+      "priority": "Medium",
+      "task_name": "Implement Basic AI-Driven Debugging Agent",
+      "description": "Create a new agent (`DebuggingAgent`) that can analyze error messages (e.g., tracebacks from test failures) and suggest potential code fixes using an LLM.",
+      "status": "Not Started",
+      "target_file": "src/core/agents/debugging_agent.py",
+      "depends_on": [
+        "task_2_2_4"
+      ]
+    },
+    {
+      "task_id": "task_2_2_7",
+      "priority": "High",
+      "task_name": "Integrate Debugging Agent into Remediation Loop",
+      "description": "Modify the WorkflowDriver's automated test failure remediation logic (implemented in task_1_7_5) to optionally invoke the DebuggingAgent (task_2_2_6) to get fix suggestions before re-prompting the Coder LLM.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_7_5",
+        "task_2_2_6"
+      ]
+    },
+    {
+      "task_id": "task_2_2_8",
+      "priority": "Medium",
+      "task_name": "Establish Basic Reinforcement Learning Framework",
+      "description": "Set up a basic framework for applying reinforcement learning to agent optimization, potentially starting with a simple reward signal based on validation results.",
+      "status": "Not Started",
+      "target_file": "src/core/learning/rl_framework.py",
+      "depends_on": [
+        "task_2_2_2"
+      ]
+    },
+    {
+      "task_id": "task_2_2_9",
+      "priority": "Low",
+      "task_name": "Apply RL to Optimize Coder Agent Prompts",
+      "description": "Implement a basic RL loop to optimize the prompts generated by the WorkflowDriver for the Coder LLM, using validation results (e.g., grade report scores) as the reward signal.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_2_2_8",
+        "task_2_2_4"
+      ]
+    },
+    {
+      "task_id": "task_2_2_10",
+      "priority": "High",
+      "task_name": "Add Comprehensive Tests for Phase 2.2 Features",
+      "description": "Write comprehensive unit/integration tests covering the new KG integration, semantic search, enhanced planning, DebuggingAgent, RL framework, and their integration into the workflow.",
+      "status": "Not Started",
+      "target_file": "tests/test_phase2_2_features.py",
+      "depends_on": [
+        "task_2_2_1",
+        "task_2_2_2",
+        "task_2_2_3",
+        "task_2_2_4",
+        "task_2_2_5",
+        "task_2_2_6",
+        "task_2_2_7",
+        "task_2_2_8",
+        "task_2_2_9"
       ]
     }
   ],
   "next_phase_actions": [
-    "Set `status`: `Completed` on all Phase 1.7 tasks.",
-    "Update the `phase`, `phase_goal`, and `current_focus` fields to 'Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph'."
+    "Set `status`: `Completed` on all Phase 2 Iteration 2 tasks.",
+    "Update the `phase`, `phase_goal`, and `current_focus` fields to 'Phase 3: Cyber-Physical Systems Focus'."
   ],
-  "current_focus": "🎯 CURRENT FOCUS: Phase 1.7 - Resilient Workflow & Automated Remediation 🛠️"
+  "current_focus": "🎯 CURRENT FOCUS: Phase 2 Iteration 2 - Enhanced Agents & Knowledge Graph 🧠"
 }

@@ -1,7 +1,7 @@
 **Metamorphic Software Genesis Ecosystem - Phase 1 MVP Internal Release (v0.1.0-internal-mvp) - QUICK START GUIDE**
 
-**Roadmap Update - Phase 1.7 Focus:** <--- UPDATED SECTION HEADING
-Following the internal MVP release and the successful completion of **Phase 1.5: Workflow Automation Side Project** and **Phase 1.6: Enhanced Workflow Automation**, we are now transitioning into the next phase, **Phase 1.7: Resilient Workflow & Automated Remediation**. See [ROADMAP.md](ROADMAP.md) for the updated roadmap and details on Phase 1.7.
+**Roadmap Update - Phase 2 Iteration 2 Focus:** <--- UPDATED SECTION HEADING
+Following the internal MVP release and the successful completion of **Phase 1.5: Workflow Automation Side Project**, **Phase 1.6: Enhanced Workflow Automation**, and **Phase 1.7: Resilient Workflow & Automated Remediation**, we are now transitioning into the next phase, **Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph**. See [ROADMAP.md](ROADMAP.md) for the updated roadmap and details on Phase 2 Iteration 2.
 
 **Key Features (MVP Highlights):**
 
@@ -54,11 +54,6 @@ Following the internal MVP release and the successful completion of **Phase 1.5:
         ```
     *   Examine `"code_quality"` and `"ethical_analysis"` sections in the API response.
     *   (Optional) Test different policies by specifying `"policy_name"` in the request body.
-
-**Provide Feedback:**
-
-*   **Method:** [Specify Feedback Method - e.g., create issues in GitHub, post in #metamorphic-core-internal Slack channel]
-*   **Include:** Steps to reproduce issues, code snippets/API requests, screenshots (if helpful), suggestions for improvement.
 
 **Important Notes:**
 

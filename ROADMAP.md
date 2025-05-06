@@ -4,63 +4,87 @@
 
 **NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**
 
-*   **Task ID**: task_2_2_1
+*   **Task ID**: task_1_8_1
     *   **Priority**: Critical
-    *   **Task Name**: Define & Implement KG Schema for Code Artifacts
+    *   **Task Name**: Enhance Plan Step Identification
     *   **Status**: Not Started
     *   **Depends On**: []
 
-*   **Task ID**: task_2_2_2
-    *   **Priority**: High
-    *   **Task Name**: Integrate KG Storage in Agents & Driver
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_2_2_1']
-
-*   **Task ID**: task_2_2_3
-    *   **Priority**: High
-    *   **Task Name**: Implement Semantic Search in KG
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_2_2_1']
-
-*   **Task ID**: task_2_2_4
+*   **Task ID**: task_1_8_2
     *   **Priority**: Critical
-    *   **Task Name**: Update Driver to Use KG for Context Retrieval
+    *   **Task Name**: Implement Pre-Write Validation per Step
     *   **Status**: Not Started
-    *   **Depends On**: ['task_2_2_2', 'task_2_2_3']
+    *   **Depends On**: ['task_1_8_1']
 
-*   **Task ID**: task_2_2_5
+*   **Task ID**: task_1_8_3
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Step-Level Remediation Loop
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2']
+
+*   **Task ID**: task_1_8_4
+    *   **Priority**: Critical
+    *   **Task Name**: Ensure Post-Write, Step-Level Test Execution
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_3']
+
+*   **Task ID**: task_1_8_5
     *   **Priority**: High
-    *   **Task Name**: Enhance Planning Agent with KG Context
+    *   **Task Name**: Improve Remediation Strategy & Targeted Feedback
     *   **Status**: Not Started
-    *   **Depends On**: ['task_2_2_4']
+    *   **Depends On**: ['task_1_8_3', 'task_1_8_4']
 
-*   **Task ID**: task_2_2_6
+*   **Task ID**: task_1_8_6
+    *   **Priority**: High
+    *   **Task Name**: Implement Learning from Failures (Data Capture)
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_5']
+
+*   **Task ID**: task_1_8_7
     *   **Priority**: Medium
-    *   **Task Name**: Implement Basic AI-Driven Debugging Agent
+    *   **Task Name**: Implement Automated Task Decomposition
     *   **Status**: Not Started
-    *   **Depends On**: ['task_2_2_4']
+    *   **Depends On**: ['task_1_8_1', 'task_1_8_6']
 
-*   **Task ID**: task_2_2_7
-    *   **Priority**: High
-    *   **Task Name**: Integrate Debugging Agent into Remediation Loop
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_7_5', 'task_2_2_6']
-
-*   **Task ID**: task_2_2_8
+*   **Task ID**: task_1_8_8
     *   **Priority**: Medium
-    *   **Task Name**: Establish Basic Reinforcement Learning Framework
+    *   **Task Name**: Implement Targeted Test Generation for Steps
     *   **Status**: Not Started
-    *   **Depends On**: ['task_2_2_2']
+    *   **Depends On**: ['task_1_8_4']
 
-*   **Task ID**: task_2_2_9
-    *   **Priority**: Low
-    *   **Task Name**: Apply RL to Optimize Coder Agent Prompts
+*   **Task ID**: task_1_8_9
+    *   **Priority**: Medium
+    *   **Task Name**: Refine Grade Report & Error Logging
     *   **Status**: Not Started
-    *   **Depends On**: ['task_2_2_8', 'task_2_2_4']
+    *   **Depends On**: ['task_1_8_6']
 
-*   **Task ID**: task_2_2_10
+*   **Task ID**: task_1_8_10
     *   **Priority**: High
-    *   **Task Name**: Add Comprehensive Tests for Phase 2.2 Features
+    *   **Task Name**: Implement Advanced Code Merging
     *   **Status**: Not Started
-    *   **Depends On**: ['task_2_2_1', 'task_2_2_2', 'task_2_2_3', 'task_2_2_4', 'task_2_2_5', 'task_2_2_6', 'task_2_2_7', 'task_2_2_8', 'task_2_2_9']
+    *   **Depends On**: ['task_1_8_3']
+
+*   **Task ID**: task_1_8_11
+    *   **Priority**: High
+    *   **Task Name**: Implement Prompt Self-Correction Mechanism
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_3', 'task_1_8_5']
+
+*   **Task ID**: task_1_8_12
+    *   **Priority**: Medium
+    *   **Task Name**: Implement Targeted Test Generation for Steps
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_4']
+
+*   **Task ID**: task_1_8_13
+    *   **Priority**: Medium
+    *   **Task Name**: Implement Task Success Prediction
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_5']
+
+*   **Task ID**: task_1_8_14
+    *   **Priority**: High
+    *   **Task Name**: Add Comprehensive Tests for Phase 1.8 Features
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_1', 'task_1_8_2', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_6', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12', 'task_1_8_13']
 

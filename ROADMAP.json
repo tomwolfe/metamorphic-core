@@ -114,14 +114,14 @@
        "depends_on": ["task_1_8_3", "task_1_8_5"]
      },
      {
-       "task_id": "task_1_8_12",
-       "priority": "Improved Error Diagnosis",
-       "task_name": "Implement Targeted Test Generation",
-       "description": "For code modification steps, attempt to generate simple, targeted tests for the specific code snippet or function being modified, in addition to running existing tests. (Estimated Development Time: 8-12 days)",
-       "status": "Not Started",
-       "target_file": "src/core/agents/test_generator.py",
-       "depends_on": ["task_1_8_4", "task_2_2_4"] // Depends on KG context retrieval
-     },
+      "task_id": "task_1_8_12",
+      "priority": "Medium",
+      "task_name": "Implement Targeted Test Generation for Steps",
+      "description": "For code modification steps, attempt to generate simple, targeted tests for the specific code snippet or function being modified, in addition to running existing tests. (Estimated Development Time: 8-12 days)",
+      "status": "Not Started",
+      "target_file": "src/core/agents/test_generator.py",
+      "depends_on": ["task_1_8_4"]
+    },
       {
        "task_id": "task_1_8_13",
        "priority": "Medium",
@@ -140,7 +140,8 @@
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_1", "task_1_8_2", "task_1_8_3", "task_1_8_4", "task_1_8_5", "task_1_8_6",
-        "task_1_8_7", "task_1_8_8", "task_1_8_9", "task_1_8_10", "task_1_8_11", "task_1_8_12"
+        "task_1_8_7", "task_1_8_8", "task_1_8_9", "task_1_8_10", "task_1_8_11", "task_1_8_12",
+		"task_1_8_13"
       ]
     }
   ],

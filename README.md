@@ -1,9 +1,9 @@
 # 🌟 Metamorphic Software Genesis Ecosystem  
 [![CI Status](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tomwolfe/metamorphic-core/actions/workflows/ci.yml)  
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)  
-[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_2_Iteration_2-yellowgreen)](ROADMAP.md)  
+[![Roadmap Status](https://img.shields.io/badge/Roadmap-Phase_1_8-yellowgreen)](ROADMAP.md)  
 
-**🎯 CURRENT FOCUS: Phase 2 Iteration 2 - Enhanced Agents & Knowledge Graph 🧠**  
+**🎯 CURRENT FOCUS: Phase 1.8 - Hardened Autonomous Loop & Advanced Remediation 🛠️**  
 *Revolutionizing AI-Driven Software Development Through Autonomy, Ethics, and Self-Improvement*
 
 ---

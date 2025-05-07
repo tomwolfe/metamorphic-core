@@ -30,61 +30,55 @@
 
 *   **Task ID**: task_1_8_5
     *   **Priority**: High
-    *   **Task Name**: Improve Remediation Strategy & Targeted Feedback
+    *   **Task Name**: Implement Learning from Failures (Data Capture)
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_3', 'task_1_8_4']
+    *   **Depends On**: ['task_1_8_4']
 
 *   **Task ID**: task_1_8_6
     *   **Priority**: High
-    *   **Task Name**: Implement Learning from Failures (Data Capture)
+    *   **Task Name**: Improve Remediation Strategy & Targeted Feedback
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_5']
+    *   **Depends On**: ['task_1_8_3', 'task_1_8_4', 'task_1_8_5']
 
 *   **Task ID**: task_1_8_7
     *   **Priority**: Medium
     *   **Task Name**: Implement Automated Task Decomposition
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1', 'task_1_8_6']
+    *   **Depends On**: ['task_1_8_1', 'task_1_8_5']
 
 *   **Task ID**: task_1_8_8
     *   **Priority**: Medium
-    *   **Task Name**: Implement Targeted Test Generation for Steps
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_4']
-
-*   **Task ID**: task_1_8_9
-    *   **Priority**: Medium
     *   **Task Name**: Refine Grade Report & Error Logging
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_6']
+    *   **Depends On**: ['task_1_8_5']
 
-*   **Task ID**: task_1_8_10
+*   **Task ID**: task_1_8_9
     *   **Priority**: High
     *   **Task Name**: Implement Advanced Code Merging
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_3']
 
-*   **Task ID**: task_1_8_11
+*   **Task ID**: task_1_8_10
     *   **Priority**: High
     *   **Task Name**: Implement Prompt Self-Correction Mechanism
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_3', 'task_1_8_5']
+    *   **Depends On**: ['task_1_8_3', 'task_1_8_5', 'task_1_8_6']
+
+*   **Task ID**: task_1_8_11
+    *   **Priority**: High
+    *   **Task Name**: Improve Coder LLM Prompt Generation Logic
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_5', 'task_1_8_10']
 
 *   **Task ID**: task_1_8_12
-    *   **Priority**: Medium
-    *   **Task Name**: Implement Targeted Test Generation for Steps
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_4']
-
-*   **Task ID**: task_1_8_13
     *   **Priority**: Medium
     *   **Task Name**: Implement Task Success Prediction
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_5']
 
-*   **Task ID**: task_1_8_14
+*   **Task ID**: task_1_8_13
     *   **Priority**: High
     *   **Task Name**: Add Comprehensive Tests for Phase 1.8 Features
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1', 'task_1_8_2', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_6', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12', 'task_1_8_13']
+    *   **Depends On**: ['task_1_8_1', 'task_1_8_2', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_6', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
 

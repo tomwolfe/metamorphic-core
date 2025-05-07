@@ -61,13 +61,14 @@ We enthusiastically welcome contributions to the Metamorphic Software Genesis Ec
     *   The Metamorphic Ecosystem development workflow is now largely automated via the Driver LLM. **With the completion of Phase 1.6, you initiate the process via the CLI (`python src/cli/main.py`), and the Driver autonomously selects tasks from `ROADMAP.json`, generates plans, invokes agents (including the Coder LLM for code generation), writes files, runs validation (tests, code review, security), generates a Grade Report, parses and evaluates it, and updates the roadmap status.**
     *   **With the completion of Phase 1.7, the Driver now attempts automated remediation for common validation failures (such as test failures, code style violations, and ethical transparency issues) based on the Grade Report feedback. You will need to manually address issues that automated remediation cannot fix, complex errors, design decisions, or tasks marked as "Blocked".**
     *   **With the completion of Phase 1.7 Task 1 (`task_1_7_1`), the recommended way to initiate this automated workflow is now using the `dev_run.py` script.** This script handles restarting the necessary Docker services and calling the main CLI.
+    *   **With the completion of Phase 1.8, the autonomous loop is significantly hardened.** The Driver now performs **pre-write validation** on generated code snippets, attempts **step-level retries** if validation fails, ensures **post-write test execution** for code modification steps, and utilizes **advanced remediation strategies** based on detailed failure analysis and learning. The system logs provide more detailed information on remediation attempts and outcomes.
     *   Your role involves:
         *   Ensuring Docker Desktop is running and the `metamorphic-core` service is available.
         *   **Initiating the workflow by running the `dev_run.py` script (`python dev_run.py`).**
         *   Monitoring the API server logs for progress, the full Grade Report, and the evaluation outcome (recommended action).
         *   Review the generated/modified code and the results of the automated validation steps as detailed in the logs/report.
         *   Check the updated `ROADMAP.json` status for the task.
-        *   Manually addressing any issues that the Driver cannot resolve autonomously (e.g., complex errors, design decisions, tasks marked as "Blocked").
+        *   Manually addressing any issues that the Driver cannot resolve autonomously (e.g., complex errors, design decisions, tasks marked as "Blocked" after exhausting remediation attempts).
         *   Refining task descriptions in `ROADMAP.json` or providing manual fixes based on the Grade Report feedback before initiating the workflow again for the same task (if it wasn't marked "Completed").
     *   You no longer need to manually copy and paste code blocks between the Driver and Coder LLMs or manually run tests/linters for every iteration – these steps are automated.
 

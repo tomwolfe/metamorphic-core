@@ -1,4 +1,3 @@
-=== SPECIFICATION.md ===
 # Full High-Level Specification (Detailed Vision)
 
 ## Phase 1.8 Focused Specification Summary <a name="phase-1-8-focused-specification-summary"></a>

@@ -395,6 +395,7 @@ class TestWorkflowDriver:
     # FIX: Provide 3 return values for load_roadmap side_effect
     # FIX: Correct assertion for select_next_task call argument
     # FIX: Update assertion for "EXISTING CONTENT OF" block to include trailing newline
+    # FIX: Correct argument order in signature
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True")
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement logic in incorrect/file_from_step.py"]) # Step mentions a different file
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
@@ -415,7 +416,23 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 100}, "validation_results": {}})) # Mock report generation
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed", "justification": "Mock evaluation"}) # Mock report evaluation
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True) # Mock roadmap write
-    def test_autonomous_loop_prioritizes_target_file(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_parse_test_results, mock_execute_tests, mock_write_output_file, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog, tmp_path, mocker):
+    @patch('builtins.open', new_callable=MagicMock)
+    def test_autonomous_loop_prioritizes_target_file(self,
+                                                    mock_open,                     # Corresponds to @patch('builtins.open', ...)
+                                                    mock_safe_write_roadmap,       # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                    mock_parse_and_evaluate,       # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                    mock_generate_report,          # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                    mock_parse_test_results,       # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results')
+                                                    mock_execute_tests,            # Corresponds to @patch.object(WorkflowDriver, 'execute_tests')
+                                                    mock_write_output_file,        # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                    mock_get_full_path,            # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                    mock_merge_snippet,            # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                    mock_read_file_for_context,    # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                    mock_load_roadmap,             # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                    mock_select_next_task,         # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                    mock_generate_plan,            # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                    mock_invoke_coder_llm,         # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                    test_driver, caplog, tmp_path, mocker):
         """
         Test that autonomous_loop prioritizes the 'target_file' from the task
         over a filename mentioned in the plan step description.
@@ -435,7 +452,7 @@ class TestWorkflowDriver:
 
         # Mock the open call within autonomous_loop to simulate reading the roadmap before update
         original_roadmap_data = task_list_not_started
-        mock_open = mocker.patch('builtins.open', new_callable=mocker.mock_open, read_data=json.dumps({'tasks': original_roadmap_data}))
+        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
 
 
         driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
@@ -494,6 +511,8 @@ class TestWorkflowDriver:
     # FIX: Provide 3 return values for load_roadmap side_effect
     # FIX: Correct assertion for select_next_task call argument
     # FIX: Keep assertion for 'No tasks available...' log message
+    # FIX: Update the assertion for _write_output_file to expect overwrite=True
+    # FIX: Correct argument order in signature
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value=None)
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to error.txt", "Step 2: Another step."])
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
@@ -534,7 +553,8 @@ class TestWorkflowDriver:
         # Step 1 is file writing (non-code-gen), Step 2 is not file writing
         # Only Step 1 should call _write_output_file
         assert mock_write_output_file.call_count == 1 # Only called for Step 1
-        mock_write_output_file.assert_any_call("error.txt", ANY, overwrite=False)
+        # FIX: Assert overwrite=True based on the new code logic
+        mock_write_output_file.assert_any_call("error.txt", ANY, overwrite=True)
         assert "Failed to write file error.txt: Generic write error" in caplog.text
         assert caplog.text.count("Failed to write file error.txt: Generic write error") == 1
 
@@ -571,15 +591,30 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing content.")
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True")
     @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
+    @patch.object(WorkflowDriver, '_write_output_file', return_value=True)
     @patch.object(WorkflowDriver, 'execute_tests', return_value=(0, "Pytest output", ""))
     @patch.object(WorkflowDriver, '_parse_test_results', return_value={'status': 'passed', 'passed': 1, 'failed': 0, 'total': 1, 'message': 'Parsed successfully.'}) # Simulate parsed failure
-    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
-    @patch.object(WorkflowDriver, '_write_output_file', return_value=True)
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 100}, "validation_results": {}}))
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed", "justification": "Mock evaluation"})
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
-    # Changed fixture name from test_driver_validation to test_driver_reporting
-    def test_autonomous_loop_calls_reporting_and_persistence(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_parse_test_results, mock_execute_tests, mock_merge_snippet, mock_invoke_coder_llm, mock_read_file_for_context, mock_generate_plan, mock_select_next_task, mock_load_roadmap, test_driver, caplog, tmp_path, mocker):
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+    @patch('builtins.open', new_callable=MagicMock)
+    def test_autonomous_loop_calls_reporting_and_persistence(self,
+                                                            mock_open,                     # Corresponds to @patch('builtins.open', ...)
+                                                            mock_get_full_path,            # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                            mock_safe_write_roadmap,       # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                            mock_parse_and_evaluate,       # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                            mock_generate_report,          # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                            mock_parse_test_results,       # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results', ...)
+                                                            mock_execute_tests,            # Corresponds to @patch.object(WorkflowDriver, 'execute_tests', ...)
+                                                            mock_write_output_file,        # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                            mock_merge_snippet,            # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                            mock_invoke_coder_llm,         # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                            mock_read_file_for_context,    # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                            mock_generate_plan,            # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                            mock_select_next_task,         # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                            mock_load_roadmap,             # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                            test_driver, caplog, tmp_path, mocker):
         """
         Test that autonomous_loop calls generate_grade_report, _parse_and_evaluate_grade_report,
         and _safe_write_roadmap_json after completing plan steps.
@@ -595,11 +630,21 @@ class TestWorkflowDriver:
 
         driver.roadmap_path = "dummy_roadmap.json"
         task_list_not_started = [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Not Started', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}]
-        task_list_completed = [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Completed', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}]
+        
+        # This is what the code will actually write: original task with status updated
+        task_list_completed_expected_write = [{
+            'task_id': 'task_report_gen',
+            'task_name': 'Report Gen Test',
+            'status': 'Completed', # Status is updated
+            'description': 'Test report generation flow.', # Description from original task_list_not_started
+            'priority': 'High',
+            'target_file': 'src/feature.py'
+        }]
+
 
         # FIX: Mock the open call used within autonomous_loop to simulate reading the roadmap before update
         original_roadmap_data = task_list_not_started
-        mock_open = mocker.patch('builtins.open', new_callable=mocker.mock_open, read_data=json.dumps({'tasks': original_roadmap_data}))
+        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
 
         driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
@@ -635,7 +680,7 @@ class TestWorkflowDriver:
         mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, ANY)
         # Check the content passed to safe_write_roadmap
         written_data = mock_safe_write_roadmap.call_args[0][1]
-        assert written_data == {'tasks': task_list_completed}
+        assert written_data == {'tasks': task_list_completed_expected_write} # Use the corrected expected data
 
 
         assert "Generating Grade Report..." in caplog.text
@@ -668,14 +713,27 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True)
     @patch.object(WorkflowDriver, 'execute_tests', return_value=(0, "Pytest output", ""))
     @patch.object(WorkflowDriver, '_parse_test_results', return_value={'status': 'passed', 'passed': 1, 'failed': 0, 'total': 1, 'message': 'Parsed successfully.'}) # Simulate parsed failure
-    # REMOVED: @patch.object(CodeReviewAgent, 'analyze_python', ...)
-    # REMOVED: @patch.object(EthicalGovernanceEngine, 'enforce_policy', ...)
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 100}, "validation_results": {}}))
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed", "justification": "Mock evaluation"})
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
-    # REMOVED mock_analyze_python, mock_enforce_policy from signature
-    def test_autonomous_loop_success_flow(self, mock_get_full_path, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_parse_test_results, mock_execute_tests, mock_write_output_file, mock_merge_snippet, mock_invoke_coder_llm, mock_read_file_for_context, mock_generate_plan, mock_select_next_task, mock_load_roadmap, test_driver, caplog, tmp_path, mocker):
+    @patch('builtins.open', new_callable=MagicMock)
+    def test_autonomous_loop_success_flow(self,
+                                        mock_open,
+                                        mock_get_full_path,
+                                        mock_safe_write_roadmap,
+                                        mock_parse_and_evaluate,
+                                        mock_generate_report,
+                                        mock_parse_test_results,
+                                        mock_execute_tests,
+                                        mock_write_output_file,
+                                        mock_merge_snippet,
+                                        mock_invoke_coder_llm,
+                                        mock_read_file_for_context,
+                                        mock_generate_plan,
+                                        mock_select_next_task,
+                                        mock_load_roadmap,
+                                        test_driver, caplog, tmp_path, mocker):
         """
         Test Case 1: Successful task execution with code write, validation passing,
         and status update to "Completed".
@@ -693,9 +751,8 @@ class TestWorkflowDriver:
         task_list_not_started = [{'task_id': 'task_success', 'task_name': 'Success Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/success.py'}]
         task_list_completed = [{'task_id': 'task_success', 'task_name': 'Success Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/success.py'}]
 
-        # FIX: Add mock for open call during status update read
         original_roadmap_data = task_list_not_started
-        mock_open = mocker.patch('builtins.open', new_callable=mocker.mock_open, read_data=json.dumps({'tasks': original_roadmap_data}))
+        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
 
         driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
@@ -708,14 +765,12 @@ class TestWorkflowDriver:
         mock_write_output_file.assert_called_once_with("src/success.py", ANY, overwrite=True)
         mock_execute_tests.assert_called_once_with(["pytest", "tests/"], driver.context.base_path)
         mock_parse_test_results.assert_called_once_with("Pytest output")
-        # Assert on fixture mocks
-        mock_code_review_agent.analyze_python.assert_called_once_with(ANY) # Called with merged content
-        mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config) # Called with merged content and policy
+        mock_code_review_agent.analyze_python.assert_called_once_with(ANY) 
+        mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config) 
         mock_generate_report.assert_called_once()
         mock_parse_and_evaluate.assert_called_once_with(ANY)
-        # Assert open was called for status update read
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
-        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_completed}) # Called to update status
+        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_completed}) 
 
         # Verify calls for the second loop iteration (no tasks found)
         mock_select_next_task.assert_any_call(task_list_completed)
@@ -727,13 +782,8 @@ class TestWorkflowDriver:
         assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_success' in caplog.text
         assert 'Successfully updated status for task task_success in dummy_roadmap.json' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text # This assertion should now pass with the fix in workflow_driver.py
+        assert 'Autonomous loop terminated.' in caplog.text 
 
-    # FIX: Provide 3 return values for load_roadmap side_effect
-    # FIX: Correct assertion for select_next_task call argument
-    # FIX: Remove redundant patches and use fixture mocks
-    # FIX: Correct the structure of the first item in the load_roadmap side_effect list
-    # FIX: Correct argument order in signature
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_fail_tests', 'task_name': 'Fail Tests Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/fail.py'}], # Initial
         [{'task_id': 'task_fail_tests', 'task_name': 'Fail Tests Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/fail.py'}], # Loop 1
@@ -750,14 +800,25 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True)
     @patch.object(WorkflowDriver, 'execute_tests', return_value=(1, "Pytest output", "Errors")) # Simulate test failure
     @patch.object(WorkflowDriver, '_parse_test_results', return_value={'status': 'failed', 'passed': 0, 'failed': 1, 'total': 1, 'message': 'Parsed successfully.'}) # Simulate parsed failure
-    # REMOVED: @patch.object(CodeReviewAgent, 'analyze_python', ...)
-    # REMOVED: @patch.object(EthicalGovernanceEngine, 'enforce_policy', ...)
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 95}, "validation_results": {"tests": {"status": "failed"}}})) # Simulate report with test failure
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Regenerate Code", "justification": "Automated tests failed."}) # Simulate evaluation recommending regenerate
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
-    # REMOVED mock_analyze_python, mock_enforce_policy from signature
-    def test_autonomous_loop_tests_fail_regenerate_flow(self, mock_get_full_path, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_parse_test_results, mock_execute_tests, mock_write_output_file, mock_merge_snippet, mock_invoke_coder_llm, mock_read_file_for_context, mock_generate_plan, mock_select_next_task, mock_load_roadmap, test_driver, caplog, tmp_path, mocker):
+    def test_autonomous_loop_tests_fail_regenerate_flow(self,
+                                                        mock_get_full_path,
+                                                        mock_safe_write_roadmap,
+                                                        mock_parse_and_evaluate,
+                                                        mock_generate_report,
+                                                        mock_parse_test_results,
+                                                        mock_execute_tests,
+                                                        mock_write_output_file,
+                                                        mock_merge_snippet,
+                                                        mock_invoke_coder_llm,
+                                                        mock_read_file_for_context,
+                                                        mock_generate_plan,
+                                                        mock_select_next_task,
+                                                        mock_load_roadmap,
+                                                        test_driver, caplog, tmp_path, mocker):
         """
         Test Case 2: Task execution with code write, tests failing, report evaluation
         recommending "Regenerate Code", status remains "Not Started".
@@ -780,7 +841,6 @@ class TestWorkflowDriver:
         mock_select_next_task.assert_any_call(task_list_not_started)
         mock_generate_plan.assert_called_once()
         mock_write_output_file.assert_called_once_with("src/fail.py", ANY, overwrite=True)
-        # Assert on fixture mocks (called even if tests fail later)
         mock_code_review_agent.analyze_python.assert_called_once_with(ANY)
         mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config)
         mock_execute_tests.assert_called_once_with(["pytest", "tests/"], driver.context.base_path)
@@ -802,12 +862,8 @@ class TestWorkflowDriver:
         assert 'Grade Report Evaluation: Recommended Action=\'Regenerate Code\'' in caplog.text
         assert 'Task status for task_fail_tests remains \'Not Started\' based on evaluation.' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text # Added assertion
+        assert 'Autonomous loop terminated.' in caplog.text 
 
-    # FIX: Provide 3 return values for load_roadmap side_effect
-    # FIX: Correct assertion for select_next_task call argument
-    # FIX: Remove redundant patches and use fixture mocks
-    # FIX: Correct argument order in signature
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_ethical_reject', 'task_name': 'Ethical Reject Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/ethical.py'}], # Initial
         [{'task_id': 'task_ethical_reject', 'task_name': 'Ethical Reject Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/ethical.py'}], # Loop 1
@@ -824,14 +880,27 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True)
     @patch.object(WorkflowDriver, 'execute_tests') # Should not be called
     @patch.object(WorkflowDriver, '_parse_test_results') # Should not be called
-    # REMOVED: @patch.object(CodeReviewAgent, 'analyze_python', ...) # Simulate ethical rejection
-    # REMOVED: @patch.object(EthicalGovernanceEngine, 'enforce_policy', ...) # Simulate ethical rejection
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 0}, "validation_results": {"ethical_analysis": {"overall_status": "rejected"}}})) # Simulate report with ethical rejection
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Blocked", "justification": "Ethical analysis rejected the code."}) # Simulate evaluation recommending blocked
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
-    # REMOVED mock_analyze_python, mock_enforce_policy from signature
-    def test_autonomous_loop_ethical_reject_blocked_flow(self, mock_get_full_path, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_parse_test_results, mock_execute_tests, mock_write_output_file, mock_merge_snippet, mock_invoke_coder_llm, mock_read_file_for_context, mock_generate_plan, mock_select_next_task, mock_load_roadmap, test_driver, caplog, tmp_path, mocker):
+    @patch('builtins.open', new_callable=MagicMock)
+    def test_autonomous_loop_ethical_reject_blocked_flow(self,
+                                                        mock_open,
+                                                        mock_get_full_path,
+                                                        mock_safe_write_roadmap,
+                                                        mock_parse_and_evaluate,
+                                                        mock_generate_report,
+                                                        mock_parse_test_results,
+                                                        mock_execute_tests,
+                                                        mock_write_output_file,
+                                                        mock_merge_snippet,
+                                                        mock_invoke_coder_llm,
+                                                        mock_read_file_for_context,
+                                                        mock_generate_plan,
+                                                        mock_select_next_task,
+                                                        mock_load_roadmap,
+                                                        test_driver, caplog, tmp_path, mocker):
         """
         Test Case 3: Task execution with code write, ethical analysis rejecting,
         report evaluation recommending "Blocked", status updates to "Blocked".
@@ -849,11 +918,8 @@ class TestWorkflowDriver:
         task_list_not_started = [{'task_id': 'task_ethical_reject', 'task_name': 'Ethical Reject Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/ethical.py'}]
         task_list_blocked = [{'task_id': 'task_ethical_reject', 'task_name': 'Ethical Reject Task', 'status': 'Blocked', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/ethical.py'}]
 
-
-        # Mock the open call within autonomous_loop to simulate reading the roadmap before update
         original_roadmap_data = task_list_not_started
-        mock_open = mocker.patch('builtins.open', new_callable=mocker.mock_open, read_data=json.dumps({'tasks': original_roadmap_data}))
-
+        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
 
         driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
@@ -863,14 +929,12 @@ class TestWorkflowDriver:
         mock_write_output_file.assert_called_once_with("src/ethical.py", ANY, overwrite=True)
         mock_execute_tests.assert_not_called()
         mock_parse_test_results.assert_not_called()
-        # Assert on fixture mocks
         mock_code_review_agent.analyze_python.assert_called_once_with(ANY)
         mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config)
         mock_generate_report.assert_called_once()
         mock_parse_and_evaluate.assert_called_once_with(ANY)
-        # Assert open was called for status update read
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
-        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_blocked}) # Called to update status
+        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_blocked}) 
 
         # Verify calls for the second loop iteration (no tasks found)
         mock_select_next_task.assert_any_call(task_list_blocked)
@@ -878,19 +942,14 @@ class TestWorkflowDriver:
 
         # Verify overall loop termination and logging
         assert 'Selected task: ID=task_ethical_reject' in caplog.text
-        # Check log for ethical analysis result
         assert 'Ethical Analysis Results for src/ethical.py: ' in caplog.text
-        assert "'overall_status': 'rejected'" in caplog.text # Check specific part of the result log
+        assert "'overall_status': 'rejected'" in caplog.text 
         assert 'Grade Report Evaluation: Recommended Action=\'Blocked\'' in caplog.text
         assert 'Updating task status from \'Not Started\' to \'Blocked\' for task task_ethical_reject' in caplog.text
         assert 'Successfully updated status for task task_ethical_reject in dummy_roadmap.json' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text # Added assertion
+        assert 'Autonomous loop terminated.' in caplog.text 
 
-    # FIX: Provide 3 return values for load_roadmap side_effect
-    # FIX: Correct assertion for select_next_task call argument
-    # FIX: Remove redundant patches and use fixture mocks
-    # FIX: Correct argument order in signature
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_security_high', 'task_name': 'Security High Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/security.py'}], # Initial
         [{'task_id': 'task_security_high', 'task_name': 'Security High Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/security.py'}], # Loop 1
@@ -907,14 +966,27 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True)
     @patch.object(WorkflowDriver, 'execute_tests') # Should not be called
     @patch.object(WorkflowDriver, '_parse_test_results') # Should not be called
-    # REMOVED: @patch.object(CodeReviewAgent, 'analyze_python', ...) # Simulate high security finding
-    # REMOVED: @patch.object(EthicalGovernanceEngine, 'enforce_policy', ...)
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 50}, "validation_results": {"code_review": {"static_analysis": [{"severity": "security_high"}]}}})) # Simulate report with high security finding
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Blocked", "justification": "High-risk security findings detected."}) # Simulate evaluation recommending blocked
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
-    # REMOVED mock_analyze_python, mock_enforce_policy from signature
-    def test_autonomous_loop_security_high_blocked_flow(self, mock_get_full_path, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_parse_test_results, mock_execute_tests, mock_write_output_file, mock_merge_snippet, mock_invoke_coder_llm, mock_read_file_for_context, mock_generate_plan, mock_select_next_task, mock_load_roadmap, test_driver, caplog, tmp_path, mocker):
+    @patch('builtins.open', new_callable=MagicMock)
+    def test_autonomous_loop_security_high_blocked_flow(self,
+                                                        mock_open,
+                                                        mock_get_full_path,
+                                                        mock_safe_write_roadmap,
+                                                        mock_parse_and_evaluate,
+                                                        mock_generate_report,
+                                                        mock_parse_test_results,
+                                                        mock_execute_tests,
+                                                        mock_write_output_file,
+                                                        mock_merge_snippet,
+                                                        mock_invoke_coder_llm,
+                                                        mock_read_file_for_context,
+                                                        mock_generate_plan,
+                                                        mock_select_next_task,
+                                                        mock_load_roadmap,
+                                                        test_driver, caplog, tmp_path, mocker):
         """
         Test Case 4: Task execution with code write, security scan finding high-risk issues,
         report evaluation recommending "Blocked", status updates to "Blocked".
@@ -932,10 +1004,8 @@ class TestWorkflowDriver:
         task_list_not_started = [{'task_id': 'task_security_high', 'task_name': 'Security High Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/security.py'}]
         task_list_blocked = [{'task_id': 'task_security_high', 'task_name': 'Security High Task', 'status': 'Blocked', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/security.py'}]
 
-
-        # Mock the open call within autonomous_loop to simulate reading the roadmap before update
         original_roadmap_data = task_list_not_started
-        mock_open = mocker.patch('builtins.open', new_callable=mocker.mock_open, read_data=json.dumps({'tasks': original_roadmap_data}))
+        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
 
         driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
@@ -945,14 +1015,12 @@ class TestWorkflowDriver:
         mock_write_output_file.assert_called_once_with("src/security.py", ANY, overwrite=True)
         mock_execute_tests.assert_not_called()
         mock_parse_test_results.assert_not_called()
-        # Assert on fixture mocks
         mock_code_review_agent.analyze_python.assert_called_once_with(ANY)
         mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config)
         mock_generate_report.assert_called_once()
         mock_parse_and_evaluate.assert_called_once_with(ANY)
-        # Assert open was called for status update read
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
-        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_blocked}) # Called to update status
+        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_blocked}) 
 
         # Verify calls for the second loop iteration (no tasks found)
         mock_select_next_task.assert_any_call(task_list_blocked)
@@ -960,19 +1028,14 @@ class TestWorkflowDriver:
 
         # Verify overall loop termination and logging
         assert 'Selected task: ID=task_security_high' in caplog.text
-        # Check log for code review result
         assert 'Code Review and Security Scan Results for src/security.py: ' in caplog.text
-        assert "'severity': 'security_high'" in caplog.text # Check specific part of the result log
+        assert "'severity': 'security_high'" in caplog.text 
         assert 'Grade Report Evaluation: Recommended Action=\'Blocked\'' in caplog.text
         assert 'Updating task status from \'Not Started\' to \'Blocked\' for task task_security_high' in caplog.text
         assert 'Successfully updated status for task task_security_high in dummy_roadmap.json' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text # Added assertion
+        assert 'Autonomous loop terminated.' in caplog.text 
 
-    # FIX: Provide 3 return values for load_roadmap side_effect
-    # FIX: Correct assertion for select_next_task call argument
-    # FIX: Remove redundant patches and use fixture mocks
-    # FIX: Correct argument order in signature
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_validation_error', 'task_name': 'Validation Error Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/error.py'}], # Initial
         [{'task_id': 'task_validation_error', 'task_name': 'Validation Error Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/error.py'}], # Loop 1
@@ -987,16 +1050,27 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="print('error')")
     @patch.object(WorkflowDriver, '_merge_snippet', return_value="print('error')")
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True)
-    # REMOVED DECORATOR: @patch.object(WorkflowDriver, 'execute_tests', side_effect=Exception("Test execution failed"))
     @patch.object(WorkflowDriver, '_parse_test_results') # Should not be called if execute_tests fails
-    # REMOVED: @patch.object(CodeReviewAgent, 'analyze_python', ...) # Simulate code review error
-    # REMOVED: @patch.object(EthicalGovernanceEngine, 'enforce_policy', ...) # Simulate ethical analysis error
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 0}, "validation_results": {"tests": {"status": "error"}, "code_review": {"status": "error"}, "ethical_analysis": {"overall_status": "error"}}})) # Simulate report with errors
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Overall grade (0%) is below regeneration threshold or other issues require manual review."}) # Simulate evaluation recommending manual review
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
-    # REMOVED mock_execute_tests, mock_analyze_python, mock_enforce_policy from signature
-    def test_autonomous_loop_validation_error_manual_review_flow(self, mock_get_full_path, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_parse_test_results, mock_write_output_file, mock_merge_snippet, mock_invoke_coder_llm, mock_read_file_for_context, mock_generate_plan, mock_select_next_task, mock_load_roadmap, test_driver, caplog, tmp_path, mocker):
+    @patch('builtins.open', new_callable=MagicMock)
+    def test_autonomous_loop_validation_error_manual_review_flow(self,
+                                                                mock_open,
+                                                                mock_get_full_path,
+                                                                mock_safe_write_roadmap,
+                                                                mock_parse_and_evaluate,
+                                                                mock_generate_report,
+                                                                mock_parse_test_results,
+                                                                mock_write_output_file,
+                                                                mock_merge_snippet,
+                                                                mock_invoke_coder_llm,
+                                                                mock_read_file_for_context,
+                                                                mock_generate_plan,
+                                                                mock_select_next_task,
+                                                                mock_load_roadmap,
+                                                                test_driver, caplog, tmp_path, mocker):
         """
         Test Case 5: Task execution with code write, validation steps encountering
         execution errors (e.g., subprocess fails), report evaluation recommending
@@ -1014,8 +1088,10 @@ class TestWorkflowDriver:
         driver.roadmap_path = "dummy_roadmap.json"
         task_list_not_started = [{'task_id': 'task_validation_error', 'task_name': 'Validation Error Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/error.py'}]
 
-        # ADDED: Patch execute_tests inside the test function using mocker
         mock_execute_tests = mocker.patch.object(driver, 'execute_tests', side_effect=Exception("Test execution failed"))
+
+        original_roadmap_data = task_list_not_started
+        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
 
 
         driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
@@ -1028,15 +1104,12 @@ class TestWorkflowDriver:
         # Verify validation steps were attempted and logged errors
         mock_execute_tests.assert_called_once_with(["pytest", "tests/"], driver.context.base_path)
         assert "An unexpected error occurred during command execution: Test execution failed" in caplog.text
-        mock_parse_test_results.assert_not_called() # Should not be called if execute_tests fails
+        mock_parse_test_results.assert_not_called() 
 
-        # Code review and ethical analysis are called *after* the write, regardless of test errors
-        # Assert on fixture mocks
         mock_code_review_agent.analyze_python.assert_called_once_with(ANY)
         mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config)
 
         mock_generate_report.assert_called_once()
-        # Check the validation results passed to generate_grade_report include the test error
         report_args = mock_generate_report.call_args[0]
         assert report_args[0] == 'task_validation_error'
         assert report_args[1]['test_results']['status'] == 'error'
@@ -1056,23 +1129,15 @@ class TestWorkflowDriver:
 
         # Verify overall loop termination and logging
         assert 'Selected task: ID=task_validation_error' in caplog.text
-        # Check log message for test results includes the error status from the exception handler
-        # assert 'Test Execution Results: Status=error, Passed=0, Failed=0, Total=0' in caplog.text # Logged by _current_task_results storage - This might not be logged if exception happens before storage
-        # Check log for code review result
         assert 'Code Review and Security Scan Results for src/error.py: ' in caplog.text
-        assert "'status': 'error'" in caplog.text # Check specific part of the result log
-        # Check log for ethical analysis result
+        assert "'status': 'error'" in caplog.text 
         assert 'Ethical Analysis Results for src/error.py: ' in caplog.text
-        assert "'overall_status': 'error'" in caplog.text # Check specific part of the result log
+        assert "'overall_status': 'error'" in caplog.text 
         assert 'Grade Report Evaluation: Recommended Action=\'Manual Review Required\'' in caplog.text
         assert 'Task status for task_validation_error remains \'Not Started\' based on evaluation.' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text # Added assertion
+        assert 'Autonomous loop terminated.' in caplog.text 
 
-    # FIX: Provide 3 return values for load_roadmap side_effect
-    # FIX: Correct assertion for select_next_task call argument
-    # FIX: Remove redundant patches and use fixture mocks
-    # FIX: Correct argument order in signature
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_non_code', 'task_name': 'Non Code Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}], # Initial
         [{'task_id': 'task_non_code', 'task_name': 'Non Code Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}], # Loop 1
@@ -1089,14 +1154,25 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Mock write for documentation.md
     @patch.object(WorkflowDriver, 'execute_tests')
     @patch.object(WorkflowDriver, '_parse_test_results')
-    # REMOVED: @patch.object(CodeReviewAgent, 'analyze_python')
-    # REMOVED: @patch.object(EthicalGovernanceEngine, 'enforce_policy')
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 0}, "validation_results": {}})) # Simulate report with no results
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"})
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
-    # REMOVED mock_analyze_python, mock_enforce_policy from signature
-    def test_autonomous_loop_non_code_step_skips_validation(self, mock_get_full_path, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_parse_test_results, mock_execute_tests, mock_write_output_file, mock_merge_snippet, mock_invoke_coder_llm, mock_read_file_for_context, mock_generate_plan, mock_select_next_task, mock_load_roadmap, test_driver, caplog, tmp_path, mocker):
+    def test_autonomous_loop_non_code_step_skips_validation(self,
+                                                            mock_get_full_path,
+                                                            mock_safe_write_roadmap,
+                                                            mock_parse_and_evaluate,
+                                                            mock_generate_report,
+                                                            mock_parse_test_results,
+                                                            mock_execute_tests,
+                                                            mock_write_output_file,
+                                                            mock_merge_snippet,
+                                                            mock_invoke_coder_llm,
+                                                            mock_read_file_for_context,
+                                                            mock_generate_plan,
+                                                            mock_select_next_task,
+                                                            mock_load_roadmap,
+                                                            test_driver, caplog, tmp_path, mocker):
         """
         Test Case 6: Task execution with a plan step that does *not* involve code writing
         or file operations. Validation steps should be skipped for this step.
@@ -1121,11 +1197,9 @@ class TestWorkflowDriver:
         mock_read_file_for_context.assert_not_called()
         mock_invoke_coder_llm.assert_not_called()
         mock_merge_snippet.assert_not_called()
-        # mock_write_output_file should be called for Step 2 ("Update documentation.md")
-        mock_write_output_file.assert_called_once_with("documentation.md", ANY, overwrite=False)
+        mock_write_output_file.assert_called_once_with("documentation.md", ANY, overwrite=True)
         mock_execute_tests.assert_not_called()
         mock_parse_test_results.assert_not_called()
-        # Assert on fixture mocks
         mock_code_review_agent.analyze_python.assert_not_called()
         mock_ethical_engine.enforce_policy.assert_not_called()
 
@@ -1147,13 +1221,8 @@ class TestWorkflowDriver:
         assert 'Grade Report Evaluation: Recommended Action=\'Manual Review Required\'' in caplog.text
         assert 'Task status for task_non_code remains \'Not Started\' based on evaluation.' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text # Added assertion
+        assert 'Autonomous loop terminated.' in caplog.text 
 
-    # FIX: Provide 3 return values for load_roadmap side_effect
-    # FIX: Correct assertion for select_next_task call argument
-    # FIX: Update mock evaluation and assertion for safe_write based on test description
-    # FIX: Remove redundant patches and use fixture mocks
-    # FIX: Correct argument order in signature
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_multiple_code', 'task_name': 'Multiple Code Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/file1.py'}], # Initial
         [{'task_id': 'task_multiple_code', 'task_name': 'Multiple Code Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/file1.py'}], # Loop 1
@@ -1177,17 +1246,28 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_parse_test_results', side_effect=[
         {'status': 'passed', 'passed': 1, 'failed': 0, 'total': 1, 'message': 'Parsed successfully.'},
         {'status': 'passed', 'passed': 1, 'failed': 0, 'total': 1, 'message': 'Parsed successfully.'}
-    ]) # Simulate parsing two test results
-    # REMOVED: @patch.object(CodeReviewAgent, 'analyze_python', ...) # Simulate two code reviews
-    # REMOVED: @patch.object(EthicalGovernanceEngine, 'enforce_policy', ...) # Simulate two ethical analyses
+    ]) 
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 100}, "validation_results": {}}))
-    # FIX: Set evaluation to Completed to trigger status update
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed", "justification": "Mock evaluation"})
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
-    # FIX: Add mock_read_file_for_context to the patch list - Already present
-    # REMOVED mock_analyze_python, mock_enforce_policy from signature
-    def test_autonomous_loop_multiple_code_steps(self, mock_get_full_path, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_parse_test_results, mock_execute_tests, mock_write_output_file, mock_merge_snippet, mock_invoke_coder_llm, mock_read_file_for_context, mock_generate_plan, mock_select_next_task, mock_load_roadmap, test_driver, caplog, tmp_path, mocker):
+    @patch('builtins.open', new_callable=MagicMock)
+    def test_autonomous_loop_multiple_code_steps(self,
+                                                mock_open,
+                                                mock_get_full_path,
+                                                mock_safe_write_roadmap,
+                                                mock_parse_and_evaluate,
+                                                mock_generate_report,
+                                                mock_parse_test_results,
+                                                mock_execute_tests,
+                                                mock_write_output_file,
+                                                mock_merge_snippet,
+                                                mock_invoke_coder_llm,
+                                                mock_read_file_for_context,
+                                                mock_generate_plan,
+                                                mock_select_next_task,
+                                                mock_load_roadmap,
+                                                test_driver, caplog, tmp_path, mocker):
         """
         Test Case 7: Task execution with multiple code writing steps in the plan.
         Verifies validation is triggered after each code writing step and status updates.
@@ -1198,16 +1278,15 @@ class TestWorkflowDriver:
         mock_ethical_engine = test_driver['mock_ethical_governance_engine']
 
         # Set side effects on fixture mocks
-        mock_code_review_agent.analyze_python.side_effect = [{'status': 'success'}, {'status': 'success'}] # Simulate two code reviews
-        mock_ethical_engine.enforce_policy.side_effect = [{'overall_status': 'approved'}, {'overall_status': 'approved'}] # Simulate two ethical analyses
+        mock_code_review_agent.analyze_python.side_effect = [{'status': 'success'}, {'status': 'success'}] 
+        mock_ethical_engine.enforce_policy.side_effect = [{'overall_status': 'approved'}, {'overall_status': 'approved'}] 
 
         driver.roadmap_path = "dummy_roadmap.json"
         task_list_not_started = [{'task_id': 'task_multiple_code', 'task_name': 'Multiple Code Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/file1.py'}]
         task_list_completed = [{'task_id': 'task_multiple_code', 'task_name': 'Multiple Code Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/file1.py'}]
 
-        # Mock the open call within autonomous_loop to simulate reading the roadmap before update
         original_roadmap_data = task_list_not_started
-        mock_open = mocker.patch('builtins.open', new_callable=mocker.mock_open, read_data=json.dumps({'tasks': original_roadmap_data}))
+        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
 
         driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
@@ -1216,49 +1295,36 @@ class TestWorkflowDriver:
         mock_generate_plan.assert_called_once()
 
         # Verify read/generate/merge/write/validate sequence for Step 1 (src/file1.py)
-        mock_read_file_for_context.assert_any_call("src/file1.py") # Called first time
-        mock_invoke_coder_llm.assert_any_call(ANY) # Prompt for Step 1
+        mock_read_file_for_context.assert_any_call("src/file1.py") 
+        mock_invoke_coder_llm.assert_any_call(ANY) 
         mock_merge_snippet.assert_any_call("Content 1", "Snippet 1")
         mock_write_output_file.assert_any_call("src/file1.py", "Merged 1", overwrite=True)
-        # Assert on fixture mocks
         mock_code_review_agent.analyze_python.assert_any_call("Merged 1")
         mock_ethical_engine.enforce_policy.assert_any_call("Merged 1", driver.default_policy_config)
 
-        # Verify read/generate/merge/write/validate sequence for Step 2 (src/file2.py - based on step description)
-        # The code correctly identifies src/file2.py from the step description
-        # With the NEW logic, it will prioritize target_file ('src/file1.py') over filepath_from_step ('src/file2.py')
-        mock_read_file_for_context.assert_any_call("src/file1.py") # Called second time, should read file1 again
-        mock_invoke_coder_llm.assert_any_call(ANY) # Prompt for Step 2
-        # Note: The code reads 'src/file1.py' because the new logic prioritizes target_file.
-        # Assuming current logic is intended, it reads the content of file1 (mocked as "Content 1").
-        mock_merge_snippet.assert_any_call("Content 1", "Snippet 2") # Merging into file1.py content
-        # FIX: Assert that the second write is to src/file1.py as determined by the target_file
-        mock_write_output_file.assert_any_call("src/file1.py", "Merged 2", overwrite=True) # Writing to file1.py again
-        # Assert on fixture mocks (called with content written to file1.py)
+        # Verify read/generate/merge/write/validate sequence for Step 2 (src/file1.py due to target_file priority)
+        mock_read_file_for_context.assert_any_call("src/file1.py") 
+        mock_invoke_coder_llm.assert_any_call(ANY) 
+        mock_merge_snippet.assert_any_call("Content 1", "Snippet 2") 
+        mock_write_output_file.assert_any_call("src/file1.py", "Merged 2", overwrite=True) 
         mock_code_review_agent.analyze_python.assert_any_call("Merged 2")
         mock_ethical_engine.enforce_policy.assert_any_call("Merged 2", driver.default_policy_config)
 
 
         # Verify test execution calls for Step 3 and Step 4
-        # The test command heuristic defaults to "tests/" if target_file doesn't look like a test file
-        # The step descriptions "Run tests for file1.py" and "Run tests for file2.py" might imply specific test files,
-        # but the current heuristic just checks if the *task's* target_file looks like a test file,
-        # or defaults to "tests/". The test mocks execute_tests with ["pytest", "tests/"] twice.
-        # Let's assert based on the current heuristic's behavior.
-        mock_execute_tests.assert_any_call(["pytest", "tests/"], driver.context.base_path) # Called for Step 3
-        mock_execute_tests.assert_any_call(["pytest", "tests/"], driver.context.base_path) # Called for Step 4
-        assert mock_execute_tests.call_count == 2 # Called twice with the default command
+        mock_execute_tests.assert_any_call(["pytest", "tests/"], driver.context.base_path) 
+        mock_execute_tests.assert_any_call(["pytest", "tests/"], driver.context.base_path) 
+        assert mock_execute_tests.call_count == 2 
 
         mock_parse_test_results.assert_any_call("Test1 Output")
         mock_parse_test_results.assert_any_call("Test2 Output")
-        assert mock_parse_test_results.call_count == 2 # Called twice
+        assert mock_parse_test_results.call_count == 2 
 
 
         # Verify report generation and evaluation were called after all steps
         mock_generate_report.assert_called_once()
         mock_parse_and_evaluate.assert_called_once_with(ANY)
 
-        # FIX: Assert safe_write_roadmap *is* called because evaluation is "Completed"
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
         mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_completed})
 
@@ -1269,15 +1335,13 @@ class TestWorkflowDriver:
         assert 'Selected task: ID=task_multiple_code' in caplog.text
         assert 'Executing step 1/4: Step 1: Implement feature A in src/file1.py' in caplog.text
         assert 'Executing step 2/4: Step 2: Implement feature B in src/file2.py' in caplog.text
-        # Check the log for the file identified in step 2 (it should be file2.py based on the step)
-        # FIX: The log message will now say it's processing for file 'src/file1.py' because that's the determined filepath_to_use
         assert "Step identified as code generation for file src/file1.py. Orchestrating read-generate-merge-write." in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0]
-        assert 'Successfully wrote merged content to src/file1.py.' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0] # Check write log for step 2
-        assert 'Running code review and security scan for src/file1.py...' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0] # Check validation log for step 2
-        assert 'Running ethical analysis for src/file1.py...' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0] # Check validation log for step 2
+        assert 'Successfully wrote merged content to src/file1.py.' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0] 
+        assert 'Running code review and security scan for src/file1.py...' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0] 
+        assert 'Running ethical analysis for src/file1.py...' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0] 
         assert 'Executing step 3/4: Step 3: Run tests for file1.py' in caplog.text
         assert 'Executing step 4/4: Step 4: Run tests for file2.py' in caplog.text
-        assert 'Grade Report Evaluation: Recommended Action=\'Completed\'' in caplog.text # Based on updated mock evaluation
-        assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_multiple_code' in caplog.text # Based on updated mock evaluation
+        assert 'Grade Report Evaluation: Recommended Action=\'Completed\'' in caplog.text 
+        assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_multiple_code' in caplog.text 
         assert 'Successfully updated status for task task_multiple_code in dummy_roadmap.json' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text # Added assertion
+        assert 'Autonomous loop terminated.' in caplog.text

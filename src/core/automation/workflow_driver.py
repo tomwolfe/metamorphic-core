@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
 import re
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock # Keep MagicMock for other dependencies if needed
 from src.cli.write_file import write_file # Ensure write_file is imported
 import subprocess # Import subprocess for execute_tests
 from src.core.agents.code_review_agent import CodeReviewAgent # Import CodeReviewAgent
@@ -79,23 +79,24 @@ class WorkflowDriver:
     def __init__(self, context: Context):
         self.context = context
         self.tasks = [] # Will be loaded by start_workflow
-        self._current_task_results = {} # Dictionary to store results for the current task iteration # ADDED
-        self.remediation_attempts = 0 # Initialize remediation counter # ADDED for 1.7.4
+        self._current_task_results = {} # Dictionary to store results for the current task iteration
+        self.remediation_attempts = 0 # Initialize remediation counter
 
 
-        # Initialize LLM Orchestrator - Pass placeholder dependencies for now
+        # Instantiate EthicalGovernanceEngine and load default policy FIRST
+        self.ethical_governance_engine = EthicalGovernanceEngine()
+        self._load_default_policy() # Extract policy loading to a separate method
+
+        # Initialize LLM Orchestrator - Pass REAL dependencies where available
+        # Pass the real ethical_governance_engine instance
         self.llm_orchestrator = EnhancedLLMOrchestrator(
-            kg=MagicMock(),
-            spec=MagicMock(),
-            ethics_engine=MagicMock()
+            kg=MagicMock(), # Assuming KG is still mocked for now
+            spec=MagicMock(), # Assuming Spec is still mocked for now
+            ethics_engine=self.ethical_governance_engine # <--- Pass the REAL instance here
         )
         # Instantiate CodeReviewAgent
         self.code_review_agent = CodeReviewAgent()
 
-        # Instantiate EthicalGovernanceEngine and load default policy # ADDED BLOCK
-        self.ethical_governance_engine = EthicalGovernanceEngine()
-        self._load_default_policy() # Extract policy loading to a separate method
-        # END ADDED BLOCK
 
     def _load_default_policy(self):
         """Load the default ethical policy from file."""
@@ -159,7 +160,7 @@ class WorkflowDriver:
 
         while True:
             logger.info('Starting autonomous loop iteration')
-            self._current_task_results = {} # Reset results for the new task iteration # ADDED
+            self._current_task_results = {} # Reset results for the new task iteration
             self.remediation_occurred_in_pass = False # Flag to track if *any* remediation attempt in this pass succeeded in writing
 
             # Load the roadmap inside the loop to get the latest status updates
@@ -329,16 +330,28 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                                 logger.warning(f"Coder LLM returned empty or None snippet for step {step_index + 1}. Skipping file write.")
 
                         # Handle steps identified as file writing, but NOT code generation
+                        # This block currently writes placeholder content with overwrite=False
+                        # This might need refinement based on whether the step implies creating a *new* file
+                        # or modifying an existing one (which would need overwrite=True).
+                        # For task_1_8_1, steps modifying workflow_driver.py should use overwrite=True.
                         elif is_step_explicitly_file_writing and not needs_coder_llm and filepath_to_use:
                             logger.info(f"Step identified as file writing (non-code-gen). Processing file operation for step: {step}")
+                            # Determine if this step implies creating a *new* file or modifying an existing one.
+                            # Simple heuristic: If the step explicitly says "create file", use overwrite=False.
+                            # Otherwise, assume modification and use overwrite=True. This is a simplification.
+                            step_implies_create = any(keyword in step_lower for keyword in ["create file", "generate file"])
+                            overwrite_mode = not step_implies_create
+
                             content_to_write = f"// Placeholder content for step: {step}"
-                            logger.info(f"Using placeholder content for file: {filepath_to_use}")
+                            logger.info(f"Using placeholder content for file: {filepath_to_use} with overwrite={overwrite_mode}")
                             logger.info(f"Attempting to write file: {filepath_to_use}.")
                             try:
-                                self._write_output_file(filepath_to_use, content_to_write, overwrite=False)
+                                self._write_output_file(filepath_to_use, content_to_write, overwrite=overwrite_mode)
+                                logger.info(f"Successfully wrote placeholder content to {filepath_to_use}.")
+                                # Note: Placeholder writes don't trigger validations or remediation in the current logic
                             except FileExistsError:
                                 logger.warning(
-                                    f"File {filepath_to_use} already exists. Skipping write as overwrite=False.")
+                                    f"File {filepath_to_use} already exists. Skipping write as overwrite={overwrite_mode}.")
                             except Exception as e:
                                 logger.error(f"Failed to write file {filepath_to_use}: {e}",
                                              exc_info=True)
@@ -350,7 +363,14 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                         # --- END MODIFIED LOGIC FOR STEP PROCESSING ---
 
                     # --- Post-Step Execution Logic (Inside the 'if solution_plan:' block) ---
+                    # This block runs AFTER all steps in the plan have been attempted.
+                    # Phase 1.8 goals (1.8.2, 1.8.3, 1.8.4) suggest moving validation/remediation *inside* the step loop.
+                    # The current structure performs validation/remediation *after* the entire plan.
+                    # This is a mismatch with the roadmap goals but reflects the current code structure.
+                    # The remediation logic below will operate on the *final* state after all steps.
+
                     logger.info("Generating Grade Report...")
+                    # The grade report uses results accumulated across all steps in _current_task_results
                     grade_report_json = self.generate_grade_report(task_id, self._current_task_results)
                     logger.info(f"--- GRADE REPORT for Task {task_id} ---\n{grade_report_json}\n--- END GRADE REPORT ---")
 
@@ -359,8 +379,11 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                     justification = evaluation_result.get("justification", "Evaluation failed.")
                     logger.info(f"Initial Grade Report Evaluation: Recommended Action='{recommended_action}', Justification='{justification}'")
 
-                    # --- BEGIN: Remediation Logic ---
+                    # --- BEGIN: Remediation Logic (Currently runs AFTER all steps) ---
                     # Check if remediation is needed based on the initial evaluation
+                    # This remediation loop attempts to fix issues based on the *final* state after all steps.
+                    # This is different from the step-level remediation described in the roadmap (Task 1.8.3).
+                    # This logic needs to be refactored to align with Phase 1.8 goals.
                     if recommended_action == "Regenerate Code":
                         # Check if remediation attempts are available
                         if self.remediation_attempts < MAX_REMEDIATION_ATTEMPTS:
@@ -368,74 +391,93 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                             self.remediation_occurred_in_pass = False # Flag to track if *any* remediation attempt in this pass succeeded in writing
 
                             # Read file content once at the start of the remediation pass
-                            current_file_content = self._read_file_for_context(filepath_to_use)
+                            # This assumes remediation targets the primary file, which might not always be true.
+                            # This logic needs refinement for Task 1.8.6.
+                            filepath_for_remediation = filepath_to_use # Use the last used filepath or task target
+                            if not filepath_for_remediation:
+                                logger.error("No target file identified for remediation. Cannot attempt remediation.")
+                                # The recommended_action remains "Regenerate Code", but no attempt was made.
+                                # The loop will continue, and the task might eventually be marked "Blocked" or require manual review.
+                                pass # Continue loop without remediation attempt
+                            else:
+                                current_file_content = self._read_file_for_context(filepath_for_remediation)
 
-                            if current_file_content and filepath_to_use:
-                                # --- Attempt Style/Ethical Remediation if applicable ---
-                                # Identify the primary failure type based on the initial report
-                                failure_type = self._identify_remediation_target(grade_report_json) # Use the report from the initial evaluation
+                                if current_file_content:
+                                    # --- Attempt Style/Ethical/Test Remediation if applicable ---
+                                    # Identify the primary failure type based on the initial report
+                                    # This logic needs refinement for Task 1.8.6 to handle multiple issues.
+                                    failure_type = self._identify_remediation_target(grade_report_json) # Use the report from the initial evaluation
 
-                                style_ethical_attempt_success = False
-                                if failure_type == "Code Style":
-                                    style_ethical_attempt_success = self._attempt_code_style_remediation(grade_report_json, next_task, "Code Style Remediation", filepath_to_use, current_file_content)
-                                elif failure_type == "Ethical Transparency":
-                                    style_ethical_attempt_success = self._attempt_ethical_transparency_remediation(grade_report_json, next_task, "Ethical Transparency Remediation", filepath_to_use, current_file_content)
+                                    remediation_attempted = False
+                                    remediation_success = False
 
-                                if style_ethical_attempt_success:
-                                    logger.info("Style/Ethical remediation attempt seems successful (code written).")
-                                    self.remediation_occurred_in_pass = True
-                                    # Re-evaluate immediately after a successful write
-                                    grade_report_json = self.generate_grade_report(task_id, self._current_task_results) # Use potentially updated results
-                                    logger.info(f"--- REVISED GRADE REPORT (Style/Ethical) for Task {task_id} ---\n{grade_report_json}\n--- END REVISED GRADE REPORT ---")
-                                    evaluation_result = self._parse_and_evaluate_grade_report(grade_report_json)
-                                    recommended_action = evaluation_result.get("recommended_action", "Manual Review Required") # Update action
-                                    justification = evaluation_result.get("justification", "Evaluation failed.")
-                                    logger.info(f"Revised Grade Report Evaluation (Style/Ethical): Recommended Action='{recommended_action}', Justification='{justification}'")
-                                elif failure_type in ["Code Style", "Ethical Transparency"]: # Log warning only if an attempt was actually made
-                                    logger.warning(f"{failure_type} remediation attempt failed.")
+                                    # Prioritize test failures for remediation (Task 1.8.6)
+                                    test_status = self._current_task_results.get('test_results', {}).get('status')
+                                    if test_status == 'failed':
+                                         remediation_attempted = True
+                                         remediation_success = self._attempt_test_failure_remediation(
+                                             grade_report_json, next_task, "Test Failure Remediation", filepath_for_remediation, current_file_content
+                                         )
+                                         if remediation_success:
+                                             logger.info("Test failure remediation successful.")
+                                             self.remediation_occurred_in_pass = True # Mark that remediation happened
+                                             # Re-evaluate immediately after a successful write
+                                             grade_report_json = self.generate_grade_report(task_id, self._current_task_results) # Use potentially updated results
+                                             logger.info(f"--- REVISED GRADE REPORT (Test Remediation) for Task {task_id} ---\n{grade_report_json}\n--- END REVISED GRADE REPORT ---")
+                                             evaluation_result = self._parse_and_evaluate_grade_report(grade_report_json)
+                                             recommended_action = evaluation_result.get("recommended_action", "Manual Review Required") # Update action
+                                             justification = evaluation_result.get("justification", "Evaluation failed.")
+                                             logger.info(f"Revised Grade Report Evaluation (Test Remediation): Recommended Action='{recommended_action}', Justification='{justification}'")
+                                         else:
+                                             logger.warning("Test failure remediation attempt failed.")
 
 
-                                # --- Attempt Test Failure Remediation if applicable ---
-                                # Re-check test status *after* potential style/ethical fix
-                                test_status = self._current_task_results.get('test_results', {}).get('status')
-
-                                # Only attempt test remediation if tests still failed AND we haven't reached max attempts yet
-                                # (The outer if already checks max attempts, but re-check here for clarity/safety)
-                                test_remediation_attempt_success = False
-                                if test_status == 'failed' and self.remediation_attempts < MAX_REMEDIATION_ATTEMPTS: # Check attempts again before this specific attempt
-                                    logger.info(f"Attempting test failure remediation (Attempt {self.remediation_attempts + 1}/{MAX_REMEDIATION_ATTEMPTS})...")
-                                    # Read file content again for test remediation if needed (might have changed from style/ethical fix)
-                                    current_file_content_for_test_remediation = self._read_file_for_context(filepath_to_use)
-
-                                    if current_file_content_for_test_remediation and filepath_to_use:
-                                        test_remediation_attempt_success = self._attempt_test_failure_remediation(
-                                            grade_report_json, next_task, "Test Failure Remediation", filepath_to_use, current_file_content_for_test_remediation
-                                        )
-                                        if test_remediation_attempt_success:
-                                            logger.info("Test failure remediation successful.")
-                                            self.remediation_occurred_in_pass = True # Mark that remediation happened
+                                    # If test remediation wasn't attempted or failed, try style/ethical if they were the primary identified issue
+                                    if not remediation_success and failure_type == "Code Style":
+                                        remediation_attempted = True
+                                        remediation_success = self._attempt_code_style_remediation(grade_report_json, next_task, "Code Style Remediation", filepath_for_remediation, current_file_content)
+                                        if remediation_success:
+                                            logger.info("Style remediation attempt seems successful (code written).")
+                                            self.remediation_occurred_in_pass = True
                                             # Re-evaluate immediately after a successful write
                                             grade_report_json = self.generate_grade_report(task_id, self._current_task_results) # Use potentially updated results
-                                            logger.info(f"--- REVISED GRADE REPORT (Test Remediation) for Task {task_id} ---\n{grade_report_json}\n--- END REVISED GRADE REPORT ---")
+                                            logger.info(f"--- REVISED GRADE REPORT (Style) for Task {task_id} ---\n{grade_report_json}\n--- END REVISED GRADE REPORT ---")
                                             evaluation_result = self._parse_and_evaluate_grade_report(grade_report_json)
                                             recommended_action = evaluation_result.get("recommended_action", "Manual Review Required") # Update action
                                             justification = evaluation_result.get("justification", "Evaluation failed.")
-                                            logger.info(f"Revised Grade Report Evaluation (Test Remediation): Recommended Action='{recommended_action}', Justification='{justification}'")
+                                            logger.info(f"Revised Grade Report Evaluation (Style): Recommended Action='{recommended_action}', Justification='{justification}'")
                                         else:
-                                            logger.warning("Test failure remediation attempt failed.")
-                                    else:
-                                        logger.error(f"Failed to read current file content for {filepath_to_use} during test remediation. Cannot attempt remediation.")
+                                            logger.warning("Style remediation attempt failed.")
 
-                                # Increment remediation attempts counter *once per pass* if any remediation attempt succeeded in writing
-                                if self.remediation_occurred_in_pass:
-                                    self.remediation_attempts += 1
-                                    logger.info(f"Remediation attempt {self.remediation_attempts} completed.")
+                                    if not remediation_success and failure_type == "Ethical Transparency":
+                                        remediation_attempted = True
+                                        remediation_success = self._attempt_ethical_transparency_remediation(grade_report_json, next_task, "Ethical Transparency Remediation", filepath_for_remediation, current_file_content)
+                                        if remediation_success:
+                                            logger.info("Ethical transparency remediation seems successful (code written).")
+                                            self.remediation_occurred_in_pass = True
+                                            # Re-evaluate immediately after a successful write
+                                            grade_report_json = self.generate_grade_report(task_id, self._current_task_results) # Use potentially updated results
+                                            logger.info(f"--- REVISED GRADE REPORT (Ethical) for Task {task_id} ---\n{grade_report_json}\n--- END REVISED GRADE REPORT ---")
+                                            evaluation_result = self._parse_and_evaluate_grade_report(grade_report_json)
+                                            recommended_action = evaluation_result.get("recommended_action", "Manual Review Required") # Update action
+                                            justification = evaluation_result.get("justification", "Evaluation failed.")
+                                            logger.info(f"Revised Grade Report Evaluation (Ethical): Recommended Action='{recommended_action}', Justification='{justification}'")
+                                        else:
+                                            logger.warning("Ethical transparency remediation attempt failed.")
 
-                            else: # This else belongs to `if current_file_content and filepath_to_use:` (the first read attempt)
-                                logger.error(f"Failed to read current file content for remediation: {filepath_to_use}. Cannot attempt remediation.")
-                                # If file read fails, we cannot attempt any code modification remediation.
-                                # The recommended_action remains "Regenerate Code", but no attempt was made.
-                                # The loop will continue, and the task might eventually be marked "Blocked" or require manual review.
+                                    # Increment remediation attempts counter *once per pass* if any remediation attempt succeeded in writing
+                                    if self.remediation_occurred_in_pass:
+                                        self.remediation_attempts += 1
+                                        logger.info(f"Remediation attempt {self.remediation_attempts} completed.")
+                                    elif remediation_attempted:
+                                         logger.warning("Remediation attempt failed to write code.")
+
+
+                                else: # This else belongs to `if current_file_content:`
+                                    logger.error(f"Failed to read current file content for remediation: {filepath_for_remediation}. Cannot attempt remediation.")
+                                    # If file read fails, we cannot attempt any code modification remediation.
+                                    # The recommended_action remains "Regenerate Code", but no attempt was made.
+                                    # The loop will continue, and the task might eventually be marked "Blocked" or require manual review.
 
                         else: # This else belongs to `if recommended_action == "Regenerate Code":`
                             # This means recommended_action was "Regenerate Code" but attempts were exhausted
@@ -496,8 +538,7 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                     logger.warning(f"No solution plan generated for task {task_id}.")
                     # If no plan, task cannot be completed. Consider marking Blocked or Manual Review?
                     # For now, it will just log and move to the next task.
-                    # A better approach might be to update the task status to 'Blocked' or 'Manual Review' here.
-                    # Let's add a placeholder log for this scenario.
+                    # A better approach might be to update the task status to 'Manual Review' here.
                     logger.info(f"Task {task_id} requires manual review due to failed plan generation.")
                     # Optionally update status to 'Manual Review' here if desired.
 

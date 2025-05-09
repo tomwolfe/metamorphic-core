@@ -436,6 +436,7 @@ class TestWorkflowRemediation:
         mock_write.assert_not_called() # Write should not be called if LLM fails
         assert "Error during code style remediation: LLM error" in caplog.text
 
+
     # --- Tests for _attempt_ethical_transparency_remediation (from task_1_7_4) ---
     # Removed @patch decorators and will use mocker.patch.object(driver, ...) inside tests
     def test_return_false_if_no_transparency_violation(self, driver, mocker, caplog):
@@ -660,11 +661,11 @@ class TestWorkflowRemediation:
         # driver._current_task_results.update({
         #     'test_results': {'status': 'failed'}, # This initial state is cleared by the loop
         #     'code_review_results': {'status': 'passed'},
-        #     'ethical_analysis_results': {'overall_status': 'passed'},
-        #     'test_stdout': 'Test output', # Added for prompt construction test
-        #     'test_stderr': 'Error traceback', # Added for prompt construction test
-        #     'last_test_command': ['pytest'], # Added for re-execution test
-        #     'last_test_cwd': '/test/path' # Added for re-execution test
+        #     'ethical_analysis_results': {'overall_status': 'passed'}, # Use 'approved'
+        #     'test_stdout': 'Fail', # Needed for remediation prompt
+        #     'test_stderr': 'Error', # Needed for remediation prompt
+        #     'last_test_command': ['pytest'], # Needed for re-execution
+        #     'last_test_cwd': '/test/path' # Needed for re-execution
         # })
         # Ensure _current_task has all required keys for autonomous_loop
         task_data = {
@@ -678,10 +679,11 @@ class TestWorkflowRemediation:
         driver._current_task = task_data
         driver.filepath_to_use = driver._current_task['target_file']
 
-        # Mock methods called by autonomous_loop before remediation check
-        # FIX: Mock load_roadmap to return the updated task list on the second call
+        # Create updated task data for assertions
         updated_task = task_data.copy()
         updated_task['status'] = 'Completed'
+
+        # Mock methods called by autonomous_loop before remediation check
         # FIX: Correct load_roadmap side_effect to return [task_data] in the first loop iteration
         mock_load_roadmap = mocker.patch.object(
             driver, 'load_roadmap',
@@ -698,7 +700,7 @@ class TestWorkflowRemediation:
 
         mocker.patch.object(driver, 'generate_solution_plan', return_value=["Step 1: Implement code", "Step 2: Run tests"])
 
-        # Mock step execution to produce failed test results and other passed results
+        # Mock step execution to produce FAILED test results and other passed results
         mocker.patch.object(driver, 'execute_tests', return_value=(1, "fail", "err")) # Simulate failed tests in step execution
         mocker.patch.object(driver, '_parse_test_results', return_value={'status': 'failed', 'passed': 0, 'failed': 1, 'total': 1}) # Simulate parsing failed tests
         mocker.patch.object(driver.code_review_agent, 'analyze_python', return_value={'status': 'passed'}) # Simulate passed code review
@@ -988,9 +990,9 @@ class TestWorkflowRemediation:
 
         # Set driver state - these results are needed *before* calling the method
         driver._current_task_results.update({
+            'test_results': {'status': 'failed'},
             'test_stdout': test_stdout,
             'test_stderr': test_stderr,
-            'test_results': {'status': 'failed'}, # Initial failed status
             'last_test_command': ['pytest', 'tests/'],
             'last_test_cwd': '/mock/base/path'
         })
@@ -1286,7 +1288,7 @@ class TestWorkflowRemediation:
         mocker.patch.object(driver.code_review_agent, 'analyze_python', return_value={'status': 'passed'}) # Passed code review in step execution
         mocker.patch.object(driver.ethical_governance_engine, 'enforce_policy', return_value={'overall_status': 'approved'}) # Approved ethical in step execution
         # Ensure test stdout/stderr are available in _current_task_results after step execution
-        mocker.patch.object(driver, '_read_file_for_context', return_value=original_code) # Needed by remediation attempt
+        mocker.patch.object(driver, '_read_file_for_context', return_value="Original code") # Needed by remediation attempt
 
         # Mock grade report generation and evaluation to trigger remediation initially, then completion
         mock_generate_report = mocker.patch.object(driver, 'generate_grade_report')
@@ -1382,7 +1384,7 @@ class TestWorkflowRemediation:
         # Initial _current_task_results will be cleared by the loop,
         # so we need to mock the step execution to produce failed results.
         # driver._current_task_results.update({
-        #     'test_results': {'status': 'failed'},
+        #     'test_results': {'status': 'failed'}, # This initial state is cleared by the loop
         #     'code_review_results': {'status': 'passed'},
         #     'ethical_analysis_results': {'overall_status': 'approved'}, # Use 'approved'
         #     'test_stdout': 'Fail', # Needed for remediation prompt

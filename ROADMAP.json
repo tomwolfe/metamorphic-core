@@ -69,6 +69,166 @@
       "depends_on": ["task_1_8_3", "task_1_8_4", "task_1_8_5"]
     },
     {
+      "task_id": "task_1_8_14",
+      "priority": "High",
+      "task_name": "Address Ethical Debt in Token Allocator Policy",
+      "description": "The temporary fix for AllocationError in EthicalAllocationPolicy bypassed diversity constraints. Implement a robust, ethical token allocation strategy that correctly handles large prompts and multiple chunks, potentially revising Z3 constraints or exploring alternative allocation methods. Ensure the policy promotes model diversity where feasible without causing allocation failures.",
+      "status": "Not Started",
+      "target_file": "src/core/ethics/constraints.py, src/core/optimization/adaptive_token_allocator.py",
+      "depends_on": ["task_1_8_1", "task_1_8_6"]
+    },
+    {
+      "task_id": "task_1_8_7",
+      "priority": "Medium",
+      "task_name": "Implement Automated Task Decomposition",
+      "description": "Add logic to the Workflow Driver or a Planning Agent to assess task complexity and automatically break down large tasks into smaller, dependent sub-tasks in the roadmap if needed.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": ["task_1_8_1", "task_1_8_5"]
+    },
+    {
+      "task_id": "task_1_8_8",
+      "priority": "Medium",
+      "task_name": "Refine Grade Report & Error Logging",
+      "description": "Update generate_grade_report to clearly distinguish validation execution errors from findings and highlight critical issues. Improve overall logging clarity for debugging autonomous runs.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": ["task_1_8_5"]
+    },
+    {
+      "task_id": "task_1_8_9",
+      "priority": "High",
+      "task_name": "Implement Advanced Code Merging",
+      "description": "Replace the current string-based _merge_snippet with an AST-aware merging utility to handle code modifications more robustly and reduce the chance of introducing syntax errors during merging.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": ["task_1_8_3"]
+    },
+     {
+      "task_id": "task_1_8_10",
+      "priority": "High",
+      "task_name": "Implement Prompt Self-Correction Mechanism",
+      "description": "If remediation attempts fail for a step, analyze the failure and modify the *prompt* sent to the Coder LLM for the next attempt, or potentially modify the original code generation prompt template based on failure patterns.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": ["task_1_8_3", "task_1_8_5", "task_1_8_6"]
+    },
+     {
+      "task_id": "task_1_8_11",
+      "priority": "High",
+      "task_name": "Improve Coder LLM Prompt Generation Logic",
+      "description": "Refine how the Workflow Driver constructs prompts for the Coder LLM, incorporating lessons learned from failure data (task_1_8_5) and successful prompt self-correction (task_1_8_10).",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": ["task_1_8_5", "task_1_8_10"]
+    },
+     {
+      "task_id": "task_1_8_12",
+      "priority": "Medium",
+      "task_name": "Implement Task Success Prediction",
+      "description": "Develop a simple model (potentially using data from task_1_8_5) to predict the likelihood of autonomous success for a given task based on its characteristics. Use this to inform task selection or flag low-probability tasks for manual review.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": ["task_1_8_5"]
+    },
+    {
+      "task_id": "task_1_8_13",
+      "priority": "High",
+      "task_name": "Add Comprehensive Tests for Phase 1.8 Features",
+      "description": "Write comprehensive unit/integration tests covering all new features in Phase 1.8, including pre-write validation, step-level retries, post-write test execution, improved remediation logic, failure data capture, task decomposition, advanced merging, prompt self-correction, improved prompt generation, and task success prediction.",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_1", "task_1_8_2", "task_1_8_3", "task_1_8_4", "task_1_8_5", "task_1_8_6",
+        "task_1_8_7", "task_1_8_8", "task_1_8_9", "task_1_8_10", "task_1_8_11", "task_1_8_12"
+      ]
+    }
+  ],
+  "next_phase_actions": [
+    "Set `status`: `Completed` on all Phase 1.8 tasks.",
+    "Update the `phase`, `phase_goal`, and `current_focus` fields to 'Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph'."
+  ],
+  "current_focus": "🎯 CURRENT FOCUS: Phase 1.8 - Hardened Autonomous Loop & Advanced Remediation 🛠️"
+}{
+  "phase": "Phase 1.8: Hardened Autonomous Loop & Advanced Remediation",
+  "phase_goal": "Significantly improve the robustness and self-correction capabilities of the autonomous workflow loop based on real-world failure analysis, incorporating learning from failures, more sophisticated remediation, and better error handling.",
+  "success_metrics": [
+    "The Workflow Driver successfully handles and remediates common syntax, style, ethical, and test failures autonomously.",
+    "Critical errors (like IndentationError) are caught and addressed at the step level before writing.",
+    "Automated tests are executed after code modification steps.",
+    "The remediation loop successfully fixes >= 85% of tasks that fail initial validation (excluding fundamental design/ambiguity issues).",
+    "The Grade Report clearly distinguishes validation execution errors from findings and highlights critical issues.",
+    "Detailed failure data is logged and stored for learning and analysis.",
+    "The system can attempt to decompose complex tasks into smaller sub-tasks.",
+    "Code merging is more robust and less likely to introduce syntax errors.",
+    "The system can predict the likelihood of autonomous success for a task.",
+    "Phase 1.8 tests achieve >= 95% code coverage for new logic."
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1_8_1",
+      "priority": "Critical",
+      "task_name": "Enhance Plan Step Identification",
+      "description": "Improve the Workflow Driver's logic to better identify plan steps requiring code modification (imports, constants, definitions, etc.) vs. conceptual steps. Use more sophisticated keyword matching or NLP.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": []
+    },
+    {
+      "task_id": "task_1_8_2",
+      "priority": "Critical",
+      "task_name": "Implement Pre-Write Validation per Step",
+      "description": "Add logic to the Workflow Driver to run basic syntax, style, and ethical checks on generated code snippets *before* merging and writing to the target file. Use CodeReviewAgent and EthicalGovernanceEngine.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": ["task_1_8_1"]
+    },
+    {
+      "task_id": "task_1_8_3",
+      "priority": "Critical",
+      "task_name": "Implement Step-Level Remediation Loop",
+      "description": "If pre-write validation fails, provide targeted feedback to the Coder LLM and retry generating the snippet for that specific step (e.g., 2-3 attempts) before failing the step or task.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": ["task_1_8_2"]
+    },
+    {
+      "task_id": "task_1_8_4",
+      "priority": "Critical",
+      "task_name": "Ensure Post-Write, Step-Level Test Execution",
+      "description": "Modify the Workflow Driver to automatically trigger relevant tests (using execute_tests) after any plan step that successfully modifies code, especially if the task has a target_file that implies testability (e.g., .py file). Capture results in _current_task_results.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": ["task_1_8_3"]
+    },
+     {
+      "task_id": "task_1_8_5",
+      "priority": "High",
+      "task_name": "Implement Learning from Failures (Data Capture)",
+      "description": "Log detailed information about validation failures, remediation attempts, LLM prompts/responses, and outcomes. Store this structured data in the Knowledge Graph or a dedicated database for analysis and learning.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": ["task_1_8_4"]
+    },
+    {
+      "task_id": "task_1_8_6",
+      "priority": "High",
+      "task_name": "Improve Remediation Strategy & Targeted Feedback",
+      "description": "Refine the logic in _attempt_..._remediation methods. Prioritize fixing critical errors (syntax, test failures). Provide more targeted feedback to the LLM based on specific validation output (error messages, tracebacks). Handle multiple validation failures in one remediation attempt.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": ["task_1_8_3", "task_1_8_4", "task_1_8_5"]
+    },
+    {
+      "task_id": "task_1_8_14",
+      "priority": "High",
+      "task_name": "Address Ethical Debt in Token Allocator Policy",
+      "description": "The temporary fix for AllocationError in EthicalAllocationPolicy bypassed diversity constraints. Implement a robust, ethical token allocation strategy that correctly handles large prompts and multiple chunks, potentially revising Z3 constraints or exploring alternative allocation methods. Ensure the policy promotes model diversity where feasible without causing allocation failures.",
+      "status": "Not Started",
+      "target_file": "src/core/ethics/constraints.py, src/core/optimization/adaptive_token_allocator.py",
+      "depends_on": ["task_1_8_1", "task_1_8_6"]
+    },
+    {
       "task_id": "task_1_8_7",
       "priority": "Medium",
       "task_name": "Implement Automated Task Decomposition",

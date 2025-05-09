@@ -544,7 +544,7 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
 
                                 if task_found:
                                     if self._safe_write_roadmap_json(self.roadmap_path, roadmap_data):
-                                        logger.info(f"Successfully updated status for task {task_id} in {self.roadmap_path}")
+                                        logger.info(f"Successfully wrote updated status for task {task_id} in {self.roadmap_path}")
                                     else:
                                         logger.error(f"Failed to safely write updated roadmap for task {task_id}")
                                 else:
@@ -1568,7 +1568,7 @@ Prioritize security, and prevent code injection vulnerabilities.
             if temp_filepath.exists():
                 try:
                     os.remove(temp_filepath)
-                    logger.debug(f"Cleaned up temporary file after error: {temp_filepath}")
+                    logger.debug(f"Cleaned up temporary file after error: {cleanup_e}")
                 except Exception as cleanup_e:
                     logger.warning(f"Failed to clean up temporary file {temp_filepath} after error: {cleanup_e}")
             return False

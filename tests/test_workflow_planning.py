@@ -152,7 +152,7 @@ class TestWorkflowPlanning:
 2.  Step with & entity.
 3.  Step with > and <.
 """
-        mock_invoke_coder_llm.return_value = mock_llm_output
+        mock_invoke_coder_coder_llm.return_value = mock_llm_output
         mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High', 'status': 'Not Started'}
 
         plan = driver.generate_solution_plan(mock_task)
@@ -177,7 +177,7 @@ class TestWorkflowPlanning:
         assert "Task Name: Enhance the WorkflowDriver" in called_prompt
         assert "Task Description:\nImplement a feature." in called_prompt
         # FIX: Remove assertion for the old heuristic line
-        # assert "The primary file being modified for this task is `src/core/automation/workflow_driver.py`." in called_prompt
+        # The problematic lines with ``` were here and have been removed.
 
 
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="1. Step.")
@@ -196,7 +196,7 @@ class TestWorkflowPlanning:
         assert "Task Name: Implement a feature" in called_prompt
         assert "Task Description:\nModify the file src/core/automation/workflow_driver.py." in called_prompt
         # FIX: Remove assertion for the old heuristic line
-        # assert "The primary file being modified for this task is `src/core/automation/workflow_driver.py`." in called_prompt
+        # The problematic lines with ``` were here and have been removed.
 
 
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="1. Step.")
@@ -286,3 +286,12 @@ class TestWorkflowPlanning:
             driver.generate_user_actionable_steps([1, 2, 3])
         with pytest.raises(TypeError):
             driver.generate_user_actionable_steps(["valid", 123])
+
+    # --- REMOVED SYNTAX ERROR LINES ---
+    # The lines below were causing the SyntaxError because they were raw markdown
+    # code block fences outside of any Python string or comment.
+    # ``` # Comment out the markdown fence
+    # # assert "The primary file being modified for this task is `src/core/automation/workflow_driver.py`." in called_prompt
+    # ``` # Comment out the markdown fence
+    # --- END REMOVED SYNTAX ERROR LINES ---
+    # This entire block has been removed as per the LLM's analysis and the label.

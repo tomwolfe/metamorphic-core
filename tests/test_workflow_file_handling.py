@@ -341,7 +341,7 @@ class TestWorkflowFileHandling:
 
         content_int = driver._read_file_for_context(123)
         assert content_int == ""
-        assert "Attempted to read file with invalid path: 123" in caplog.text
+        assert "Attempted to read path with invalid input: 123" in caplog.text
 
     # --- Tests for file_exists ---
     @patch.object(Context, 'get_full_path')
@@ -508,7 +508,7 @@ class TestWorkflowFileHandling:
         mock_is_valid_filename.assert_any_call("file1.txt")
         mock_is_valid_filename.assert_any_call("subdir")
         mock_is_valid_filename.assert_any_call("file2.py")
-    
+
     @patch.object(Context, 'get_full_path', return_value=None) # Simulate path resolution failure
     @patch('os.listdir') # Should not be called
     def test_list_files_base_path_resolution_failure(self, mock_listdir, mock_get_full_path, test_driver_file_handling, caplog):

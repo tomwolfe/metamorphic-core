@@ -1,3 +1,4 @@
+# tests/test_workflow_driver.py
 import pytest
 import html
 import shutil
@@ -1427,20 +1428,20 @@ class TestWorkflowDriver:
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch('builtins.open', new_callable=MagicMock)
     def test_autonomous_loop_multiple_code_steps(self,
-                                                mock_open, # Corresponds to @patch('builtins.open', ...)
-                                                mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
-                                                mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
-                                                mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
-                                                mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
-                                                mock_parse_test_results, # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results', ...)
-                                                mock_execute_tests, # Corresponds to @patch.object(WorkflowDriver, 'execute_tests', ...)
-                                                mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
-                                                mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
-                                                mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
-                                                mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
-                                                mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
-                                                mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
-                                                mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                mock_open,                     # Corresponds to @patch('builtins.open', ...)
+                                                mock_get_full_path,            # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                mock_safe_write_roadmap,       # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                mock_parse_and_evaluate,       # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                mock_generate_report,          # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                mock_parse_test_results,       # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results', ...)
+                                                mock_execute_tests,            # Corresponds to @patch.object(WorkflowDriver, 'execute_tests', ...)
+                                                mock_write_output_file,        # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                mock_merge_snippet,            # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                mock_invoke_coder_llm,         # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                mock_read_file_for_context,    # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                mock_generate_plan,            # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                mock_select_next_task,         # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                mock_load_roadmap,             # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
                                                 test_driver_validation, caplog, tmp_path, mocker):
         """
         Test Case 7: Task execution with multiple code writing steps in the plan.

@@ -152,7 +152,8 @@ class TestWorkflowPlanning:
 2.  Step with & entity.
 3.  Step with > and <.
 """
-        mock_invoke_coder_coder_llm.return_value = mock_llm_output
+        # FIX: Corrected the typo in the mock variable name
+        mock_invoke_coder_llm.return_value = mock_llm_output
         mock_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Desc', 'priority': 'High', 'status': 'Not Started'}
 
         plan = driver.generate_solution_plan(mock_task)

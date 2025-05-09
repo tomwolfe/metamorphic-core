@@ -341,7 +341,8 @@ class TestWorkflowFileHandling:
 
         content_int = driver._read_file_for_context(123)
         assert content_int == ""
-        assert "Attempted to read path with invalid input: 123" in caplog.text
+        # FIX: Corrected assertion string to match the actual log message
+        assert "Attempted to read file with invalid path: 123" in caplog.text
 
     # --- Tests for file_exists ---
     @patch.object(Context, 'get_full_path')

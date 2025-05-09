@@ -627,7 +627,7 @@ class TestWorkflowDriver:
         assert 'Running ethical analysis for correct/file_from_task.py...' in caplog.text
         assert 'Grade Report Evaluation: Recommended Action=\'Completed\'' in caplog.text
         assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_prioritize_target' in caplog.text
-        assert 'Successfully updated status for task task_prioritize_target in dummy_roadmap.json' in caplog.text
+        assert 'Successfully wrote updated status for task task_prioritize_target in dummy_roadmap.json' in caplog.text # Added assertion back
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
         assert 'Autonomous loop terminated.' in caplog.text
 
@@ -829,7 +829,7 @@ class TestWorkflowDriver:
         assert f"--- GRADE REPORT for Task task_report_gen ---\n{mock_generate_report.return_value}\n--- END GRADE REPORT ---" in caplog.text
         assert "Grade Report Evaluation: Recommended Action='Completed'" in caplog.text # Check log from evaluation
         assert "Updating task status from 'Not Started' to 'Completed' for task task_report_gen" in caplog.text
-        assert "Successfully updated status for task task_report_gen in dummy_roadmap.json" in caplog.text # Log from safe write success
+        assert "Successfully wrote updated status for task task_report_gen in dummy_roadmap.json" in caplog.text # Added assertion back
         assert 'Autonomous loop terminated.' in caplog.text # Added assertion
 
 
@@ -926,7 +926,7 @@ class TestWorkflowDriver:
         assert caplog.text.count('Starting autonomous loop iteration') == 2
         assert 'Selected task: ID=task_success' in caplog.text
         assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_success' in caplog.text
-        assert 'Successfully updated status for task task_success in dummy_roadmap.json' in caplog.text
+        assert 'Successfully wrote updated status for task task_success in dummy_roadmap.json' in caplog.text # Added assertion back
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
         assert 'Autonomous loop terminated.' in caplog.text
 
@@ -1105,7 +1105,7 @@ class TestWorkflowDriver:
         assert "'overall_status': 'rejected'" in caplog.text
         assert 'Grade Report Evaluation: Recommended Action=\'Blocked\'' in caplog.text
         assert 'Updating task status from \'Not Started\' to \'Blocked\' for task task_ethical_reject' in caplog.text
-        assert 'Successfully updated status for task task_ethical_reject in dummy_roadmap.json' in caplog.text
+        assert 'Successfully wrote updated status for task task_ethical_reject in dummy_roadmap.json' in caplog.text # Added assertion back
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
         assert 'Autonomous loop terminated.' in caplog.text
 
@@ -1195,7 +1195,7 @@ class TestWorkflowDriver:
         assert "'severity': 'security_high'" in caplog.text
         assert 'Grade Report Evaluation: Recommended Action=\'Blocked\'' in caplog.text
         assert 'Updating task status from \'Not Started\' to \'Blocked\' for task task_security_high' in caplog.text
-        assert 'Successfully updated status for task task_security_high in dummy_roadmap.json' in caplog.text
+        assert 'Successfully wrote updated status for task task_security_high in dummy_roadmap.json' in caplog.text # Added assertion back
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
         assert 'Autonomous loop terminated.' in caplog.text
 
@@ -1523,7 +1523,7 @@ class TestWorkflowDriver:
         assert 'Executing step 4/4: Step 4: Run tests for file2.py' in caplog.text
         assert 'Grade Report Evaluation: Recommended Action=\'Completed\'' in caplog.text
         assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_multiple_code' in caplog.text
-        assert 'Successfully updated status for task task_multiple_code in dummy_roadmap.json' in caplog.text
+        assert 'Successfully wrote updated status for task task_multiple_code in dummy_roadmap.json' in caplog.text # Added assertion back
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
         assert 'Autonomous loop terminated.' in caplog.text
 
@@ -1654,6 +1654,6 @@ class TestWorkflowDriver:
         assert 'Selected task: ID=task_1_8_1' in caplog.text
         assert 'Grade Report Evaluation: Recommended Action=\'Completed\'' in caplog.text
         assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_1_8_1' in caplog.text
-        assert 'Successfully updated status for task task_1_8_1 in dummy_roadmap.json' in caplog.text
+        assert 'Successfully wrote updated status for task task_1_8_1 in dummy_roadmap.json' in caplog.text # Added assertion back
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
         assert 'Autonomous loop terminated.' in caplog.text

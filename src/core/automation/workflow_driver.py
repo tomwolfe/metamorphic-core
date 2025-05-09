@@ -104,8 +104,15 @@ class WorkflowDriver:
         default_policy_path = self.context.get_full_path("policies/policy_bias_risk_strict.json")
         if default_policy_path:
             try:
-                self.default_policy_config = self.ethical_governance_engine.load_policy_from_json(default_policy_path)
+                with builtins.open(default_policy_path, 'r') as f: # Use builtins.open
+                     self.default_policy_config = json.load(f) # Use json.load
                 logger.info(f"Loaded default ethical policy: {self.default_policy_config.get('policy_name')}")
+            except FileNotFoundError:
+                 logger.warning(f"Default ethical policy file not found at {default_policy_path}. Ethical analysis will be skipped.")
+                 self.default_policy_config = None
+            except json.JSONDecodeError:
+                 logger.error(f"Invalid JSON in default ethical policy file: {default_policy_path}. Ethical analysis will be skipped.")
+                 self.default_policy_config = None
             except Exception as e:
                 logger.error(f"Failed to load default ethical policy from {default_policy_path}: {e}", exc_info=True)
                 self.default_policy_config = None # Set to None if loading fails
@@ -195,25 +202,36 @@ class WorkflowDriver:
                         logger.info(f"Executing step {step_index + 1}/{len(solution_plan)}: {step}")
 
                         step_lower = step.lower()  # Convert step to lower once
+
+                        # Define keywords for step classification
                         code_generation_keywords = ["implement", "generate code",
                                                     "write function", "modify file",
-                                                    "add logic to"]
+                                                    "add logic to", "define class",
+                                                    "create method", "add import",
+                                                    "update constant", "refactor"] # Added more keywords
                         file_writing_keywords = ["write file", "create file", "save to file",
-                                                 "output file", "generate file", "write output to"] # Added "write output to"
+                                                 "output file", "generate file", "write output to",
+                                                 "update file", "modify file"] # Added "update file", "modify file"
                         test_execution_keywords = ["run tests", "execute tests", "verify tests", "pytest", "test suite"]
 
+
                         # --- REVISED LOGIC FOR DETERMINING STEP TYPE AND FILE PATH (PRIORITIZE target_file) ---
+                        # This regex is primarily for extracting a filename *if* one is mentioned,
+                        # but the logic below will prioritize target_file.
                         filepath_match = re.search(
                             r'(\S+\.(py|md|json|txt|yml|yaml))', step, re.IGNORECASE)
                         filepath_from_step = filepath_match.group(1) if filepath_match else None
 
-                        is_step_explicitly_file_writing = (filepath_from_step is not None) or any(
-                            keyword in step_lower for keyword in file_writing_keywords)
+                        # Check for keywords indicating code generation
+                        is_code_generation_step = any(keyword in step_lower for keyword in code_generation_keywords)
 
-                        needs_coder_llm = any(
-                            keyword in step_lower for keyword in code_generation_keywords)
+                        # Check for keywords indicating explicit file writing (non-code-gen)
+                        # FIX: This flag should ONLY check for file_writing_keywords, not filepath_from_step
+                        is_explicit_file_writing_step = any(keyword in step_lower for keyword in file_writing_keywords)
 
+                        # Check for test execution keywords
                         is_test_execution_step = any(keyword in step_lower for keyword in test_execution_keywords)
+
 
                         # Determine the actual filepath to use for the operation
                         # Prioritize the target_file from the task metadata
@@ -222,7 +240,8 @@ class WorkflowDriver:
                             filepath_to_use = next_task.get('target_file')
 
                         # If the task doesn't have a target_file, but the step mentions one and is file-related, use the one from the step.
-                        if not filepath_to_use and (is_step_explicitly_file_writing or needs_coder_llm) and filepath_from_step:
+                        # FIX: Only use filepath_from_step if it's an explicit file writing or code generation step AND no target_file is set
+                        if not filepath_to_use and (is_explicit_file_writing_step or is_code_generation_step) and filepath_from_step:
                             filepath_to_use = filepath_from_step
                         # --- END REVISED LOGIC ---
 
@@ -236,7 +255,8 @@ class WorkflowDriver:
                         if is_test_execution_step:
                             logger.info(f"Step identified as test execution. Running tests for step: {step}")
                             test_command = ["pytest"]
-                            if filepath_to_use and "test_" in filepath_to_use.lower():
+                            # FIX: Use filepath_to_use if it looks like a test file, otherwise default to tests/
+                            if filepath_to_use and "test_" in Path(filepath_to_use).name.lower():
                                 test_command.append(filepath_to_use)
                             else:
                                 test_command.append("tests/")
@@ -256,7 +276,8 @@ class WorkflowDriver:
                                 self._current_task_results['test_results'] = {'status': 'error', 'passed': 0, 'failed': 0, 'total': 0, 'message': str(e)}
 
                         # Prioritize code generation steps targeting a specific file
-                        elif needs_coder_llm and filepath_to_use:
+                        # FIX: Use the new is_code_generation_step flag
+                        elif is_code_generation_step and filepath_to_use:
                             logger.info(
                                 f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.")
 
@@ -334,7 +355,8 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                         # This might need refinement based on whether the step implies creating a *new* file
                         # or modifying an existing one (which would need overwrite=True).
                         # For task_1_8_1, steps modifying workflow_driver.py should use overwrite=True.
-                        elif is_step_explicitly_file_writing and not needs_coder_llm and filepath_to_use:
+                        # FIX: Use the new is_explicit_file_writing_step flag
+                        elif is_explicit_file_writing_step and not is_code_generation_step and filepath_to_use:
                             logger.info(f"Step identified as file writing (non-code-gen). Processing file operation for step: {step}")
                             # Determine if this step implies creating a *new* file or modifying an existing one.
                             # Simple heuristic: If the step explicitly says "create file", use overwrite=False.
@@ -358,8 +380,9 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
 
                         # Log if the step was not identified as involving file operations, code generation, or test execution
                         else:
+                            # FIX: Updated log message to reflect new flag names and include step description
                             logger.info(
-                                f"Step not identified as code generation, file writing, or test execution. Skipping agent invocation/file write for step: {step}")
+                                f"Step not identified as code generation, explicit file writing, or test execution. Skipping agent invocation/file write for step: {step}")
                         # --- END MODIFIED LOGIC FOR STEP PROCESSING ---
 
                     # --- Post-Step Execution Logic (Inside the 'if solution_plan:' block) ---
@@ -595,7 +618,7 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
 
 
         try:
-            with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with builtins.open(full_path, 'r', encoding='utf-8', errors='ignore') as f: # Use builtins.open
                 content = f.read()
             logger.debug(f"Successfully read {len(content)} characters from {relative_file_path}")
             return content
@@ -649,6 +672,7 @@ Task Description:
 {target_file_context}Please provide the plan as a numbered markdown list. Do not include any introductory or concluding remarks outside the list.
 When generating steps that involve modifying the primary file for this task, ensure you refer to the file identified in the context (e.g., src/core/automation/workflow_driver.py).
 """
+
 
         # The last sentence is kept to guide the LLM's natural language, but the Driver now relies on the target_file field.
 
@@ -865,7 +889,7 @@ Prioritize security, and prevent code injection vulnerabilities.
             return tasks
 
         try:
-            with open(full_roadmap_path, 'r') as f:
+            with builtins.open(full_roadmap_path, 'r') as f: # Use builtins.open
                 roadmap_data = json.load(f)
         except json.JSONDecodeError:
             logger.error(f"Invalid JSON in roadmap file: {full_roadmap_path}")
@@ -1403,7 +1427,7 @@ Prioritize security, and prevent code injection vulnerabilities.
         # Simple heuristic: 100% if Test Success is 100%, 0% otherwise.
         grades['non_regression'] = {
             "percentage": 100 if grades['test_success']['percentage'] == 100 else 0,
-            "justification": "Non-regression testing is a placeholder. Graded based on Test Success (100% if tests passed, 0% otherwise)."
+            "justification": "Non-regression testing is a placeholder. Graded based on Test Success (100% if tests passed, 100% if no tests ran, 0% otherwise)." # Updated justification
         }
 
 
@@ -1529,7 +1553,7 @@ Prioritize security, and prevent code injection vulnerabilities.
 
         try:
             # Write to temporary file
-            with open(temp_filepath, 'w', encoding='utf-8') as f:
+            with builtins.open(temp_filepath, 'w', encoding='utf-8') as f: # Use builtins.open
                 json.dump(new_content, f, indent=2)
 
             # Atomically replace the original file

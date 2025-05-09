@@ -1,4 +1,3 @@
-# File: tests/test_workflow_driver.py
 import pytest
 import html
 import shutil
@@ -17,8 +16,8 @@ from unittest.mock import MagicMock, patch, ANY, call
 import re
 
 # Removed direct import of agents as they are mocked via fixture/patch
-from src.core.agents.code_review_agent import CodeReviewAgent
-from src.core.ethics.governance import EthicalGovernanceEngine
+# from src.core.agents.code_review_agent import CodeReviewAgent
+# from src.core.ethics.governance import EthicalGovernanceEngine
 from datetime import datetime
 import uuid
 import builtins # Import builtins for mocking open
@@ -66,6 +65,7 @@ def test_driver(tmp_path):
             'mock_code_review_agent': mock_code_review_agent_instance,
             'mock_ethical_governance_engine': mock_ethical_governance_engine_instance
         }
+
 def create_mock_roadmap_file(content, tmp_path, is_json=True):
     """Creates a mock roadmap file in the temporary directory."""
     if is_json:
@@ -76,8 +76,65 @@ def create_mock_roadmap_file(content, tmp_path, is_json=True):
         f.write(content)
     return str(file_path)
 
-class TestWorkflowDriver:
+# Helper task lists for tests
+task_list_not_started = [{'task_id': 'mock_task', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}]
+task_list_completed = [{'task_id': 'mock_task', 'task_name': 'Mock Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High'}]
+task_list_blocked = [{'task_id': 'mock_task', 'task_name': 'Mock Task', 'status': 'Blocked', 'description': 'Desc', 'priority': 'High'}]
 
+# Corrected expected data for safe_write_roadmap_json assertion
+# This list should match the structure and content of the task after it's marked completed
+task_list_completed_expected_write = [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Completed', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}]
+
+# Corrected expected data for success flow
+task_list_success_completed_expected_write = [{'task_id': 'task_success', 'task_name': 'Success Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/success.py'}]
+
+# Corrected expected data for ethical reject flow
+task_list_ethical_blocked_expected_write = [{'task_id': 'task_ethical_reject', 'task_name': 'Ethical Reject Task', 'status': 'Blocked', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/ethical.py'}]
+
+# Corrected expected data for security high flow
+task_list_security_blocked_expected_write = [{'task_id': 'task_security_high', 'task_name': 'Security High Task', 'status': 'Blocked', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/security.py'}]
+
+# Corrected expected data for multiple code steps flow
+task_list_multiple_code_completed_expected_write = [{'task_id': 'task_multiple_code', 'task_name': 'Multiple Code Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/file1.py'}]
+
+# Corrected expected data for conceptual step flow
+task_list_conceptual_completed_expected_write = [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Completed', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}]
+
+
+# Fixture for a WorkflowDriver instance with a Context, specifically for validation tests
+@pytest.fixture
+def test_driver_validation(tmp_path):
+    context = Context(str(tmp_path))
+    # Patch the CodeReviewAgent and EthicalGovernanceEngine instantiation
+    with patch('src.core.automation.workflow_driver.CodeReviewAgent') as MockCodeReviewAgent, \
+         patch('src.core.automation.workflow_driver.EthicalGovernanceEngine') as MockEthicalGovernanceEngine:
+        mock_code_review_agent_instance = MockCodeReviewAgent.return_value
+        mock_ethical_governance_engine_instance = MockEthicalGovernanceEngine.return_value
+        # Mock the policy loading within the engine mock
+        mock_ethical_governance_engine_instance.load_policy_from_json.return_value = {'policy_name': 'Mock Policy'}
+
+
+        driver = WorkflowDriver(context)
+        # Ensure LLM orchestrator mock is set up
+        driver.llm_orchestrator = MagicMock()
+        driver.llm_orchestrator.generate.return_value = "Test response from LLM"
+        # Assign mocked instances
+        driver.code_review_agent = mock_code_review_agent_instance
+        driver.ethical_governance_engine = mock_ethical_governance_engine_instance
+        driver.default_policy_config = {'policy_name': 'Mock Policy'} # Ensure default policy is set
+
+        # Add attributes needed for tests that might not be set by __init__ or autonomous_loop setup
+        driver._current_task_results = {}
+        driver.remediation_attempts = 0 # Initialize remediation counter for tests
+        driver.remediation_occurred_in_pass = False # Initialize flag
+
+        yield {
+            'driver': driver,
+            'mock_code_review_agent': mock_code_review_agent_instance,
+            'mock_ethical_governance_engine': mock_ethical_governance_engine_instance
+        }
+
+class TestWorkflowDriver:
 
     # --- Tests for start_workflow method ---
     @patch.object(WorkflowDriver, 'load_roadmap', return_value=[])
@@ -268,6 +325,7 @@ class TestWorkflowDriver:
     # FIX: Provide 3 return values for load_roadmap side_effect
     # FIX: Correct assertion for select_next_task call argument
     # FIX: Update assertion for "EXISTING CONTENT OF" block to include trailing newline
+    # FIX: Correct argument order in signature
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True")
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/feature.py"])
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
@@ -286,7 +344,22 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({}))
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"})
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
-    def test_autonomous_loop_calls_write_file_with_generated_content(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog, tmp_path, mocker):
+    # Add patch for builtins.open
+    @patch('builtins.open', new_callable=MagicMock)
+    def test_autonomous_loop_calls_write_file_with_generated_content(self,
+                                                                    mock_open, # Corresponds to @patch('builtins.open', ...)
+                                                                    mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                                    mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                                    mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                                    mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                                    mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                                    mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                                    mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                                    mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                                    mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                                    mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                                    mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                                    test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop calls _write_output_file with generated content when step is code gen + file write."""
         caplog.set_level(logging.INFO)
         driver = test_driver['driver']
@@ -298,6 +371,13 @@ class TestWorkflowDriver:
         mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved', 'policy_name': 'Test Policy'}
 
         driver.roadmap_path = "dummy_roadmap.json"
+
+        # FIX: Configure mock_open for json.load
+        task_list_not_started_local = [{'task_id': 'mock_task_code_write', 'task_name': 'Task Code Write', 'status': 'Not Started', 'description': 'Desc Code Write', 'priority': 'High', 'target_file': 'src/feature.py'}]
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started_local})
+        mock_open.return_value.__enter__.return_value = mock_file
+
 
         driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
@@ -330,6 +410,8 @@ class TestWorkflowDriver:
     # FIX: Provide 3 return values for load_roadmap side_effect
     # FIX: Correct assertion for select_next_task call argument
     # FIX: Update assertion for "EXISTING CONTENT OF" block to include trailing newline
+    # FIX: Correct argument order in signature
+    # FIX: Correct the typo in the patch target from _invoke_coder_llM to _invoke_coder_llm
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True")
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement feature and add logic to src/feature.py"])
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
@@ -348,7 +430,22 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({}))
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"})
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
-    def test_autonomous_loop_reads_existing_file_content(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, caplog, tmp_path, mocker):
+    # Add patch for builtins.open
+    @patch('builtins.open', new_callable=MagicMock)
+    def test_autonomous_loop_reads_existing_file_content(self,
+                                                    mock_open, # Corresponds to @patch('builtins.open', ...)
+                                                    mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                    mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                    mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                    mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                    mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                    mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                    mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                    mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                    mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                    mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                    mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                    test_driver, caplog, tmp_path, mocker):
         """Test that autonomous_loop reads existing file content and includes it in the LLM prompt."""
         caplog.set_level(logging.INFO)
         driver = test_driver['driver']
@@ -360,6 +457,13 @@ class TestWorkflowDriver:
         mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved', 'policy_name': 'Test Policy'}
 
         driver.roadmap_path = "dummy_roadmap.json" # Set before start_workflow
+
+        # FIX: Configure mock_open for json.load
+        task_list_not_started_local = [{'task_id': 'mock_task_code_write_exists', 'task_name': 'Task Code Write Exists', 'status': 'Not Started', 'description': 'Desc Code Write Exists', 'priority': 'High', 'target_file': 'src/feature.py'}]
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started_local})
+        mock_open.return_value.__enter__.return_value = mock_file
+
 
         driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
 
@@ -424,7 +528,7 @@ class TestWorkflowDriver:
                                                     mock_generate_report,          # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
                                                     mock_parse_test_results,       # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results')
                                                     mock_execute_tests,            # Corresponds to @patch.object(WorkflowDriver, 'execute_tests')
-                                                    mock_write_output_file,        # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                    mock_write_output_file,        # Corresponds to @patch.object(WorkflowDriver, '_write_output_file')
                                                     mock_get_full_path,            # Corresponds to @patch.object(Context, 'get_full_path', ...)
                                                     mock_merge_snippet,            # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
                                                     mock_read_file_for_context,    # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
@@ -432,30 +536,31 @@ class TestWorkflowDriver:
                                                     mock_select_next_task,         # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
                                                     mock_generate_plan,            # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
                                                     mock_invoke_coder_llm,         # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
-                                                    test_driver, caplog, tmp_path, mocker):
+                                                    test_driver_validation, caplog, tmp_path, mocker):
         """
         Test that autonomous_loop prioritizes the 'target_file' from the task
         over a filename mentioned in the plan step description.
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver['driver']
-        mock_code_review_agent = test_driver['mock_code_review_agent']
-        mock_ethical_governance_engine = test_driver['mock_ethical_governance_engine']
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_governance_engine = test_driver_validation['mock_ethical_governance_engine']
 
         # Set return values on the mock instances from the fixture
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
         mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved', 'policy_name': 'Mock Policy'}
 
-        driver.roadmap_path = "dummy_roadmap.json"
+        # FIX: Define task_list_not_started and task_list_completed for assertions
         task_list_not_started = [{'task_id': 'task_prioritize_target', 'task_name': 'Prioritize Target File', 'status': 'Not Started', 'description': 'Test target file prioritization.', 'priority': 'High', 'target_file': 'correct/file_from_task.py'}]
         task_list_completed = [{'task_id': 'task_prioritize_target', 'task_name': 'Prioritize Target File', 'status': 'Completed', 'description': 'Test target file prioritization.', 'priority': 'High', 'target_file': 'correct/file_from_task.py'}]
 
-        # Mock the open call within autonomous_loop to simulate reading the roadmap before update
-        original_roadmap_data = task_list_not_started
-        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
+        # FIX: Configure mock_open for json.load
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
+        mock_open.return_value.__enter__.return_value = mock_file
 
 
-        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         # Verify calls for the first loop iteration (task execution)
         mock_select_next_task.assert_any_call(task_list_not_started)
@@ -468,7 +573,15 @@ class TestWorkflowDriver:
         mock_invoke_coder_llm.assert_called_once()
         called_prompt = mock_invoke_coder_llm.call_args[0][0]
         # This assertion should now pass with the corrected generate_solution_plan
+        # FIX: Correct assertion string to match the code's prompt template
         assert "The primary file being modified is `correct/file_from_task.py`." in called_prompt
+        # Should NOT use the old heuristic based on name/description
+        assert "The primary file being modified for this task is `src/core/automation/workflow_driver.py`." not in called_prompt
+        # Ensure Task Name and Description are still present
+        # FIX: Correct assertion string to match the code's prompt template
+        assert 'Overall Task: "Prioritize Target File"' in called_prompt
+        # --- FIX 1 APPLIED HERE ---
+        assert "Task Description: Test target file prioritization." in called_prompt
         # FIX: Add the trailing newline to the assertion string
         assert "EXISTING CONTENT OF `correct/file_from_task.py`:\n```python\nExisting content.\n```\n" in called_prompt
 
@@ -484,14 +597,24 @@ class TestWorkflowDriver:
 
         # Verify report generation and evaluation
         mock_generate_report.assert_called_once()
-        mock_parse_and_evaluate.assert_called_once_with(ANY)
+        called_report_results = mock_generate_report.call_args[0][1]
+        # Ensure validation results are included in the report data
+        assert 'code_review_results' in called_report_results
+        assert 'ethical_analysis_results' in called_report_results
+        # --- FIX 1 APPLIED HERE: Removed incorrect assertion ---
+        # assert 'test_results' in called_report_results # Should be empty/default if tests weren't run
 
-        # Verify roadmap status update
+        mock_parse_and_evaluate.assert_called_once_with(mock_generate_report.return_value)
+
+        # Assert that open was called to read the roadmap before writing
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
+
+        # safe_write_roadmap is called because the status changes to "Completed"
         mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_completed})
 
         # Verify calls for the second loop iteration (no tasks found)
         mock_select_next_task.assert_any_call(task_list_completed)
+
 
         # Verify overall loop termination and logging
         assert 'Selected task: ID=task_prioritize_target' in caplog.text
@@ -505,23 +628,23 @@ class TestWorkflowDriver:
         assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_prioritize_target' in caplog.text
         assert 'Successfully updated status for task task_prioritize_target in dummy_roadmap.json' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text # Added assertion
+        assert 'Autonomous loop terminated.' in caplog.text
 
 
     # FIX: Provide 3 return values for load_roadmap side_effect
     # FIX: Correct assertion for select_next_task call argument
-    # FIX: Keep assertion for 'No tasks available...' log message
-    # FIX: Update the assertion for _write_output_file to expect overwrite=True
+    # FIX: Add mock for builtins.open for status update read
     # FIX: Correct argument order in signature
+    # FIX: Update the assertion for _write_output_file to expect overwrite=True
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value=None)
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to error.txt", "Step 2: Another step."])
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
-        {'task_id': 'mock_task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'},
+        {'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'},
         None
     ])
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
-        [{'task_id': 'mock_task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'}], # Initial
-        [{'task_id': 'mock_task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'}], # Loop 1
+        [{'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'}], # Initial
+        [{'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'}], # Loop 1
         [] # Loop 2
     ])
     @patch.object(WorkflowDriver, '_read_file_for_context')
@@ -531,16 +654,38 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({}))
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"})
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
-    def test_autonomous_loop_handles_generic_write_file_exceptions(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver, tmp_path, mocker, caplog):
+    # Add patch for builtins.open
+    @patch('builtins.open', new_callable=MagicMock)
+    def test_autonomous_loop_handles_generic_write_file_exceptions(self,
+                                                              mock_open, # Corresponds to @patch('builtins.open', ...)
+                                                              mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                              mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                              mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                              mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                              mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                              mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                              mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                              mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                              mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                              mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                              mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                              test_driver_validation, tmp_path, mocker, caplog):
         """Test that autonomous_loop handles generic exceptions from _write_output_file gracefully."""
         caplog.set_level(logging.INFO)
-        driver = test_driver['driver']
-        mock_code_review_agent = test_driver['mock_code_review_agent']
-        mock_ethical_governance_engine = test_driver['mock_ethical_governance_engine']
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_governance_engine = test_driver_validation['mock_ethical_governance_engine']
 
-        driver.roadmap_path = "dummy_roadmap.json"
+        # FIX: Define task_list_not_started for assertions
+        task_list_not_started = [{'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'}]
 
-        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
+        # FIX: Configure mock_open for json.load
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
+        mock_open.return_value.__enter__.return_value = mock_file
+
+
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         mock_read_file_for_context.assert_not_called()
         mock_merge_snippet.assert_not_called()
@@ -564,9 +709,11 @@ class TestWorkflowDriver:
         step1_logs = "\n".join([log for log in caplog.text.splitlines() if "Step 1" in log])
         step2_logs = "\n".join([log for log in caplog.text.splitlines() if "Step 2" in log])
         # The step is identified as file writing, so this log should NOT appear for step 1
-        assert "Step not identified as code generation, file writing, or test execution." not in step1_logs
+        # FIX: Corrected assertion to check for the *new* log message
+        assert "Step identified as file writing (non-code-gen). Processing file operation for step: Step 1: Write output to error.txt" in step1_logs
         # Step 2 IS NOT file writing, code gen, or test execution
-        assert "Step not identified as code generation, file writing, or test execution." in step2_logs
+        # FIX: Corrected assertion to check for the *new* log message
+        assert "Step not identified as code generation, explicit file writing, or test execution. Skipping agent invocation/file write for step: Step 2: Another step." in step2_logs
         # Status update should not happen
         mock_safe_write_roadmap.assert_not_called()
 
@@ -577,8 +724,8 @@ class TestWorkflowDriver:
     # FIX: Correct argument order in signature
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Not Started', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}], # Initial
-        [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Not Started', 'description': 'Desc Review execution flow.', 'priority': 'High', 'target_file': 'src/feature.py'}], # Loop 1
-        [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Completed', 'description': 'Desc Review execution flow.', 'priority': 'High', 'target_file': 'src/feature.py'}] # Loop 2 (after update)
+        [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Not Started', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}], # Loop 1
+        [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Completed', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}] # Loop 2 (after update)
     ])
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Not Started', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}, # Select task
@@ -600,53 +747,47 @@ class TestWorkflowDriver:
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch('builtins.open', new_callable=MagicMock)
     def test_autonomous_loop_calls_reporting_and_persistence(self,
-                                                            mock_open,                     # Corresponds to @patch('builtins.open', ...)
-                                                            mock_get_full_path,            # Corresponds to @patch.object(Context, 'get_full_path', ...)
-                                                            mock_safe_write_roadmap,       # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
-                                                            mock_parse_and_evaluate,       # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
-                                                            mock_generate_report,          # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
-                                                            mock_parse_test_results,       # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results', ...)
-                                                            mock_execute_tests,            # Corresponds to @patch.object(WorkflowDriver, 'execute_tests', ...)
-                                                            mock_write_output_file,        # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
-                                                            mock_merge_snippet,            # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
-                                                            mock_invoke_coder_llm,         # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
-                                                            mock_read_file_for_context,    # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
-                                                            mock_generate_plan,            # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
-                                                            mock_select_next_task,         # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
-                                                            mock_load_roadmap,             # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
-                                                            test_driver, caplog, tmp_path, mocker):
+                                                        mock_open,                     # Corresponds to @patch('builtins.open', ...)
+                                                        mock_get_full_path,            # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                        mock_safe_write_roadmap,       # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                        mock_parse_and_evaluate,       # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                        mock_generate_report,          # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                        mock_parse_test_results,       # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results', ...)
+                                                        mock_execute_tests,            # Corresponds to @patch.object(WorkflowDriver, 'execute_tests', ...)
+                                                        mock_write_output_file,        # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                        mock_merge_snippet,            # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                        mock_invoke_coder_llm,         # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                        mock_read_file_for_context,    # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                        mock_generate_plan,            # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                        mock_select_next_task,         # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                        mock_load_roadmap,             # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                        test_driver_validation, caplog, tmp_path, mocker):
         """
         Test that autonomous_loop calls generate_grade_report, _parse_and_evaluate_grade_report,
         and _safe_write_roadmap_json after completing plan steps.
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver['driver']
-        mock_code_review_agent = test_driver['mock_code_review_agent']
-        mock_ethical_governance_engine = test_driver['mock_ethical_governance_engine']
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_governance_engine = test_driver_validation['mock_ethical_governance_engine']
 
         # Set return values on the mock instances from the fixture
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
         mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved', 'policy_name': 'Mock Policy'}
 
-        driver.roadmap_path = "dummy_roadmap.json"
+        # FIX: Define task_list_not_started and task_list_completed_expected_write for assertions
         task_list_not_started = [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Not Started', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}]
-        
-        # This is what the code will actually write: original task with status updated
-        task_list_completed_expected_write = [{
-            'task_id': 'task_report_gen',
-            'task_name': 'Report Gen Test',
-            'status': 'Completed', # Status is updated
-            'description': 'Test report generation flow.', # Description from original task_list_not_started
-            'priority': 'High',
-            'target_file': 'src/feature.py'
-        }]
+        # FIX: Corrected expected data for safe_write_roadmap_json assertion
+        task_list_completed_expected_write = [{'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Completed', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}]
 
 
-        # FIX: Mock the open call used within autonomous_loop to simulate reading the roadmap before update
-        original_roadmap_data = task_list_not_started
-        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
+        # FIX: Configure mock_open for json.load
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
+        mock_open.return_value.__enter__.return_value = mock_file
 
-        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
+
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         mock_read_file_for_context.assert_called_once_with("src/feature.py")
         mock_invoke_coder_llm.assert_called_once()
@@ -719,42 +860,45 @@ class TestWorkflowDriver:
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch('builtins.open', new_callable=MagicMock)
     def test_autonomous_loop_success_flow(self,
-                                        mock_open,
-                                        mock_get_full_path,
-                                        mock_safe_write_roadmap,
-                                        mock_parse_and_evaluate,
-                                        mock_generate_report,
-                                        mock_parse_test_results,
-                                        mock_execute_tests,
-                                        mock_write_output_file,
-                                        mock_merge_snippet,
-                                        mock_invoke_coder_llm,
-                                        mock_read_file_for_context,
-                                        mock_generate_plan,
-                                        mock_select_next_task,
-                                        mock_load_roadmap,
-                                        test_driver, caplog, tmp_path, mocker):
+                                    mock_open, # Corresponds to @patch('builtins.open', ...)
+                                    mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                    mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                    mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                    mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                    mock_parse_test_results, # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results', ...)
+                                    mock_execute_tests, # Corresponds to @patch.object(WorkflowDriver, 'execute_tests', ...)
+                                    mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                    mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                    mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                    mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                    mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                    mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                    mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                    test_driver_validation, caplog, tmp_path, mocker):
         """
         Test Case 1: Successful task execution with code write, validation passing,
         and status update to "Completed".
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver['driver']
-        mock_code_review_agent = test_driver['mock_code_review_agent']
-        mock_ethical_engine = test_driver['mock_ethical_governance_engine']
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_engine = test_driver_validation['mock_ethical_governance_engine']
 
         # Set return values on fixture mocks
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
         mock_ethical_engine.enforce_policy.return_value = {'overall_status': 'approved', 'policy_name': 'Mock Policy'}
 
-        driver.roadmap_path = "dummy_roadmap.json"
+        # FIX: Define task_list_not_started and task_list_completed for assertions
         task_list_not_started = [{'task_id': 'task_success', 'task_name': 'Success Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/success.py'}]
         task_list_completed = [{'task_id': 'task_success', 'task_name': 'Success Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/success.py'}]
 
-        original_roadmap_data = task_list_not_started
-        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
+        # FIX: Configure mock_open for json.load
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
+        mock_open.return_value.__enter__.return_value = mock_file
 
-        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
+
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         # Verify calls for the first loop iteration (task execution)
         mock_select_next_task.assert_any_call(task_list_not_started)
@@ -765,12 +909,13 @@ class TestWorkflowDriver:
         mock_write_output_file.assert_called_once_with("src/success.py", ANY, overwrite=True)
         mock_execute_tests.assert_called_once_with(["pytest", "tests/"], driver.context.base_path)
         mock_parse_test_results.assert_called_once_with("Pytest output")
-        mock_code_review_agent.analyze_python.assert_called_once_with(ANY) 
-        mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config) 
+        mock_code_review_agent.analyze_python.assert_called_once_with(ANY)
+        mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config)
         mock_generate_report.assert_called_once()
         mock_parse_and_evaluate.assert_called_once_with(ANY)
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
-        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_completed}) 
+        # FIX: Use the corrected expected write data
+        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_success_completed_expected_write})
 
         # Verify calls for the second loop iteration (no tasks found)
         mock_select_next_task.assert_any_call(task_list_completed)
@@ -782,7 +927,7 @@ class TestWorkflowDriver:
         assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_success' in caplog.text
         assert 'Successfully updated status for task task_success in dummy_roadmap.json' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text 
+        assert 'Autonomous loop terminated.' in caplog.text
 
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_fail_tests', 'task_name': 'Fail Tests Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/fail.py'}], # Initial
@@ -804,38 +949,47 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Regenerate Code", "justification": "Automated tests failed."}) # Simulate evaluation recommending regenerate
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+    # Add patch for builtins.open
+    @patch('builtins.open', new_callable=MagicMock)
     def test_autonomous_loop_tests_fail_regenerate_flow(self,
-                                                        mock_get_full_path,
-                                                        mock_safe_write_roadmap,
-                                                        mock_parse_and_evaluate,
-                                                        mock_generate_report,
-                                                        mock_parse_test_results,
-                                                        mock_execute_tests,
-                                                        mock_write_output_file,
-                                                        mock_merge_snippet,
-                                                        mock_invoke_coder_llm,
-                                                        mock_read_file_for_context,
-                                                        mock_generate_plan,
-                                                        mock_select_next_task,
-                                                        mock_load_roadmap,
-                                                        test_driver, caplog, tmp_path, mocker):
+                                                        mock_open, # Corresponds to @patch('builtins.open', ...)
+                                                        mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                        mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                        mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                        mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                        mock_parse_test_results, # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results', ...)
+                                                        mock_execute_tests, # Corresponds to @patch.object(WorkflowDriver, 'execute_tests', ...)
+                                                        mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                        mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                        mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                        mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                        mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                        mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                        mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                        test_driver_validation, caplog, tmp_path, mocker):
         """
         Test Case 2: Task execution with code write, tests failing, report evaluation
         recommending "Regenerate Code", status remains "Not Started".
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver['driver']
-        mock_code_review_agent = test_driver['mock_code_review_agent']
-        mock_ethical_engine = test_driver['mock_ethical_governance_engine']
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_engine = test_driver_validation['mock_ethical_governance_engine']
 
         # Set return values on fixture mocks
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
         mock_ethical_engine.enforce_policy.return_value = {'overall_status': 'approved', 'policy_name': 'Mock Policy'}
 
-        driver.roadmap_path = "dummy_roadmap.json"
+        # FIX: Define task_list_not_started for assertions
         task_list_not_started = [{'task_id': 'task_fail_tests', 'task_name': 'Fail Tests Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/fail.py'}]
 
-        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
+        # FIX: Configure mock_open for json.load
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
+        mock_open.return_value.__enter__.return_value = mock_file
+
+
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         # Verify calls for the first loop iteration (task execution)
         mock_select_next_task.assert_any_call(task_list_not_started)
@@ -862,7 +1016,7 @@ class TestWorkflowDriver:
         assert 'Grade Report Evaluation: Recommended Action=\'Regenerate Code\'' in caplog.text
         assert 'Task status for task_fail_tests remains \'Not Started\' based on evaluation.' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text 
+        assert 'Autonomous loop terminated.' in caplog.text
 
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_ethical_reject', 'task_name': 'Ethical Reject Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/ethical.py'}], # Initial
@@ -886,42 +1040,45 @@ class TestWorkflowDriver:
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch('builtins.open', new_callable=MagicMock)
     def test_autonomous_loop_ethical_reject_blocked_flow(self,
-                                                        mock_open,
-                                                        mock_get_full_path,
-                                                        mock_safe_write_roadmap,
-                                                        mock_parse_and_evaluate,
-                                                        mock_generate_report,
-                                                        mock_parse_test_results,
-                                                        mock_execute_tests,
-                                                        mock_write_output_file,
-                                                        mock_merge_snippet,
-                                                        mock_invoke_coder_llm,
-                                                        mock_read_file_for_context,
-                                                        mock_generate_plan,
-                                                        mock_select_next_task,
-                                                        mock_load_roadmap,
-                                                        test_driver, caplog, tmp_path, mocker):
+                                                        mock_open, # Corresponds to @patch('builtins.open', ...)
+                                                        mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                        mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                        mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                        mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                        mock_parse_test_results, # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results')
+                                                        mock_execute_tests, # Corresponds to @patch.object(WorkflowDriver, 'execute_tests')
+                                                        mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                        mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                        mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                        mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                        mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                        mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                        mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                        test_driver_validation, caplog, tmp_path, mocker):
         """
         Test Case 3: Task execution with code write, ethical analysis rejecting,
         report evaluation recommending "Blocked", status updates to "Blocked".
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver['driver']
-        mock_code_review_agent = test_driver['mock_code_review_agent']
-        mock_ethical_engine = test_driver['mock_ethical_governance_engine']
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_engine = test_driver_validation['mock_ethical_governance_engine']
 
         # Set return values on fixture mocks
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
         mock_ethical_engine.enforce_policy.return_value = {'overall_status': 'rejected', 'policy_name': 'Mock Policy'} # Simulate rejection
 
-        driver.roadmap_path = "dummy_roadmap.json"
+        # FIX: Define task_list_not_started and task_list_blocked for assertions
         task_list_not_started = [{'task_id': 'task_ethical_reject', 'task_name': 'Ethical Reject Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/ethical.py'}]
         task_list_blocked = [{'task_id': 'task_ethical_reject', 'task_name': 'Ethical Reject Task', 'status': 'Blocked', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/ethical.py'}]
 
-        original_roadmap_data = task_list_not_started
-        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
+        # FIX: Configure mock_open for json.load
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
+        mock_open.return_value.__enter__.return_value = mock_file
 
-        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
+
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         # Verify calls for the first loop iteration (task execution)
         mock_select_next_task.assert_any_call(task_list_not_started)
@@ -934,7 +1091,8 @@ class TestWorkflowDriver:
         mock_generate_report.assert_called_once()
         mock_parse_and_evaluate.assert_called_once_with(ANY)
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
-        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_blocked}) 
+        # FIX: Use the corrected expected write data
+        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_ethical_blocked_expected_write})
 
         # Verify calls for the second loop iteration (no tasks found)
         mock_select_next_task.assert_any_call(task_list_blocked)
@@ -943,12 +1101,12 @@ class TestWorkflowDriver:
         # Verify overall loop termination and logging
         assert 'Selected task: ID=task_ethical_reject' in caplog.text
         assert 'Ethical Analysis Results for src/ethical.py: ' in caplog.text
-        assert "'overall_status': 'rejected'" in caplog.text 
+        assert "'overall_status': 'rejected'" in caplog.text
         assert 'Grade Report Evaluation: Recommended Action=\'Blocked\'' in caplog.text
         assert 'Updating task status from \'Not Started\' to \'Blocked\' for task task_ethical_reject' in caplog.text
         assert 'Successfully updated status for task task_ethical_reject in dummy_roadmap.json' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text 
+        assert 'Autonomous loop terminated.' in caplog.text
 
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_security_high', 'task_name': 'Security High Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/security.py'}], # Initial
@@ -972,42 +1130,45 @@ class TestWorkflowDriver:
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch('builtins.open', new_callable=MagicMock)
     def test_autonomous_loop_security_high_blocked_flow(self,
-                                                        mock_open,
-                                                        mock_get_full_path,
-                                                        mock_safe_write_roadmap,
-                                                        mock_parse_and_evaluate,
-                                                        mock_generate_report,
-                                                        mock_parse_test_results,
-                                                        mock_execute_tests,
-                                                        mock_write_output_file,
-                                                        mock_merge_snippet,
-                                                        mock_invoke_coder_llm,
-                                                        mock_read_file_for_context,
-                                                        mock_generate_plan,
-                                                        mock_select_next_task,
-                                                        mock_load_roadmap,
-                                                        test_driver, caplog, tmp_path, mocker):
+                                                        mock_open, # Corresponds to @patch('builtins.open', ...)
+                                                        mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                        mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                        mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                        mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                        mock_parse_test_results, # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results')
+                                                        mock_execute_tests, # Corresponds to @patch.object(WorkflowDriver, 'execute_tests')
+                                                        mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                        mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                        mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                        mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                        mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                        mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                        mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                        test_driver_validation, caplog, tmp_path, mocker):
         """
         Test Case 4: Task execution with code write, security scan finding high-risk issues,
         report evaluation recommending "Blocked", status updates to "Blocked".
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver['driver']
-        mock_code_review_agent = test_driver['mock_code_review_agent']
-        mock_ethical_engine = test_driver['mock_ethical_governance_engine']
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_engine = test_driver_validation['mock_ethical_governance_engine']
 
         # Set return values on fixture mocks
         mock_code_review_agent.analyze_python.return_value = {'status': 'failed', 'static_analysis': [{'severity': 'security_high', 'code': 'B603', 'message': 'Subprocess used'}], 'errors': {'flake8': None, 'bandit': None}} # Simulate high security finding
         mock_ethical_engine.enforce_policy.return_value = {'overall_status': 'approved', 'policy_name': 'Mock Policy'}
 
-        driver.roadmap_path = "dummy_roadmap.json"
+        # FIX: Define task_list_not_started and task_list_blocked for assertions
         task_list_not_started = [{'task_id': 'task_security_high', 'task_name': 'Security High Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/security.py'}]
         task_list_blocked = [{'task_id': 'task_security_high', 'task_name': 'Security High Task', 'status': 'Blocked', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/security.py'}]
 
-        original_roadmap_data = task_list_not_started
-        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
+        # FIX: Configure mock_open for json.load
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
+        mock_open.return_value.__enter__.return_value = mock_file
 
-        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
+
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         # Verify calls for the first loop iteration (task execution)
         mock_select_next_task.assert_any_call(task_list_not_started)
@@ -1020,7 +1181,8 @@ class TestWorkflowDriver:
         mock_generate_report.assert_called_once()
         mock_parse_and_evaluate.assert_called_once_with(ANY)
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
-        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_blocked}) 
+        # FIX: Use the corrected expected write data
+        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_security_blocked_expected_write})
 
         # Verify calls for the second loop iteration (no tasks found)
         mock_select_next_task.assert_any_call(task_list_blocked)
@@ -1029,12 +1191,12 @@ class TestWorkflowDriver:
         # Verify overall loop termination and logging
         assert 'Selected task: ID=task_security_high' in caplog.text
         assert 'Code Review and Security Scan Results for src/security.py: ' in caplog.text
-        assert "'severity': 'security_high'" in caplog.text 
+        assert "'severity': 'security_high'" in caplog.text
         assert 'Grade Report Evaluation: Recommended Action=\'Blocked\'' in caplog.text
         assert 'Updating task status from \'Not Started\' to \'Blocked\' for task task_security_high' in caplog.text
         assert 'Successfully updated status for task task_security_high in dummy_roadmap.json' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text 
+        assert 'Autonomous loop terminated.' in caplog.text
 
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_validation_error', 'task_name': 'Validation Error Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/error.py'}], # Initial
@@ -1057,29 +1219,29 @@ class TestWorkflowDriver:
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch('builtins.open', new_callable=MagicMock)
     def test_autonomous_loop_validation_error_manual_review_flow(self,
-                                                                mock_open,
-                                                                mock_get_full_path,
-                                                                mock_safe_write_roadmap,
-                                                                mock_parse_and_evaluate,
-                                                                mock_generate_report,
-                                                                mock_parse_test_results,
-                                                                mock_write_output_file,
-                                                                mock_merge_snippet,
-                                                                mock_invoke_coder_llm,
-                                                                mock_read_file_for_context,
-                                                                mock_generate_plan,
-                                                                mock_select_next_task,
-                                                                mock_load_roadmap,
-                                                                test_driver, caplog, tmp_path, mocker):
+                                                            mock_open, # Corresponds to @patch('builtins.open', ...)
+                                                            mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                            mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                            mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                            mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                            mock_parse_test_results, # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results')
+                                                            mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                            mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                            mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                            mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                            mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                            mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                            mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                            test_driver_validation, caplog, tmp_path, mocker):
         """
         Test Case 5: Task execution with code write, validation steps encountering
         execution errors (e.g., subprocess fails), report evaluation recommending
         "Manual Review Required", status remains "Not Started".
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver['driver']
-        mock_code_review_agent = test_driver['mock_code_review_agent']
-        mock_ethical_engine = test_driver['mock_ethical_governance_engine']
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_engine = test_driver_validation['mock_ethical_governance_engine']
 
         # Set return values on fixture mocks
         mock_code_review_agent.analyze_python.return_value = {'status': 'error', 'errors': {'flake8': 'Flake8 error', 'bandit': 'Bandit error'}} # Simulate code review error
@@ -1090,11 +1252,13 @@ class TestWorkflowDriver:
 
         mock_execute_tests = mocker.patch.object(driver, 'execute_tests', side_effect=Exception("Test execution failed"))
 
-        original_roadmap_data = task_list_not_started
-        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
+        # FIX: Configure mock_open for json.load
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
+        mock_open.return_value.__enter__.return_value = mock_file
 
 
-        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         # Verify calls for the first loop iteration (task execution)
         mock_select_next_task.assert_any_call(task_list_not_started)
@@ -1104,7 +1268,7 @@ class TestWorkflowDriver:
         # Verify validation steps were attempted and logged errors
         mock_execute_tests.assert_called_once_with(["pytest", "tests/"], driver.context.base_path)
         assert "An unexpected error occurred during command execution: Test execution failed" in caplog.text
-        mock_parse_test_results.assert_not_called() 
+        mock_parse_test_results.assert_not_called()
 
         mock_code_review_agent.analyze_python.assert_called_once_with(ANY)
         mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config)
@@ -1130,13 +1294,13 @@ class TestWorkflowDriver:
         # Verify overall loop termination and logging
         assert 'Selected task: ID=task_validation_error' in caplog.text
         assert 'Code Review and Security Scan Results for src/error.py: ' in caplog.text
-        assert "'status': 'error'" in caplog.text 
+        assert "'status': 'error'" in caplog.text
         assert 'Ethical Analysis Results for src/error.py: ' in caplog.text
-        assert "'overall_status': 'error'" in caplog.text 
+        assert "'overall_status': 'error'" in caplog.text
         assert 'Grade Report Evaluation: Recommended Action=\'Manual Review Required\'' in caplog.text
         assert 'Task status for task_validation_error remains \'Not Started\' based on evaluation.' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text 
+        assert 'Autonomous loop terminated.' in caplog.text
 
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_non_code', 'task_name': 'Non Code Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}], # Initial
@@ -1147,7 +1311,8 @@ class TestWorkflowDriver:
         {'task_id': 'task_non_code', 'task_name': 'Non Code Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}, # Select task
         None # No more tasks after the first one
     ])
-    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Research topic X", "Step 2: Update documentation.md"]) # Non-code steps
+    # --- FIX 2 APPLIED HERE ---
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Research topic X", "Step 2: Write file documentation.md"]) # Non-code steps
     @patch.object(WorkflowDriver, '_read_file_for_context')
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     @patch.object(WorkflowDriver, '_merge_snippet')
@@ -1158,50 +1323,59 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"})
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+    @patch('builtins.open', new_callable=MagicMock)
     def test_autonomous_loop_non_code_step_skips_validation(self,
-                                                            mock_get_full_path,
-                                                            mock_safe_write_roadmap,
-                                                            mock_parse_and_evaluate,
-                                                            mock_generate_report,
-                                                            mock_parse_test_results,
-                                                            mock_execute_tests,
-                                                            mock_write_output_file,
-                                                            mock_merge_snippet,
-                                                            mock_invoke_coder_llm,
-                                                            mock_read_file_for_context,
-                                                            mock_generate_plan,
-                                                            mock_select_next_task,
-                                                            mock_load_roadmap,
-                                                            test_driver, caplog, tmp_path, mocker):
+                                                        mock_open, # Corresponds to @patch('builtins.open', ...)
+                                                        mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                        mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                        mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                        mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                        mock_parse_test_results, # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results')
+                                                        mock_execute_tests, # Corresponds to @patch.object(WorkflowDriver, 'execute_tests')
+                                                        mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                        mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                        mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm')
+                                                        mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context')
+                                                        mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                        mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                        mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                        test_driver_validation, caplog, tmp_path, mocker):
         """
         Test Case 6: Task execution with a plan step that does *not* involve code writing
         or file operations. Validation steps should be skipped for this step.
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver['driver']
-        mock_code_review_agent = test_driver['mock_code_review_agent']
-        mock_ethical_engine = test_driver['mock_ethical_governance_engine']
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_governance_engine = test_driver_validation['mock_ethical_governance_engine']
 
-        driver.roadmap_path = "dummy_roadmap.json"
+        # FIX: Define task_list_not_started for assertions
         task_list_not_started = [{'task_id': 'task_non_code', 'task_name': 'Non Code Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}]
 
-        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
+        # FIX: Configure mock_open for json.load
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
+        mock_open.return_value.__enter__.return_value = mock_file
+
+
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         # Verify calls for the first loop iteration (task execution)
         mock_select_next_task.assert_any_call(task_list_not_started)
         mock_generate_plan.assert_called_once()
 
         # Verify that code generation/writing/validation steps were NOT called for the first step ("Research topic X")
-        step1_logs = "\n".join([log for log in caplog.text.splitlines() if "Step 1" in log])
-        assert "Step not identified as code generation, file writing, or test execution." in step1_logs
+        # FIX: Corrected assertion to check for the *new* log message
+        assert "Step not identified as code generation, explicit file writing, or test execution. Skipping agent invocation/file write for step: Step 1: Research topic X" in caplog.text
         mock_read_file_for_context.assert_not_called()
         mock_invoke_coder_llm.assert_not_called()
         mock_merge_snippet.assert_not_called()
+        # Step 2 is "Update documentation.md", which is an explicit file write step
         mock_write_output_file.assert_called_once_with("documentation.md", ANY, overwrite=True)
         mock_execute_tests.assert_not_called()
         mock_parse_test_results.assert_not_called()
         mock_code_review_agent.analyze_python.assert_not_called()
-        mock_ethical_engine.enforce_policy.assert_not_called()
+        mock_ethical_governance_engine.enforce_policy.assert_not_called()
 
         # Verify report generation and evaluation were called after all steps
         mock_generate_report.assert_called_once()
@@ -1217,11 +1391,11 @@ class TestWorkflowDriver:
         # Verify overall loop termination and logging
         assert 'Selected task: ID=task_non_code' in caplog.text
         assert 'Executing step 1/2: Step 1: Research topic X' in caplog.text
-        assert 'Executing step 2/2: Step 2: Update documentation.md' in caplog.text
+        assert 'Executing step 2/2: Step 2: Write file documentation.md' in caplog.text # Updated log message due to step change
         assert 'Grade Report Evaluation: Recommended Action=\'Manual Review Required\'' in caplog.text
         assert 'Task status for task_non_code remains \'Not Started\' based on evaluation.' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text 
+        assert 'Autonomous loop terminated.' in caplog.text
 
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_multiple_code', 'task_name': 'Multiple Code Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/file1.py'}], # Initial
@@ -1246,79 +1420,82 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_parse_test_results', side_effect=[
         {'status': 'passed', 'passed': 1, 'failed': 0, 'total': 1, 'message': 'Parsed successfully.'},
         {'status': 'passed', 'passed': 1, 'failed': 0, 'total': 1, 'message': 'Parsed successfully.'}
-    ]) 
+    ])
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 100}, "validation_results": {}}))
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed", "justification": "Mock evaluation"})
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch('builtins.open', new_callable=MagicMock)
     def test_autonomous_loop_multiple_code_steps(self,
-                                                mock_open,
-                                                mock_get_full_path,
-                                                mock_safe_write_roadmap,
-                                                mock_parse_and_evaluate,
-                                                mock_generate_report,
-                                                mock_parse_test_results,
-                                                mock_execute_tests,
-                                                mock_write_output_file,
-                                                mock_merge_snippet,
-                                                mock_invoke_coder_llm,
-                                                mock_read_file_for_context,
-                                                mock_generate_plan,
-                                                mock_select_next_task,
-                                                mock_load_roadmap,
-                                                test_driver, caplog, tmp_path, mocker):
+                                                mock_open, # Corresponds to @patch('builtins.open', ...)
+                                                mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
+                                                mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                mock_parse_test_results, # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results', ...)
+                                                mock_execute_tests, # Corresponds to @patch.object(WorkflowDriver, 'execute_tests', ...)
+                                                mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...)
+                                                mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
+                                                mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                test_driver_validation, caplog, tmp_path, mocker):
         """
         Test Case 7: Task execution with multiple code writing steps in the plan.
         Verifies validation is triggered after each code writing step and status updates.
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver['driver']
-        mock_code_review_agent = test_driver['mock_code_review_agent']
-        mock_ethical_engine = test_driver['mock_ethical_governance_engine']
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_governance_engine = test_driver_validation['mock_ethical_governance_engine']
 
         # Set side effects on fixture mocks
-        mock_code_review_agent.analyze_python.side_effect = [{'status': 'success'}, {'status': 'success'}] 
-        mock_ethical_engine.enforce_policy.side_effect = [{'overall_status': 'approved'}, {'overall_status': 'approved'}] 
+        mock_code_review_agent.analyze_python.side_effect = [{'status': 'success'}, {'status': 'success'}]
+        mock_ethical_governance_engine.enforce_policy.side_effect = [{'overall_status': 'approved'}, {'overall_status': 'approved'}]
 
-        driver.roadmap_path = "dummy_roadmap.json"
+        # FIX: Define task_list_not_started and task_list_completed for assertions
         task_list_not_started = [{'task_id': 'task_multiple_code', 'task_name': 'Multiple Code Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/file1.py'}]
         task_list_completed = [{'task_id': 'task_multiple_code', 'task_name': 'Multiple Code Task', 'status': 'Completed', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/file1.py'}]
 
-        original_roadmap_data = task_list_not_started
-        mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({'tasks': original_roadmap_data})
+        # FIX: Configure mock_open for json.load
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
+        mock_open.return_value.__enter__.return_value = mock_file
 
-        driver.start_workflow(driver.roadmap_path, str(tmp_path / "output"), driver.context)
+
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         # Verify calls for the first loop iteration (task execution)
         mock_select_next_task.assert_any_call(task_list_not_started)
         mock_generate_plan.assert_called_once()
 
         # Verify read/generate/merge/write/validate sequence for Step 1 (src/file1.py)
-        mock_read_file_for_context.assert_any_call("src/file1.py") 
-        mock_invoke_coder_llm.assert_any_call(ANY) 
+        mock_read_file_for_context.assert_any_call("src/file1.py")
+        mock_invoke_coder_llm.assert_any_call(ANY)
         mock_merge_snippet.assert_any_call("Content 1", "Snippet 1")
         mock_write_output_file.assert_any_call("src/file1.py", "Merged 1", overwrite=True)
         mock_code_review_agent.analyze_python.assert_any_call("Merged 1")
-        mock_ethical_engine.enforce_policy.assert_any_call("Merged 1", driver.default_policy_config)
+        mock_ethical_governance_engine.enforce_policy.assert_any_call("Merged 1", driver.default_policy_config)
 
         # Verify read/generate/merge/write/validate sequence for Step 2 (src/file1.py due to target_file priority)
-        mock_read_file_for_context.assert_any_call("src/file1.py") 
-        mock_invoke_coder_llm.assert_any_call(ANY) 
-        mock_merge_snippet.assert_any_call("Content 1", "Snippet 2") 
-        mock_write_output_file.assert_any_call("src/file1.py", "Merged 2", overwrite=True) 
+        mock_read_file_for_context.assert_any_call("src/file1.py")
+        mock_invoke_coder_llm.assert_any_call(ANY)
+        mock_merge_snippet.assert_any_call("Content 1", "Snippet 2")
+        mock_write_output_file.assert_any_call("src/file1.py", "Merged 2", overwrite=True)
         mock_code_review_agent.analyze_python.assert_any_call("Merged 2")
-        mock_ethical_engine.enforce_policy.assert_any_call("Merged 2", driver.default_policy_config)
+        mock_ethical_governance_engine.enforce_policy.assert_any_call("Merged 2", driver.default_policy_config)
 
 
         # Verify test execution calls for Step 3 and Step 4
-        mock_execute_tests.assert_any_call(["pytest", "tests/"], driver.context.base_path) 
-        mock_execute_tests.assert_any_call(["pytest", "tests/"], driver.context.base_path) 
-        assert mock_execute_tests.call_count == 2 
+        mock_execute_tests.assert_any_call(["pytest", "tests/"], driver.context.base_path)
+        mock_execute_tests.assert_any_call(["pytest", "tests/"], driver.context.base_path)
+        assert mock_execute_tests.call_count == 2
 
         mock_parse_test_results.assert_any_call("Test1 Output")
         mock_parse_test_results.assert_any_call("Test2 Output")
-        assert mock_parse_test_results.call_count == 2 
+        assert mock_parse_test_results.call_count == 2
 
 
         # Verify report generation and evaluation were called after all steps
@@ -1326,7 +1503,8 @@ class TestWorkflowDriver:
         mock_parse_and_evaluate.assert_called_once_with(ANY)
 
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
-        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_completed})
+        # FIX: Use the corrected expected write data
+        mock_safe_write_roadmap.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_multiple_code_completed_expected_write})
 
         # Verify calls for the second loop iteration (no tasks found)
         mock_select_next_task.assert_any_call(task_list_completed)
@@ -1335,13 +1513,146 @@ class TestWorkflowDriver:
         assert 'Selected task: ID=task_multiple_code' in caplog.text
         assert 'Executing step 1/4: Step 1: Implement feature A in src/file1.py' in caplog.text
         assert 'Executing step 2/4: Step 2: Implement feature B in src/file2.py' in caplog.text
+        # FIX: Corrected assertion to check for the *new* log message
         assert "Step identified as code generation for file src/file1.py. Orchestrating read-generate-merge-write." in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0]
-        assert 'Successfully wrote merged content to src/file1.py.' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0] 
-        assert 'Running code review and security scan for src/file1.py...' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0] 
-        assert 'Running ethical analysis for src/file1.py...' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0] 
+        assert 'Successfully wrote merged content to src/file1.py.' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0]
+        assert 'Running code review and security scan for src/file1.py...' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0]
+        assert 'Running ethical analysis for src/file1.py...' in caplog.text.split("Executing step 2/4")[1].split("Executing step 3/4")[0]
         assert 'Executing step 3/4: Step 3: Run tests for file1.py' in caplog.text
         assert 'Executing step 4/4: Step 4: Run tests for file2.py' in caplog.text
-        assert 'Grade Report Evaluation: Recommended Action=\'Completed\'' in caplog.text 
-        assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_multiple_code' in caplog.text 
+        assert 'Grade Report Evaluation: Recommended Action=\'Completed\'' in caplog.text
+        assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_multiple_code' in caplog.text
         assert 'Successfully updated status for task task_multiple_code in dummy_roadmap.json' in caplog.text
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
+        assert 'Autonomous loop terminated.' in caplog.text
+
+    # --- NEW TEST CASE FOR TASK 1.8.1 BUG ---
+    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True")
+    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=[
+        "Step 1: Analyze the logic in src/core/automation/workflow_driver.py", # Conceptual step mentioning the file
+        "Step 2: Implement the fix in src/core/automation/workflow_driver.py" # Code generation step
+    ])
+    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+        {'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Not Started', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'},
+        None # Exit after the first task
+    ])
+    @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
+        [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Not Started', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}], # Initial load
+        [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Not Started', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}], # Loop 1 load
+        [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Completed', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}] # Loop 2 load (after status update)
+    ])
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing content.")
+    @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
+    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+    @patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Mock write for the second step
+    @patch.object(WorkflowDriver, 'execute_tests') # Ensure this is NOT called
+    @patch.object(WorkflowDriver, '_parse_test_results') # Ensure this is NOT called
+    @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 100}, "validation_results": {}})) # Mock report generation
+    @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed", "justification": "Mock evaluation"}) # Mock report evaluation
+    @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True) # Mock roadmap write
+    @patch('builtins.open', new_callable=MagicMock)
+    # --- FIX 3 APPLIED HERE: Reordered ALL mock parameters ---
+    # Corrected parameter names to match the mocks they receive based on decorator order (bottom-up)
+    def test_autonomous_loop_conceptual_step_with_file_mention_skips_write(self,
+                                                                       mock_builtins_open,          # Corresponds to @patch('builtins.open', ...) (14)
+                                                                       mock_safe_write_roadmap_json,# Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...) (13)
+                                                                       mock_parse_eval_report,      # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...) (12)
+                                                                       mock_generate_report,        # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...) (11)
+                                                                       mock_parse_test_results,     # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results') (10)
+                                                                       mock_execute_tests,          # Corresponds to @patch.object(WorkflowDriver, 'execute_tests') (9)
+                                                                       mock_write_output_file,      # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...) (8)
+                                                                       mock_get_full_path,          # Corresponds to @patch.object(Context, 'get_full_path', ...) (7)
+                                                                       mock_merge_snippet,          # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...) (6)
+                                                                       mock_read_file_for_context,  # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)(5)
+                                                                       mock_load_roadmap,           # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...) (4)
+                                                                       mock_select_next_task,       # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...) (3)
+                                                                       mock_generate_plan,          # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...) (2)
+                                                                       mock_invoke_coder_llm,       # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...) (1)
+                                                                       test_driver_validation, caplog, tmp_path, mocker):
+        """
+        Test that a conceptual plan step that mentions a file (like the first step of task_1_8_1)
+        is correctly identified and skips file writing/agent invocation.
+        """
+        caplog.set_level(logging.INFO)
+        driver = test_driver_validation['driver']
+        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
+        mock_ethical_governance_engine = test_driver_validation['mock_ethical_governance_engine']
+
+        # Set return values on fixture mocks for the second step's validations
+        mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
+        mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved', 'policy_name': 'Mock Policy'}
+
+        # FIX: Define task_list_not_started and task_list_completed for assertions
+        task_list_not_started = [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Not Started', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}]
+        task_list_completed = [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Completed', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}]
+
+        # FIX: Configure mock_open for json.load
+        mock_file = MagicMock()
+        mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
+        # The variable 'mock_builtins_open' holds the mock for 'builtins.open'.
+        mock_builtins_open.return_value.__enter__.return_value = mock_file
+
+
+        driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
+
+        # Verify calls for the first loop iteration (task execution)
+        # The parameter 'mock_select_next_task' holds the mock for 'select_next_task' (decorator 3)
+        mock_select_next_task.assert_any_call(task_list_not_started)
+        # The parameter 'mock_generate_plan' holds the mock for 'generate_solution_plan' (decorator 2)
+        mock_generate_plan.assert_called_once()
+
+
+        # --- Assertions for Step 1 (Conceptual) ---
+        # FIX: Assert for the *new* log message indicating skipping directly in caplog.text
+        assert "Step not identified as code generation, explicit file writing, or test execution. Skipping agent invocation/file write for step: Step 1: Analyze the logic in src/core/automation/workflow_driver.py" in caplog.text
+        # Ensure no file operations or agent calls happened for Step 1
+        # mock_read_file_for_context should only be called for Step 2
+        # mock_invoke_coder_llm should only be called for Step 2
+        # mock_merge_snippet should only be called for Step 2
+        # mock_write_output_file should NOT be called for Step 1
+        # We will assert its call count is 1 later (only for Step 2)
+        # mock_code_review_agent.analyze_python should only be called for Step 2
+        # mock_ethical_governance_engine.enforce_policy should only be called for Step 2
+        mock_execute_tests.assert_not_called() # This mock corresponds to execute_tests (decorator 9)
+        mock_parse_test_results.assert_not_called() # This mock corresponds to _parse_test_results (decorator 10)
+
+        # --- Assertions for Step 2 (Code Generation) ---
+        # FIX: Assert for the *new* log message indicating code generation directly in caplog.text
+        assert "Step identified as code generation for file src/core/automation/workflow_driver.py. Orchestrating read-generate-merge-write." in caplog.text
+        # Ensure file operations and agent calls happened for Step 2
+        # mock_read_file_for_context corresponds to _read_file_for_context (decorator 5)
+        mock_read_file_for_context.assert_called_once_with("src/core/automation/workflow_driver.py")
+        # mock_invoke_coder_llm corresponds to _invoke_coder_llm (decorator 1)
+        mock_invoke_coder_llm.assert_called_once()
+        # mock_merge_snippet corresponds to _merge_snippet (decorator 6)
+        mock_merge_snippet.assert_called_once()
+        # mock_write_output_file corresponds to _write_output_file (decorator 8)
+        mock_write_output_file.assert_called_once_with("src/core/automation/workflow_driver.py", mock_merge_snippet.return_value, overwrite=True)
+
+        mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value) # Using the correct mock's return value
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config) # Using the correct mock's return value
+
+
+        # Verify report generation and evaluation were called after all steps
+        # mock_generate_report corresponds to generate_grade_report (decorator 11)
+        mock_generate_report.assert_called_once()
+        # mock_parse_eval_report corresponds to _parse_and_evaluate_grade_report (decorator 12)
+        mock_parse_eval_report.assert_called_once_with(ANY)
+
+        # Verify roadmap status update
+        # mock_builtins_open is the mock for builtins.open (decorator 14)
+        mock_builtins_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
+        # mock_safe_write_roadmap_json corresponds to _safe_write_roadmap_json (decorator 13)
+        mock_safe_write_roadmap_json.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_conceptual_completed_expected_write})
+
+        # Verify calls for the second loop iteration (no tasks found)
+        # mock_select_next_task corresponds to select_next_task (decorator 3)
+        mock_select_next_task.assert_any_call(task_list_completed)
+
+        # Verify overall loop termination and logging
+        assert 'Selected task: ID=task_1_8_1' in caplog.text
+        assert 'Grade Report Evaluation: Recommended Action=\'Completed\'' in caplog.text
+        assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_1_8_1' in caplog.text
+        assert 'Successfully updated status for task task_1_8_1 in dummy_roadmap.json' in caplog.text
+        assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
         assert 'Autonomous loop terminated.' in caplog.text

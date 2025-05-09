@@ -1,5 +1,3 @@
-# tests/test_workflow_reporting.py
-
 import pytest
 import json
 from src.core.automation.workflow_driver import WorkflowDriver, Context
@@ -11,7 +9,7 @@ from pathlib import Path # <-- ADDED THIS IMPORT
 # Set up logging for tests
 if not logging.root.handlers:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # Corrected logger name
 
 # Fixture for a WorkflowDriver instance with a Context
 @pytest.fixture
@@ -27,7 +25,18 @@ def test_driver_reporting(tmp_path):
         # it needs access to the real Path class if the Context mock uses it.
         # Since we fixed the Context mock in test_workflow_driver.py to use Path
         # within its side_effect, we need Path here too.
-        mock_ethical_governance_engine_instance.load_policy_from_json.side_effect = lambda path: {'policy_name': 'Mock Policy'}
+        # Note: The actual _load_default_policy method in the driver calls builtins.open,
+        # but the mock EthicalGovernanceEngine.load_policy_from_json might still be called
+        # by the driver's __init__ if not patched. Patching the *instance*'s method
+        # is safer here if the driver's __init__ is not fully mocked.
+        # However, the fixture patches the *classes* before the driver is instantiated,
+        # so the driver's __init__ will use the mocks. The driver's _load_default_policy
+        # method is what calls builtins.open, not the mock engine's load_policy_from_json.
+        # The ethical engine instance's methods are called *after* the policy is loaded.
+        # So, we don't need to mock load_policy_from_json on the mock instance here.
+        # The driver's _load_default_policy will attempt to load the file and set
+        # driver.default_policy_config. The test will then explicitly set this config
+        # to ensure the ethical analysis block is entered.
 
         driver = WorkflowDriver(context)
         # driver.llm_orchestrator = MagicMock() # Not needed for these tests
@@ -433,12 +442,16 @@ class TestWorkflowReporting:
     def test_autonomous_loop_code_review_execution_flow(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_parse_test_results, mock_execute_tests, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver_reporting, tmp_path, caplog):
         """
         Test that autonomous_loop calls CodeReviewAgent.analyze_python
-        after a successful code write.
+        and EthicalGovernanceEngine.enforce_policy after a successful code write.
         """
         caplog.set_level(logging.INFO)
         driver = test_driver_reporting['driver'] # Access driver from dict
         mock_code_review_agent = test_driver_reporting['mock_code_review_agent'] # Access mock from dict
         mock_ethical_governance_engine = test_driver_reporting['mock_ethical_governance_engine'] # Access mock from dict
+
+        # --- FIX: Explicitly set default_policy_config to ensure ethical analysis is attempted ---
+        driver.default_policy_config = {'policy_name': 'Test Policy'}
+        # --- END FIX ---
 
         mock_review_results = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
         mock_code_review_agent.analyze_python.return_value = mock_review_results
@@ -452,6 +465,7 @@ class TestWorkflowReporting:
         mock_parse_test_results.assert_not_called()
 
         mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
+        # This assertion should now pass because default_policy_config is set
         mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config)
 
         assert "Running code review and security scan for src/feature.py..." in caplog.text

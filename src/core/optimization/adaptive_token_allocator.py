@@ -14,6 +14,26 @@ class TokenAllocator:
         self.policy = EthicalAllocationPolicy()
         # Removed hardcoded models
 
+    def _model_cost(self, model_idx_var: IntNumRef, tokens_var: IntNumRef, solver_model: ModelRef, models_list: list) -> ArithRef:
+        """
+        Calculates the cost for a given model and token count as a Z3 arithmetic expression.
+        Cost = (tokens * cost_per_token) + (tokens^1.2 / 1000) (approximated as tokens*tokens / 1000 for Z3 simplicity)
+        """
+        # Evaluate the model index to get a Python integer
+        # Use solver_model.eval to get the concrete value from the current model
+        evaluated_model_idx = solver_model.eval(model_idx_var).as_long()
+        selected_model_details = models_list[evaluated_model_idx]
+        cost_per_token = selected_model_details['cost_per_token']
+
+        # Cost components as Z3 expressions
+        base_cost_z3 = tokens_var * cost_per_token # Z3 will handle float multiplication
+        # Approximate tokens^1.2 with tokens*tokens for Z3 simplicity in this context.
+        # A more precise non-linear function might require different Z3 features or approximations.
+        complexity_penalty_z3 = (tokens_var * tokens_var) / 1000.0 # Ensure float division
+
+        return base_cost_z3 + complexity_penalty_z3
+
+
     def allocate(self, chunks: List[CodeChunk], model_costs: dict) -> dict:
         models = [
             {'name': name, **details}
@@ -30,12 +50,32 @@ class TokenAllocator:
         logger.info(f"TokenAllocator: Adding constraint: {constraint_str_sum}")
         self.solver.add(Sum(list(allocations.values())) <= self.total_budget)
 
-        # More constraint logging here
+        # Log min/max constraints per chunk
+        for i in allocations:
+            constraint_str_min = f"tokens_{i} >= 100"
+            logger.info(f"TokenAllocator: Adding constraint: {constraint_str_min}")
+            self.solver.add(allocations[i] >= 100)  # Minimum token guarantee
 
-        self.solver.add([allocations[i] >= 100 for i in allocations])
+            constraint_str_max = f"tokens_{i} <= 20000"
+            logger.info(f"TokenAllocator: Adding constraint: {constraint_str_max}")
+            self.solver.add(allocations[i] <= 20000) # Max per chunk
+
+        # Log model index constraints
+        for i in range(len(chunks)):
+            constraint_model_idx_min = f"model_{i} >= 0"
+            logger.info(f"TokenAllocator: Adding constraint: {constraint_model_idx_min}")
+            self.solver.add(model_vars[i] >= 0)
+
+            constraint_model_idx_max = f"model_{i} < {len(models)}"
+            logger.info(f"TokenAllocator: Adding constraint: {constraint_model_idx_max}")
+            self.solver.add(model_vars[i] < len(models))
+
 
         # Model capacity constraints - Ensure allocated tokens are within model's effective length
         for i in range(len(chunks)):
+            # Log model capacity constraints
+            constraint_model_capacity_str = f"Or([And(model_vars[{i}] == {j}, allocations[{i}] <= {models[j]['effective_length']}) for {j} in range(len(models))])"
+            logger.info(f"TokenAllocator: Adding model capacity constraint for chunk {i}: {constraint_model_capacity_str}")
             self.solver.add(Or([
                 And(model_vars[i] == j, allocations[i] <= models[j]['effective_length'])
                 for j in range(len(models))
@@ -44,28 +84,45 @@ class TokenAllocator:
         # Ethical constraints
         logger.info("TokenAllocator: Applying EthicalAllocationPolicy...")
         self.policy.apply(self.solver, allocations, model_vars)
+        logger.info("TokenAllocator: Finished applying EthicalAllocationPolicy.")
+
 
         # Optimization objectives
         if self.solver.check() == sat:
-            #Log the z3 model to see how z3 solved.
-            logger.info(f"TokenAllocator: Solver model BEFORE minimization: {self.solver.model()}")
+            logger.info(f"TokenAllocator: Solver check SAT.")
+            solver_model_snapshot = self.solver.model() # Capture the model state
+            logger.info(f"TokenAllocator: Solver model BEFORE minimization: {solver_model_snapshot}")
 
-            model = self.solver.model()
+            # Use the captured solver_model_snapshot for calculating cost terms
+            cost_terms = [self._model_cost(model_vars[i], allocations[i], solver_model_snapshot, models)
+                          for i in range(len(chunks))]
+            cost = Sum(cost_terms)
 
-            # Log model here
-            cost = Sum([self._model_cost(model_vars[i], allocations[i], model, models) # Pass solver model to _model_cost and models
-                       for i in range(len(chunks))])
+            logger.info(f"TokenAllocator: Cost expression to minimize: {cost}")
             self.solver.minimize(cost)
-            logger.info(f"TokenAllocator: Minimize cost expression {cost}")
 
+            # Re-check satisfiability after adding minimization objective
+            if self.solver.check() == sat:
+                final_model_snapshot = self.solver.model() # Get the model after minimization
+                logger.info(f"TokenAllocator: Solver model AFTER minimization: {final_model_snapshot}")
+                final_allocation = {
+                    i: (final_model_snapshot.eval(allocations[i]).as_long(),
+                        models[final_model_snapshot.eval(model_vars[i]).as_long()]['name'])
+                    for i in range(len(chunks))
+                }
+                logger.info(f"TokenAllocator: Final allocation: {final_allocation}")
+                return final_allocation
+            else:
+                logger.error("TokenAllocator: Solver became UNSAT or UNKNOWN after adding minimization objective.")
+                raise AllocationError("No ethical allocation possible after attempting to minimize cost.")
+        else:
+            logger.error("TokenAllocator: Solver check UNSAT or UNKNOWN before minimization.")
+            raise AllocationError("No ethical allocation possible (initial constraints unsatisfiable).")
 
-            final_allocation = { # ... rest of the return logic remains the same
-                i: (model.eval(allocations[i]).as_long(),
-                    models[model.eval(model_vars[i]).as_long()]['name'])
-                for i in range(len(chunks))
-            }
-
-            logger.info(f"TokenAllocator: Final allocation: {final_allocation}") # Log the final allocation
-
-            return final_allocation
-        raise AllocationError("No ethical allocation possible")
+    def _model_cost(self, model_idx: int, tokens: int, model: ModelRef, models: list) -> float: # Added models: list parameter
+        # Ensure model_idx is an integer by evaluating the Z3 expression # Added model.eval() to convert to integer
+        evaluated_model_idx = model.eval(model_idx).as_long() # Convert model_idx to integer # Added model.eval()
+        selected_model = models[evaluated_model_idx] # Use the integer index
+        base_cost = tokens * selected_model['cost_per_token']
+        complexity_penalty = (tokens ** 1.2) / 1000  # Example non-linear penalty
+        return base_cost + complexity_penalty

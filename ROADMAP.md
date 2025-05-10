@@ -40,6 +40,12 @@
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_3', 'task_1_8_4', 'task_1_8_5']
 
+*   **Task ID**: task_1_8_14
+    *   **Priority**: High
+    *   **Task Name**: Address Ethical Debt in Token Allocator Policy
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_1', 'task_1_8_6']
+
 *   **Task ID**: task_1_8_7
     *   **Priority**: Medium
     *   **Task Name**: Implement Automated Task Decomposition

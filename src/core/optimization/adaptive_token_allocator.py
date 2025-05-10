@@ -8,30 +8,34 @@ import logging
 logger = logging.getLogger(__name__)
 
 class TokenAllocator:
-    def __init__(self, total_budget: int = 32000):
+    def __init__(self, total_budget: int = 32000): # Increased default budget
         self.total_budget = total_budget
         self.solver = Optimize()
         self.policy = EthicalAllocationPolicy()
         # Removed hardcoded models
 
-    def _model_cost(self, model_idx_var: IntNumRef, tokens_var: IntNumRef, solver_model: ModelRef, models_list: list) -> ArithRef:
+    def _model_cost(self, model_idx_var: IntNumRef, tokens_var: IntNumRef, models_list: list) -> ArithRef:
         """
         Calculates the cost for a given model and token count as a Z3 arithmetic expression.
         Cost = (tokens * cost_per_token) + (tokens^1.2 / 1000) (approximated as tokens*tokens / 1000 for Z3 simplicity)
+        This version is fully symbolic with respect to model_idx_var.
         """
-        # Evaluate the model index to get a Python integer
-        # Use solver_model.eval to get the concrete value from the current model
-        evaluated_model_idx = solver_model.eval(model_idx_var).as_long()
-        selected_model_details = models_list[evaluated_model_idx]
-        cost_per_token = selected_model_details['cost_per_token']
+        if not models_list:
+            # Should not happen if model_costs is provided
+            return RealVal(0)
 
-        # Cost components as Z3 expressions
-        base_cost_z3 = tokens_var * cost_per_token # Z3 will handle float multiplication
-        # Approximate tokens^1.2 with tokens*tokens for Z3 simplicity in this context.
-        # A more precise non-linear function might require different Z3 features or approximations.
-        complexity_penalty_z3 = (tokens_var * tokens_var) / 1000.0 # Ensure float division
+        # Build the nested If expression for symbolic cost calculation
+        # Start with the cost of the last model as the final 'else'
+        cost_expr = (tokens_var * models_list[-1]['cost_per_token']) + \
+                    (tokens_var * tokens_var) / 1000.0
 
-        return base_cost_z3 + complexity_penalty_z3
+        for j in range(len(models_list) - 2, -1, -1):
+            model_details = models_list[j]
+            cost_for_this_model = (tokens_var * model_details['cost_per_token']) + \
+                                  (tokens_var * tokens_var) / 1000.0
+            cost_expr = If(model_idx_var == j, cost_for_this_model, cost_expr)
+
+        return cost_expr
 
 
     def allocate(self, chunks: List[CodeChunk], model_costs: dict) -> dict:
@@ -90,11 +94,9 @@ class TokenAllocator:
         # Optimization objectives
         if self.solver.check() == sat:
             logger.info(f"TokenAllocator: Solver check SAT.")
-            solver_model_snapshot = self.solver.model() # Capture the model state
-            logger.info(f"TokenAllocator: Solver model BEFORE minimization: {solver_model_snapshot}")
+            # No longer need solver_model_snapshot before minimization for _model_cost
 
-            # Use the captured solver_model_snapshot for calculating cost terms
-            cost_terms = [self._model_cost(model_vars[i], allocations[i], solver_model_snapshot, models)
+            cost_terms = [self._model_cost(model_vars[i], allocations[i], models)
                           for i in range(len(chunks))]
             cost = Sum(cost_terms)
 
@@ -118,11 +120,3 @@ class TokenAllocator:
         else:
             logger.error("TokenAllocator: Solver check UNSAT or UNKNOWN before minimization.")
             raise AllocationError("No ethical allocation possible (initial constraints unsatisfiable).")
-
-    def _model_cost(self, model_idx: int, tokens: int, model: ModelRef, models: list) -> float: # Added models: list parameter
-        # Ensure model_idx is an integer by evaluating the Z3 expression # Added model.eval() to convert to integer
-        evaluated_model_idx = model.eval(model_idx).as_long() # Convert model_idx to integer # Added model.eval()
-        selected_model = models[evaluated_model_idx] # Use the integer index
-        base_cost = tokens * selected_model['cost_per_token']
-        complexity_penalty = (tokens ** 1.2) / 1000  # Example non-linear penalty
-        return base_cost + complexity_penalty

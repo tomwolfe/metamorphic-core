@@ -74,7 +74,7 @@ class TokenAllocator:
         # Model capacity constraints - Ensure allocated tokens are within model's effective length
         for i in range(len(chunks)):
             # Log model capacity constraints
-            constraint_model_capacity_str = f"Or([And(model_vars[{i}] == {j}, allocations[{i}] <= {models[j]['effective_length']}) for {j} in range(len(models))])"
+            constraint_model_capacity_str = "Or([And(model_vars[{i}] == {j}, allocations[{i}] <= {models[j]['effective_length']}) for {j} in range(len(models))])"
             logger.info(f"TokenAllocator: Adding model capacity constraint for chunk {i}: {constraint_model_capacity_str}")
             self.solver.add(Or([
                 And(model_vars[i] == j, allocations[i] <= models[j]['effective_length'])

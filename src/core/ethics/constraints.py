@@ -70,10 +70,17 @@ CORE_CONSTRAINTS = [
 class EthicalAllocationPolicy:
     def apply(self, solver: Optimize, allocations: Dict[int, IntNumRef], model_vars: Dict[int, IntNumRef]): # Added type hints for clarity
         """Enforce ethical constraints on token allocations"""
+
         logger.debug(f"Applying EthicalAllocationPolicy with {len(allocations)} chunks/allocations.")
+
         for alloc_var_key in allocations: # Iterate over keys for Z3 Int variables
             alloc_val_int_var = allocations[alloc_var_key]
+            constraint_str_min = f"{alloc_val_int_var} >= 100"
+            logger.info(f"EthicalAllocationPolicy: Adding constraint: {constraint_str_min}")
             solver.add(alloc_val_int_var >= 100)  # Minimum token guarantee
+
+            constraint_str_max = f"{alloc_val_int_var} <= 20000"
+            logger.info(f"EthicalAllocationPolicy: Adding constraint: {constraint_str_max}")
             solver.add(alloc_val_int_var <= 20000) # Max per chunk
 
         # --- MODIFICATION START ---
@@ -93,20 +100,7 @@ class EthicalAllocationPolicy:
         # --- MODIFICATION END ---
 
         self._limit_high_cost_model_usage(solver, allocations, model_vars)
-
-
-    def _ensure_model_diversity(self, solver: Optimize, model_vars: Dict[int, IntNumRef]): # Added type hints
-        """Encourage usage of diverse models for robustness"""
-        # --- MODIFICATION START ---
-        # Original problematic line: solver.add(Distinct(*model_vars.values()))
-        # This is too restrictive if num_chunks > num_available_models.
-        # For now, let's make this a no-op to unblock.
-        # A more robust solution would be to make this conditional or a soft constraint.
-        # Example: if len(model_vars.values()) <= number_of_available_models_in_config:
-        # solver.add(Distinct(*model_vars.values()))
-        logger.warning("EthicalAllocationPolicy._ensure_model_diversity is currently a no-op (Distinct constraint bypassed).")
-        pass
-        # --- MODIFICATION END ---
+        logger.info("EthicalAllocationPolicy: Finished applying policy.")
 
     def _limit_high_cost_model_usage(self, solver: Optimize, allocations: Dict[int, IntNumRef], model_vars: Dict[int, IntNumRef]): # Added type hints
         """Minimize use of high-cost models for budget & ethical reasons"""
@@ -120,6 +114,8 @@ class EthicalAllocationPolicy:
         # GPT-4 is indeed the most expensive, so this constraint should be fine.
         for i in range(len(allocations)): # allocations is a dict, iterate by its length assuming keys 0..N-1
             if i in model_vars and i in allocations: # Ensure keys exist
-                solver.add(Implies(model_vars[i] == 1, allocations[i] <= 1000)) # Limit GPT-4 tokens
+                constraint_gpt4_limit_str = f"Implies({model_vars[i]} == 1, {allocations[i]} <= 1000)"
+                logger.info(f"EthicalAllocationPolicy: Adding constraint for high-cost model usage: {constraint_gpt4_limit_str}")
+                solver.add(Implies(model_vars[i] == 1, allocations[i] <= 1000))
             else:
-                logger.warning(f"EthicalAllocationPolicy: Index {i} not found in model_vars or allocations during high-cost model limit.")
+                logger.warning(f"EthicalAllocationPolicy: Key {i} missing from model_vars or allocations. Skipping high-cost limit constraint.")

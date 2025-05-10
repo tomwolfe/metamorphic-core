@@ -205,11 +205,14 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         return self.summarizer.synthesize(summaries)
 
     def _get_model_costs(self):
+        # --- MODIFICATION START ---
+        # Removed 'mistral-large' to prevent attempting to use an unsupported model
         return {
             "gemini": {"effective_length": 8000, "cost_per_token": 0.000001},
             "gpt-4": {"effective_length": 8000, "cost_per_token": 0.00003},
-            "mistral-large": {"effective_length": 32000, "cost_per_token": 0.000002},
+            # "mistral-large": {"effective_length": 32000, "cost_per_token": 0.000002}, # Removed
         }
+        # --- MODIFICATION END ---
 
     def _process_chunk(self, chunk: CodeChunk, allocation: tuple) -> str:
         tokens, model = allocation
@@ -281,4 +284,3 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r"\\boxed{([^}]+)}", text)
     if match:
         return match.group(1)
-    return None # Added explicit return None

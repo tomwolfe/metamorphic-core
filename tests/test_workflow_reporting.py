@@ -28,16 +28,17 @@ def test_driver_reporting(tmp_path):
         # within its side_effect, we need Path here too.
         # Note: The actual _load_default_policy method in the driver calls builtins.open,
         # but the mock EthicalGovernanceEngine.load_policy_from_json might still be called
-        # by the driver's __init__ if not patched. Patching the *instance*'s method
-        # is safer here if the driver's __init__ is not fully mocked.
-        # However, the fixture patches the *classes* before the driver is instantiated,
-        # so the driver's __init__ will use the mocks. The driver's _load_default_policy
+        # by the driver's init if not patched. Patching the instance's method
+        # is safer here if the driver's init is not fully mocked.
+        # However, the fixture patches the classes before the driver is instantiated,
+        # so the driver's init will use the mocks. The driver's _load_default_policy
         # method is what calls builtins.open, not the mock engine's load_policy_from_json.
-        # The ethical engine instance's methods are called *after* the policy is loaded.
+        # The ethical engine instance's methods are called after the policy is loaded.
         # So, we don't need to mock load_policy_from_json on the mock instance here.
         # The driver's _load_default_policy will attempt to load the file and set
         # driver.default_policy_config. The test will then explicitly set this config
         # to ensure the ethical analysis block is entered.
+
 
         driver = WorkflowDriver(context)
         # driver.llm_orchestrator = MagicMock() # Not needed for these tests
@@ -69,6 +70,7 @@ class TestWorkflowReporting:
             'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
             'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
             'ethical_analysis_results': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
+            # Note: 'step_errors' is intentionally omitted here to test the default behavior
         }
         # Mock _calculate_grades to return a predictable grade structure
         mock_grades = {
@@ -93,7 +95,9 @@ class TestWorkflowReporting:
             assert report_data["validation_results"] == {
                 "tests": mock_validation_results.get('test_results', {}),
                 "code_review": mock_validation_results.get('code_review_results', {}),
-                "ethical_analysis": mock_validation_results.get('ethical_analysis_results', {})}
+                "ethical_analysis": mock_validation_results.get('ethical_analysis_results', {}),
+                "step_errors": [] # Add this line to match the actual output when 'step_errors' is missing from input
+            }
             assert report_data["grades"] == mock_grades # Should contain the calculated grades
 
     # --- Tests for _calculate_grades ---
@@ -104,6 +108,7 @@ class TestWorkflowReporting:
             'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
             'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
             'ethical_analysis_results': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
+            'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
 
@@ -120,6 +125,7 @@ class TestWorkflowReporting:
             'test_results': {'status': 'failed', 'passed': 5, 'failed': 5, 'total': 10, 'message': 'Parsed successfully.'},
             'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
             'ethical_analysis_results': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
+            'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
 
@@ -145,6 +151,7 @@ class TestWorkflowReporting:
                 'errors': {'flake8': None, 'bandit': None}
             },
             'ethical_analysis_results': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
+            'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
 
@@ -161,6 +168,7 @@ class TestWorkflowReporting:
             'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
             'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
             'ethical_analysis_results': {'overall_status': 'rejected', 'policy_name': 'Strict Bias Risk Policy', 'BiasRisk': {'status': 'violation'}},
+            'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
 
@@ -183,6 +191,7 @@ class TestWorkflowReporting:
                 'errors': {'flake8': None, 'bandit': None}
             },
             'ethical_analysis_results': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
+            'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
 
@@ -197,6 +206,7 @@ class TestWorkflowReporting:
         driver = test_driver_reporting['driver'] # Access driver from dict
         mock_validation_results = {
             # Missing test_results, code_review_results, ethical_analysis_results
+            'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
 
@@ -217,6 +227,7 @@ class TestWorkflowReporting:
             'test_results': {'status': 'error', 'message': 'Test execution failed.'},
             'code_review_results': {'status': 'error', 'errors': {'flake8': 'Flake8 error', 'bandit': 'Bandit error'}},
             'ethical_analysis_results': {'overall_status': 'error', 'message': 'Ethical analysis failed.'},
+            'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
 
@@ -237,6 +248,7 @@ class TestWorkflowReporting:
             'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
             'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
             'ethical_analysis_results': {'overall_status': 'skipped', 'message': 'Default policy not loaded.'},
+            'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
 
@@ -258,7 +270,8 @@ class TestWorkflowReporting:
             "validation_results": {
                 "tests": {"status": "passed"},
                 "code_review": {"status": "success", "static_analysis": []},
-                "ethical_analysis": {"overall_status": "approved"}
+                "ethical_analysis": {"overall_status": "approved"},
+                "step_errors": [] # Include step_errors for completeness in mock
             }
         })
         result = driver._parse_and_evaluate_grade_report(report_json)
@@ -274,7 +287,8 @@ class TestWorkflowReporting:
             "validation_results": {
                 "tests": {"status": "passed"},
                 "code_review": {"status": "success", "static_analysis": []},
-                "ethical_analysis": {"overall_status": "rejected"}
+                "ethical_analysis": {"overall_status": "rejected"},
+                "step_errors": [] # Include step_errors for completeness in mock
             }
         })
         result = driver._parse_and_evaluate_grade_report(report_json)
@@ -290,7 +304,8 @@ class TestWorkflowReporting:
             "validation_results": {
                 "tests": {"status": "passed"},
                 "code_review": {"status": "failed", "static_analysis": [{"severity": "security_high", "code": "B101"}]},
-                "ethical_analysis": {"overall_status": "approved"}
+                "ethical_analysis": {"overall_status": "approved"},
+                "step_errors": [] # Include step_errors for completeness in mock
             }
         })
         result = driver._parse_and_evaluate_grade_report(report_json)
@@ -306,7 +321,8 @@ class TestWorkflowReporting:
             "validation_results": {
                 "tests": {"status": "failed", "passed": 5, "failed": 5, "total": 10},
                 "code_review": {"status": "success", "static_analysis": []},
-                "ethical_analysis": {"overall_status": "approved"}
+                "ethical_analysis": {"overall_status": "approved"},
+                "step_errors": [] # Include step_errors for completeness in mock
             }
         })
         result = driver._parse_and_evaluate_grade_report(report_json)
@@ -322,7 +338,8 @@ class TestWorkflowReporting:
             "validation_results": {
                 "tests": {"status": "passed"},
                 "code_review": {"status": "failed", "static_analysis": [{"severity": "error", "code": "E001"}]},
-                "ethical_analysis": {"overall_status": "approved"}
+                "ethical_analysis": {"overall_status": "approved"},
+                "step_errors": [] # Include step_errors for completeness in mock
             }
         })
         result = driver._parse_and_evaluate_grade_report(report_json)
@@ -338,7 +355,8 @@ class TestWorkflowReporting:
             "validation_results": {
                 "tests": {"status": "passed"},
                 "code_review": {"status": "failed", "static_analysis": [{"severity": "error", "code": "E001"}]},
-                "ethical_analysis": {"overall_status": "approved"}
+                "ethical_analysis": {"overall_status": "approved"},
+                "step_errors": [] # Include step_errors for completeness in mock
             }
         })
         result = driver._parse_and_evaluate_grade_report(report_json)
@@ -366,7 +384,9 @@ class TestWorkflowReporting:
         result = driver._parse_and_evaluate_grade_report(report_json)
         assert result["recommended_action"] == "Manual Review Required"
         assert "Overall grade (0%) is below regeneration threshold or other issues require manual review." in result["justification"]
-        assert "Grade Report Metrics: Overall Grade=0%, Test Status=None, Ethical Status=None, Code Review Status=None" in caplog.text
+        # FIX: Updated expected log message to include step_errors which is now always checked
+        assert "Grade Report Metrics: Overall Grade=0%, Test Status=None, Ethical Status=None, Code Review Status=None, Step Errors=0" in caplog.text
+
 
     def test_parse_and_evaluate_grade_report_ethical_error(self, test_driver_reporting):
         """Test _parse_and_evaluate_grade_report handles ethical analysis error."""
@@ -377,7 +397,8 @@ class TestWorkflowReporting:
             "validation_results": {
                 "tests": {"status": "passed"},
                 "code_review": {"status": "success", "static_analysis": []},
-                "ethical_analysis": {"overall_status": "error", "message": "Analysis failed"}
+                "ethical_analysis": {"overall_status": "error", "message": "Analysis failed"},
+                "step_errors": [] # Include step_errors for completeness in mock
             }
         })
         result = driver._parse_and_evaluate_grade_report(report_json)
@@ -393,7 +414,8 @@ class TestWorkflowReporting:
             "validation_results": {
                 "tests": {"status": "error", "errors": {"bandit": "Scan failed"}}, # FIX: Changed status to error and added errors key
                 "code_review": {"status": "error", "errors": {"bandit": "Scan failed"}}, # FIX: Changed status to error and added errors key
-                "ethical_analysis": {"overall_status": "approved"}
+                "ethical_analysis": {"overall_status": "approved"},
+                "step_errors": [] # Include step_errors for completeness in mock
             }
         })
         result = driver._parse_and_evaluate_grade_report(report_json)
@@ -409,12 +431,31 @@ class TestWorkflowReporting:
             "validation_results": {
                 "tests": {"status": "error", "message": "Execution failed"},
                 "code_review": {"status": "success", "static_analysis": []},
-                "ethical_analysis": {"overall_status": "approved"}
+                "ethical_analysis": {"overall_status": "approved"},
+                "step_errors": [] # Include step_errors for completeness in mock
             }
         })
         result = driver._parse_and_evaluate_grade_report(report_json)
         assert result["recommended_action"] == "Regenerate Code"
         assert "Overall grade (90%) is below 100% but meets regeneration threshold." in result["justification"]
+
+    def test_parse_and_evaluate_grade_report_step_errors(self, test_driver_reporting):
+        """Test _parse_and_evaluate_grade_report returns 'Manual Review Required' if step errors occurred."""
+        driver = test_driver_reporting['driver'] # Access driver from dict
+        report_json = json.dumps({
+            "task_id": "test_task",
+            "grades": {"overall_percentage_grade": 100}, # Even with 100% grade, step errors should force manual review
+            "validation_results": {
+                "tests": {"status": "passed"},
+                "code_review": {"status": "success", "static_analysis": []},
+                "ethical_analysis": {"overall_status": "approved"},
+                "step_errors": [{"step_index": 1, "error_message": "Mock error"}] # Include step errors
+            }
+        })
+        result = driver._parse_and_evaluate_grade_report(report_json)
+        assert result["recommended_action"] == "Manual Review Required"
+        assert "Step execution errors occurred (1 errors). Manual review required." in result["justification"]
+
 
     # --- Tests for orchestration of validation steps within autonomous_loop ---
     # These tests verify that the correct methods (execute_tests, _parse_test_results,

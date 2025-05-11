@@ -29,6 +29,8 @@ from src.core.verification.decorators import formal_proof
 if TYPE_CHECKING:
     from src.core.ethics.governance import EthicalGovernanceEngine
 
+logger = logging.getLogger(__name__) # Added logger definition
+
 
 class LLMProvider(str, Enum):
     GEMINI = "gemini"
@@ -158,7 +160,8 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         self.telemetry.start_session()
         try:
             with self.telemetry.span("generate_logic"):
-                if self._count_tokens(prompt) > 4000:
+                # Increased threshold to trigger large context handling
+                if self._count_tokens(prompt) > 8000: # Increased threshold
                     code = self._handle_large_context(prompt)
                 else:
                     model = self.config.provider.value
@@ -207,10 +210,12 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
     def _get_model_costs(self):
         # --- MODIFICATION START ---
         # Removed 'mistral-large' to prevent attempting to use an unsupported model
+        # Removed 'gpt-4' as it's not handled by _call_llm_api
         return {
             "gemini": {"effective_length": 8000, "cost_per_token": 0.000001},
-            "gpt-4": {"effective_length": 8000, "cost_per_token": 0.00003},
-            # "mistral-large": {"effective_length": 32000, "cost_per_token": 0.000002}, # Removed
+            # "gpt-4": {"effective_length": 8000, "cost_per_token": 0.00003}, # Removed
+            # Example for a configured Hugging Face model (ensure name matches config and _call_llm_api)
+            # self.config.hugging_face_model: {"effective_length": 4096, "cost_per_token": 0.000002},
         }
         # --- MODIFICATION END ---
 
@@ -266,9 +271,13 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         self.telemetry.track("model_usage", tags={"model": model})
         if model == "gemini":
             return self._gemini_generate(text)
-        elif model in ["huggingface", "hf"]:
+        elif model == self.config.hugging_face_model or model in ["huggingface", "hf"]: # Check against configured HF model name
             return self._hf_generate(text)
+        # Add other models if explicitly supported, e.g.:
+        # elif model == "gpt-4":
+        #     return self._gpt4_generate(text) # Requires implementation of _gpt4_generate
         else:
+            logger.error(f"Attempted to call unsupported model: {model} in _call_llm_api") # Added logging
             raise ValueError(f"Unsupported model: {model}")
 
     def _count_tokens(self, text: str) -> int:
@@ -284,3 +293,4 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r"\\boxed{([^}]+)}", text)
     if match:
         return match.group(1)
+    return None # Explicitly return None if no match

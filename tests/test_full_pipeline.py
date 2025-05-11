@@ -41,10 +41,12 @@ class TestOrchestrationSystem(unittest.TestCase):
         mock_gemini_generate.return_value = "Mock response" # Dummy response
         mock_hf_generate.return_value = "Mock response" # Dummy response
         self.mock_spec_instance.validate_chunks.return_value = False # Make chunk validation fail
-        large_payload = "0" * 5000
-         # Expect FormalVerificationError due to chunk validation fail
-        with pytest.raises(FormalVerificationError): # Use pytest.raises context manager
-            self.orchestrator.generate(large_payload)
+        large_payload = "0" * 5000  # Fixed large payload
+        # Update mock_count_tokens to exceed the new threshold (8000)
+        with patch.object(self.orchestrator, '_count_tokens', return_value=8001) as mock_count_tokens_local:
+            with pytest.raises(FormalVerificationError): # Use pytest.raises context manager
+                self.orchestrator.generate(large_payload)
+
 
     @patch('src.core.ethics.constraints.EthicalAllocationPolicy.apply')
     @patch.object(EnhancedLLMOrchestrator, '_count_tokens', return_value=5001)
@@ -61,10 +63,12 @@ class TestOrchestrationSystem(unittest.TestCase):
 
         large_payload = "0" * 5000
 
-        with pytest.raises(FormalVerificationError) as excinfo:
-            orchestrator.generate(large_payload)
-        assert isinstance(excinfo.value, FormalVerificationError)
-        self.assertEqual(orchestrator.telemetry.data.constraint_violations['InitialChunkValidation'], 1) # Assert constraint violation tracked
+        # Update mock_count_tokens to exceed the new threshold (8000)
+        with patch.object(orchestrator, '_count_tokens', return_value=8001) as mock_count_tokens_local:
+            with pytest.raises(FormalVerificationError) as excinfo:
+                orchestrator.generate(large_payload)
+            assert isinstance(excinfo.value, FormalVerificationError)
+            self.assertEqual(orchestrator.telemetry.data.constraint_violations['InitialChunkValidation'], 1) # Assert constraint violation tracked
 
 
     @patch('src.core.verification.specification.FormalSpecification.verify_predictions', return_value={'verified': True})
@@ -120,8 +124,10 @@ class TestOrchestrationSystem(unittest.TestCase):
         orchestrator = EnhancedLLMOrchestrator(kg=MagicMock(), spec=MagicMock(), ethics_engine=MagicMock())
         orchestrator.spec.verify_predictions.return_value = {'verified': False}
         prompt = "Large test prompt to trigger fallback in pipeline" # Large prompt for pipeline fallback
-        with pytest.raises(CriticalFailure) as excinfo: # Use pytest.raises context manager
-            orchestrator.generate(prompt)
+        # Update mock_count_tokens to exceed the new threshold (8000)
+        with patch.object(orchestrator, '_count_tokens', return_value=8001) as mock_count_tokens_local:
+            with pytest.raises(CriticalFailure) as excinfo: # Use pytest.raises context manager
+                orchestrator.generate(prompt)
         assert isinstance(excinfo.value, CriticalFailure)
         mock_primary_processing_full_pipeline_test.assert_called_once() # Check primary called in pipeline
         mock_secondary_model_full_pipeline_test.assert_called_once() # Check secondary fallback engaged

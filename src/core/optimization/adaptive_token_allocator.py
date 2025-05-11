@@ -1,3 +1,4 @@
+# src/core/optimization/adaptive_token_allocator.py
 from z3 import *
 from src.core.ethics.constraints import EthicalAllocationPolicy
 from typing import List
@@ -119,4 +120,4 @@ class TokenAllocator:
                 raise AllocationError("No ethical allocation possible after attempting to minimize cost.")
         else:
             logger.error("TokenAllocator: Solver check UNSAT or UNKNOWN before minimization.")
-            raise AllocationError("No ethical allocation possible (initial constraints unsatisfiable).")
+            raise AllocationError("No ethical allocation possible.") # Raise AllocationError here too

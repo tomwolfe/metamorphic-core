@@ -4,6 +4,8 @@ import sys
 import argparse
 import os
 import logging
+import requests # Add import
+import time     # Add import
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -54,6 +56,27 @@ def dev_run_workflow():
             sys.exit(1) # Exit if docker-compose restart fails
 
         logger.info("'metamorphic-core' service restarted successfully.")
+
+        # Health check loop
+        health_url = "http://localhost:5000/genesis/health" # Assuming default port
+        max_attempts = 30 # Try for 60 seconds
+        logger.info(f"Attempting to contact API server at {health_url}...")
+        for attempt in range(max_attempts):
+            try:
+                response = requests.get(health_url, timeout=2)
+                if response.status_code == 200 and response.json().get("status") == "ready":
+                    logger.info("API server is healthy and ready.")
+                    break
+                else:
+                    logger.warning(f"API health check attempt {attempt+1}/{max_attempts} failed: Status {response.status_code}, Response: {response.text[:100]}")
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"API health check attempt {attempt+1}/{max_attempts} failed: {e}")
+
+            if attempt == max_attempts - 1:
+                logger.error("API server did not become healthy after multiple attempts. Exiting.")
+                sys.exit(1) # Exit if API server is not healthy
+            time.sleep(2) # Wait before retrying
+
 
     except FileNotFoundError:
         logger.error("Error: 'docker-compose' command not found.")

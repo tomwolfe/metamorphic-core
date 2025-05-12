@@ -54,7 +54,12 @@ def test_driver_phase1_8(tmp_path):
         # Assign mocked instances
         driver.code_review_agent = mock_code_review_agent_instance
         driver.ethical_governance_engine = mock_ethical_governance_engine_instance
-        driver.default_policy_config = {'policy_name': 'Mock Policy'} # Ensure default policy is set
+        # driver.default_policy_config is set by _load_default_policy.
+        # If the policy file doesn't exist (as in tmp_path), it will be None.
+        # The test explicitly sets it if needed or relies on the log for skipping.
+        # For this specific test, the fixture sets it after instantiation.
+        driver.default_policy_config = {'policy_name': 'Mock Policy'} 
+
 
         # Add attributes needed for tests that might not be set by __init__ or autonomous_loop setup
         driver._current_task_results = {}
@@ -149,7 +154,7 @@ class TestPhase1_8Features:
         classification1 = check_step_classification(driver, step1, task_target_file="src/core/automation/workflow_driver.py")
         assert classification1["is_research_step"] is False
         assert classification1["is_code_generation_step"] is True
-        assert classification1["is_explicit_file_writing_step"] is False
+        assert classification1["is_explicit_file_writing_step"] is False # Not explicit file writing, but code gen implies write
         assert classification1["is_test_execution_step"] is False
         assert classification1["filepath_to_use"] == "src/core/automation/workflow_driver.py"
 
@@ -164,8 +169,8 @@ class TestPhase1_8Features:
         step3 = "Modify the class definition in src/core/automation/workflow_driver.py"
         classification3 = check_step_classification(driver, step3, task_target_file="src/core/automation/workflow_driver.py")
         assert classification3["is_research_step"] is False
-        assert classification3["is_code_generation_step"] is True
-        assert classification3["is_explicit_file_writing_step"] is True
+        assert classification3["is_code_generation_step"] is True # 'modify' is a code-gen keyword for .py files
+        assert classification3["is_explicit_file_writing_step"] is True # 'modify' is also an explicit file writing keyword
         assert classification3["is_test_execution_step"] is False
         assert classification3["filepath_to_use"] == "src/core/automation/workflow_driver.py"
 
@@ -175,8 +180,8 @@ class TestPhase1_8Features:
 
         step1 = "Write the research findings to research_summary.md"
         classification1 = check_step_classification(driver, step1, task_target_file=None)
-        assert classification1["is_research_step"] is True
-        assert classification1["is_code_generation_step"] is False
+        assert classification1["is_research_step"] is True # "research" keyword present
+        assert classification1["is_code_generation_step"] is False # Research takes precedence, and not .py
         assert classification1["is_explicit_file_writing_step"] is True
         assert classification1["is_test_execution_step"] is False
         assert classification1["filepath_to_use"] == "research_summary.md"
@@ -184,7 +189,7 @@ class TestPhase1_8Features:
         step2 = "Update the documentation file docs/workflows/markdown_automation.md"
         classification2 = check_step_classification(driver, step2, task_target_file="docs/workflows/markdown_automation.md")
         assert classification2["is_research_step"] is False
-        assert classification2["is_code_generation_step"] is False
+        assert classification2["is_code_generation_step"] is False # Not a .py file
         assert classification2["is_explicit_file_writing_step"] is True
         assert classification2["is_test_execution_step"] is False
         assert classification2["filepath_to_use"] == "docs/workflows/markdown_automation.md"
@@ -273,12 +278,13 @@ class TestPhase1_8Features:
         driver.tasks = [mock_task] # Set tasks for select_next_task
         driver.roadmap_path = "mock_roadmap.json" # Needed for status update logic
     
-        # --- START FIX ---
-        # Configure the mock for _invoke_coder_llm to return the plan string
-        # This mock is used by generate_solution_plan
-        mock_invoke_llm.return_value = f"1. {conceptual_step_text}\n2. Implement the new classification logic in {target_py_file}"
-        # Remove the redundant mock on driver.llm_orchestrator.generate
-        # --- END FIX ---
+        # --- START FIX for mock_invoke_llm ---
+        # Configure the mock for _invoke_coder_llm to return different values for plan and code generation
+        mock_invoke_llm.side_effect = [
+            f"1. {conceptual_step_text}\n2. Implement the new classification logic in {target_py_file}",  # For generate_solution_plan
+            "def new_classification_logic():\n    pass"  # For the "Implement..." step's code generation
+        ]
+        # --- END FIX for mock_invoke_llm ---
     
         # Mock _parse_and_evaluate_grade_report to return "Completed" to allow status update
         mock_parse_eval.return_value = {"recommended_action": "Completed", "justification": "Mock evaluation"}
@@ -287,69 +293,65 @@ class TestPhase1_8Features:
     
     
         # Create a dummy roadmap file for the driver to load and update
-        # This is important because the driver reads and writes the roadmap
         roadmap_file_path = tmp_path / driver.roadmap_path
         with open(roadmap_file_path, 'w') as f:
             json.dump({"tasks": [mock_task]}, f)
     
-        # Patch builtins.open to handle roadmap reading/writing within the loop
-        # The mock_open from unittest.mock is good for this.
-        # We need to simulate reading the initial roadmap and then the updated one.
-        # The first read is in start_workflow, then in each loop iteration.
-        # The write happens at the end of a successful iteration.
-    
         # Simulate the content that will be read
         initial_roadmap_content = json.dumps({"tasks": [mock_task]})
-        # After the task is "Completed", this is what should be written and then read in the next iteration
         completed_task = mock_task.copy()
         completed_task['status'] = 'Completed'
         updated_roadmap_content = json.dumps({"tasks": [completed_task]})
     
-        mock_file_content_sequence = [initial_roadmap_content, initial_roadmap_content, updated_roadmap_content]
+        # --- START FIX for mock_file_content_sequence ---
+        # Sequence: 1. start_workflow->load_roadmap, 2. loop1->load_roadmap, 
+        # 3. loop1->status_update_read, 4. loop2->load_roadmap
+        mock_file_content_sequence = [
+            initial_roadmap_content, 
+            initial_roadmap_content, 
+            initial_roadmap_content, # For the read before status update
+            updated_roadmap_content
+        ]
+        # --- END FIX for mock_file_content_sequence ---
     
-        # --- FIX START: Correct mock_open usage ---
-        # Create a mock for the open function
         mock_open_function = mock_open()
-    
-        # Configure the file handle mock (which is mock_open_function.return_value)
         file_handle_mock = MagicMock()
         file_handle_mock.read.side_effect = mock_file_content_sequence
-        file_handle_mock.__enter__.return_value = file_handle_mock # For 'with open(...) as f:'
+        file_handle_mock.__enter__.return_value = file_handle_mock 
         file_handle_mock.__exit__.return_value = None
+        mock_open_function.return_value = file_handle_mock
     
-        mock_open_function.return_value = file_handle_mock # When open() is called, it returns our file_handle_mock
-    
-        with patch('builtins.open', mock_open_function): # Patch builtins.open with our function mock
+        with patch('builtins.open', mock_open_function): 
             driver.start_workflow(str(roadmap_file_path), str(tmp_path / "output"), driver.context)
-        # --- FIX END ---
     
-    
-        # Assert that _write_output_file was NOT called for the conceptual step
-        # It should only be called for the "Implement" step if that step was reached and classified as code-gen
-        # Check the calls to _write_output_file
+        # Assert that _write_output_file was NOT called with placeholder for the conceptual step
         write_calls = mock_write_output.call_args_list
         conceptual_step_write_attempted = False
-        for call_args_item in write_calls: # Renamed call_args to avoid conflict
-            # call_args_item[0] is a tuple of positional arguments
-            # call_args_item[0][0] is the filepath, call_args_item[0][1] is the content
-            # Check if the conceptual step text was part of the *content* written
-            # The filepath check remains the same.
+        for call_args_item in write_calls:
+            # Check if the conceptual step text was part of the *content* written to the target_py_file
             if target_py_file in call_args_item[0][0] and conceptual_step_text in call_args_item[0][1]:
                 conceptual_step_write_attempted = True
                 break
     
         assert not conceptual_step_write_attempted, "_write_output_file was called with placeholder for the conceptual step"
     
-        # Assert the log message for skipping the placeholder write
+        # Assert the log message for skipping the placeholder write for the conceptual step
         assert f"Skipping placeholder write to main Python target {target_py_file} for conceptual step: '{conceptual_step_text}'." in caplog.text
 
         # Assert that the second step (Implement) DID attempt to write (or would have, if not for other mocks)
-        # This means _write_output_file should have been called at least once for the "Implement" step
-        # if the plan execution reached that far and it was classified as code-gen.
-        # Given our mocks, it should try to write for the "Implement" step.
+        # It should have been called once for the "Implement..." step with the mocked code snippet.
         assert mock_write_output.call_count >= 1, "Expected _write_output_file to be called for the implementation step"
+        
+        # Verify the content written for the implementation step
+        implementation_step_written = False
+        for call_args_item in write_calls:
+            if target_py_file in call_args_item[0][0] and "def new_classification_logic():" in call_args_item[0][1]:
+                implementation_step_written = True
+                break
+        assert implementation_step_written, "The implementation step was not written with the correct mocked code."
+
 
         # Verify that the task status was updated to Completed
         mock_safe_write.assert_called_once()
-        written_roadmap_data = mock_safe_write.call_args[0][1] # Get the data written to roadmap
+        written_roadmap_data = mock_safe_write.call_args[0][1] 
         assert written_roadmap_data['tasks'][0]['status'] == 'Completed'

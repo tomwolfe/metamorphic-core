@@ -7,7 +7,7 @@
 *   **Task ID**: task_1_8_1_pre_fix
     *   **Priority**: Critical
     *   **Task Name**: Refine Step Classification to Correctly Identify Research Steps
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: []
 
 *   **Task ID**: task_1_8_1

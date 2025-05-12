@@ -4,11 +4,17 @@
 
 **NOTE: Rows showing `MISSING_ID`, `UNKNOWN`, or `NO_NAME` indicate problems with the `ROADMAP.json` file and require attention.**
 
+*   **Task ID**: task_1_8_1_pre_fix
+    *   **Priority**: Critical
+    *   **Task Name**: Refine Step Classification to Correctly Identify Research Steps
+    *   **Status**: Not Started
+    *   **Depends On**: []
+
 *   **Task ID**: task_1_8_1
     *   **Priority**: Critical
     *   **Task Name**: Enhance Plan Step Identification
     *   **Status**: Not Started
-    *   **Depends On**: []
+    *   **Depends On**: ['task_1_8_1_pre_fix']
 
 *   **Task ID**: task_1_8_2
     *   **Priority**: Critical
@@ -33,12 +39,6 @@
     *   **Task Name**: Implement Learning from Failures (Data Capture)
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_4']
-
-*   **Task ID**: task_1_8_6
-    *   **Priority**: High
-    *   **Task Name**: Improve Remediation Strategy & Targeted Feedback
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_3', 'task_1_8_4', 'task_1_8_5']
 
 *   **Task ID**: task_1_8_14
     *   **Priority**: High

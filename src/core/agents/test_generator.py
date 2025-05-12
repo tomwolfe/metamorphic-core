@@ -1,11 +1,15 @@
 # src/core/agents/test_generator.py
+# src/core/agents/test_generator.py
 import re
 from pydantic import UUID4
 from src.core.llm_orchestration import LLMOrchestrator
 from src.core.knowledge_graph import KnowledgeGraph, Node
 import os
 
-class TestGeneratorAgent: # Renamed class
+# --- MODIFICATION START ---
+# Renamed class from TestGeneratorAgent to GeneratorAgent to prevent pytest collection warning
+class GeneratorAgent:
+# --- MODIFICATION END ---
     def __init__(self):
         self.llm = LLMOrchestrator()
         self.kg = KnowledgeGraph()

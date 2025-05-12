@@ -1,10 +1,20 @@
+# tests/test_test_generator.py
 import pytest
 import os
-from src.core.agents.test_generator import TestGeneratorAgent # Corrected import
+# --- MODIFICATION START ---
+# Corrected import path to use the renamed class
+from src.core.agents.test_generator import GeneratorAgent # Corrected import
+# --- MODIFICATION END ---
 
-class TestTestGeneratorAgent: # Updated test class name
+# --- MODIFICATION START ---
+# Updated test class name to match the agent class name change (optional but good practice)
+class TestGeneratorAgent: # Updated test class name
+# --- MODIFICATION END ---
     def setup_method(self):
-        self.agent = TestGeneratorAgent() # Updated instantiation
+        # --- MODIFICATION START ---
+        # Updated instantiation to use the renamed class
+        self.agent = GeneratorAgent() # Updated instantiation
+        # --- MODIFICATION END ---
 
     def test_generate_tests_valid_code(self, mocker):
         # No need to mock LLM for placeholder generation
@@ -110,4 +120,10 @@ class TestTestGeneratorAgent: # Updated test class name
             if os.path.exists(f_path):
                 os.remove(f_path)
         if os.path.exists(test_dir) and not os.listdir(test_dir):
-             os.rmdir(test_dir)
+            # Only remove the directory if it's empty
+            # shutil.rmtree(test_dir) # Removed shutil import, use os.rmdir
+            try:
+                os.rmdir(test_dir)
+            except OSError:
+                # Directory might not be empty if tests failed or left files
+                pass

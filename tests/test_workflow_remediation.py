@@ -1,3 +1,4 @@
+# File: tests/test_workflow_remediation.py
 import pytest
 import json
 import logging
@@ -231,7 +232,8 @@ class TestWorkflowRemediation:
             result = driver._identify_remediation_target(grade_report)
             assert result is None
             # Corrected assertion: The code logs the general "No specific target" message here
-            assert "No specific remediation target identified from grade report." in caplog.text
+            # FIX: Updated assertion string to match the actual log message
+            assert "No specific remediation target identified from grade report for automated remediation." in caplog.text
             # Removed the incorrect assertion: assert "Ethical rejection not due to TransparencyScore, no specific remediation target." in caplog.text
 
         with caplog.at_level(logging.DEBUG):
@@ -239,7 +241,8 @@ class TestWorkflowRemediation:
             result = driver._identify_remediation_target(grade_report)
             assert result is None
             # Corrected assertion: The code logs the general "No specific target" message here
-            assert "No specific remediation target identified from grade report." in caplog.text
+            # FIX: Updated assertion string to match the actual log message
+            assert "No specific remediation target identified from grade report for automated remediation." in caplog.text
             # Removed the incorrect assertion: assert "Ethical rejection not due to TransparencyScore, no specific remediation target." in caplog.text
 
         with caplog.at_level(logging.DEBUG):
@@ -247,7 +250,8 @@ class TestWorkflowRemediation:
             result = driver._identify_remediation_target(grade_report)
             assert result is None
             # Corrected assertion: The code logs the general "No specific target" message here
-            assert "No specific remediation target identified from grade report." in caplog.text
+            # FIX: Updated assertion string to match the actual log message
+            assert "No specific remediation target identified from grade report for automated remediation." in caplog.text
             # Removed the incorrect assertion: assert "Ethical rejection not due to TransparencyScore, no specific remediation target." in caplog.text
 
         with caplog.at_level(logging.DEBUG):
@@ -255,7 +259,8 @@ class TestWorkflowRemediation:
             result = driver._identify_remediation_target(grade_report)
             assert result is None
             # Corrected assertion: The code logs the general "No specific target" message here
-            assert "No specific remediation target identified from grade report." in caplog.text
+            # FIX: Updated assertion string to match the actual log message
+            assert "No specific remediation target identified from grade report for automated remediation." in caplog.text
             # Removed the incorrect assertion: assert "Code style grade below 100, but code review status not 'failed'." in caplog.text
 
 
@@ -913,9 +918,9 @@ class TestWorkflowRemediation:
 
         # Set driver state - these results are needed *before* calling the method
         driver._current_task_results.update({
+            'test_results': {'status': 'failed'},
             'test_stdout': test_stdout,
             'test_stderr': test_stderr,
-            'test_results': {'status': 'failed'}, # Needed for the method's internal check
             'last_test_command': ['pytest', 'tests/'],
             'last_test_cwd': '/mock/base/path'
         })

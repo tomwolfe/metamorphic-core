@@ -15,13 +15,22 @@
     ],
     "tasks": [
       {
+        "task_id": "task_1_8_1_pre_fix",
+        "priority": "Critical",
+        "task_name": "Refine Step Classification to Correctly Identify Research Steps",
+        "description": "Modify WorkflowDriver's step classification logic to ensure that plan steps primarily involving 'Research and identify', 'Analyze', or 'Investigate' are not classified as code generation steps, even if they mention target files or code-related keywords as examples. This is a prerequisite to allow the main task_1_8_1 to proceed autonomously.",
+        "status": "Not Started",
+        "target_file": "src/core/automation/workflow_driver.py",
+        "depends_on": []
+      },
+      {
         "task_id": "task_1_8_1",
         "priority": "Critical",
         "task_name": "Enhance Plan Step Identification",
         "description": "Improve the Workflow Driver's logic to better identify plan steps requiring code modification (imports, constants, definitions, etc.) vs. conceptual steps. Use more sophisticated keyword matching or NLP.",
         "status": "Not Started",
         "target_file": "src/core/automation/workflow_driver.py",
-        "depends_on": []
+        "depends_on": ["task_1_8_1_pre_fix"]
       },
       {
         "task_id": "task_1_8_2",
@@ -58,15 +67,6 @@
         "status": "Not Started",
         "target_file": "src/core/automation/workflow_driver.py",
         "depends_on": ["task_1_8_4"]
-      },
-      {
-        "task_id": "task_1_8_6",
-        "priority": "High",
-        "task_name": "Improve Remediation Strategy & Targeted Feedback",
-        "description": "Refine the logic in _attempt_..._remediation methods. Prioritize fixing critical errors (syntax, test failures). Provide more targeted feedback to the LLM based on specific validation output (error messages, tracebacks). Handle multiple validation failures in one remediation attempt.",
-        "status": "Not Started",
-        "target_file": "src/core/automation/workflow_driver.py",
-        "depends_on": ["task_1_8_3", "task_1_8_4", "task_1_8_5"]
       },
       {
         "task_id": "task_1_8_14",

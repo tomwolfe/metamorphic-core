@@ -1,3 +1,4 @@
+
 # File: tests/test_workflow_driver.py
 import pytest
 import html
@@ -71,6 +72,48 @@ def test_driver(tmp_path):
             'mock_ethical_governance_engine': mock_ethical_governance_engine_instance
         }
 
+# FIX: Modify test_driver_validation fixture to patch Context.get_full_path
+@pytest.fixture
+def test_driver_validation(tmp_path, mocker): # Add mocker here
+    # Patch Context.get_full_path FIRST
+    mock_get_full_path = mocker.patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+
+    context = Context(str(tmp_path)) # Real Context created, but its get_full_path is now mocked
+
+    # Patch the CodeReviewAgent and EthicalGovernanceEngine instantiation
+    with patch('src.core.automation.workflow_driver.CodeReviewAgent') as MockCodeReviewAgent, \
+         patch('src.core.automation.workflow_driver.EthicalGovernanceEngine') as MockEthicalGovernanceEngine:
+        mock_code_review_agent_instance = MockCodeReviewAgent.return_value
+        mock_ethical_governance_engine_instance = MockEthicalGovernanceEngine.return_value
+        # Mock the policy loading within the engine mock
+        mock_ethical_governance_engine_instance.load_policy_from_json.return_value = {'policy_name': 'Mock Policy'}
+
+        # Instantiate WorkflowDriver using the created context object
+        # __init__ is called here, which calls _load_default_policy, which calls context.get_full_path
+        # Since context.get_full_path is now mocked, it will return "/resolved/policies/policy_bias_risk_strict.json"
+        driver = WorkflowDriver(context)
+        # Ensure LLM orchestrator mock is set up
+        driver.llm_orchestrator = MagicMock()
+        driver.llm_orchestrator.generate.return_value = "Test response from LLM"
+        # Assign mocked instances
+        driver.code_review_agent = mock_code_review_agent_instance
+        driver.ethical_governance_engine = mock_ethical_governance_engine_instance
+        # Set the default policy config directly after mocking load_policy_from_json
+        driver.default_policy_config = {'policy_name': 'Mock Policy'}
+
+        # Add attributes needed for tests that might not be set by __init__ or autonomous_loop setup
+        driver._current_task_results = {}
+        driver.remediation_attempts = 0 # Initialize remediation counter for tests
+        driver.remediation_occurred_in_pass = False # Initialize flag
+
+        yield {
+            'driver': driver,
+            'mock_code_review_agent': mock_code_review_agent_instance,
+            'mock_ethical_governance_engine': mock_ethical_governance_engine_instance,
+            'mock_get_full_path': mock_get_full_path # Yield the mock so tests can assert on it
+        }
+
+
 def create_mock_roadmap_file(content, tmp_path, is_json=True):
     """Creates a mock roadmap file in the temporary directory."""
     if is_json:
@@ -114,39 +157,6 @@ task_list_validation_error_blocked_expected_write = [{'task_id': 'task_validatio
 # ADDED: Expected data for generic write error -> blocked flow
 task_list_generic_error_blocked_expected_write = [{'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Blocked', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'}]
 
-
-# Fixture for a WorkflowDriver instance with a Context, specifically for validation tests
-@pytest.fixture
-def test_driver_validation(tmp_path):
-    context = Context(str(tmp_path))
-    # Patch the CodeReviewAgent and EthicalGovernanceEngine instantiation
-    with patch('src.core.automation.workflow_driver.CodeReviewAgent') as MockCodeReviewAgent, \
-         patch('src.core.automation.workflow_driver.EthicalGovernanceEngine') as MockEthicalGovernanceEngine:
-        mock_code_review_agent_instance = MockCodeReviewAgent.return_value
-        mock_ethical_governance_engine_instance = MockEthicalGovernanceEngine.return_value
-        # Mock the policy loading within the engine mock
-        mock_ethical_governance_engine_instance.load_policy_from_json.return_value = {'policy_name': 'Mock Policy'}
-
-
-        driver = WorkflowDriver(context)
-        # Ensure LLM orchestrator mock is set up
-        driver.llm_orchestrator = MagicMock()
-        driver.llm_orchestrator.generate.return_value = "Test response from LLM"
-        # Assign mocked instances
-        driver.code_review_agent = mock_code_review_agent_instance
-        driver.ethical_governance_engine = mock_ethical_governance_engine_instance
-        driver.default_policy_config = {'policy_name': 'Mock Policy'} # Ensure default policy is set
-
-        # Add attributes needed for tests that might not be set by __init__ or autonomous_loop setup
-        driver._current_task_results = {}
-        driver.remediation_attempts = 0 # Initialize remediation counter for tests
-        driver.remediation_occurred_in_pass = False # Initialize flag
-
-        yield {
-            'driver': driver,
-            'mock_code_review_agent': mock_code_review_agent_instance,
-            'mock_ethical_governance_engine': mock_ethical_governance_engine_instance
-        }
 
 class TestWorkflowDriver:
 
@@ -492,7 +502,6 @@ class TestWorkflowDriver:
         assert "Overall Task: \"Task Code Write Exists\"" in called_prompt
         assert "Specific Plan Step:\nStep 1: Implement feature and add logic to src/feature.py" in called_prompt
         assert "The primary file being modified is `src/feature.py`." in called_prompt # Added assertion for new prompt part
-        # Check for existing content in prompt
         # FIX: Add the trailing newline to the assertion string
         assert "EXISTING CONTENT OF `src/feature.py`:\n```python\nExisting file content\n```\n" in called_prompt
 
@@ -734,10 +743,10 @@ class TestWorkflowDriver:
         step1_logs = "\n".join([log for log in caplog.text.splitlines() if "Step 1" in log])
         step2_logs = "\n".join([log for log in caplog.text.splitlines() if "Step 2" in log])
         # The step is identified as file writing, so this log should NOT appear for step 1
-        # FIX: Corrected assertion to check for the *new* log message
-        assert "Step identified as file writing (non-code-gen). Processing file operation for step: Step 1: Write output to error.txt" in step1_logs
+        # FIX: Corrected assertion to check for the *actual* log message
+        assert "Step identified as explicit file writing. Processing file operation for step: Step 1: Write output to error.txt" in step1_logs
         # Step 2 IS NOT file writing, code gen, or test execution
-        # FIX: Corrected assertion to check for the *new* log message
+        # FIX: Corrected assertion to check for the *actual* log message
         assert "Step not identified as code generation, explicit file writing, or test execution. Skipping agent invocation/file write for step: Step 2: Another step." in step2_logs
 
         # Status update should happen because of step errors
@@ -1453,7 +1462,7 @@ class TestWorkflowDriver:
         assert 'Selected task: ID=task_non_code' in caplog.text
         assert 'Executing step 1/2: Step 1: Research topic X' in caplog.text
         assert 'Executing step 2/2: Step 2: Write file documentation.md' in caplog.text # Updated log message due to step change
-        assert "Step identified as file writing (non-code-gen). Processing file operation for step: Step 2: Write file documentation.md" in caplog.text
+        assert "Step identified as explicit file writing. Processing file operation for step: Step 2: Write file documentation.md" in caplog.text
         assert 'Grade Report Evaluation: Recommended Action=\'Manual Review Required\'' in caplog.text
         assert 'Task status for task_non_code remains \'Not Started\' based on evaluation.' in caplog.text
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
@@ -1589,47 +1598,8 @@ class TestWorkflowDriver:
         assert 'Autonomous loop terminated.' in caplog.text
 
     # --- NEW TEST CASE FOR TASK 1.8.1 BUG ---
-    @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True")
-    @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=[
-        "Step 1: Analyze the logic in src/core/automation/workflow_driver.py", # Conceptual step mentioning the file
-        "Step 2: Implement the fix in src/core/automation/workflow_driver.py" # Code generation step
-    ])
-    @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
-        {'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Not Started', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'},
-        None # Exit after the first task
-    ])
-    @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
-        [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Not Started', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}], # Initial load
-        [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Not Started', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}], # Loop 1 load
-        [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Completed', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}] # Loop 2 load (after status update)
-    ])
-    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing content.")
-    @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
-    @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
-    @patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Mock write for the second step
-    @patch.object(WorkflowDriver, 'execute_tests') # Ensure this is NOT called
-    @patch.object(WorkflowDriver, '_parse_test_results') # Ensure this is NOT called
-    @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 100}, "validation_results": {}}))
-    @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed", "justification": "Mock evaluation"})
-    @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True) # Mock roadmap write
-    @patch('builtins.open', new_callable=MagicMock)
-    # --- FIX 3 APPLIED HERE: Reordered ALL mock parameters ---
-    # Corrected parameter names to match the mocks they receive based on decorator order (bottom-up)
+    # FIX: Refactored to use mocker.patch instead of @patch decorators
     def test_autonomous_loop_conceptual_step_with_file_mention_skips_write(self,
-                                                                       mock_builtins_open,          # Corresponds to @patch('builtins.open', ...) (14)
-                                                                       mock_safe_write_roadmap_json,# Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...) (13)
-                                                                       mock_parse_eval_report,      # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...) (12)
-                                                                       mock_generate_report,        # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...) (11)
-                                                                       mock_parse_test_results,     # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results') (10)
-                                                                       mock_execute_tests,          # Corresponds to @patch.object(WorkflowDriver, 'execute_tests') (9)
-                                                                       mock_write_output_file,      # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...) (8)
-                                                                       mock_get_full_path,          # Corresponds to @patch.object(Context, 'get_full_path', ...) (7)
-                                                                       mock_merge_snippet,          # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet', ...) (6)
-                                                                       mock_read_file_for_context,  # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)(5)
-                                                                       mock_load_roadmap,           # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...) (4)
-                                                                       mock_select_next_task,       # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...) (3)
-                                                                       mock_generate_plan,          # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...) (2)
-                                                                       mock_invoke_coder_llm,       # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...) (1)
                                                                        test_driver_validation, caplog, tmp_path, mocker):
         """
         Test that a conceptual plan step that mentions a file (like the first step of task_1_8_1)
@@ -1639,6 +1609,32 @@ class TestWorkflowDriver:
         driver = test_driver_validation['driver']
         mock_code_review_agent = test_driver_validation['mock_code_review_agent']
         mock_ethical_governance_engine = test_driver_validation['mock_ethical_governance_engine']
+
+        # Refactor patches to use mocker.patch
+        mock_invoke_coder_llm = mocker.patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True")
+        mock_generate_plan = mocker.patch.object(WorkflowDriver, 'generate_solution_plan', return_value=[
+            "Step 1: Analyze the logic in src/core/automation/workflow_driver.py", # Conceptual step mentioning the file
+            "Step 2: Implement the fix in src/core/automation/workflow_driver.py" # Code generation step
+        ])
+        mock_select_next_task = mocker.patch.object(WorkflowDriver, 'select_next_task', side_effect=[
+            {'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Not Started', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'},
+            None # Exit after the first task
+        ])
+        mock_load_roadmap = mocker.patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
+            [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Not Started', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}], # Initial load
+            [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Not Started', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}], # Loop 1 load
+            [{'task_id': 'task_1_8_1', 'task_name': 'Enhance Plan Step Identification', 'status': 'Completed', 'description': 'Improve step identification.', 'priority': 'Critical', 'target_file': 'src/core/automation/workflow_driver.py'}] # Loop 2 load (after status update)
+        ])
+        mock_read_file_for_context = mocker.patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing content.")
+        mock_merge_snippet = mocker.patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
+        mock_write_output_file = mocker.patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Mock write for the second step
+        mock_execute_tests = mocker.patch.object(WorkflowDriver, 'execute_tests') # Ensure this is NOT called
+        mock_parse_test_results = mocker.patch.object(WorkflowDriver, '_parse_test_results') # Ensure this is NOT called
+        mock_generate_report = mocker.patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 100}, "validation_results": {}}))
+        mock_parse_eval_report = mocker.patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed", "justification": "Mock evaluation"})
+        mock_safe_write_roadmap_json = mocker.patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True) # Mock roadmap write
+        mock_builtins_open = mocker.patch('builtins.open', new_callable=MagicMock)
+
 
         # Set return values on fixture mocks for the second step's validations
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
@@ -1703,6 +1699,8 @@ class TestWorkflowDriver:
 
         # Verify roadmap status update
         # mock_builtins_open is the mock for builtins.open (decorator 14)
+        # FIX: The assertion should check for the call to read the roadmap *before* writing the status update.
+        # The path used here is the one returned by the mocked get_full_path for the roadmap file.
         mock_builtins_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
         # mock_safe_write_roadmap_json corresponds to _safe_write_roadmap_json (decorator 13)
         mock_safe_write_roadmap_json.assert_called_once_with(driver.roadmap_path, {'tasks': task_list_conceptual_completed_expected_write})

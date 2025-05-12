@@ -47,7 +47,7 @@ def test_{function_name}_negative():
 
         return test_code
 
-    ''' # ------------------------ COMMENT BLOCK START --------------------------
+    r''' # ------------------------ COMMENT BLOCK START --------------------------
     # Commenting out _extract_function_name and _store_tests for Phase 1 MVP Simplification
     # These methods might be re-enabled or their logic reused in Phase 2 or Phase 3 for enhanced
     # test generation and Knowledge Graph integration.
@@ -79,4 +79,4 @@ def test_{function_name}_negative():
         )
         self.kg.add_node(test_node)
         return modified_test_code
-    ''' # ------------------------ COMMENT BLOCK END --------------------------
+''' # ------------------------ COMMENT BLOCK END --------------------------

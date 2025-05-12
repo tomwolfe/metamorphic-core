@@ -10,11 +10,29 @@
     *   **Status**: Completed
     *   **Depends On**: []
 
+*   **Task ID**: task_1_8_0_fix_summarizer_synthesize
+    *   **Priority**: Critical
+    *   **Task Name**: Fix AttributeError in RecursiveSummarizer for synthesize method
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_1_pre_fix']
+
+*   **Task ID**: task_1_8_0_fix_token_allocator
+    *   **Priority**: Critical
+    *   **Task Name**: Adjust TokenAllocator Cost Function for Realistic Allocations
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_0_fix_summarizer_synthesize']
+
+*   **Task ID**: task_1_8_1_unblock_overwrite_fix
+    *   **Priority**: Critical
+    *   **Task Name**: Prevent Placeholder Overwrite of Core Python Files for Conceptual Steps
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_1_pre_fix', 'task_1_8_0_fix_summarizer_synthesize', 'task_1_8_0_fix_token_allocator']
+
 *   **Task ID**: task_1_8_1
     *   **Priority**: Critical
     *   **Task Name**: Enhance Plan Step Identification
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1_pre_fix']
+    *   **Depends On**: ['task_1_8_1_unblock_overwrite_fix']
 
 *   **Task ID**: task_1_8_2
     *   **Priority**: Critical

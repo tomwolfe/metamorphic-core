@@ -46,6 +46,19 @@
       ]
     },
     {
+      "task_id": "task_1_8_1_unblock_overwrite_fix",
+      "priority": "Critical",
+      "task_name": "Prevent Placeholder Overwrite of Core Python Files for Conceptual Steps",
+      "description": "Modify the WorkflowDriver's autonomous_loop logic. Specifically, in the 'explicit file writing' branch, add a condition to prevent writing placeholder content to the main Python target_file of a task if the plan step is conceptual (e.g., 'define a list', 'analyze requirements') and not an explicit 'create file' or 'generate file' instruction. Also, ensure Python-specific placeholders (#) are used if a placeholder write to a .py file is genuinely intended.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_1_pre_fix",
+        "task_1_8_0_fix_summarizer_synthesize",
+        "task_1_8_0_fix_token_allocator"
+      ]
+    },
+    {
       "task_id": "task_1_8_1",
       "priority": "Critical",
       "task_name": "Enhance Plan Step Identification",
@@ -53,9 +66,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_1_pre_fix",
-        "task_1_8_0_fix_summarizer_synthesize",
-        "task_1_8_0_fix_token_allocator"
+        "task_1_8_1_unblock_overwrite_fix"
       ]
     },
     {

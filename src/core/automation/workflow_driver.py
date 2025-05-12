@@ -357,28 +357,52 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                             # Requires classification as explicit file writing AND a determined filepath
                             elif is_explicit_file_writing_step and filepath_to_use:
                                 logger.info(f"Step identified as explicit file writing. Processing file operation for step: {step}")
-                                # Determine if this step implies creating a *new* file vs modifying.
-                                # Simple heuristic: If the step explicitly says "create file" or "generate file", use overwrite=False.
-                                step_implies_create = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in ["create file", "generate file"])
-                                if step_implies_create:
-                                     overwrite_mode = False # Don't overwrite if it's explicitly a create step
 
-                                # For non-code files, we might just write placeholder content or invoke a different agent (e.g., DocumentationAgent)
-                                # For now, write placeholder content.
-                                content_to_write = f"// Placeholder content for step: {step}"
-                                logger.info(f"Using placeholder content for file: {filepath_to_use} with overwrite={overwrite_mode}")
-                                logger.info(f"Attempting to write file: {filepath_to_use}.")
-                                try:
-                                    self._write_output_file(filepath_to_use, content_to_write, overwrite=overwrite_mode)
-                                    logger.info(f"Successfully wrote placeholder content to {filepath_to_use}.")
-                                    # Note: Placeholder writes don't trigger validations or remediation in the current logic
-                                except FileExistsError:
-                                    logger.warning(
-                                        f"File {filepath_to_use} already exists. Skipping write as overwrite={overwrite_mode}.")
-                                except Exception as e:
-                                    logger.error(f"Failed to write file {filepath_to_use}: {e}",
-                                                 exc_info=True)
-                                    raise e # Re-raise the exception
+                                step_implies_create_new_file = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in ["create file", "generate file"])
+
+                                # *** START FIX for task_1_8_1_unblock_overwrite_fix ***
+                                is_main_python_target = (task_target_file is not None and filepath_to_use == task_target_file and filepath_to_use.endswith('.py'))
+                                # More general check for conceptual steps that shouldn't overwrite main code file with placeholders
+                                is_conceptual_step_for_main_target = is_research_step or \
+                                                                    any(re.search(r'\b' + kw + r'\b', step_lower) for kw in ["define list", "analyze", "understand", "document decision", "identify list", "define a comprehensive list"])
+
+                                if is_main_python_target and is_conceptual_step_for_main_target and not step_implies_create_new_file:
+                                    logger.info(f"Skipping placeholder write to main Python target {filepath_to_use} for conceptual step: '{step}'. Conceptual steps should not overwrite the primary code file with placeholders.")
+                                    content_to_write = None # Prevent writing
+                                else:
+                                # *** END FIX for task_1_8_1_unblock_overwrite_fix ***
+                                    if step_implies_create_new_file:
+                                         overwrite_mode = False
+                                    else:
+                                         # Default to overwrite for other "update file", "modify file" etc.
+                                         # unless it's the main python target and not explicitly creating.
+                                         if is_main_python_target:
+                                             logger.info(f"Defaulting overwrite_mode to True for main Python target {filepath_to_use} as step does not imply creation, but is not purely conceptual define/analyze.")
+                                             overwrite_mode = True
+                                         else:
+                                             overwrite_mode = True
+
+
+                                    # Use Python-style comments for .py file placeholders if a placeholder is indeed written
+                                    if filepath_to_use.endswith('.py'):
+                                        content_to_write = f"# Placeholder content for Python file for step: {step}"
+                                    else:
+                                        content_to_write = f"// Placeholder content for step: {step}"
+                                    logger.info(f"Using placeholder content for file: {filepath_to_use} with overwrite={overwrite_mode}")
+
+                                if content_to_write: # Only attempt write if content_to_write is not None
+                                    logger.info(f"Attempting to write file: {filepath_to_use}.")
+                                    try:
+                                        self._write_output_file(filepath_to_use, content_to_write, overwrite=overwrite_mode)
+                                        logger.info(f"Successfully wrote placeholder content to {filepath_to_use}.")
+                                        # Note: Placeholder writes don't trigger validations or remediation in the current logic
+                                    except FileExistsError:
+                                        logger.warning(
+                                            f"File {filepath_to_use} already exists. Skipping write as overwrite={overwrite_mode}.")
+                                    except Exception as e:
+                                        logger.error(f"Failed to write file {filepath_to_use}: {e}",
+                                                     exc_info=True)
+                                        raise e # Re-raise the exception
 
 
                             # Log if the step was not identified as involving file operations, code generation, or test execution
@@ -681,14 +705,14 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
 
         planning_prompt = f"""You are an AI assistant specializing in software development workflows.
 Your task is to generate a step-by-step solution plan for the following development task from the Metamorphic Software Genesis Ecosystem roadmap.
+Please provide the plan as a numbered markdown list. Do not include any introductory or concluding remarks outside the list.
 
 Task Name: {task_name}
 
 Task Description:
 {description}
 
-{target_file_context}Please provide the plan as a numbered markdown list. Do not include any introductory or concluding remarks outside the list.
-When generating steps that involve modifying the primary file for this task, ensure you refer to the file identified in the context (e.g., src/core/automation/workflow_driver.py).
+{target_file_context}When generating steps that involve modifying the primary file for this task, ensure you refer to the file identified in the context (e.g., src/core/automation/workflow_driver.py).
 """
 
 
@@ -1348,7 +1372,7 @@ Prioritize security, and prevent code injection vulnerabilities.
             percentage = 100 * (test_results.get('passed', 0) / test_results.get('total')) # Partial credit based on pass rate
             grades['test_success'] = {
                 "percentage": round(percentage),
-                "justification": f"Tests executed: {test_results.get('total')}, Passed: {test_results.get('passed')}, Failed: {test_results.get('failed')}, Status: {test_results.get('status')}"
+                "justification": f"Tests executed: {test_results.get('total')}, Passed: {test_results.get('passed')}, Failed: {test_results.get('failed')}, Total={test_results.get('total')}, Status: {test_results.get('status')}"
             }
         elif test_results and test_results.get('status') == 'error':
             grades['test_success'] = {
@@ -1599,9 +1623,9 @@ Prioritize security, and prevent code injection vulnerabilities.
             if temp_filepath.exists():
                 try:
                     os.remove(temp_filepath)
-                    logger.debug(f"Cleaned up temporary file after error: {cleanup_e}")
-                except Exception as cleanup_e:
-                    logger.warning(f"Failed to clean up temporary file {temp_filepath} after error: {cleanup_e}")
+                    logger.debug(f"Cleaned up temporary file after error: {e}") # This was using undefined cleanup_e
+                except Exception as cleanup_e_inner: # Use a different variable name
+                    logger.warning(f"Failed to clean up temporary file {temp_filepath} after error: {cleanup_e_inner}")
             return False
         except Exception as cleanup_e: # Corrected indentation for this except block
             logger.error(f"Unexpected error during roadmap file write {roadmap_path}: {cleanup_e}", exc_info=True)
@@ -1609,9 +1633,9 @@ Prioritize security, and prevent code injection vulnerabilities.
             if temp_filepath.exists():
                 try:
                     os.remove(temp_filepath)
-                    logger.debug(f"Cleaned up temporary file after unexpected error: {cleanup_e}")
-                except Exception as cleanup_e:
-                    logger.warning(f"Failed to clean up temporary file {temp_filepath} after unexpected error: {cleanup_e}")
+                    logger.debug(f"Cleaned up temporary file after unexpected error: {cleanup_e}") # This was using undefined cleanup_e
+                except Exception as cleanup_e_inner: # Use a different variable name
+                    logger.warning(f"Failed to clean up temporary file {temp_filepath} after unexpected error: {cleanup_e_inner}")
             return False
 
     def _identify_remediation_target(self, grade_report_json: str) -> str | None:

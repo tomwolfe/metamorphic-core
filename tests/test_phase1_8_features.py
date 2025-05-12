@@ -75,47 +75,24 @@ def check_step_classification(driver_instance, step_text, task_target_file=None)
         r'(\S+\.(py|md|json|txt|yml|yaml))', step_text, re.IGNORECASE)
     filepath_from_step = filepath_from_step_match.group(1) if filepath_from_step_match else None
 
-    # Keywords lists remain the same
-    # NOTE: "execute" is NOT added to code_generation_keywords here,
-    #       as the fix is to correct the test assertion, not the classification logic.
     code_generation_keywords = ["implement", "generate code", "write function", "modify", "add", "define", "create", "update", "refactor"]
     research_keywords = ["research and identify", "research", "analyze", "investigate", "understand"]
     code_element_keywords = ["import", "constant", "variable", "function", "class", "method", "definition", "parameter", "return"]
     file_writing_keywords = ["write", "write file", "create", "create file", "update", "update file", "modify", "modify file", "save to file", "output file", "generate file", "write output to"]
     test_execution_keywords = ["run tests", "execute tests", "verify tests", "pytest", "test suite"]
 
-    # Calculate preliminary flags based on keywords and filepath_from_step
-    # This mirrors the driver's logic flow before determining filepath_to_use
-    # Use word boundaries for more accurate keyword matching
-    is_test_execution_step_prelim = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in test_execution_keywords)
-    is_explicit_file_writing_step_prelim = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in file_writing_keywords)
-    is_research_step_prelim = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in research_keywords)
-
-    # Code generation preliminary check uses filepath_from_step and word boundaries
-    is_code_generation_step_prelim = not is_research_step_prelim and \
-                                     any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_keywords) and \
-                                     (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords) or \
-                                      (filepath_from_step and filepath_from_step.endswith('.py')))
-
-
-    # Determine filepath_to_use based on task target or step mention (matching driver Step 3)
-    filepath_to_use = task_target_file
-    # If the task doesn't have a target_file, but the step mentions one AND it's a file-related step, use the one from the step.
-    if filepath_to_use is None and (is_explicit_file_writing_step_prelim or is_code_generation_step_prelim) and filepath_from_step:
-         filepath_to_use = filepath_from_step
-
-    # Now set the final classification flags using the determined filepath_to_use
-    # This mirrors the driver's Step 2 logic using the final filepath_to_use where applicable
-    # Use word boundaries for final classification checks as well
-
     is_test_execution_step = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in test_execution_keywords)
-    # Explicit file writing classification is based on keywords only (as per driver code)
     is_explicit_file_writing_step = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in file_writing_keywords)
-
-    # Research classification is based on keywords only (as per driver code)
     is_research_step = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in research_keywords)
 
-    # Code generation classification uses filepath_to_use and word boundaries (as per driver code)
+    filepath_to_use = task_target_file
+    if filepath_to_use is None and (is_explicit_file_writing_step or \
+        (not is_research_step and any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_keywords) and \
+         (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords) or \
+          (filepath_from_step and filepath_from_step.endswith('.py')))) \
+        ) and filepath_from_step:
+        filepath_to_use = filepath_from_step
+
     is_code_generation_step = not is_research_step and \
                               any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_keywords) and \
                               (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords) or \
@@ -172,7 +149,7 @@ class TestPhase1_8Features:
         classification1 = check_step_classification(driver, step1, task_target_file="src/core/automation/workflow_driver.py")
         assert classification1["is_research_step"] is False
         assert classification1["is_code_generation_step"] is True
-        assert classification1["is_explicit_file_writing_step"] is False # "Implement" is not a file writing keyword
+        assert classification1["is_explicit_file_writing_step"] is False
         assert classification1["is_test_execution_step"] is False
         assert classification1["filepath_to_use"] == "src/core/automation/workflow_driver.py"
 
@@ -180,7 +157,7 @@ class TestPhase1_8Features:
         classification2 = check_step_classification(driver, step2, task_target_file="src/utils/config.py")
         assert classification2["is_research_step"] is False
         assert classification2["is_code_generation_step"] is True
-        assert classification2["is_explicit_file_writing_step"] is False # "Add" is not a file writing keyword
+        assert classification2["is_explicit_file_writing_step"] is False
         assert classification2["is_test_execution_step"] is False
         assert classification2["filepath_to_use"] == "src/utils/config.py"
 
@@ -188,7 +165,7 @@ class TestPhase1_8Features:
         classification3 = check_step_classification(driver, step3, task_target_file="src/core/automation/workflow_driver.py")
         assert classification3["is_research_step"] is False
         assert classification3["is_code_generation_step"] is True
-        assert classification3["is_explicit_file_writing_step"] is True # "Modify" is in file_writing_keywords
+        assert classification3["is_explicit_file_writing_step"] is True
         assert classification3["is_test_execution_step"] is False
         assert classification3["filepath_to_use"] == "src/core/automation/workflow_driver.py"
 
@@ -197,7 +174,7 @@ class TestPhase1_8Features:
         driver = test_driver_phase1_8['driver']
 
         step1 = "Write the research findings to research_summary.md"
-        classification1 = check_step_classification(driver, step1, task_target_file=None) # No task target file
+        classification1 = check_step_classification(driver, step1, task_target_file=None)
         assert classification1["is_research_step"] is True
         assert classification1["is_code_generation_step"] is False
         assert classification1["is_explicit_file_writing_step"] is True
@@ -227,10 +204,8 @@ class TestPhase1_8Features:
         step2 = "Execute pytest on the updated module."
         classification2 = check_step_classification(driver, step2, task_target_file="src/core/automation/workflow_driver.py")
         assert classification2["is_research_step"] is False
-        # FIX: This assertion was incorrect. A step about executing tests is not a code generation step.
-        #      The step is correctly classified as a test execution step.
         assert classification2["is_code_generation_step"] is False
-        assert classification2["is_explicit_file_writing_step"] is False # "updated" no longer matches "update" with word boundaries
+        assert classification2["is_explicit_file_writing_step"] is False
         assert classification2["is_test_execution_step"] is True
         assert classification2["filepath_to_use"] == "src/core/automation/workflow_driver.py"
 
@@ -254,15 +229,115 @@ class TestPhase1_8Features:
         assert classification2["is_test_execution_step"] is False
         assert classification2["filepath_to_use"] == "ROADMAP.json"
 
-    # --- Add other Phase 1.8 feature tests here as they are implemented ---
-    # For example:
-    # test_pre_write_validation_triggered
-    # test_step_level_remediation_loop
-    # test_post_write_test_execution_triggered
-    # test_failure_data_capture
-    # test_improved_remediation_strategy
-    # test_automated_task_decomposition
-    # test_refined_grade_report
-    # test_advanced_code_merging
-    # test_prompt_self_correction
-    # test_improved_coder_prompt_generation
+
+    # --- NEW TEST FOR task_1_8_1_unblock_overwrite_fix ---
+    # This test now mocks the full autonomous_loop execution for the specific step.
+    @patch.object(WorkflowDriver, '_invoke_coder_llm') # Mock LLM for plan generation
+    @patch.object(WorkflowDriver, '_write_output_file') # Mock the actual file write
+    @patch.object(WorkflowDriver, '_safe_write_roadmap_json') # Mock roadmap update
+    @patch.object(WorkflowDriver, 'generate_grade_report') # Mock grade report
+    @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report') # Mock evaluation
+    def test_conceptual_define_step_does_not_overwrite_main_python_target(
+        self,
+        mock_parse_eval,
+        mock_gen_report,
+        mock_safe_write,
+        mock_write_output,
+        mock_invoke_llm,
+        test_driver_phase1_8, # Use the fixture
+        tmp_path,
+        caplog
+    ):
+        """
+        Test that a conceptual plan step that mentions a file (like the first step of task_1_8_1)
+        is correctly identified and skips file writing/agent invocation due to the fix,
+        by running a segment of the autonomous_loop.
+        """
+        caplog.set_level(logging.INFO)
+        driver_fixture_data = test_driver_phase1_8
+        driver = driver_fixture_data['driver']
+
+        # Setup task and plan step for the autonomous loop
+        task_id = 'test_conceptual_write_loop'
+        target_py_file = 'src/core/automation/workflow_driver.py'
+        conceptual_step_text = "Define a comprehensive list of keywords for step classification."
+
+        mock_task = {
+            'task_id': task_id,
+            'task_name': 'Test Conceptual Write via Loop',
+            'description': 'A test for conceptual step handling.',
+            'status': 'Not Started',
+            'priority': 'High',
+            'target_file': target_py_file
+        }
+        driver.tasks = [mock_task] # Set tasks for select_next_task
+        driver.roadmap_path = "mock_roadmap.json" # Needed for status update logic
+
+        # Mock plan generation to return our specific conceptual step
+        driver.llm_orchestrator.generate.side_effect = [
+            f"1. {conceptual_step_text}\n2. Implement the new classification logic in {target_py_file}" # Plan for task
+            # Add more side effects if other LLM calls are made
+        ]
+
+
+        # Mock _parse_and_evaluate_grade_report to return "Completed" to allow status update
+        mock_parse_eval.return_value = {"recommended_action": "Completed", "justification": "Mock evaluation"}
+        mock_gen_report.return_value = json.dumps({}) # Minimal valid JSON for grade report
+        mock_safe_write.return_value = True
+
+
+        # Create a dummy roadmap file for the driver to load and update
+        # This is important because the driver reads and writes the roadmap
+        roadmap_file_path = tmp_path / driver.roadmap_path
+        with open(roadmap_file_path, 'w') as f:
+            json.dump({"tasks": [mock_task]}, f)
+        
+        # Patch builtins.open to handle roadmap reading/writing within the loop
+        # The mock_open from unittest.mock is good for this.
+        # We need to simulate reading the initial roadmap and then the updated one.
+        # The first read is in start_workflow, then in each loop iteration.
+        # The write happens at the end of a successful iteration.
+        
+        # Simulate the content that will be read
+        initial_roadmap_content = json.dumps({"tasks": [mock_task]})
+        # After the task is "Completed", this is what should be written and then read in the next iteration
+        completed_task = mock_task.copy()
+        completed_task['status'] = 'Completed'
+        updated_roadmap_content = json.dumps({"tasks": [completed_task]})
+
+        mock_file_content_sequence = [initial_roadmap_content, initial_roadmap_content, updated_roadmap_content]
+        
+        mock_open_instance = mock_open()
+        mock_open_instance.read.side_effect = mock_file_content_sequence
+        
+        with patch('builtins.open', return_value=mock_open_instance):
+            driver.start_workflow(str(roadmap_file_path), str(tmp_path / "output"), driver.context)
+
+
+        # Assert that _write_output_file was NOT called for the conceptual step
+        # It should only be called for the "Implement" step if that step was reached and classified as code-gen
+        # Check the calls to _write_output_file
+        write_calls = mock_write_output.call_args_list
+        conceptual_step_write_attempted = False
+        for call_args in write_calls:
+            # call_args[0] is a tuple of positional arguments
+            # call_args[0][0] is the filepath, call_args[0][1] is the content
+            if target_py_file in call_args[0][0] and conceptual_step_text in call_args[0][1]:
+                conceptual_step_write_attempted = True
+                break
+        
+        assert not conceptual_step_write_attempted, "_write_output_file was called with placeholder for the conceptual step"
+
+        # Assert the log message for skipping the placeholder write
+        assert f"Skipping placeholder write to main Python target {target_py_file} for conceptual step: '{conceptual_step_text}'." in caplog.text
+        
+        # Assert that the second step (Implement) DID attempt to write (or would have, if not for other mocks)
+        # This means _write_output_file should have been called at least once for the "Implement" step
+        # if the plan execution reached that far and it was classified as code-gen.
+        # Given our mocks, it should try to write for the "Implement" step.
+        assert mock_write_output.call_count >= 1, "Expected _write_output_file to be called for the implementation step"
+
+        # Verify that the task status was updated to Completed
+        mock_safe_write.assert_called_once()
+        written_roadmap_data = mock_safe_write.call_args[0][1] # Get the data written to roadmap
+        assert written_roadmap_data['tasks'][0]['status'] == 'Completed'

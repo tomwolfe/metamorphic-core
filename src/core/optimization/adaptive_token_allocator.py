@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class TokenAllocator:
     def __init__(self, total_budget: int = 32000):
         self.total_budget = total_budget
-        self.solver = Optimize()
+        # self.solver = Optimize() # REMOVE instance creation from __init__
         self.policy = EthicalAllocationPolicy()
 
     def _model_cost(self, model_idx_var: IntNumRef, tokens_var: IntNumRef, models_list: list) -> ArithRef:
@@ -38,12 +38,11 @@ class TokenAllocator:
             cost_for_this_model = (ToReal(tokens_var) * model_details['cost_per_token']) + \
                                   (ToReal(tokens_var) * ToReal(tokens_var)) / quadratic_divisor
             cost_expr = If(model_idx_var == j, cost_for_this_model, cost_expr)
-        
+
         return cost_expr
 
     def allocate(self, chunks: List[CodeChunk], model_costs: Dict[str, Dict]) -> dict: # Ensure model_costs type hint is correct
-        # Reset solver for fresh allocation
-        self.solver.reset() # Add this line to ensure solver is fresh for each call
+        self.solver = Optimize() # CREATE NEW INSTANCE for each call
 
         models = [
             {'name': name, **details}
@@ -91,11 +90,11 @@ class TokenAllocator:
 
         if self.solver.check() == sat:
             logger.info(f"TokenAllocator: Solver check SAT.")
-            
+
             cost_terms = [self._model_cost(model_vars[i], allocations[i], models)
                           for i in range(len(chunks))]
             total_cost_objective = Sum(cost_terms)
-            
+
             logger.info(f"TokenAllocator: Cost expression to minimize: {total_cost_objective}")
             self.solver.minimize(total_cost_objective)
 
@@ -112,7 +111,8 @@ class TokenAllocator:
             else:
                 logger.error("TokenAllocator: Solver became UNSAT or UNKNOWN after adding minimization objective.")
                 # Fallback: try to find *any* solution without minimizing cost if minimization fails
-                self.solver.reset() # Reset to remove minimization objective
+                # Re-initialize solver for fallback
+                self.solver = Optimize() # Create a new Optimize instance for fallback
                 # Re-add all constraints
                 self.solver.add(Sum([allocations[i] for i in range(len(chunks))]) <= self.total_budget)
                 for i in allocations:
@@ -139,4 +139,6 @@ class TokenAllocator:
                     raise AllocationError("No ethical allocation possible even without cost minimization.")
         else:
             logger.error("TokenAllocator: Solver check UNSAT or UNKNOWN before minimization.")
-            raise AllocationError("No ethical allocation possible with initial constraints.")
+            # Log the solver state for debugging
+            logger.debug(f"TokenAllocator: Solver state before minimization: {self.solver}")
+            raise AllocationError("No ethical allocation possible with the given constraints and budget.")

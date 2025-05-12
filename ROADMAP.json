@@ -28,18 +28,22 @@
       "priority": "Critical",
       "task_name": "Fix AttributeError in RecursiveSummarizer for synthesize method",
       "description": "The EnhancedLLMOrchestrator calls self.summarizer.synthesize(), but RecursiveSummarizer does not have this method. Add a synthesize(self, summaries: List[str]) -> str method to RecursiveSummarizer in src/core/chunking/recursive_summarizer.py that joins the list of summaries into a single string. This is needed to unblock code generation in _handle_large_context.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/chunking/recursive_summarizer.py",
-      "depends_on": ["task_1_8_1_pre_fix"]
+      "depends_on": [
+        "task_1_8_1_pre_fix"
+      ]
     },
     {
       "task_id": "task_1_8_0_fix_token_allocator",
       "priority": "Critical",
       "task_name": "Adjust TokenAllocator Cost Function for Realistic Allocations",
       "description": "The TokenAllocator's cost function _model_cost in src/core/optimization/adaptive_token_allocator.py has a quadratic term that heavily penalizes token count, resulting in minimal allocations (e.g., 101 tokens). Modify the coefficient of the quadratic term (e.g., change the divisor from 1000.0 to 10000000.0) to allow for more realistic token allocations for code generation tasks. Also, ensure the solver is reset before each allocation call.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/optimization/adaptive_token_allocator.py",
-      "depends_on": ["task_1_8_0_fix_summarizer_synthesize"]
+      "depends_on": [
+        "task_1_8_0_fix_summarizer_synthesize"
+      ]
     },
     {
       "task_id": "task_1_8_1",

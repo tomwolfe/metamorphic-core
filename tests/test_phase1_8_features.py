@@ -71,29 +71,56 @@ def test_driver_phase1_8(tmp_path):
 # Helper function to simulate the relevant part of autonomous_loop for testing classification
 def check_step_classification(driver_instance, step_text, task_target_file=None):
     step_lower = step_text.lower()
-    filepath_from_step_match = re.search(r'(\S+\.(py|md|json|txt|yml|yaml))', step_text, re.IGNORECASE)
+    filepath_from_step_match = re.search(
+        r'(\S+\.(py|md|json|txt|yml|yaml))', step_text, re.IGNORECASE)
     filepath_from_step = filepath_from_step_match.group(1) if filepath_from_step_match else None
 
-    filepath_to_use = task_target_file
-    if not filepath_to_use and filepath_from_step:
-        filepath_to_use = filepath_from_step
-
+    # Keywords lists remain the same
+    # NOTE: "execute" is NOT added to code_generation_keywords here,
+    #       as the fix is to correct the test assertion, not the classification logic.
     code_generation_keywords = ["implement", "generate code", "write function", "modify", "add", "define", "create", "update", "refactor"]
     research_keywords = ["research and identify", "research", "analyze", "investigate", "understand"]
     code_element_keywords = ["import", "constant", "variable", "function", "class", "method", "definition", "parameter", "return"]
-    # FIX: Updated file_writing_keywords to match the list in workflow_driver.py
     file_writing_keywords = ["write", "write file", "create", "create file", "update", "update file", "modify", "modify file", "save to file", "output file", "generate file", "write output to"]
     test_execution_keywords = ["run tests", "execute tests", "verify tests", "pytest", "test suite"]
 
-    is_test_execution_step = any(keyword in step_lower for keyword in test_execution_keywords)
-    # FIX: Added check for filepath_to_use is not None, mirroring the actual code logic
-    is_explicit_file_writing_step = any(keyword in step_lower for keyword in file_writing_keywords) and filepath_to_use is not None
-    is_research_step = any(keyword in step_lower for keyword in research_keywords)
+    # Calculate preliminary flags based on keywords and filepath_from_step
+    # This mirrors the driver's logic flow before determining filepath_to_use
+    # Use word boundaries for more accurate keyword matching
+    is_test_execution_step_prelim = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in test_execution_keywords)
+    is_explicit_file_writing_step_prelim = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in file_writing_keywords)
+    is_research_step_prelim = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in research_keywords)
 
+    # Code generation preliminary check uses filepath_from_step and word boundaries
+    is_code_generation_step_prelim = not is_research_step_prelim and \
+                                     any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_keywords) and \
+                                     (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords) or \
+                                      (filepath_from_step and filepath_from_step.endswith('.py')))
+
+
+    # Determine filepath_to_use based on task target or step mention (matching driver Step 3)
+    filepath_to_use = task_target_file
+    # If the task doesn't have a target_file, but the step mentions one AND it's a file-related step, use the one from the step.
+    if filepath_to_use is None and (is_explicit_file_writing_step_prelim or is_code_generation_step_prelim) and filepath_from_step:
+         filepath_to_use = filepath_from_step
+
+    # Now set the final classification flags using the determined filepath_to_use
+    # This mirrors the driver's Step 2 logic using the final filepath_to_use where applicable
+    # Use word boundaries for final classification checks as well
+
+    is_test_execution_step = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in test_execution_keywords)
+    # Explicit file writing classification is based on keywords only (as per driver code)
+    is_explicit_file_writing_step = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in file_writing_keywords)
+
+    # Research classification is based on keywords only (as per driver code)
+    is_research_step = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in research_keywords)
+
+    # Code generation classification uses filepath_to_use and word boundaries (as per driver code)
     is_code_generation_step = not is_research_step and \
-                              any(verb in step_lower for verb in code_generation_keywords) and \
-                              (any(element in step_lower for element in code_element_keywords) or \
-                               (filepath_to_use and filepath_to_use.endswith('.py'))) # Use filepath_to_use here
+                              any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_keywords) and \
+                              (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords) or \
+                               (filepath_to_use and filepath_to_use.endswith('.py')))
+
 
     return {
         "is_code_generation_step": is_code_generation_step,
@@ -161,10 +188,7 @@ class TestPhase1_8Features:
         classification3 = check_step_classification(driver, step3, task_target_file="src/core/automation/workflow_driver.py")
         assert classification3["is_research_step"] is False
         assert classification3["is_code_generation_step"] is True
-        # FIX: This step contains "Modify", which is now correctly in file_writing_keywords.
-        # Since filepath_to_use is also present, it IS an explicit file writing step.
-        # Changed assertion from False to True.
-        assert classification3["is_explicit_file_writing_step"] is True
+        assert classification3["is_explicit_file_writing_step"] is True # "Modify" is in file_writing_keywords
         assert classification3["is_test_execution_step"] is False
         assert classification3["filepath_to_use"] == "src/core/automation/workflow_driver.py"
 
@@ -174,11 +198,9 @@ class TestPhase1_8Features:
 
         step1 = "Write the research findings to research_summary.md"
         classification1 = check_step_classification(driver, step1, task_target_file=None) # No task target file
-        # "write" is a keyword, and filepath_to_use becomes "research_summary.md" from the step.
-        # filepath_to_use is not None.
         assert classification1["is_research_step"] is True
         assert classification1["is_code_generation_step"] is False
-        assert classification1["is_explicit_file_writing_step"] is True # "write" is a keyword AND filepath_to_use is not None
+        assert classification1["is_explicit_file_writing_step"] is True
         assert classification1["is_test_execution_step"] is False
         assert classification1["filepath_to_use"] == "research_summary.md"
 
@@ -186,7 +208,7 @@ class TestPhase1_8Features:
         classification2 = check_step_classification(driver, step2, task_target_file="docs/workflows/markdown_automation.md")
         assert classification2["is_research_step"] is False
         assert classification2["is_code_generation_step"] is False
-        assert classification2["is_explicit_file_writing_step"] is True # "update" is a keyword AND filepath_to_use is not None
+        assert classification2["is_explicit_file_writing_step"] is True
         assert classification2["is_test_execution_step"] is False
         assert classification2["filepath_to_use"] == "docs/workflows/markdown_automation.md"
 
@@ -198,22 +220,17 @@ class TestPhase1_8Features:
         classification1 = check_step_classification(driver, step1, task_target_file="tests/test_new_feature.py")
         assert classification1["is_research_step"] is False
         assert classification1["is_code_generation_step"] is False
-        assert classification1["is_explicit_file_writing_step"] is False # No file writing keyword
+        assert classification1["is_explicit_file_writing_step"] is False
         assert classification1["is_test_execution_step"] is True
         assert classification1["filepath_to_use"] == "tests/test_new_feature.py"
 
         step2 = "Execute pytest on the updated module."
         classification2 = check_step_classification(driver, step2, task_target_file="src/core/automation/workflow_driver.py")
-        # "Execute pytest" -> is_test_execution_step = True
-        # "updated" -> "update" is a code_generation_keyword
-        # filepath_to_use is "src/core/automation/workflow_driver.py" (.py file)
-        # is_research_step is False
-        # -> is_code_generation_step = True
-        # "update" is a file_writing_keyword AND filepath_to_use is not None
-        # -> is_explicit_file_writing_step = True
         assert classification2["is_research_step"] is False
-        assert classification2["is_code_generation_step"] is True # "update" in "updated" + .py file
-        assert classification2["is_explicit_file_writing_step"] is True # "update" is a keyword + filepath_to_use is not None
+        # FIX: This assertion was incorrect. A step about executing tests is not a code generation step.
+        #      The step is correctly classified as a test execution step.
+        assert classification2["is_code_generation_step"] is False
+        assert classification2["is_explicit_file_writing_step"] is False # "updated" no longer matches "update" with word boundaries
         assert classification2["is_test_execution_step"] is True
         assert classification2["filepath_to_use"] == "src/core/automation/workflow_driver.py"
 
@@ -233,7 +250,7 @@ class TestPhase1_8Features:
         classification2 = check_step_classification(driver, step2, task_target_file="ROADMAP.json")
         assert classification2["is_research_step"] is False
         assert classification2["is_code_generation_step"] is False
-        assert classification2["is_explicit_file_writing_step"] is False # No file writing keyword
+        assert classification2["is_explicit_file_writing_step"] is False
         assert classification2["is_test_execution_step"] is False
         assert classification2["filepath_to_use"] == "ROADMAP.json"
 
@@ -249,4 +266,3 @@ class TestPhase1_8Features:
     # test_advanced_code_merging
     # test_prompt_self_correction
     # test_improved_coder_prompt_generation
-    # test_task_success_prediction

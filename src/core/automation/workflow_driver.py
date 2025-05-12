@@ -223,14 +223,18 @@ class WorkflowDriver:
                             file_writing_keywords = ["write", "write file", "create", "create file", "update", "update file", "modify", "modify file", "save to file", "output file", "generate file", "write output to"]
                             test_execution_keywords = ["run tests", "execute tests", "verify tests", "pytest", "test suite"]
 
-                            is_test_execution_step = any(keyword in step_lower for keyword in test_execution_keywords)
-                            is_research_step = any(keyword in step_lower for keyword in research_keywords)
-                            # Explicit file writing is based on keywords
-                            is_explicit_file_writing_step = any(keyword in step_lower for keyword in file_writing_keywords)
-                            # Code generation is based on keywords and if it looks like it targets code
+                            # Use word boundaries for more accurate keyword matching
+                            is_test_execution_step = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in test_execution_keywords)
+                            is_explicit_file_writing_step = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in file_writing_keywords)
+
+                            # A step is a research step if any research keyword is present (using word boundaries).
+                            is_research_step = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in research_keywords)
+
+                            # Code generation is based on keywords (using word boundaries) and if it looks like it targets code,
+                            # BUT it must NOT be classified as a research step.
                             is_code_generation_step = not is_research_step and \
-                                                      any(verb in step_lower for verb in code_generation_keywords) and \
-                                                      (any(element in step_lower for element in code_element_keywords) or \
+                                                      any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_keywords) and \
+                                                      (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords) or \
                                                        (filepath_from_step and filepath_from_step.endswith('.py')))
 
 
@@ -355,7 +359,7 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                                 logger.info(f"Step identified as explicit file writing. Processing file operation for step: {step}")
                                 # Determine if this step implies creating a *new* file vs modifying.
                                 # Simple heuristic: If the step explicitly says "create file" or "generate file", use overwrite=False.
-                                step_implies_create = any(keyword in step_lower for keyword in ["create file", "generate file"])
+                                step_implies_create = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in ["create file", "generate file"])
                                 if step_implies_create:
                                      overwrite_mode = False # Don't overwrite if it's explicitly a create step
 
@@ -425,13 +429,22 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                                      filepath_from_step_match = re.search(r'(\S+\.(py|md|json|txt|yml|yaml))', step, re.IGNORECASE)
                                      filepath_from_step = filepath_from_step_match.group(1) if filepath_from_step_match else None
 
-                                     is_explicit_file_writing_step = any(keyword in step_lower for keyword in file_writing_keywords)
-                                     is_code_generation_step = not any(keyword in step_lower for keyword in research_keywords) and \
-                                                               any(verb in step_lower for verb in code_generation_keywords) and \
-                                                               (any(element in step_lower for element in code_element_keywords) or \
-                                                                (filepath_from_step and filepath_from_step.endswith('.py')))
+                                     # Re-calculate classification flags for this step to determine if it was a file step
+                                     code_generation_keywords = ["implement", "generate code", "write function", "modify", "add", "define", "create", "update", "refactor"]
+                                     research_keywords = ["research and identify", "research", "analyze", "investigate", "understand"]
+                                     code_element_keywords = ["import", "constant", "variable", "function", "class", "method", "definition", "parameter", "return"]
+                                     file_writing_keywords = ["write", "write file", "create", "create file", "update", "update file", "modify", "modify file", "save to file", "output file", "generate file", "write output to"]
 
-                                     if (is_explicit_file_writing_step or is_code_generation_step) and filepath_from_step:
+                                     # Use word boundaries for re-calculation
+                                     is_research_step_check = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in research_keywords)
+                                     is_explicit_file_writing_step_check = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in file_writing_keywords)
+                                     is_code_generation_step_check = not is_research_step_check and \
+                                                                     any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_keywords) and \
+                                                                     (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords) or \
+                                                                      (filepath_from_step and filepath_from_step.endswith('.py')))
+
+
+                                     if (is_explicit_file_writing_step_check or is_code_generation_step_check) and filepath_from_step:
                                          last_file_step_path = filepath_from_step
                                          break # Found the last relevant file path
 

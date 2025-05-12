@@ -77,11 +77,16 @@ class TokenAllocator:
             self.solver.add(model_vars[i] < len(models))
 
         for i in range(len(chunks)):
-            constraint_model_capacity_str = f"Or([And(model_vars[{i}] == {j}, allocations[{i}] <= {models[j]['effective_length']}) for j in range({len(models)})])"
+            # --- FIX START: Correct f-string construction for logging ---
+            conditions_str_list = []
+            for k_idx in range(len(models)):
+                conditions_str_list.append(f"And(model_vars[{i}] == {k_idx}, allocations[{i}] <= {models[k_idx]['effective_length']})")
+            constraint_model_capacity_str = f"Or([{', '.join(conditions_str_list)}])"
+            # --- FIX END ---
             logger.info(f"TokenAllocator: Adding model capacity constraint for chunk {i}: {constraint_model_capacity_str}")
             self.solver.add(Or([
-                And(model_vars[i] == j, allocations[i] <= models[j]['effective_length'])
-                for j in range(len(models))
+                And(model_vars[i] == j_loop_var, allocations[i] <= models[j_loop_var]['effective_length']) # Renamed loop var for clarity
+                for j_loop_var in range(len(models))
             ]))
 
         logger.info("TokenAllocator: Applying EthicalAllocationPolicy...")
@@ -141,4 +146,3 @@ class TokenAllocator:
             logger.error("TokenAllocator: Solver check UNSAT or UNKNOWN before minimization.")
             # Log the solver state for debugging
             logger.debug(f"TokenAllocator: Solver state before minimization: {self.solver}")
-            raise AllocationError("No ethical allocation possible with the given constraints and budget.")

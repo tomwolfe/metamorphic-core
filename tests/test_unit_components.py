@@ -48,66 +48,75 @@ class TestTokenAllocator(unittest.TestCase):
     def setUp(self):
         self.allocator = TokenAllocator(total_budget=300) # Initialize allocator here
 
-    def test_ethical_constraints_unit(self):
+    # --- FIX START: Patch Optimize class instead of instance ---
+    @patch('src.core.optimization.adaptive_token_allocator.Optimize') # Patch Optimize here
+    def test_ethical_constraints_unit(self, MockOptimize): # Add MockOptimize to signature
         """Unit test for token allocation respecting ethical constraints."""
+        # Configure the mock solver instance
+        mock_solver_instance = MockOptimize.return_value
+        mock_solver_instance.check.return_value = sat
+
+        # Create a mock Z3 model that solver.model() will return
+        mock_z3_model_ref = MagicMock(spec=ModelRef)
+        # Define how the mock model should evaluate our Z3 variables
+        def mock_eval(z3_var):
+            if str(z3_var) == 'tokens_0': return IntVal(150)
+            if str(z3_var) == 'model_0': return IntVal(0)
+            if str(z3_var) == 'tokens_1': return IntVal(150)
+            if str(z3_var) == 'model_1': return IntVal(0)
+            return IntVal(0) # Default for any other variable
+
+        mock_z3_model_ref.eval.side_effect = mock_eval
+        mock_solver_instance.model.return_value = mock_z3_model_ref
+
         chunks = [CodeChunk(content="def func1(): pass", estimated_tokens=50), CodeChunk(content="class Class1: pass", estimated_tokens=60)] # Add token estimates
         model_costs = {  # Mock model costs
             'gemini': {'effective_length': 8000, 'cost_per_token': 0.000001},
             'gpt-4': {'effective_length': 8000, 'cost_per_token': 0.00003}
         }
-        # Patch the actual Z3 solver check and model evaluation to control the outcome for this unit test
-        with patch.object(self.allocator.solver, 'check', return_value=sat), \
-             patch.object(self.allocator.solver, 'model') as mock_solver_model, \
-             patch.object(self.allocator.solver, 'minimize') as mock_solver_minimize: # Patch minimize
 
-            # Create a mock Z3 model that returns predictable values for our variables
-            mock_model_instance = MagicMock(spec=ModelRef)
-            # Define how the mock model should evaluate our Z3 variables
-            def mock_eval(z3_var):
-                # Simulate a simple allocation where chunk 0 gets 150 tokens from gemini (model 0)
-                # and chunk 1 gets 150 tokens from gemini (model 0)
-                if str(z3_var) == 'tokens_0': return IntVal(150)
-                if str(z3_var) == 'model_0': return IntVal(0) # Gemini is index 0
-                if str(z3_var) == 'tokens_1': return IntVal(150)
-                if str(z3_var) == 'model_1': return IntVal(0) # Gemini is index 0
-                # Return a default for any other variable
-                return IntVal(0)
+        # Patch the _model_cost method itself, as its internal logic is tested separately
+        # This allows us to focus on the allocation logic and the structure of the cost expression
+        with patch.object(self.allocator, '_model_cost') as mock_model_cost:
+             # Make _model_cost return a simple Z3 Real variable (or ArithRef) for testing the Sum
+             mock_model_cost.return_value = Real('cost_term')
 
-            mock_model_instance.eval.side_effect = mock_eval
-            mock_solver_model.return_value = mock_model_instance # Make solver.model() return our mock model
+             allocation = self.allocator.allocate(chunks, model_costs)
 
-            # Patch the _model_cost method itself, as its internal logic is tested separately
-            # This allows us to focus on the allocation logic and the structure of the cost expression
-            with patch.object(self.allocator, '_model_cost') as mock_model_cost:
-                 # Make _model_cost return a simple Z3 Real variable (or ArithRef) for testing the Sum
-                 mock_model_cost.return_value = Real('cost_term')
+             self.assertIsInstance(allocation, dict, "Allocation should be a dictionary")
+             # Check the structure of the returned allocation based on our mock model
+             self.assertEqual(allocation, {0: (150, 'gemini'), 1: (150, 'gemini')})
 
-                 allocation = self.allocator.allocate(chunks, model_costs)
-
-                 self.assertIsInstance(allocation, dict, "Allocation should be a dictionary")
-                 # Check the structure of the returned allocation based on our mock model
-                 self.assertEqual(allocation, {0: (150, 'gemini'), 1: (150, 'gemini')})
-
-                 # Verify _model_cost was called for each chunk
-                 self.assertEqual(mock_model_cost.call_count, len(chunks))
-                 # Verify minimize was called on the solver
-                 mock_solver_minimize.assert_called_once()
-                 # Verify the argument to minimize is a Z3 expression (Sum of cost_terms)
-                 minimize_arg = mock_solver_minimize.call_args[0][0]
-                 self.assertIsInstance(minimize_arg, ArithRef) # Sum is an arithmetic expression
+             # Verify _model_cost was called for each chunk
+             self.assertEqual(mock_model_cost.call_count, len(chunks))
+             # Verify minimize was called on the solver
+             mock_solver_instance.minimize.assert_called_once()
+             # Verify the argument to minimize is a Z3 expression (Sum of cost_terms)
+             minimize_arg = mock_solver_instance.minimize.call_args[0][0]
+             self.assertIsInstance(minimize_arg, ArithRef) # Sum is an arithmetic expression
+    # --- FIX END ---
 
 
-    def test_budget_exhaustion_unit(self):
+    # --- FIX START: Patch Optimize class instead of instance ---
+    @patch('src.core.optimization.adaptive_token_allocator.Optimize') # Patch Optimize here
+    def test_budget_exhaustion_unit(self, MockOptimize): # Add MockOptimize to signature
         """Unit test for handling budget exhaustion by TokenAllocator."""
+        # Configure the mock solver instance that Optimize() will return
+        mock_solver_instance = MockOptimize.return_value
+        mock_solver_instance.check.return_value = unsat
+
         chunks = [CodeChunk(content="chunk1", estimated_tokens=200), CodeChunk(content="chunk2", estimated_tokens=200)] # High token chunks
         model_costs = {  # Mock model costs
             'gemini': {'effective_length': 8000, 'cost_per_token': 0.000001},
             'gpt-4': {'effective_length': 8000, 'cost_per_token': 0.00003}
         }
-        # Patch the Z3 solver check to return unsat for this scenario
-        with patch.object(self.allocator.solver, 'check', return_value=unsat):
-             with pytest.raises(AllocationError, match="No ethical allocation possible"):
-                 self.allocator.allocate(chunks, model_costs)
+
+        with pytest.raises(AllocationError, match="No ethical allocation possible even without cost minimization."): # Match the more specific error message
+            self.allocator.allocate(chunks, model_costs)
+
+        # You can add assertions on mock_solver_instance if needed, e.g.:
+        mock_solver_instance.check.assert_called()
+    # --- FIX END ---
 
 
     # --- NEW TEST CASE FOR _model_cost ---
@@ -238,4 +247,4 @@ class TestRecursiveSummarizer(unittest.TestCase):
             self.assertEqual(summary, "Mock summary string", "Should return the summary generated by _generate_summary") # Corrected assertion
             # Verify that self.mock_verifier.verify was called by the real _generate_summary
             # FIX: Assertion count should be 3
-            self.assertEqual(mock_verifier_verify.call_count, 3, "Verifier verify should be called 3 times due to retry logic")
+            self.assertEqual(mock_verifier_verify.call_count, 3, "Verifier verify should be called 3 times due to retry logic") # Corrected assertion

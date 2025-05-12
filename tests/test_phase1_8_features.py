@@ -291,13 +291,13 @@ class TestPhase1_8Features:
         roadmap_file_path = tmp_path / driver.roadmap_path
         with open(roadmap_file_path, 'w') as f:
             json.dump({"tasks": [mock_task]}, f)
-        
+
         # Patch builtins.open to handle roadmap reading/writing within the loop
         # The mock_open from unittest.mock is good for this.
         # We need to simulate reading the initial roadmap and then the updated one.
         # The first read is in start_workflow, then in each loop iteration.
         # The write happens at the end of a successful iteration.
-        
+
         # Simulate the content that will be read
         initial_roadmap_content = json.dumps({"tasks": [mock_task]})
         # After the task is "Completed", this is what should be written and then read in the next iteration
@@ -306,12 +306,22 @@ class TestPhase1_8Features:
         updated_roadmap_content = json.dumps({"tasks": [completed_task]})
 
         mock_file_content_sequence = [initial_roadmap_content, initial_roadmap_content, updated_roadmap_content]
-        
-        mock_open_instance = mock_open()
-        mock_open_instance.read.side_effect = mock_file_content_sequence
-        
-        with patch('builtins.open', return_value=mock_open_instance):
+
+        # --- FIX START: Correct mock_open usage ---
+        # Create a mock for the open function
+        mock_open_function = mock_open()
+
+        # Configure the file handle mock (which is mock_open_function.return_value)
+        file_handle_mock = MagicMock()
+        file_handle_mock.read.side_effect = mock_file_content_sequence
+        file_handle_mock.__enter__.return_value = file_handle_mock # For 'with open(...) as f:'
+        file_handle_mock.__exit__.return_value = None
+
+        mock_open_function.return_value = file_handle_mock # When open() is called, it returns our file_handle_mock
+
+        with patch('builtins.open', mock_open_function): # Patch builtins.open with our function mock
             driver.start_workflow(str(roadmap_file_path), str(tmp_path / "output"), driver.context)
+        # --- FIX END ---
 
 
         # Assert that _write_output_file was NOT called for the conceptual step
@@ -325,12 +335,12 @@ class TestPhase1_8Features:
             if target_py_file in call_args[0][0] and conceptual_step_text in call_args[0][1]:
                 conceptual_step_write_attempted = True
                 break
-        
+
         assert not conceptual_step_write_attempted, "_write_output_file was called with placeholder for the conceptual step"
 
         # Assert the log message for skipping the placeholder write
         assert f"Skipping placeholder write to main Python target {target_py_file} for conceptual step: '{conceptual_step_text}'." in caplog.text
-        
+
         # Assert that the second step (Implement) DID attempt to write (or would have, if not for other mocks)
         # This means _write_output_file should have been called at least once for the "Implement" step
         # if the plan execution reached that far and it was classified as code-gen.
@@ -340,4 +350,5 @@ class TestPhase1_8Features:
         # Verify that the task status was updated to Completed
         mock_safe_write.assert_called_once()
         written_roadmap_data = mock_safe_write.call_args[0][1] # Get the data written to roadmap
-        assert written_roadmap_data['tasks'][0]['status'] == 'Completed'
+        # FIX: Add assertion for the content written to the roadmap
+        assert written_roadmap_data == {"tasks": [completed_task]}

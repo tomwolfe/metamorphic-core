@@ -25,14 +25,20 @@
 *   **Task ID**: task_1_8_1_unblock_overwrite_fix
     *   **Priority**: Critical
     *   **Task Name**: Prevent Placeholder Overwrite of Core Python Files for Conceptual Steps
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_1_pre_fix', 'task_1_8_0_fix_summarizer_synthesize', 'task_1_8_0_fix_token_allocator']
+
+*   **Task ID**: task_1_8_1_fix_syntax_and_add_tests
+    *   **Priority**: Critical
+    *   **Task Name**: Fix Syntax Error in classify_plan_step and Add Unit Tests
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_1_unblock_overwrite_fix']
 
 *   **Task ID**: task_1_8_1
     *   **Priority**: Critical
     *   **Task Name**: Enhance Plan Step Identification
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1_unblock_overwrite_fix']
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_1_fix_syntax_and_add_tests']
 
 *   **Task ID**: task_1_8_2
     *   **Priority**: Critical

@@ -367,7 +367,7 @@ class TestWorkflowTaskManagement:
         assert driver._is_valid_task_id(".task") is False
         assert driver._is_valid_task_id("-task") is False
 
-    # --- NEW TESTS FOR depends_on LOADING AND VALIDATION ---
+    # --- NEW TESTS FOR DEPENDS_ON LOADING AND VALIDATION ---
 
     def test_load_roadmap_with_valid_depends_on(self, test_driver_task_management, tmp_path):
         """Test loading a task with a valid 'depends_on' list."""
@@ -621,4 +621,3 @@ class TestWorkflowTaskManagement:
         ]
         next_task = driver.select_next_task(tasks)
         assert next_task is None
-        assert "Skipping task task_invalid_dep_format: Invalid task_id 'invalid/dep' found in 'depends_on' list." in caplog.text

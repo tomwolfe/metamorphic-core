@@ -79,6 +79,15 @@
       ]
     },
     {
+      "task_id": "task_1_8_1b_increase_min_token_alloc",
+      "priority": "Critical",
+      "task_name": "Increase Minimum Token Allocation per Chunk",
+      "description": "Modify TokenAllocator and EthicalAllocationPolicy to enforce a higher minimum token count per chunk (e.g., 1000 tokens instead of 100). This is crucial for effective code generation, as the current minimum leads to insufficient token allocation and stalls progress on code-generating tasks. This task addresses the shortcomings of task_1_8_0_fix_token_allocator.",
+      "status": "Completed",
+      "target_file": "src/core/optimization/adaptive_token_allocator.py, src/core/ethics/constraints.py",
+      "depends_on": ["task_1_8_1"]
+    },
+    {
       "task_id": "task_1_8_2",
       "priority": "Critical",
       "task_name": "Implement Pre-Write Validation per Step",
@@ -86,7 +95,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_1"
+        "task_1_8_1b_increase_min_token_alloc"
       ]
     },
     {

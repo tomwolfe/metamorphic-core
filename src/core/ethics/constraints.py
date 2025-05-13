@@ -75,9 +75,11 @@ class EthicalAllocationPolicy:
 
         for alloc_var_key in allocations: # Iterate over keys for Z3 Int variables
             alloc_val_int_var = allocations[alloc_var_key]
-            constraint_str_min = f"{alloc_val_int_var} >= 100"
+            # --- MODIFIED MINIMUM CONSTRAINT ---
+            constraint_str_min = f"{alloc_val_int_var} >= 1000" # <-- MODIFIED (use 1000 or your chosen constant)
             logger.info(f"EthicalAllocationPolicy: Adding constraint: {constraint_str_min}")
-            solver.add(alloc_val_int_var >= 100)  # Minimum token guarantee
+            solver.add(alloc_val_int_var >= 1000)  # Minimum token guarantee # <-- MODIFIED
+            # --- END MODIFIED MINIMUM CONSTRAINT ---
 
             constraint_str_max = f"{alloc_val_int_var} <= 20000"
             logger.info(f"EthicalAllocationPolicy: Adding constraint: {constraint_str_max}")
@@ -132,4 +134,5 @@ class EthicalAllocationPolicy:
                 logger.info(f"EthicalAllocationPolicy: Adding constraint for high-cost model usage: {constraint_gpt4_limit_str}")
                 solver.add(Implies(model_vars[i] == 1, allocations[i] <= 1000))
             else:
-                logger.warning(f"EthicalAllocationPolicy: Key {i} missing from model_vars or allocations. Skipping high-cost limit constraint.")
+                # Log a warning if keys are missing, indicating a potential issue in allocation setup
+                logger.warning(f"EthicalAllocationPolicy: Missing allocation or model variable for chunk index {i}. Skipping high-cost model constraint.")

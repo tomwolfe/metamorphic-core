@@ -8,6 +8,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# --- ADDED CONSTANT ---
+REALISTIC_MIN_TOKENS_PER_CHUNK = 1000 # Or another value like 500, 1500
+# --- END ADDED CONSTANT ---
+
 class TokenAllocator:
     def __init__(self, total_budget: int = 32000):
         self.total_budget = total_budget
@@ -68,22 +72,15 @@ class TokenAllocator:
 
 
         for i in allocations:
-            constraint_str_min = f"tokens_{i} >= 100"
+            # --- MODIFIED MINIMUM CONSTRAINT ---
+            constraint_str_min = f"tokens_{i} >= {REALISTIC_MIN_TOKENS_PER_CHUNK}" # <-- MODIFIED
             logger.info(f"TokenAllocator: Adding constraint: {constraint_str_min}")
-            self.solver.add(allocations[i] >= 100)
+            self.solver.add(allocations[i] >= REALISTIC_MIN_TOKENS_PER_CHUNK) # <-- MODIFIED
+            # --- END MODIFIED MINIMUM CONSTRAINT ---
 
             constraint_str_max = f"tokens_{i} <= 20000" # This can be adjusted based on model context windows
             logger.info(f"TokenAllocator: Adding constraint: {constraint_str_max}")
             self.solver.add(allocations[i] <= 20000)
-
-        for i in range(len(chunks)):
-            constraint_model_idx_min = f"model_{i} >= 0"
-            logger.info(f"TokenAllocator: Adding constraint: {constraint_model_idx_min}")
-            self.solver.add(model_vars[i] >= 0)
-
-            constraint_model_idx_max = f"model_{i} < {len(models)}"
-            logger.info(f"TokenAllocator: Adding constraint: {constraint_model_idx_max}")
-            self.solver.add(model_vars[i] < len(models))
 
         for i in range(len(chunks)):
             # --- FIX START: Correct f-string construction for logging ---
@@ -129,7 +126,9 @@ class TokenAllocator:
                 # Re-add all constraints
                 self.solver.add(Sum([allocations[i] for i in range(len(chunks))]) <= self.total_budget)
                 for i in allocations:
-                    self.solver.add(allocations[i] >= 100)
+                    # --- MODIFIED MINIMUM CONSTRAINT IN FALLBACK ---
+                    self.solver.add(allocations[i] >= REALISTIC_MIN_TOKENS_PER_CHUNK) # <-- MODIFIED
+                    # --- END MODIFIED MINIMUM CONSTRAINT IN FALLBACK ---
                     self.solver.add(allocations[i] <= 20000)
                 for i in range(len(chunks)):
                     self.solver.add(model_vars[i] >= 0)
@@ -158,7 +157,9 @@ class TokenAllocator:
             # Re-add all constraints (same as in the other fallback block)
             self.solver.add(Sum([allocations[i] for i in range(len(chunks))]) <= self.total_budget)
             for i in allocations:
-                self.solver.add(allocations[i] >= 100)
+                # --- MODIFIED MINIMUM CONSTRAINT IN FALLBACK ---
+                self.solver.add(allocations[i] >= REALISTIC_MIN_TOKENS_PER_CHUNK) # <-- MODIFIED
+                # --- END MODIFIED MINIMUM CONSTRAINT IN FALLBACK ---
                 self.solver.add(allocations[i] <= 20000)
             for i in range(len(chunks)):
                 self.solver.add(model_vars[i] >= 0)

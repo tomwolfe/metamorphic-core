@@ -40,11 +40,17 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_1_fix_syntax_and_add_tests']
 
+*   **Task ID**: task_1_8_1b_increase_min_token_alloc
+    *   **Priority**: Critical
+    *   **Task Name**: Increase Minimum Token Allocation per Chunk
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_1']
+
 *   **Task ID**: task_1_8_2
     *   **Priority**: Critical
     *   **Task Name**: Implement Pre-Write Validation per Step
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1']
+    *   **Depends On**: ['task_1_8_1b_increase_min_token_alloc']
 
 *   **Task ID**: task_1_8_3
     *   **Priority**: Critical

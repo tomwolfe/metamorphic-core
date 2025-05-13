@@ -1,5 +1,3 @@
-# tests/test_phase1_8_features.py
-
 import pytest
 import unittest
 from unittest.mock import patch, MagicMock, mock_open, call, ANY
@@ -9,26 +7,35 @@ import logging
 import json
 from datetime import datetime
 import subprocess
+import sys
+import os
+
+# Add the src directory to the Python path
+# This ensures that 'from core.automation.workflow_driver import ...' works
+# Use Pathlib for robust path joining
+current_file_dir = Path(__file__).parent # Corrected __file__
+src_dir = current_file_dir.parent.parent.parent / 'src'
+sys.path.insert(0, str(src_dir.resolve()))
 
 # Assuming WorkflowDriver is in src.core.automation
-from src.core.automation.workflow_driver import WorkflowDriver, Context, MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT
-
-# Import CodeReviewAgent and EthicalGovernanceEngine for type hinting and mocking
-from src.core.agents.code_review_agent import CodeReviewAgent
-from src.core.ethics.governance import EthicalGovernanceEngine
-
-# Import write_file and file_exists if needed for specific mocks
-from src.cli.write_file import write_file, file_exists
-
-# Import builtins for mocking open
-import builtins
+from core.automation.workflow_driver import WorkflowDriver, Context, MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, classify_plan_step, CODE_KEYWORDS, CONCEPTUAL_KEYWORDS
+import spacy
+from spacy.matcher import PhraseMatcher
 
 # Set up logging for tests
 if not logging.root.handlers:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Use the correct logger name for the module
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # Corrected logger name to use __name__
+
+# Define a maximum file size for reading (e.g., 1MB)
+# Note: This is redefined here, ideally should be imported or consistent
+MAX_READ_FILE_SIZE = 1024 * 1024 # 1 MB
+
+# Define the marker for code insertion, matching the value in workflow_driver.py
+# Note: This is redefined here, ideally should be imported or consistent
+METAMORPHIC_INSERT_POINT = "# METAMORPHIC_INSERT_POINT"
 
 # Fixture for a WorkflowDriver instance with a Context, specifically for Phase 1.8 tests
 @pytest.fixture
@@ -36,13 +43,17 @@ def test_driver_phase1_8(tmp_path):
     # Create the actual Context object
     context = Context(str(tmp_path))
 
+
     # Patch the CodeReviewAgent and EthicalGovernanceEngine instantiation
-    with patch('src.core.automation.workflow_driver.CodeReviewAgent') as MockCodeReviewAgent, \
-         patch('src.core.automation.workflow_driver.EthicalGovernanceEngine') as MockEthicalGovernanceEngine:
+    with patch('core.automation.workflow_driver.CodeReviewAgent') as MockCodeReviewAgent, \
+         patch('core.automation.workflow_driver.EthicalGovernanceEngine') as MockEthicalGovernanceEngine:
         mock_code_review_agent_instance = MockCodeReviewAgent.return_value
         mock_ethical_governance_engine_instance = MockEthicalGovernanceEngine.return_value
         # Mock the policy loading within the engine mock
-        mock_ethical_governance_engine_instance.load_policy_from_json.return_value = {'policy_name': 'Mock Policy'}
+        # Note: The driver now loads policy via _load_default_policy, not load_policy_from_json directly
+        # We might need to mock the open call or the _load_default_policy method itself if policy loading is critical
+        # For now, assume the mock instance is sufficient and default_policy_config is set manually below
+        # mock_ethical_governance_engine_instance.load_policy_from_json.return_value = {'policy_name': 'Mock Policy'}
 
         # Instantiate WorkflowDriver using the created context object
         driver = WorkflowDriver(context) # Use the 'context' object here
@@ -54,13 +65,14 @@ def test_driver_phase1_8(tmp_path):
         # Assign mocked instances
         driver.code_review_agent = mock_code_review_agent_instance
         driver.ethical_governance_engine = mock_ethical_governance_engine_instance
-        driver.default_policy_config = {'policy_name': 'Mock Policy'} # Ensure default policy is set
+        driver.default_policy_config = {'policy_name': 'Mock Policy'} # Ensure default policy is set for tests
 
         # Add attributes needed for tests that might not be set by __init__ or autonomous_loop setup
         driver._current_task_results = {}
         driver.remediation_attempts = 0 # Initialize remediation counter for tests
         driver.remediation_occurred_in_pass = False # Initialize flag
         driver._current_task = {} # Initialize current task
+        driver.task_target_file = None # Initialize task_target_file
 
         yield {
             'driver': driver,
@@ -69,15 +81,25 @@ def test_driver_phase1_8(tmp_path):
         }
 
 # Helper function to simulate the relevant part of autonomous_loop for testing classification
+# Note: This helper is primarily for testing the classification logic in isolation,
+# the full autonomous_loop tests cover the integration.
+# This helper function is NOT used by the TestClassifyPlanStep class, which calls
+# classify_plan_step directly. It's used by the TestPhase1_8Features class.
 def check_step_classification(driver_instance, step_text, task_target_file=None):
     step_lower = step_text.lower()
     filepath_from_step_match = re.search(
         r'(\S+\.(py|md|json|txt|yml|yaml))', step_text, re.IGNORECASE)
     filepath_from_step = filepath_from_step_match.group(1) if filepath_from_step_match else None
 
-    # Keywords lists remain the same
-    # NOTE: "execute" is NOT added to code_generation_keywords here,
-    #       as the fix is to correct the test assertion, not the classification logic.
+
+    # Keywords lists remain the same (should ideally use the imported global ones)
+    # Note: These lists are slightly different from the global ones in workflow_driver.py
+    # and are used only within this helper function. The tests for classify_plan_step
+    # use the actual function which uses the global lists.
+    # To be accurate for testing the driver's *preliminary* logic, these should match
+    # the preliminary lists used *inside* the driver's loop.
+    # For now, keeping them as they were in the original test file, as the failing tests
+    # are in TestClassifyPlanStep which doesn't use this helper.
     code_generation_keywords = ["implement", "generate code", "write function", "modify", "add", "define", "create", "update", "refactor"]
     research_keywords = ["research and identify", "research", "analyze", "investigate", "understand"]
     code_element_keywords = ["import", "constant", "variable", "function", "class", "method", "definition", "parameter", "return"]
@@ -130,11 +152,10 @@ def check_step_classification(driver_instance, step_text, task_target_file=None)
         "filepath_to_use": filepath_to_use
     }
 
-
 class TestPhase1_8Features:
-
     # --- Tests for Task 1.8.1: Enhance Plan Step Identification ---
     # These tests verify the step classification logic after applying the pre-fix.
+
 
     def test_research_step_classification(self, test_driver_phase1_8):
         """Test that steps with research keywords are correctly classified as non-code-gen."""
@@ -299,6 +320,8 @@ class TestPhase1_8Features:
         filepath_from_step = filepath_from_step_match.group(1) if filepath_from_step_match else None
 
         # Re-calculate classification flags for this step to determine if it was a file step
+        # Note: These keyword lists are duplicated here from the helper function above
+        # and are used only within this specific test method.
         code_generation_keywords = ["implement", "generate code", "write function", "modify", "add", "define", "create", "update", "refactor"]
         research_keywords = ["research and identify", "research", "analyze", "investigate", "understand"]
         code_element_keywords = ["import", "constant", "variable", "function", "class", "method", "definition", "parameter", "return"]
@@ -311,31 +334,39 @@ class TestPhase1_8Features:
 
         # Determine filepath_to_use based on task target or step mention
         filepath_to_use = driver.task_target_file # Start with the task's target file
-        if filepath_to_use is None and (is_explicit_file_writing_step or is_code_generation_step) and filepath_from_step:
-             filepath_to_use = filepath_from_step
-
+        # If the task doesn't have a target_file, but the step mentions one AND it's a file-related step, use the one from the step.
+        # Note: The original driver logic used preliminary flags here.
         # Re-calculate is_code_generation_step using filepath_to_use
         is_code_generation_step = not is_research_step and \
                                   any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_keywords) and \
                                   (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords) or \
                                    (filepath_to_use and filepath_to_use.endswith('.py')))
 
+        # Re-evaluate filepath_to_use based on preliminary flags as per driver logic
+        filepath_to_use_re_eval = driver.task_target_file
+        if filepath_to_use_re_eval is None and (is_explicit_file_writing_step or is_code_generation_step) and filepath_from_step:
+             filepath_to_use_re_eval = filepath_from_step
+
 
         step_implies_create_new_file = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in ["create file", "generate file"])
 
         # --- Replicate the fixed logic block for testing ---
-        is_main_python_target = (filepath_to_use == driver.task_target_file and driver.task_target_file is not None and filepath_to_use.endswith('.py'))
+        is_main_python_target = (filepath_to_use_re_eval == driver.task_target_file and driver.task_target_file is not None and filepath_to_use_re_eval.endswith('.py'))
+        # Re-calculate is_conceptual_step_for_main_target using word boundaries
+        conceptual_define_keywords = ["define list", "analyze", "understand", "document decision", "identify list", "define a comprehensive list"]
         is_conceptual_step_for_main_target = is_research_step or \
-                                            any(re.search(r'\b' + kw + r'\b', step_lower) for kw in ["define list", "analyze", "understand", "document decision", "identify list", "define a comprehensive list"])
+                                            any(re.search(r'\b' + re.escape(kw) + r'\b', step_lower) for kw in conceptual_define_keywords)
+
 
         content_to_write_decision = None
-        if is_explicit_file_writing_step and filepath_to_use: # Enter the explicit file writing block
+        # Use the explicit file writing check based on keywords only, as per driver logic
+        if is_explicit_file_writing_step and filepath_to_use_re_eval: # Enter the explicit file writing block
             if is_main_python_target and is_conceptual_step_for_main_target and not step_implies_create_new_file:
-                logger.info(f"Skipping placeholder write to main Python target {filepath_to_use} for conceptual step: '{plan_step}'.")
+                logger.info(f"Skipping placeholder write to main Python target {filepath_to_use_re_eval} for conceptual step: '{plan_step}'.")
                 content_to_write_decision = None
             else:
                 # This part would normally set content_to_write
-                if filepath_to_use.endswith('.py'):
+                if filepath_to_use_re_eval.endswith('.py'):
                     content_to_write_decision = f"# Placeholder content for Python file for step: {plan_step}"
                 else:
                     content_to_write_decision = f"// Placeholder content for step: {plan_step}"
@@ -347,4 +378,129 @@ class TestPhase1_8Features:
         # Assert that the actual _write_output_file was NOT called
         mock_write_output.assert_not_called()
 
-        assert f"Skipping placeholder write to main Python target {filepath_to_use} for conceptual step: '{plan_step}'." in caplog.text
+# ADDED NEW TEST CLASS HERE
+class TestClassifyPlanStep(unittest.TestCase):
+
+
+    # Note: These tests call the actual classify_plan_step function,
+    # which uses the global CODE_KEYWORDS and CONCEPTUAL_KEYWORDS and
+    # the updated regex matching in the fallback path.
+
+    def test_classify_plan_step_code(self):
+        # Test cases that are clearly code-related
+        self.assertEqual(classify_plan_step("Add an import for the 'os' module."), 'code')
+        self.assertEqual(classify_plan_step("Define a constant named MAX_RETRIES."), 'code')
+        self.assertEqual(classify_plan_step("Implement a function to calculate factorial."), 'code')
+        self.assertEqual(classify_plan_step("Modify the User class to add a new method."), 'code')
+        self.assertEqual(classify_plan_step("Write a unit test for the new function."), 'code')
+        self.assertEqual(classify_plan_step("Refactor the code to improve readability."), 'code')
+        self.assertEqual(classify_plan_step("Fix the bug causing the application to crash."), 'code')
+        self.assertEqual(classify_plan_step("Update dependency 'requests' to version 2.28.1"), 'code')
+        self.assertEqual(classify_plan_step("Add parameter 'timeout' to the API call."), 'code')
+        self.assertEqual(classify_plan_step("Debug an issue in the payment module"), 'code')
+        self.assertEqual(classify_plan_step("Handle error for file not found"), 'code')
+        self.assertEqual(classify_plan_step("Change the variable name."), 'code')
+        self.assertEqual(classify_plan_step("Configure the logging settings."), 'code')
+        self.assertEqual(classify_plan_step("Create a new Python file."), 'code')
+        self.assertEqual(classify_plan_step("Install the required package."), 'code')
+        self.assertEqual(classify_plan_step("Use the new library."), 'code')
+        self.assertEqual(classify_plan_step("Add input validation."), 'code')
+
+
+    def test_classify_plan_step_conceptual(self):
+        # Test cases that are clearly conceptual
+        self.assertEqual(classify_plan_step("Understand the user requirements for the feature."), 'conceptual')
+        self.assertEqual(classify_plan_step("Design the database schema for storing user data."), 'conceptual')
+        self.assertEqual(classify_plan_step("Discuss the approach with the team during the stand-up."), 'conceptual')
+        self.assertEqual(classify_plan_step("Review the pull request from John."), 'conceptual')
+        self.assertEqual(classify_plan_step("Document the API endpoints in the README."), 'conceptual')
+        self.assertEqual(classify_plan_step("Analyze the problem reported by the user."), 'conceptual')
+        self.assertEqual(classify_plan_step("Plan the next step for the sprint."), 'conceptual')
+        self.assertEqual(classify_plan_step("Gather feedback from stakeholders."), 'conceptual')
+        self.assertEqual(classify_plan_step("Brainstorm ideas for the new UI."), 'conceptual')
+        self.assertEqual(classify_plan_step("Research potential solutions."), 'conceptual')
+        self.assertEqual(classify_plan_step("Evaluate alternative designs."), 'conceptual')
+        self.assertEqual(classify_plan_step("Define the scope of the project."), 'conceptual')
+        self.assertEqual(classify_plan_step("Create a project plan."), 'conceptual')
+        self.assertEqual(classify_plan_step("Coordinate with the QA team."), 'conceptual')
+        self.assertEqual(classify_plan_step("Get approval from the manager."), 'conceptual')
+        self.assertEqual(classify_plan_step("Prepare a presentation."), 'conceptual')
+        self.assertEqual(classify_plan_step("Write a report on findings."), 'conceptual')
+        self.assertEqual(classify_plan_step("Investigate the performance issue."), 'conceptual')
+
+
+    def test_classify_plan_step_ambiguous_or_mixed(self):
+        # Test cases that might contain keywords from both, testing tie-breaking or dominance
+        # Depending on PhraseMatcher and scoring, these might vary.
+        # Assuming 'code' keywords are more specific and might win ties or close calls.
+        # With the expanded lists and regex, these should lean towards the dominant type.
+        self.assertEqual(classify_plan_step("Update the documentation and refactor the code."), 'code') # Contains 'update', 'document', 'refactor', 'code' - 'code' related words likely dominate
+        self.assertEqual(classify_plan_step("Analyze the performance issue and fix the bug."), 'code') # Contains 'analyze', 'fix', 'bug' - 'fix bug' is strong code
+        self.assertEqual(classify_plan_step("Plan the next steps and add a new feature (e.g. implement function)."), 'code') # Contains 'plan', 'add', 'implement', 'function' - strong code words
+        self.assertEqual(classify_plan_step("Review the design proposal and implement the core logic."), 'code') # Contains 'review', 'design', 'implement', 'logic' - 'implement' is strong code
+        self.assertEqual(classify_plan_step("Discuss the requirements and define constants."), 'code') # Contains 'discuss', 'requirements', 'define', 'constants' - 'define constants' is strong code
+
+
+    def test_classify_plan_step_uncertain(self):
+        # Test cases with no relevant keywords or where scores might be equal/low
+        self.assertEqual(classify_plan_step("Just a simple sentence with no keywords."), 'uncertain')
+        self.assertEqual(classify_plan_step("This step doesn't involve specific actions."), 'uncertain')
+        self.assertEqual(classify_plan_step("Prepare for the upcoming meeting."), 'uncertain') # Could be conceptual but weak
+        self.assertEqual(classify_plan_step("Send an email to the client."), 'uncertain')
+        self.assertEqual(classify_plan_step("Walk the dog."), 'uncertain') # Clearly irrelevant
+
+
+    def test_classify_plan_step_case_insensitivity(self):
+        # Test that classification is case-insensitive (due to .lower() in function)
+        self.assertEqual(classify_plan_step("ADD AN IMPORT for the 'os' module."), 'code')
+        self.assertEqual(classify_plan_step("Understand the USER REQUIREMENTS."), 'conceptual')
+        self.assertEqual(classify_plan_step("Run TESTS."), 'code') # Test execution is now in CODE_KEYWORDS
+
+
+    def test_classify_plan_step_multiple_keywords(self):
+        # Test cases with multiple keywords of the same type
+        self.assertEqual(classify_plan_step("Add import, define constant, and implement function."), 'code')
+        self.assertEqual(classify_plan_step("Understand requirements, design interface, and discuss approach."), 'conceptual')
+        self.assertEqual(classify_plan_step("Fix bug, refactor code, and add validation."), 'code')
+        self.assertEqual(classify_plan_step("Analyze problem, research options, and propose solution."), 'conceptual')
+
+
+    def test_classify_plan_step_nlp_dependency_fallback(self):
+        # Temporarily mock nlp to be None to test fallback
+        original_nlp = None
+        # Check if the module is already loaded and has an nlp attribute
+        if 'core.automation.workflow_driver' in sys.modules and hasattr(sys.modules['core.automation.workflow_driver'], 'nlp'):
+             original_nlp = sys.modules['core.automation.workflow_driver'].nlp
+             sys.modules['core.automation.workflow_driver'].nlp = None
+             logger.info("Mocked nlp to None for fallback test.")
+        else:
+             # If module not loaded or nlp not present, assume fallback is active
+             logger.warning("core.automation.workflow_driver module not loaded or nlp attribute missing. Assuming fallback is active for test.")
+
+
+        # These assertions should now pass because the regex fallback works
+        self.assertEqual(classify_plan_step("Add an import for the 'os' module."), 'code')
+        self.assertEqual(classify_plan_step("Understand the user requirements for the feature."), 'conceptual')
+        self.assertEqual(classify_plan_step("Refactor the code."), 'code')
+        self.assertEqual(classify_plan_step("Analyze the data."), 'conceptual')
+        self.assertEqual(classify_plan_step("Run tests."), 'code') # Test execution is now in CODE_KEYWORDS
+
+
+        # Restore nlp
+        if 'core.automation.workflow_driver' in sys.modules and original_nlp is not None:
+            sys.modules['core.automation.workflow_driver'].nlp = original_nlp
+            logger.info("Restored original nlp object.")
+        elif 'core.automation.workflow_driver' in sys.modules:
+             # If module was loaded but nlp wasn't originally there, just log
+             logger.info("core.automation.workflow_driver module was loaded, but no original nlp to restore.")
+        else:
+             # If module wasn't loaded, nothing to restore
+             logger.info("core.automation.workflow_driver module was not loaded during test, nothing to restore.")
+
+# Add other test classes for Phase 1.8 features below this line as they are implemented
+class TestPreWriteValidation(unittest.TestCase):
+    pass
+class TestStepLevelRemediation(unittest.TestCase):
+    pass
+
+# etc

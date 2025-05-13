@@ -25,18 +25,27 @@ class TokenAllocator:
         # --- MODIFIED QUADRATIC TERM COEFFICIENT ---
         # Original divisor: 1000.0
         # New, less punitive divisor:
-        quadratic_divisor = 10000000.0 # Significantly larger divisor to reduce quadratic penalty
+        # Further increase the quadratic divisor to make the penalty for more tokens much smaller,
+        # encouraging the solver to use more tokens if the budget allows.
+        # The previous value of 10,000,000 was still too punitive.
+        quadratic_divisor = 1000000000.0 # Drastically increase divisor
+
+        # Also, consider reducing the impact of the linear cost term,
+        # as it might also contribute to favoring minimal tokens if cost_per_token is not small enough.
+        # For now, focusing on the quadratic_divisor.
         # --- END MODIFICATION ---
 
         # Build the nested If expression for symbolic cost calculation
         # Start with the cost of the last model as the final 'else'
-        cost_expr = (ToReal(tokens_var) * models_list[-1]['cost_per_token']) + \
-                    (ToReal(tokens_var) * ToReal(tokens_var)) / quadratic_divisor
+        # Ensure cost_per_token is treated as a very small factor if not zero
+        base_linear_cost = ToReal(tokens_var) * (models_list[-1]['cost_per_token'] if models_list[-1]['cost_per_token'] > 0 else 1e-9)
+        cost_expr = base_linear_cost + (ToReal(tokens_var) * ToReal(tokens_var)) / quadratic_divisor
 
         for j in range(len(models_list) - 2, -1, -1):
             model_details = models_list[j]
-            cost_for_this_model = (ToReal(tokens_var) * model_details['cost_per_token']) + \
-                                  (ToReal(tokens_var) * ToReal(tokens_var)) / quadratic_divisor
+            linear_cost_term = ToReal(tokens_var) * (model_details['cost_per_token'] if model_details['cost_per_token'] > 0 else 1e-9)
+            cost_for_this_model = linear_cost_term + \
+                                   (ToReal(tokens_var) * ToReal(tokens_var)) / quadratic_divisor
             cost_expr = If(model_idx_var == j, cost_for_this_model, cost_expr)
 
         return cost_expr
@@ -170,4 +179,3 @@ class TokenAllocator:
             else:
                 logger.error("TokenAllocator: Fallback allocation also failed after initial UNSAT.")
                 raise AllocationError("No ethical allocation possible even without cost minimization.")
-            # --- END FIX for Failure 2 ---

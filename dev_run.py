@@ -96,12 +96,24 @@ def dev_run_workflow():
             "--roadmap", args.roadmap,
             "--output-dir", args.output_dir
         ]
+
+        # --- FIX START ---
+        # Set PYTHONPATH for the subprocess
+        # Copy the current environment variables
+        env = os.environ.copy()
+        # Set or update PYTHONPATH to include the 'src' directory relative to the current working directory
+        # This assumes dev_run.py is run from the project root.
+        # If PYTHONPATH already exists, prepend 'src' to it.
+        env['PYTHONPATH'] = 'src' + os.pathsep + env.get('PYTHONPATH', '')
+        # --- FIX END ---
+
         cli_process = subprocess.run(
             cli_command,
             cwd=os.getcwd(), # Ensure running from project root
             capture_output=True,
             text=True,
-            check=False # Do not raise CalledProcessError on non-zero exit
+            check=False, # Do not raise CalledProcessError on non-zero exit
+            env=env # --- Apply the modified environment ---
         )
         logger.info(f"CLI Execution STDOUT:\n{cli_process.stdout}")
         if cli_process.stderr:

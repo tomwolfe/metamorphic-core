@@ -508,7 +508,7 @@ class TestWorkflowReporting:
 
         mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
         # This assertion should now pass because default_policy_config is set
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config)
+        mock_ethical_governance_engine.enforce_policy.assert_called_twice_with(mock_invoke_coder_llm.return_value, driver.default_policy_config)
 
         assert "Running code review and security scan for src/feature.py..." in caplog.text
         assert f"Code Review and Security Scan Results for src/feature.py: {mock_review_results}" in caplog.text

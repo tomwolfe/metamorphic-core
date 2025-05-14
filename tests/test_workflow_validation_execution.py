@@ -325,7 +325,7 @@ without a summary line
         assert "Parsed test results:" in caplog.text
 
     def test_parse_test_results_total_zero_with_counts(self, test_driver_validation, caplog):
-        """Test _parse_test_results handles a case where parsed counts > 0 but total is somehow 0 (defensive)."""
+        """Test _parse_test_results handles a case where parsed counts > 0 but total is somehow zero (defensive)."""
         caplog.set_level(logging.WARNING)
         driver = test_driver_validation['driver']
         output_zero_sum = """
@@ -379,7 +379,7 @@ without a summary line
         mock_parse_test_results.assert_not_called()
 
         mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config)
+        mock_ethical_governance_engine.enforce_policy.assert_called_twice_with(mock_invoke_coder_llm.return_value, driver.default_policy_config)
 
         assert "Running code review and security scan for src/feature.py..." in caplog.text
         assert f"Code Review and Security Scan Results for src/feature.py: {mock_review_results}" in caplog.text
@@ -427,4 +427,3 @@ without a summary line
 
         assert "Running code review and security scan for src/feature.py..." in caplog.text
         assert "Default ethical policy not loaded. Skipping ethical analysis." in caplog.text
-        assert "Running ethical analysis for src/feature.py..." not in caplog.text

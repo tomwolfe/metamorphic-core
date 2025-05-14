@@ -737,7 +737,7 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                                      is_explicit_file_writing_step_check = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in file_writing_keywords_check)
                                      is_code_generation_step_check = not is_research_step_check and \
                                                                      any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_verbs_check) and \
-                                                                     (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords_check) or \
+                                                                     (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords) or \
                                                                       (filepath_from_step and filepath_from_step.endswith('.py')))
 
 
@@ -1283,7 +1283,7 @@ Prioritize security, and prevent code injection vulnerabilities.
         """Validates task_id to ensure it only contains allowed characters and format."""
         if not isinstance(task_id, str):
             return False
-        # Allow alphanumeric, underscores, and hyphens, must start with alphanumeric
+        # Allow alphanumeric, underscores, hyphens, must start with alphanumeric
         # Disallow dots (.) in task IDs as they are used in file paths and could be confusing/risky
         # Updated regex to allow hyphens and underscores at the end
         # FIX: Corrected regex to allow hyphens and underscores *within* the ID, not just at the end
@@ -2257,4 +2257,3 @@ Your response should be the corrected code snippet that addresses the test failu
                     return False
         except Exception as e:
             logger.error(f"Error during test failure remediation: {e}", exc_info=True)
-            return False

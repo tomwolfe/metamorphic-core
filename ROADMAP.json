@@ -40,7 +40,7 @@
       "task_name": "Adjust TokenAllocator Cost Function for Realistic Allocations",
       "description": "The TokenAllocator's cost function _model_cost in src/core/optimization/adaptive_token_allocator.py has a quadratic term that heavily penalizes token count, resulting in minimal allocations (e.g., 101 tokens). Modify the coefficient of the quadratic term (e.g., change the divisor from 1000.0 to 10000000.0) to allow for more realistic token allocations for code generation tasks. Also, ensure the solver is reset before each allocation call.",
       "status": "Completed",
-      "target_file": "src/core/optimization/adaptive_token_allocator.py",
+      "target_file": "src/core/optimization/adaptive_token_allocator.py, src/core/ethics/constraints.py",
       "depends_on": [
         "task_1_8_0_fix_summarizer_synthesize"
       ]
@@ -96,7 +96,7 @@
       "priority": "Critical",
       "task_name": "Refine Placeholder Write Logic for Main Target Modification",
       "description": "Modify WorkflowDriver.autonomous_loop to prevent placeholder overwrites on the main Python task_target_file for steps that imply modification rather than creation (e.g., \"insert a block\", \"add logic to method X\"). Such steps, if classified as 'explicit file writing', should be treated as code generation steps or have their placeholder write skipped entirely if they are too vague for direct code generation. This refines task_1_8_1_unblock_overwrite_fix. Add unit tests for this specific logic in tests/test_phase1_8_features.py, covering scenarios where placeholders should and should not be written to the main Python target.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
       "depends_on": []
     },
@@ -105,7 +105,7 @@
       "priority": "Critical",
       "task_name": "Correctly Target Test Files for Unit Test Generation Steps",
       "description": "Enhance WorkflowDriver.autonomous_loop step processing. If a plan step is for writing unit tests (e.g., contains \"write unit tests for X\", mentions tests/test_*.py, or filepath_from_step points to a test file path), ensure the generated test code is written to the appropriate test file path. This path should be derived from filepath_from_step if valid and test-like, or by convention from task_target_file (e.g., src/A.py -> tests/test_A.py). This determined test file path should override task_target_file for the write operation if task_target_file is not itself a test file. Add unit tests for this file targeting logic in tests/test_phase1_8_features.py.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2b_fix_placeholder_overwrite_for_modification_steps"

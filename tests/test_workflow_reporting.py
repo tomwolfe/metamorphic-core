@@ -3,7 +3,7 @@ import pytest
 import json
 from src.core.automation.workflow_driver import WorkflowDriver, Context
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 from datetime import datetime
 from pathlib import Path # <-- ADDED THIS IMPORT
 
@@ -508,7 +508,13 @@ class TestWorkflowReporting:
 
         mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
         # This assertion should now pass because default_policy_config is set
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config)
+        assert mock_ethical_governance_engine.enforce_policy.call_count == 2
+        calls = mock_ethical_governance_engine.enforce_policy.call_args_list
+        # Pre-write call
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config)
+        # Post-write call
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config)
+
 
         assert "Running code review and security scan for src/feature.py..." in caplog.text
         assert f"Code Review and Security Scan Results for src/feature.py: {mock_review_results}" in caplog.text
@@ -534,14 +540,16 @@ class TestWorkflowReporting:
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({})) # Mock report generation
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"}) # Mock report evaluation
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True) # Mock roadmap write
+    # FIX: Changed fixture name from test_driver_validation to test_driver_reporting
     def test_autonomous_loop_ethical_analysis_skipped_flow(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_parse_test_results, mock_execute_tests, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver_reporting, tmp_path, caplog):
         """
         Test that autonomous_loop skips ethical analysis if default policy is not loaded.
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver_reporting['driver'] # Access driver from dict
-        mock_code_review_agent = test_driver_reporting['mock_code_review_agent'] # Access mock from dict
-        mock_ethical_governance_engine = test_driver_reporting['mock_ethical_governance_engine'] # Access mock from dict
+        # FIX: Access driver and mocks from the correct fixture
+        driver = test_driver_reporting['driver']
+        mock_code_review_agent = test_driver_reporting['mock_code_review_agent']
+        mock_ethical_governance_engine = test_driver_reporting['mock_ethical_governance_engine']
 
         driver.default_policy_config = None # Explicitly set default_policy_config to None
 

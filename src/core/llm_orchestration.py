@@ -212,7 +212,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         # Removed 'mistral-large' to prevent attempting to use an unsupported model
         # Removed 'gpt-4' as it's not handled by _call_llm_api
         return {
-            "gemini": {"effective_length": 8000, "cost_per_token": 0.000001},
+            "gemini": {"effective_length": 500000, "cost_per_token": 0.000001}, # <-- Increase effective_length here
             # "gpt-4": {"effective_length": 8000, "cost_per_token": 0.00003}, # Removed
             # Example for a configured Hugging Face model (ensure name matches config and _call_llm_api)
             # self.config.hugging_face_model: {"effective_length": 4096, "cost_per_token": 0.000002},
@@ -293,4 +293,3 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r"\\boxed{([^}]+)}", text)
     if match:
         return match.group(1)
-    return None # Explicitly return None if no match

@@ -61,7 +61,7 @@ CORE_CONSTRAINTS = [
 
 # --- ADDED CONSTANT ---
 # This constant should match the one in adaptive_token_allocator.py
-REALISTIC_MIN_TOKENS_PER_CHUNK = 8000
+REALISTIC_MIN_TOKENS_PER_CHUNK = 5000
 # --- END ADDED CONSTANT ---
 
 

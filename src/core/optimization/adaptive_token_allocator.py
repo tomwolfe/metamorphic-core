@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # --- ADDED CONSTANT ---
 # Increased minimum token allocation per chunk to leverage larger model capacities.
 # This value should be a reasonable fraction of the effective_length set in LLMOrchestrator.
-REALISTIC_MIN_TOKENS_PER_CHUNK = 8000 # Or another value like 4000, 10000 etc.
+REALISTIC_MIN_TOKENS_PER_CHUNK = 5000 # Or another value like 4000, 10000 etc.
 # --- END ADDED CONSTANT ---
 
 class TokenAllocator:

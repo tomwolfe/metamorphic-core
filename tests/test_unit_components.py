@@ -51,7 +51,7 @@ class TestTokenAllocator(unittest.TestCase):
     @patch('src.core.optimization.adaptive_token_allocator.Optimize') # Patch Optimize here
     def test_ethical_constraints_unit(self, MockOptimize): # Add MockOptimize to signature
         """Unit test for token allocation respecting ethical constraints."""
-        # Configure the mock solver instance
+        # Configure the mock solver instance that Optimize() will return
         mock_solver_instance = MockOptimize.return_value
         mock_solver_instance.check.return_value = sat
 
@@ -108,8 +108,11 @@ class TestTokenAllocator(unittest.TestCase):
             'gpt-4': {'effective_length': 8000, 'cost_per_token': 0.00003}
         }
 
-        with pytest.raises(AllocationError, match="No ethical allocation possible even without cost minimization."): # Match the more specific error message
+        # --- FIX: Update the regex pattern to match the new error message ---
+        with pytest.raises(AllocationError, match="No ethical allocation possible after initial UNSAT and fallback failure."): # Match the more specific error message
             self.allocator.allocate(chunks, model_costs)
+        # --- END FIX ---
+
 
         # You can add assertions on mock_solver_instance if needed, e.g.:
         mock_solver_instance.check.assert_called()
@@ -315,10 +318,8 @@ class TestTokenAllocator(unittest.TestCase):
              # Verify that allocated tokens are significantly larger than the minimum (100)
              # The exact values depend on the mock_eval side_effect, but they should reflect the goal
              self.assertGreaterEqual(allocation[0][0], 1000)
-             self.assertGreaterEqual(allocation[1][0], 1000)
-             self.assertGreaterEqual(allocation[2][0], 1000)
+             self.assertGreaterEqual(allocation[1][0], 1200) # Corrected assertion based on mock_eval
+             self.assertGreaterEqual(allocation[2][0], 1100) # Corrected assertion based on mock_eval
 
              # Verify minimize was called on the solver
              mock_solver_instance.minimize.assert_called_once()
-
-             # Verify _model_cost was called for each chunk

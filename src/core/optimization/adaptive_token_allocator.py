@@ -9,7 +9,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 # --- ADDED CONSTANT ---
-REALISTIC_MIN_TOKENS_PER_CHUNK = 1000 # Or another value like 500, 1500
+# Increased minimum token allocation per chunk to leverage larger model capacities.
+# This value should be a reasonable fraction of the effective_length set in LLMOrchestrator.
+REALISTIC_MIN_TOKENS_PER_CHUNK = 8000 # Or another value like 4000, 10000 etc.
 # --- END ADDED CONSTANT ---
 
 class TokenAllocator:
@@ -179,4 +181,4 @@ class TokenAllocator:
                 return final_allocation
             else:
                 logger.error("TokenAllocator: Fallback allocation also failed after initial UNSAT.")
-                raise AllocationError("No ethical allocation possible even without cost minimization.")
+                raise AllocationError("No ethical allocation possible after initial UNSAT and fallback failure.") # Added more specific error message

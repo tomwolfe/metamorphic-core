@@ -31,14 +31,6 @@ class EthicalConstraint(BaseModel):
     quantum_weight: float = 0.5
     last_violated: Optional[datetime] = None
 
-class EthicalViolation(BaseModel):
-    constraint: EthicalConstraint
-    violation_timestamp: datetime
-    severity: float
-    quantum_state_id: str
-    resolution_status: str = "unresolved"
-    mitigation_plan: Optional[str] = None
-
 # Core constraint definitions
 CORE_CONSTRAINTS = [
     EthicalConstraint(
@@ -66,6 +58,12 @@ CORE_CONSTRAINTS = [
         quantum_weight=0.3
     )
 ]
+
+# --- ADDED CONSTANT ---
+# This constant should match the one in adaptive_token_allocator.py
+REALISTIC_MIN_TOKENS_PER_CHUNK = 8000
+# --- END ADDED CONSTANT ---
+
 
 class EthicalAllocationPolicy:
     def apply(self, solver: Optimize, allocations: Dict[int, IntNumRef], model_vars: Dict[int, IntNumRef]): # Added type hints for clarity
@@ -130,9 +128,12 @@ class EthicalAllocationPolicy:
         # GPT-4 is indeed the most expensive, so this constraint should be fine.
         for i in range(len(allocations)): # allocations is a dict, iterate by its length assuming keys 0..N-1
             if i in model_vars and i in allocations: # Ensure keys exist
-                constraint_gpt4_limit_str = f"Implies({model_vars[i]} == 1, {allocations[i]} <= 1000)"
+                # --- MODIFIED CONSTRAINT ---
+                # Change the limit from 1000 to REALISTIC_MIN_TOKENS_PER_CHUNK (8000)
+                constraint_gpt4_limit_str = f"Implies({model_vars[i]} == 1, {allocations[i]} <= {REALISTIC_MIN_TOKENS_PER_CHUNK})"
                 logger.info(f"EthicalAllocationPolicy: Adding constraint for high-cost model usage: {constraint_gpt4_limit_str}")
-                solver.add(Implies(model_vars[i] == 1, allocations[i] <= 1000))
+                solver.add(Implies(model_vars[i] == 1, allocations[i] <= REALISTIC_MIN_TOKENS_PER_CHUNK)) # <-- MODIFIED HERE
+                # --- END MODIFIED CONSTRAINT ---
             else:
                 # Log a warning if keys are missing, indicating a potential issue in allocation setup
-                logger.warning(f"EthicalAllocationPolicy: Missing allocation or model variable for chunk index {i}. Skipping high-cost model constraint.")
+                logger.warning(f"EthicalAllocationPolicy: Missing keys for chunk {i} in model_vars or allocations. Cannot apply high-cost model constraint.")

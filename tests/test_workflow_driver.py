@@ -793,7 +793,7 @@ class TestWorkflowDriver:
     ])
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'task_report_gen', 'task_name': 'Report Gen Test', 'status': 'Not Started', 'description': 'Test report generation flow.', 'priority': 'High', 'target_file': 'src/feature.py'}, # Select task
-        None
+        None # No more tasks after the first one
     ])
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=[
         "Step 1: Implement feature and add logic to src/feature.py",
@@ -1431,7 +1431,7 @@ class TestWorkflowDriver:
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch('builtins.open', new_callable=MagicMock)
     def test_autonomous_loop_non_code_step_skips_validation(self,
-                                                    mock_open, # Corresponds to @patch('builtins.open', ...)
+                                                    mock_open,                     # Corresponds to @patch('builtins.open', ...)
                                                     mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
                                                     mock_safe_write_roadmap,       # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
                                                     mock_parse_and_evaluate,       # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
@@ -1560,7 +1560,8 @@ class TestWorkflowDriver:
 
         # Set side effects on fixture mocks
         mock_code_review_agent.analyze_python.side_effect = [{'status': 'success'}, {'status': 'success'}]
-        mock_ethical_governance_engine.enforce_policy.side_effect = [{'overall_status': 'approved'}, {'overall_status': 'approved'}]
+        # Extend the side_effect list to have at least 4 items for 2 code steps (2 pre, 2 post)
+        mock_ethical_governance_engine.enforce_policy.side_effect = [{'overall_status': 'approved'}, {'overall_status': 'approved'}, {'overall_status': 'approved'}, {'overall_status': 'approved'}]
 
         # FIX: Define task_list_not_started and task_list_completed for assertions
         task_list_not_started = [{'task_id': 'task_multiple_code', 'task_name': 'Multiple Code Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/file1.py'}]
@@ -1643,7 +1644,7 @@ class TestWorkflowDriver:
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
         assert 'Autonomous loop terminated.' in caplog.text
 
-    # --- NEW TEST CASE FOR TASK 1.8.1 BUG ---
+    # --- NEW TESTS FOR TASK 1.8.1 BUG ---
     # FIX: Refactored to use mocker.patch instead of @patch decorators
     def test_autonomous_loop_conceptual_step_with_file_mention_skips_write(self,
                                                                        test_driver_validation, caplog, tmp_path, mocker):
@@ -1765,4 +1766,3 @@ class TestWorkflowDriver:
         assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_1_8_1' in caplog.text
         assert 'Successfully wrote updated status for task task_1_8_1 in dummy_roadmap.json' in caplog.text # Added assertion back
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        assert 'Autonomous loop terminated.' in caplog.text

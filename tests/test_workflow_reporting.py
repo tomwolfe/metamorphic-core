@@ -540,14 +540,16 @@ class TestWorkflowReporting:
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({})) # Mock report generation
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"}) # Mock report evaluation
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True) # Mock roadmap write
-    def test_autonomous_loop_ethical_analysis_skipped_flow(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_parse_test_results, mock_execute_tests, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver_validation, tmp_path, caplog):
+    # FIX: Changed fixture name from test_driver_validation to test_driver_reporting
+    def test_autonomous_loop_ethical_analysis_skipped_flow(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_parse_test_results, mock_execute_tests, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver_reporting, tmp_path, caplog):
         """
         Test that autonomous_loop skips ethical analysis if default policy is not loaded.
         """
         caplog.set_level(logging.INFO)
-        driver = test_driver_validation['driver']
-        mock_code_review_agent = test_driver_validation['mock_code_review_agent']
-        mock_ethical_governance_engine = test_driver_validation['mock_ethical_governance_engine']
+        # FIX: Access driver and mocks from the correct fixture
+        driver = test_driver_reporting['driver']
+        mock_code_review_agent = test_driver_reporting['mock_code_review_agent']
+        mock_ethical_governance_engine = test_driver_reporting['mock_ethical_governance_engine']
 
         driver.default_policy_config = None # Explicitly set default_policy_config to None
 

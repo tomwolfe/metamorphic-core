@@ -1,4 +1,3 @@
-
 # File: tests/test_workflow_driver.py
 import pytest
 import html
@@ -51,7 +50,7 @@ def test_driver(tmp_path):
         # Mock the policy loading within the engine mock
         # Note: The actual WorkflowDriver loads policy via _load_default_policy which uses builtins.open
         # This mock might not be strictly necessary if builtins.open is patched globally, but keep for clarity.
-        mock_ethical_governance_engine_instance.load_policy_from_json.return_value = {'policy_name': 'Mock Policy'}
+        # mock_ethical_governance_engine_instance.load_policy_from_json.return_value = {'policy_name': 'Mock Policy'}
 
 
         driver = WorkflowDriver(context)
@@ -240,6 +239,7 @@ class TestWorkflowDriver:
 
     # --- Tests for autonomous_loop orchestration ---
     # FIX: Provide 3 return values for load_roadmap side_effect
+    # FIX: Correct assertion for select_next_task call count and arguments
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[[], [], []]) # Initial load, Loop 1 load, Loop 2 load (empty)
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     def test_autonomous_loop_basic_logging(self, mock_get_full_path, mock_load_roadmap, test_driver, caplog, tmp_path, mocker):
@@ -265,7 +265,8 @@ class TestWorkflowDriver:
 
 
     # FIX: Provide 3 return values for load_roadmap side_effect
-    # FIX: Correct assertion for select_next_task call count and arguments
+    # FIX: Correct assertion for select_next_task call argument
+    # FIX: Keep assertion for 'No tasks available...' log message
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'},
         None
@@ -422,7 +423,11 @@ class TestWorkflowDriver:
 
         # Assert on the mock instances from the fixture
         mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config)
+        # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
+        assert mock_ethical_governance_engine.enforce_policy.call_count == 2
+        calls = mock_ethical_governance_engine.enforce_policy.call_args_list
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config) # Post-write
 
         assert "Step identified as code generation for file src/feature.py. Orchestrating read-generate-merge-write." in caplog.text
         assert "Successfully wrote merged content to src/feature.py." in caplog.text
@@ -510,7 +515,11 @@ class TestWorkflowDriver:
 
         # Assert on the mock instances from the fixture
         mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config)
+        # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
+        assert mock_ethical_governance_engine.enforce_policy.call_count == 2
+        calls = mock_ethical_governance_engine.enforce_policy.call_args_list
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config) # Post-write
 
         assert "Step identified as code generation for file src/feature.py. Orchestrating read-generate-merge-write." in caplog.text
         assert "Successfully wrote merged content to src/feature.py." in caplog.text
@@ -616,7 +625,11 @@ class TestWorkflowDriver:
 
         # Verify validation steps were called with the content written to the correct file
         mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config)
+        # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
+        assert mock_ethical_governance_engine.enforce_policy.call_count == 2
+        calls = mock_ethical_governance_engine.enforce_policy.call_args_list
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config) # Post-write
         mock_execute_tests.assert_not_called() # No test step in this plan
         mock_parse_test_results.assert_not_called()
 
@@ -847,7 +860,11 @@ class TestWorkflowDriver:
 
         # Assert on the mock instances from the fixture
         mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config)
+        # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
+        assert mock_ethical_governance_engine.enforce_policy.call_count == 2
+        calls = mock_ethical_governance_engine.enforce_policy.call_args_list
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config) # Post-write
 
         # The test command heuristic defaults to "tests/" if target_file doesn't look like a test file
         mock_execute_tests.assert_called_once_with(["pytest", "tests/"], driver.context.base_path)
@@ -880,7 +897,7 @@ class TestWorkflowDriver:
         assert f"--- GRADE REPORT for Task task_report_gen ---\n{mock_generate_report.return_value}\n--- END GRADE REPORT ---" in caplog.text
         assert "Grade Report Evaluation: Recommended Action='Completed'" in caplog.text # Check log from evaluation
         assert "Updating task status from 'Not Started' to 'Completed' for task task_report_gen" in caplog.text
-        assert "Successfully wrote updated status for task task_report_gen in dummy_roadmap.json" in caplog.text # Added assertion back
+        assert 'Successfully wrote updated status for task task_report_gen in dummy_roadmap.json' in caplog.text # Added assertion back
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
         assert 'Autonomous loop terminated.' in caplog.text
 
@@ -963,7 +980,11 @@ class TestWorkflowDriver:
         mock_execute_tests.assert_called_once_with(["pytest", "tests/"], driver.context.base_path)
         mock_parse_test_results.assert_called_once_with("Pytest output")
         mock_code_review_agent.analyze_python.assert_called_once_with(ANY)
-        mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config)
+        # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
+        assert mock_ethical_engine.enforce_policy.call_count == 2
+        calls = mock_ethical_engine.enforce_policy.call_args_list
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config) # Post-write
         mock_generate_report.assert_called_once()
         mock_parse_and_evaluate.assert_called_once_with(ANY)
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
@@ -1049,7 +1070,11 @@ class TestWorkflowDriver:
         mock_generate_plan.assert_called_once()
         mock_write_output_file.assert_called_once_with("src/fail.py", ANY, overwrite=True)
         mock_code_review_agent.analyze_python.assert_called_once_with(ANY)
-        mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config)
+        # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
+        assert mock_ethical_engine.enforce_policy.call_count == 2
+        calls = mock_ethical_engine.enforce_policy.call_args_list
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config) # Post-write
         mock_execute_tests.assert_called_once_with(["pytest", "tests/"], driver.context.base_path)
         mock_parse_test_results.assert_called_once_with("Pytest output")
         mock_generate_report.assert_called_once()
@@ -1136,11 +1161,14 @@ class TestWorkflowDriver:
         # Verify calls for the first loop iteration (task execution)
         mock_select_next_task.assert_any_call(task_list_not_started)
         mock_generate_plan.assert_called_once()
-        mock_write_output_file.assert_called_once_with("src/ethical.py", ANY, overwrite=True)
+        # _write_output_file should NOT be called if pre-write ethical validation fails
+        mock_write_output_file.assert_not_called()
+        # Consequently, post-write code review and ethical analysis should also not be called
+        mock_code_review_agent.analyze_python.assert_not_called()
+        # Pre-write ethical check is called once with the raw snippet
+        mock_ethical_engine.enforce_policy.assert_called_once_with(mock_invoke_coder_llm.return_value, driver.default_policy_config)
         mock_execute_tests.assert_not_called()
         mock_parse_test_results.assert_not_called()
-        mock_code_review_agent.analyze_python.assert_called_once_with(ANY)
-        mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config)
         mock_generate_report.assert_called_once()
         mock_parse_and_evaluate.assert_called_once_with(ANY)
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
@@ -1153,8 +1181,8 @@ class TestWorkflowDriver:
 
         # Verify overall loop termination and logging
         assert 'Selected task: ID=task_ethical_reject' in caplog.text
-        assert 'Ethical Analysis Results for src/ethical.py: ' in caplog.text
-        assert "'overall_status': 'rejected'" in caplog.text
+        assert "Pre-write ethical validation failed for snippet: {'overall_status': 'rejected', 'policy_name': 'Mock Policy'}" in caplog.text
+        assert "Skipping write/merge." in caplog.text
         assert 'Grade Report Evaluation: Recommended Action=\'Blocked\'' in caplog.text
         assert 'Updating task status from \'Not Started\' to \'Blocked\' for task task_ethical_reject' in caplog.text
         assert 'Successfully wrote updated status for task task_ethical_reject in dummy_roadmap.json' in caplog.text # Added assertion back
@@ -1230,7 +1258,11 @@ class TestWorkflowDriver:
         mock_execute_tests.assert_not_called()
         mock_parse_test_results.assert_not_called()
         mock_code_review_agent.analyze_python.assert_called_once_with(ANY)
-        mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config)
+        # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
+        assert mock_ethical_engine.enforce_policy.call_count == 2
+        calls = mock_ethical_engine.enforce_policy.call_args_list
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config) # Post-write
         mock_generate_report.assert_called_once()
         mock_parse_and_evaluate.assert_called_once_with(ANY)
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
@@ -1327,7 +1359,11 @@ class TestWorkflowDriver:
         mock_parse_test_results.assert_not_called()
 
         mock_code_review_agent.analyze_python.assert_called_once_with(ANY)
-        mock_ethical_engine.enforce_policy.assert_called_once_with(ANY, driver.default_policy_config)
+        # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
+        assert mock_ethical_engine.enforce_policy.call_count == 2
+        calls = mock_ethical_engine.enforce_policy.call_args_list
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config) # Post-write
 
         mock_generate_report.assert_called_once()
         report_args = mock_generate_report.call_args[0]
@@ -1397,18 +1433,18 @@ class TestWorkflowDriver:
     def test_autonomous_loop_non_code_step_skips_validation(self,
                                                     mock_open, # Corresponds to @patch('builtins.open', ...)
                                                     mock_get_full_path, # Corresponds to @patch.object(Context, 'get_full_path', ...)
-                                                    mock_safe_write_roadmap, # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
-                                                    mock_parse_and_evaluate, # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
-                                                    mock_generate_report, # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
-                                                    mock_parse_test_results, # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results')
-                                                    mock_execute_tests, # Corresponds to @patch.object(WorkflowDriver, 'execute_tests')
-                                                    mock_write_output_file, # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
-                                                    mock_merge_snippet, # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet')
-                                                    mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm')
+                                                    mock_safe_write_roadmap,       # Corresponds to @patch.object(WorkflowDriver, '_safe_write_roadmap_json', ...)
+                                                    mock_parse_and_evaluate,       # Corresponds to @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', ...)
+                                                    mock_generate_report,          # Corresponds to @patch.object(WorkflowDriver, 'generate_grade_report', ...)
+                                                    mock_parse_test_results,       # Corresponds to @patch.object(WorkflowDriver, '_parse_test_results')
+                                                    mock_execute_tests,            # Corresponds to @patch.object(WorkflowDriver, 'execute_tests')
+                                                    mock_write_output_file,        # Corresponds to @patch.object(WorkflowDriver, '_write_output_file', ...)
+                                                    mock_merge_snippet,            # Corresponds to @patch.object(WorkflowDriver, '_merge_snippet')
+                                                    mock_invoke_coder_llm,         # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm')
                                                     mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context')
-                                                    mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
-                                                    mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
-                                                    mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
+                                                    mock_generate_plan,            # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
+                                                    mock_select_next_task,         # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                    mock_load_roadmap,             # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
                                                     test_driver_validation, caplog, tmp_path, mocker):
         """
         Test Case 6: Task execution with a plan step that does *not* involve code writing
@@ -1484,7 +1520,7 @@ class TestWorkflowDriver:
         "Step 4: Run tests for file2.py"
     ])
     @patch.object(WorkflowDriver, '_read_file_for_context', side_effect=["Content 1", "Content 1"]) # Simulate reading file1 twice
-    @patch.object(WorkflowDriver, '_invoke_coder_llm', side_effect=["Snippet 1", "Snippet 2"]) # Simulate generating two snippets
+    @patch.object(WorkflowDriver, '_invoke_coder_llm', side_effect=["def func1(): pass # Snippet 1", "def func2(): pass # Snippet 2"]) # Simulate generating two valid snippets
     @patch.object(WorkflowDriver, '_merge_snippet', side_effect=["Merged 1", "Merged 2"]) # Simulate merging two snippets
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Simulate successful writes
     @patch.object(WorkflowDriver, 'execute_tests', side_effect=[(0, "Test1 Output", ""), (0, "Test2 Output", "")]) # Simulate two test runs
@@ -1544,17 +1580,25 @@ class TestWorkflowDriver:
 
         # Verify read/generate/merge/write/validate sequence for Step 1 (src/file1.py)
         mock_read_file_for_context.assert_any_call("src/file1.py")
-        mock_invoke_coder_llm.assert_any_call(ANY)
-        mock_merge_snippet.assert_any_call("Content 1", "Snippet 1")
+        # Check calls for Snippet 1
+        mock_invoke_coder_llm.assert_any_call(ANY) # Prompt for Snippet 1
+        mock_merge_snippet.assert_any_call("Content 1", "def func1(): pass # Snippet 1")
         mock_write_output_file.assert_any_call("src/file1.py", "Merged 1", overwrite=True)
+        # Pre-write ethical check for Snippet 1
+        mock_ethical_governance_engine.enforce_policy.assert_any_call("def func1(): pass # Snippet 1", driver.default_policy_config)
+        # Post-write validations for Merged 1
         mock_code_review_agent.analyze_python.assert_any_call("Merged 1")
         mock_ethical_governance_engine.enforce_policy.assert_any_call("Merged 1", driver.default_policy_config)
 
         # Verify read/generate/merge/write/validate sequence for Step 2 (src/file1.py due to target_file priority)
         mock_read_file_for_context.assert_any_call("src/file1.py")
-        mock_invoke_coder_llm.assert_any_call(ANY)
-        mock_merge_snippet.assert_any_call("Content 1", "Snippet 2")
+        # Check calls for Snippet 2
+        mock_invoke_coder_llm.assert_any_call(ANY) # Prompt for Snippet 2
+        mock_merge_snippet.assert_any_call("Content 1", "def func2(): pass # Snippet 2")
         mock_write_output_file.assert_any_call("src/file1.py", "Merged 2", overwrite=True)
+        # Pre-write ethical check for Snippet 2
+        mock_ethical_governance_engine.enforce_policy.assert_any_call("def func2(): pass # Snippet 2", driver.default_policy_config)
+        # Post-write validations for Merged 2
         mock_code_review_agent.analyze_python.assert_any_call("Merged 2")
         mock_ethical_governance_engine.enforce_policy.assert_any_call("Merged 2", driver.default_policy_config)
 
@@ -1567,6 +1611,8 @@ class TestWorkflowDriver:
         mock_parse_test_results.assert_any_call("Test1 Output")
         mock_parse_test_results.assert_any_call("Test2 Output")
         assert mock_parse_test_results.call_count == 2
+        # Ethical engine called 4 times (2 pre-write, 2 post-write)
+        assert mock_ethical_governance_engine.enforce_policy.call_count == 4
 
 
         # Verify report generation and evaluation were called after all steps
@@ -1688,7 +1734,11 @@ class TestWorkflowDriver:
         mock_write_output_file.assert_called_once_with("src/core/automation/workflow_driver.py", mock_merge_snippet.return_value, overwrite=True)
 
         mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value) # Using the correct mock's return value
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(mock_merge_snippet.return_value, driver.default_policy_config) # Using the correct mock's return value
+        # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
+        assert mock_ethical_governance_engine.enforce_policy.call_count == 2
+        calls = mock_ethical_governance_engine.enforce_policy.call_args_list
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config) # Post-write
 
 
         # Verify report generation and evaluation were called after all steps

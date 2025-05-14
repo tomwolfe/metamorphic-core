@@ -4,7 +4,7 @@ import pytest
 import subprocess
 from src.core.automation.workflow_driver import WorkflowDriver, Context
 import logging
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import MagicMock, patch, call, ANY
 from src.core.agents.code_review_agent import CodeReviewAgent
 from pathlib import Path # Import Path
 from src.core.ethics.governance import EthicalGovernanceEngine
@@ -352,11 +352,13 @@ without a summary line
     @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
     @patch.object(WorkflowDriver, 'execute_tests') # Ensure this is NOT called
     @patch.object(WorkflowDriver, '_parse_test_results') # Ensure this is NOT called
+    # The side_effect lambda here now correctly uses Path because it's imported
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Patch _write_output_file and make it return True
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({})) # Mock report generation
     @patch.object(WorkflowDriver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Manual Review Required", "justification": "Mock evaluation"}) # Mock report evaluation
     @patch.object(WorkflowDriver, '_safe_write_roadmap_json', return_value=True) # Mock roadmap write
+    # Changed fixture name from test_driver_validation to test_driver_reporting
     def test_autonomous_loop_code_review_execution_flow(self, mock_safe_write_roadmap, mock_parse_and_evaluate, mock_generate_report, mock_write_output_file, mock_get_full_path, mock_parse_test_results, mock_execute_tests, mock_merge_snippet, mock_read_file_for_context, mock_load_roadmap, mock_select_next_task, mock_generate_plan, mock_invoke_coder_llm, test_driver_validation, tmp_path, caplog):
         """
         Test that autonomous_loop calls CodeReviewAgent.analyze_python
@@ -379,7 +381,13 @@ without a summary line
         mock_parse_test_results.assert_not_called()
 
         mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
-        mock_ethical_governance_engine.enforce_policy.assert_called_twice_with(mock_invoke_coder_llm.return_value, driver.default_policy_config)
+        assert mock_ethical_governance_engine.enforce_policy.call_count == 2
+        calls = mock_ethical_governance_engine.enforce_policy.call_args_list
+        # Pre-write call
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config)
+        # Post-write call
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config)
+
 
         assert "Running code review and security scan for src/feature.py..." in caplog.text
         assert f"Code Review and Security Scan Results for src/feature.py: {mock_review_results}" in caplog.text

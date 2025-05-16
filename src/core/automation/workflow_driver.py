@@ -305,6 +305,30 @@ class WorkflowDriver:
         logger.info(f"Workflow initiated with roadmap: {roadmap_path}, output: {output_dir}")
         self.autonomous_loop()
 
+    # --- NEW HELPER METHOD for Task 1.8.A ---
+    def _is_add_imports_step(self, step_description: str) -> bool:
+        """Checks if a step description likely refers to adding import statements."""
+        step_lower = step_description.lower()
+        import_keywords = ["add import", "import statement", "import module", "import library", "include import"]
+        return any(keyword in step_lower for keyword in import_keywords)
+
+    def _find_import_block_end(self, lines: List[str]) -> int:
+        """Finds the line number after the last import statement or a reasonable cutoff."""
+        last_import_line = -1 # Use -1 to indicate no imports found yet
+        for i, line in enumerate(lines):
+            stripped_line = line.strip()
+            if stripped_line.startswith("import ") or stripped_line.startswith("from "):
+                last_import_line = i
+            # Stop if we hit a class, def, or a line that's clearly not an import/comment/blank
+            # Only stop if we have found at least one import (last_import_line > -1)
+            elif stripped_line and not stripped_line.startswith("#") and last_import_line > -1:
+                # If we found imports and then something else, the block ended.
+                return i # Return the line number of the first non-import/non-comment/non-blank line after imports
+        if last_import_line > -1: # Imports found, possibly at EOF or followed only by comments/blank lines
+            return len(lines) # Return total number of lines (end of file)
+        return 0 # Default to line 0 if no imports found at all
+    # --- END NEW HELPER METHOD ---
+
     def autonomous_loop(self):
         """
         Main control flow loop for the autonomous Driver LLM.
@@ -448,11 +472,22 @@ class WorkflowDriver:
                                         logger.debug(f"Using truncated context for imports (up to line {cutoff_line}):\n{context_for_llm}")
                                     # --- END: Task 1.8.A ---
 
+                                    # --- START FIX: Add target_file context to Coder LLM prompt ---
+                                    target_file_context_for_coder = ""
+                                    if self.task_target_file:
+                                         # FIX: Removed "in the task metadata" as per previous LLM fix
+                                         target_file_context_for_coder = f"The primary file being modified is `{self.task_target_file}`. Focus your code generation on actions related to this file.\n\n"
+                                    # --- END FIX ---
+
                                     coder_prompt = f"""You are a Coder LLM expert in Python.
 Your task is to generate only the code snippet required to implement the following specific step from a larger development plan.
 
+# --- START FIX: Add Task Name and Description back to Coder Prompt ---
 Overall Task: "{next_task.get('task_name', 'Unknown Task')}"
 Task Description: {next_task.get('description', 'No description provided.')}
+# --- END FIX ---
+
+{target_file_context_for_coder} # Add the target file context here
 
 Specific Plan Step:
 {step}
@@ -1183,7 +1218,7 @@ EXISTING CONTENT OF `{filepath_to_use}`:
         task_name = task['task_name']
         description = task['description']
 
-        # --- ADDED CONTEXT ABOUT THE TARGET FILE (Corrected Logic) ---
+        # --- START FIX: Restore target_file_context definition ---
         target_file_context = ""
         task_target_file = task.get('target_file')
 
@@ -1191,8 +1226,7 @@ EXISTING CONTENT OF `{filepath_to_use}`:
         if task_target_file:
             target_file_context = f"The primary file being modified for this task is specified as `{task_target_file}` in the task metadata. Focus your plan steps on actions related to this file.\n\n" # Added newline for formatting
         # Removed the 'elif' condition that checked for specific keywords
-
-        # --- END ADDED CONTEXT ---
+        # --- END FIX ---
 
 
         planning_prompt = f"""You are an AI assistant specializing in software development workflows.

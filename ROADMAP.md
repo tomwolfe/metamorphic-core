@@ -46,17 +46,29 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_1']
 
-*   **Task ID**: task_1_8_2
+*   **Task ID**: task_1_8_2b_fix_placeholder_overwrite_for_modification_steps
     *   **Priority**: Critical
-    *   **Task Name**: Implement Pre-Write Validation per Step
+    *   **Task Name**: Refine Placeholder Write Logic for Main Target Modification
+    *   **Status**: Completed
+    *   **Depends On**: []
+
+*   **Task ID**: task_1_8_2c_target_test_file_for_test_writing_steps
+    *   **Priority**: Critical
+    *   **Task Name**: Correctly Target Test Files for Unit Test Generation Steps
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_2b_fix_placeholder_overwrite_for_modification_steps']
+
+*   **Task ID**: task_1_8_2_retry
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Pre-Write Validation per Step (Retry)
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1b_increase_min_token_alloc']
+    *   **Depends On**: ['task_1_8_2c_target_test_file_for_test_writing_steps']
 
 *   **Task ID**: task_1_8_3
     *   **Priority**: Critical
     *   **Task Name**: Implement Step-Level Remediation Loop
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2']
+    *   **Depends On**: ['task_1_8_2_retry']
 
 *   **Task ID**: task_1_8_4
     *   **Priority**: Critical
@@ -116,5 +128,5 @@
     *   **Priority**: High
     *   **Task Name**: Add Comprehensive Tests for Phase 1.8 Features
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1', 'task_1_8_2', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_6', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
+    *   **Depends On**: ['task_1_8_1', 'task_1_8_2_retry', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_6', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
 

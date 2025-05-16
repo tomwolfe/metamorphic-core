@@ -133,9 +133,17 @@ def test_analyze_python_flake8_success(mock_run, review_agent):
     ]
 
     result = review_agent.analyze_python("def code(): pass")
+    # FIX: Assert the new dictionary structure
+    assert isinstance(result, dict)
+    assert 'status' in result
+    assert 'flake8_output' in result
+    assert 'static_analysis' in result
+    assert 'errors' in result
+
     assert result['status'] == 'failed' # Expect 'failed' because Flake8 issue is 'error' severity
-    assert result['static_analysis'] # Assert static_analysis is present and not empty
-    assert 'flake8_output' in result # Assert 'flake8_output' key is present
+    assert len(result['static_analysis']) == 1 # Assert static_analysis contains the parsed Flake8 issue
+    assert result['static_analysis'][0]['code'] == 'E302'
+    assert result['flake8_output'] == 'test.py:1:1: E302 expected 2 blank lines, found 1' # Assert 'flake8_output' key is present
     assert result['errors']['flake8'] is None # Assert no Flake8 execution error
     assert result['errors']['bandit'] is None # Assert no Bandit execution error
 
@@ -167,6 +175,13 @@ def test_analyze_python_bandit_success(mock_run, review_agent):
     ]
 
     result = review_agent.analyze_python("import os; os.system('ls -l')")  # Example code doesn't matter here for mock output
+    # FIX: Assert the new dictionary structure
+    assert isinstance(result, dict)
+    assert 'status' in result
+    assert 'flake8_output' in result
+    assert 'static_analysis' in result
+    assert 'errors' in result
+
     assert result['status'] == 'failed' # Expect 'failed' because Bandit finding is 'security_high'
     assert len(result['static_analysis']) == 1 # Should have 1 finding (from Bandit)
     finding = result['static_analysis'][0]
@@ -186,6 +201,13 @@ def test_analyze_python_bandit_calledprocesserror(mock_run, review_agent, caplog
     ]
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
+        # FIX: Assert the new dictionary structure
+        assert isinstance(result, dict)
+        assert 'status' in result
+        assert 'flake8_output' in result
+        assert 'static_analysis' in result
+        assert 'errors' in result
+
         assert result['status'] == 'error' # Expect 'error' status
         assert result['errors']['bandit'] is not None # Expect Bandit error message
         # MODIFIED: Changed assertion string to match actual error message substring
@@ -205,6 +227,13 @@ def test_analyze_python_bandit_filenotfounderror(mock_run, review_agent):
     ]
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
+        # FIX: Assert the new dictionary structure
+        assert isinstance(result, dict)
+        assert 'status' in result
+        assert 'flake8_output' in result
+        assert 'static_analysis' in result
+        assert 'errors' in result
+
         assert result['status'] == 'error' # Expect 'error' status
         assert result['errors']['bandit'] is not None # Expect Bandit error message
         assert "Bandit executable not found" in result['errors']['bandit'] # Corrected assertion
@@ -222,6 +251,13 @@ def test_analyze_python_bandit_jsondecodeerror(mock_run, review_agent, caplog):
 
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
+        # FIX: Assert the new dictionary structure
+        assert isinstance(result, dict)
+        assert 'status' in result
+        assert 'flake8_output' in result
+        assert 'static_analysis' in result
+        assert 'errors' in result
+
         assert result['status'] == 'error' # Expect 'error' status
         assert result['errors']['bandit'] is not None # Expect Bandit error message
         assert "Error parsing Bandit JSON output" in result['errors']['bandit']
@@ -240,6 +276,13 @@ def test_analyze_python_bandit_generic_exception(mock_run, review_agent):
 
     with patch('subprocess.run', mock_run):
         result = review_agent.analyze_python("import os; os.system('ls -l')")
+        # FIX: Assert the new dictionary structure
+        assert isinstance(result, dict)
+        assert 'status' in result
+        assert 'flake8_output' in result
+        assert 'static_analysis' in result
+        assert 'errors' in result
+
         assert result['status'] == 'error' # Expect 'error' status
         assert result['errors']['bandit'] is not None # Expect Bandit error message
         assert "Error running bandit: Generic bandit error" in result['errors']['bandit'] # Corrected assertion
@@ -493,10 +536,17 @@ def test_analyze_python_returns_flake8_stdout(mock_run, review_agent):
     ]
     result = review_agent.analyze_python("")
     # Corrected assertion to include static analysis and other keys
-    assert result['flake8_output'] == 'Sample flake8 output'
-    assert 'static_analysis' in result
+    assert isinstance(result, dict)
     assert 'status' in result
+    assert 'flake8_output' in result
+    assert 'static_analysis' in result
     assert 'errors' in result
+
+    assert result['flake8_output'] == 'Sample flake8 output'
+    assert result['static_analysis'] == [] # Assert static_analysis is present and empty
+    assert result['status'] == 'success' # Assert status is success if no findings
+    assert result['errors']['flake8'] is None # Assert no Flake8 execution error
+    assert result['errors']['bandit'] is None # Assert no Bandit execution error
 
 
 @patch('subprocess.run')
@@ -525,6 +575,13 @@ def test_analyze_python_returns_flake8_errors_when_present(mock_run, review_agen
         MagicMock(stdout=json.dumps({'results': []}), returncode=0) # Bandit mock
     ]
     result = review_agent.analyze_python("if(True):print('test')")
+    # FIX: Assert the new dictionary structure
+    assert isinstance(result, dict)
+    assert 'status' in result
+    assert 'flake8_output' in result
+    assert 'static_analysis' in result
+    assert 'errors' in result
+
     assert result['flake8_output'] == mock_error
     # The merged static analysis should contain the parsed flake8 error
     parsed_flake8 = review_agent._parse_flake8_results(mock_error)
@@ -541,13 +598,19 @@ def test_analyze_python_handles_file_not_found(mock_run, review_agent):
     # The FileNotFoundError happens during the first subprocess.run call (Flake8)
     # The Bandit call will be attempted, and the mock will raise FileNotFoundError again.
     result = agent.analyze_python("def y(): pass")
+    # FIX: Assert the new dictionary structure
+    assert isinstance(result, dict)
+    assert 'status' in result
+    assert 'flake8_output' in result
+    assert 'static_analysis' in result
+    assert 'errors' in result
+
     # MODIFIED: Corrected assertion to match the new error handling structure and expected bandit error
-    assert result == {
-        'status': 'error',
-        'flake8_output': '',
-        'static_analysis': [],
-        'errors': {'flake8': 'FileNotFoundError: flake8 not found', 'bandit': 'Bandit executable not found: flake8 not found'}
-    }
+    assert result['status'] == 'error'
+    assert result['flake8_output'] == ''
+    assert result['static_analysis'] == []
+    assert result['errors']['flake8'] == 'FileNotFoundError: flake8 not found'
+    assert result['errors']['bandit'] == 'Bandit executable not found: flake8 not found'
 
 
 @patch('subprocess.run')
@@ -561,5 +624,14 @@ def test_analyze_python_captures_returncode_exit_status(mock_run, review_agent):
     agent = CodeReviewAgent()
     # Even with returncode=1, output should be captured
     result = agent.analyze_python("var = 5;")
+    # FIX: Assert the new dictionary structure
+    assert isinstance(result, dict)
+    assert 'status' in result
+    assert 'flake8_output' in result
+    assert 'static_analysis' in result
+    assert 'errors' in result
+
     assert result['flake8_output'] == 'test.py:1:1: E001 error message' # Flake8 output captured
-    assert result['status'] == 'failed' # Status is 'failed' due to Flake8 error severity (E001 maps to 'error')
+    assert result['status'] == 'failed' # Status should be failed due to E001 severity
+    assert result['errors']['flake8'] is None # No execution error
+    assert result['errors']['bandit'] is None # No execution error

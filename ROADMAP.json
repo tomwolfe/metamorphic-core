@@ -112,6 +112,28 @@
       ]
     },
     {
+      "task_id": "task_unblock_log_enhance_1_8_2",
+      "priority": "Critical",
+      "task_name": "Enhance Logging for Code Generation and Pre-Write Validation",
+      "description": "Modify the WorkflowDriver to provide more detailed logging during code generation and pre-write validation. Log failed snippets, LLM prompts, and optimizer input/output (if accessible).",
+      "status": "Completed",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2c_target_test_file_for_test_writing_steps"
+      ]
+    },
+    {
+      "task_id": "task_unblock_retry_limit_1_8_2",
+      "priority": "Critical",
+      "task_name": "Implement Step-Level Retry Limit and Task Blocking in WorkflowDriver",
+      "description": "Modify the WorkflowDriver to retry failing plan steps up to a limit. If a step fails after exhausting retries, mark the task as 'Blocked' in ROADMAP.json with a reason and move to the next task.",
+      "status": "Completed",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_unblock_log_enhance_1_8_2"
+      ]
+    },
+    {
       "task_id": "task_1_8_2_retry",
       "priority": "Critical",
       "task_name": "Implement Pre-Write Validation per Step (Retry)",
@@ -119,7 +141,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_2c_target_test_file_for_test_writing_steps"
+        "task_unblock_retry_limit_1_8_2"
       ]
     },
     {

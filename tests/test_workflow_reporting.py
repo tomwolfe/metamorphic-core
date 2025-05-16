@@ -9,7 +9,7 @@ from pathlib import Path # <-- ADDED THIS IMPORT
 
 # Set up logging for tests
 if not logging.root.handlers:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 logger = logging.getLogger(__name__) # Corrected logger name
 
 # Fixture for a WorkflowDriver instance with a Context
@@ -456,7 +456,6 @@ class TestWorkflowReporting:
         assert result["recommended_action"] == "Manual Review Required"
         assert "Step execution errors occurred (1 errors). Manual review required." in result["justification"]
 
-
     # --- Tests for orchestration of validation steps within autonomous_loop ---
     # These tests verify that the correct methods (execute_tests, _parse_test_results,
     # CodeReviewAgent.analyze_python, EthicalGovernanceEngine.enforce_policy) are called
@@ -496,30 +495,36 @@ class TestWorkflowReporting:
         # --- END FIX ---
 
         mock_review_results = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
-        mock_code_review_agent.analyze_python.return_value = mock_review_results
+        # FIX: analyze_python is called twice now: once pre-write, once post-write
+        mock_code_review_agent.analyze_python.side_effect = [mock_review_results, mock_review_results]
 
         mock_ethical_results = {'overall_status': 'approved', 'policy_name': 'Test Policy'}
-        mock_ethical_governance_engine.enforce_policy.return_value = mock_ethical_results
+        # FIX: enforce_policy is called twice now: once pre-write, once post-write
+        mock_ethical_governance_engine.enforce_policy.side_effect = [mock_ethical_results, mock_ethical_results]
 
         driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         mock_execute_tests.assert_not_called()
         mock_parse_test_results.assert_not_called()
 
-        mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
-        # This assertion should now pass because default_policy_config is set
+        # FIX: analyze_python is called twice now: once pre-write, once post-write
+        assert mock_code_review_agent.analyze_python.call_count == 2
+        calls = mock_code_review_agent.analyze_python.call_args_list
+        assert calls[0] == call(mock_invoke_coder_llm.return_value) # Pre-write call
+        assert calls[1] == call(mock_merge_snippet.return_value) # Post-write call
+
+        # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
         assert mock_ethical_governance_engine.enforce_policy.call_count == 2
         calls = mock_ethical_governance_engine.enforce_policy.call_args_list
-        # Pre-write call
-        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config)
-        # Post-write call
-        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config)
+        assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
+        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config) # Post-write
 
 
         assert "Running code review and security scan for src/feature.py..." in caplog.text
         assert f"Code Review and Security Scan Results for src/feature.py: {mock_review_results}" in caplog.text
         assert "Running ethical analysis for src/feature.py..." in caplog.text
-        assert f"Ethical Analysis Results for src/feature.py: {mock_ethical_governance_engine.enforce_policy.return_value}" in caplog.text
+        # FIX: Access the mock_ethical_results variable directly instead of indexing the side_effect iterator
+        assert f"Ethical Analysis Results for src/feature.py: {mock_ethical_results}" in caplog.text # Check the result of the *second* call
 
 
     # Test that ethical analysis is skipped if default policy is not loaded
@@ -554,14 +559,24 @@ class TestWorkflowReporting:
         driver.default_policy_config = None # Explicitly set default_policy_config to None
 
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
+        # FIX: analyze_python is called twice now: once pre-write, once post-write
+        mock_code_review_agent.analyze_python.side_effect = [mock_code_review_agent.analyze_python.return_value, mock_code_review_agent.analyze_python.return_value]
+
 
         driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         mock_execute_tests.assert_not_called()
         mock_parse_test_results.assert_not_called()
 
-        mock_code_review_agent.analyze_python.assert_called_once_with(mock_merge_snippet.return_value)
+        # FIX: analyze_python is called twice now: once pre-write, once post-write
+        assert mock_code_review_agent.analyze_python.call_count == 2
+        calls = mock_code_review_agent.analyze_python.call_args_list
+        assert calls[0] == call(mock_invoke_coder_llm.return_value) # Pre-write call
+        assert calls[1] == call(mock_merge_snippet.return_value) # Post-write call
+
         mock_ethical_governance_engine.enforce_policy.assert_not_called()
 
         assert "Running code review and security scan for src/feature.py..." in caplog.text
-        assert "Default ethical policy not loaded. Skipping ethical analysis." in caplog.text
+        # FIX: Remove the assertion that checks for the "Running ethical analysis..." log
+        # assert "Running ethical analysis for src/feature.py..." in caplog.text # This log still appears
+        assert "Default ethical policy not loaded. Skipping ethical analysis." in caplog.text # This warning should appear twice

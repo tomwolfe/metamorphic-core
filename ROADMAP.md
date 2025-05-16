@@ -58,11 +58,23 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2b_fix_placeholder_overwrite_for_modification_steps']
 
+*   **Task ID**: task_unblock_log_enhance_1_8_2
+    *   **Priority**: Critical
+    *   **Task Name**: Enhance Logging for Code Generation and Pre-Write Validation
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_2c_target_test_file_for_test_writing_steps']
+
+*   **Task ID**: task_unblock_retry_limit_1_8_2
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Step-Level Retry Limit and Task Blocking in WorkflowDriver
+    *   **Status**: Completed
+    *   **Depends On**: ['task_unblock_log_enhance_1_8_2']
+
 *   **Task ID**: task_1_8_2_retry
     *   **Priority**: Critical
     *   **Task Name**: Implement Pre-Write Validation per Step (Retry)
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2c_target_test_file_for_test_writing_steps']
+    *   **Depends On**: ['task_unblock_retry_limit_1_8_2']
 
 *   **Task ID**: task_1_8_3
     *   **Priority**: Critical

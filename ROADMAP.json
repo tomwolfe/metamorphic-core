@@ -49,7 +49,7 @@
       "task_id": "task_1_8_1_unblock_overwrite_fix",
       "priority": "Critical",
       "task_name": "Prevent Placeholder Overwrite of Core Python Files for Conceptual Steps",
-      "description": "Modify the WorkflowDriver's autonomous_loop logic. Specifically, in the 'explicit file writing' branch, add a condition to prevent writing placeholder content to the main Python target_file of a task if the plan step is conceptual (e.g., 'define a list', 'analyze requirements') and not an explicit 'create file' or 'generate file' instruction. Also, ensure Python-specific placeholders (#) are used if a placeholder write to a .py file is genuinely intended.",
+      "description": "Modify the WorkflowDriver's autonomous_loop logic. Specifically, in the 'explicit file writing' branch, add a condition to prevent writing placeholder content to the main Python task_target_file of a task if the plan step is conceptual (e.g., 'define a list', 'analyze requirements') and not an explicit 'create file' or 'generate file' instruction. Also, ensure Python-specific placeholders (#) are used if a placeholder write to a .py file is genuinely intended.",
       "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
@@ -134,6 +134,37 @@
       ]
     },
     {
+      "task_id": "task_1_8_A_optimize_large_context",
+      "priority": "Critical",
+      "task_name": "Optimize Large Context Handling for Code Generation Steps",
+      "description": "Refine `WorkflowDriver.autonomous_loop` and `EnhancedLLMOrchestrator._handle_large_context` to significantly reduce redundant LLM calls when processing large context files for code generation steps. 1. Modify `WorkflowDriver`'s prompt construction for the CoderLLM. When a plan step involves simple additions to specific, known locations in a file (e.g., adding imports at the top, adding a new method to a class), provide only the relevant, minimal section of the existing file content as context in the `coder_prompt`. For instance, for adding imports, only the first ~100 lines or the existing import block should be included. This aims to prevent `EnhancedLLMOrchestrator._handle_large_context` from unnecessarily chunking and processing the entire file with multiple LLM calls. 2. Review and potentially optimize the `RecursiveSummarizer.summarize_code_recursively` logic if it's still being triggered too often or inefficiently for code generation tasks even with reduced context. Consider if summarization is always the best strategy or if direct processing of smaller, targeted context is feasible. 3. Ensure the LLM is explicitly prompted to output *only* the new/changed lines for such targeted modifications, not the entire file or section, to simplify merging and reduce output tokens.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py, src/core/llm_orchestration.py, src/core/chunking/recursive_summarizer.py",
+      "depends_on": [
+        "task_unblock_retry_limit_1_8_2"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_test_import_optimization",
+      "priority": "Critical",
+      "task_name": "Test Import Context Optimization",
+      "description": "Create and run an integration test to verify that the context optimization for 'add import' steps in WorkflowDriver is working. The test should: 1. Create a large dummy Python file. 2. Define a plan step to add a new import to this dummy file. 3. Execute this step using a mocked or real LLM. 4. Assert that the context provided to the CoderLLM for the import step was significantly truncated. 5. Assert that the number of summarization/chunk processing calls within EnhancedLLMOrchestrator (if any) is minimal (ideally zero beyond the main CoderLLM call for the snippet). 6. Assert that the import is correctly added to the dummy file. Place the test in tests/test_phase1_8_features.py.",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": ["task_1_8_A_optimize_large_context"]
+    },
+    {
+      "task_id": "task_1_8_B_enhance_retry_prompts",
+      "priority": "High",
+      "task_name": "Enhance Retry Prompts with Specific Validation Feedback",
+      "description": "Modify the retry logic within `WorkflowDriver.autonomous_loop`. When a plan step fails due to pre-write validation (syntax, style, ethics) or other captured errors (e.g., test failures post-write), the specific error message(s) should be extracted from `self._current_task_results['pre_write_validation_feedback']` or `self._current_task_results['step_errors']`. This detailed feedback must be appended to the prompt for the CoderLLM during the subsequent retry attempt. The goal is to provide the LLM with concrete information about what went wrong, enabling it to self-correct more effectively.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_A_test_import_optimization"
+      ]
+    },
+    {
       "task_id": "task_1_8_2_retry",
       "priority": "Critical",
       "task_name": "Implement Pre-Write Validation per Step (Retry)",
@@ -141,7 +172,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_unblock_retry_limit_1_8_2"
+        "task_1_8_B_enhance_retry_prompts"
       ]
     },
     {

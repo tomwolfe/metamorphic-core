@@ -17,6 +17,7 @@ import builtins
 import spacy
 from spacy.matcher import PhraseMatcher
 import ast # Import ast for syntax check
+from typing import List # Import List for type hinting
 
 # Use name for the logger name
 logger = logging.getLogger(__name__)
@@ -29,6 +30,9 @@ METAMORPHIC_INSERT_POINT = "# METAMORPHIC_INSERT_POINT"
 
 # --- NEW CONSTANT: Maximum retries for a single plan step ---
 MAX_STEP_RETRIES = 2 # Allow 2 retries per step (3 attempts total)
+# --- END NEW CONSTANT ---
+# --- NEW CONSTANT for Task 1.8.A ---
+MAX_IMPORT_CONTEXT_LINES = 200 # Max lines of context to provide for import tasks
 # --- END NEW CONSTANT ---
 
 
@@ -419,6 +423,31 @@ class WorkflowDriver:
                                     existing_content = self._read_file_for_context(filepath_to_use)
                                     logger.debug(f"Read {len(existing_content)} characters from {filepath_to_use}.")
 
+                                    # --- START: Task 1.8.A - Optimized context for imports ---
+                                    context_for_llm = existing_content
+                                    specific_instructions = (
+                                        "Generate only the Python code snippet needed to fulfill the \"Specific Plan Step\". "
+                                        "Do not include any surrounding text, explanations, or markdown code block fences (```). "
+                                        "Provide just the raw code lines that need to be added or modified."
+                                    )
+                                    if self._is_add_imports_step(step):
+                                        logger.info(f"Identified 'add imports' step. Optimizing context for {filepath_to_use}.")
+                                        lines = existing_content.splitlines()
+                                        # Find end of import block or take first MAX_IMPORT_CONTEXT_LINES
+                                        import_block_end_line = self._find_import_block_end(lines)
+                                        cutoff_line = min(import_block_end_line + 5, MAX_IMPORT_CONTEXT_LINES, len(lines)) # Add a bit of buffer
+                                        # Ensure cutoff_line is not negative if lines is empty or import_block_end_line is 0
+                                        cutoff_line = max(0, cutoff_line)
+
+                                        context_for_llm = "\n".join(lines[:cutoff_line])
+                                        specific_instructions = (
+                                            "You are adding import statements. Provide *only* the new import lines that need to be added. "
+                                            "Do not repeat existing imports. Do not output any other code or explanation. "
+                                            "Place the new imports appropriately within or after the existing import block."
+                                        )
+                                        logger.debug(f"Using truncated context for imports (up to line {cutoff_line}):\n{context_for_llm}")
+                                    # --- END: Task 1.8.A ---
+
                                     coder_prompt = f"""You are a Coder LLM expert in Python.
 Your task is to generate only the code snippet required to implement the following specific step from a larger development plan.
 
@@ -432,10 +461,9 @@ The primary file being modified is `{filepath_to_use}`.
 
 EXISTING CONTENT OF `{filepath_to_use}`:
 ```python
-{existing_content}
+{context_for_llm}
 ```
-Generate only the Python code snippet needed to fulfill the "Specific Plan Step". Do not include any surrounding text, explanations, or markdown code block fences (```). Provide just the raw code lines that need to be added or modified.
-"""
+{specific_instructions}"""
                                     # --- NEW LOGGING: Log the prompt ---
                                     logger.debug("Invoking Coder LLM with prompt:\n%s", coder_prompt)
                                     # --- END NEW LOGGING ---
@@ -652,7 +680,7 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
                                 {"error_type": "UnknownError", "error_message": "No specific error logged."}
                             )
                             reason_blocked = f"Step {step_index + 1} ('{step}') failed after {MAX_STEP_RETRIES + 1} attempts. Last error: {last_error['error_type']}: {last_error['error_message']}"
-                            logger.warning(f"Task {task_id} marked as '{new_status}' due to step failure after retries.")
+                            logger.warning(f"Task {task_id} marked as '{new_status}'.")
                             self._update_task_status_in_roadmap(task_id, new_status, reason_blocked)
                             return # Exit the autonomous_loop for this task iteration
 
@@ -856,6 +884,31 @@ Generate only the Python code snippet needed to fulfill the "Specific Plan Step"
             logger.info('Autonomous loop iteration finished.')
 
         logger.info('Autonomous loop terminated.')
+
+    # --- NEW HELPER METHOD for Task 1.8.A ---
+    def _is_add_imports_step(self, step_description: str) -> bool:
+        """Checks if a step description likely refers to adding import statements."""
+        step_lower = step_description.lower()
+        import_keywords = ["add import", "import statement", "import module", "import library", "include import"]
+        return any(keyword in step_lower for keyword in import_keywords)
+
+    def _find_import_block_end(self, lines: List[str]) -> int:
+        """Finds the line number after the last import statement or a reasonable cutoff."""
+        last_import_line = -1 # Use -1 to indicate no imports found yet
+        for i, line in enumerate(lines):
+            stripped_line = line.strip()
+            if stripped_line.startswith("import ") or stripped_line.startswith("from "):
+                last_import_line = i
+            # Stop if we hit a class, def, or a line that's clearly not an import/comment/blank
+            # Only stop if we have found at least one import (last_import_line > -1)
+            elif stripped_line and not stripped_line.startswith("#") and last_import_line > -1:
+                # If we found imports and then something else, the block ended.
+                return i # Return the line number of the first non-import/non-comment/non-blank line after imports
+        if last_import_line > -1: # Imports found, possibly at EOF or followed only by comments/blank lines
+            return len(lines) # Return total number of lines (end of file)
+        return 0 # Default to line 0 if no imports found at all
+    # --- END NEW HELPER METHOD ---
+
 
     # --- NEW METHOD: Preliminary Step Classification ---
     def _classify_step_preliminary(self, step_description: str) -> dict:
@@ -2474,11 +2527,3 @@ Your response should be the corrected code snippet that addresses the test failu
         except Exception as e:
             logger.error(f"Error during test failure remediation: {e}", exc_info=True)
             return False
-
-
-if __name__ == "__main__":
-    # Example usage (for manual testing)
-    # Ensure Docker is running and API server is accessible
-    # Create a dummy ROADMAP.json and output directory if they don't exist
-    # Then run this script
-    pass # This block is typically not run directly in the automated workflow

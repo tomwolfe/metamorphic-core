@@ -90,7 +90,7 @@ class TestWorkflowTaskManagement:
     def test_load_roadmap_file_size_limit(self, test_driver_task_management, tmp_path, caplog):
         caplog.set_level(logging.ERROR)
         driver = test_driver_task_management
-        long_string = "A" * 20000
+        long_string = "A" * (1024 * 1024 + 100) # This is > 1MB, should exceed the new limit
         roadmap_content = f"""
         {{
             "phase": "Test Phase",

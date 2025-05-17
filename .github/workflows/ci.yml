@@ -87,8 +87,9 @@ jobs:
           pip install -r requirements/base.txt
           pip install -r requirements/dev.txt
           pip install pytest pytest-cov
-          pip install bandit
+          pip install bandit # Ensure bandit is installed before spacy download if it's a transitive dep
           pip install -e .  # Install the package in development mode
+          python -m spacy download en_core_web_sm # Download spaCy model
 
           # Install Coq and Z3 via apt-get
           sudo apt-get update
@@ -216,4 +217,3 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/metamorphic-core:latest
-          cache-from: type=gha

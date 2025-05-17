@@ -1439,7 +1439,7 @@ Prioritize security, and prevent code injection vulnerabilities.
 
     def load_roadmap(self, roadmap_file_path):
         tasks = []
-        max_file_size = 20000
+        max_file_size = 1024 * 1024 # Increased limit for roadmap file size (bytes) - 1MB
         if roadmap_file_path is None: # Handle None roadmap_file_path explicitly
             logger.error(f"Failed to load roadmap from None: roadmap_file_path is None")
             return tasks

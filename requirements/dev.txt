@@ -13,4 +13,3 @@ flake8-bugbear
 flake8-docstrings
 flake8-bandit
 bandit
-spacy

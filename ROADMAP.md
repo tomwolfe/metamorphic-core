@@ -70,11 +70,29 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_unblock_log_enhance_1_8_2']
 
+*   **Task ID**: task_1_8_A_optimize_large_context
+    *   **Priority**: Critical
+    *   **Task Name**: Optimize Large Context Handling for Code Generation Steps
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_unblock_retry_limit_1_8_2']
+
+*   **Task ID**: task_1_8_A_test_import_optimization
+    *   **Priority**: Critical
+    *   **Task Name**: Test Import Context Optimization
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_optimize_large_context']
+
+*   **Task ID**: task_1_8_B_enhance_retry_prompts
+    *   **Priority**: High
+    *   **Task Name**: Enhance Retry Prompts with Specific Validation Feedback
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_test_import_optimization']
+
 *   **Task ID**: task_1_8_2_retry
     *   **Priority**: Critical
     *   **Task Name**: Implement Pre-Write Validation per Step (Retry)
     *   **Status**: Not Started
-    *   **Depends On**: ['task_unblock_retry_limit_1_8_2']
+    *   **Depends On**: ['task_1_8_B_enhance_retry_prompts']
 
 *   **Task ID**: task_1_8_3
     *   **Priority**: Critical

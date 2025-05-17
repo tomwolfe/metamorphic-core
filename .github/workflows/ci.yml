@@ -115,7 +115,8 @@ jobs:
             -e HUGGING_FACE_API_KEY=${{ secrets.HUGGING_FACE_API_KEY }} \
             -e YOUR_GITHUB_API_KEY=${{ secrets.YOUR_GITHUB_API_KEY }} \
             -e ZAP_API_KEY=${{ secrets.ZAP_API_KEY }} \
-            flask-app-test
+            flask-app-test \
+            python src/api/server.py # Command to start the Flask server
 
       - name: Wait for Flask app to start
         run: |

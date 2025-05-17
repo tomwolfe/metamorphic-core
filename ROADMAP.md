@@ -70,11 +70,23 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_unblock_log_enhance_1_8_2']
 
+*   **Task ID**: task_1_8_X_fix_multi_target_handling
+    *   **Priority**: Critical
+    *   **Task Name**: Correctly Handle Single Target File From Multi-Target Tasks in CodeGen
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_unblock_retry_limit_1_8_2']
+
+*   **Task ID**: task_1_8_Y_ensure_docstrings_in_codegen
+    *   **Priority**: Critical
+    *   **Task Name**: Ensure Docstrings in CoderLLM Output for Python Code
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_X_fix_multi_target_handling']
+
 *   **Task ID**: task_1_8_A_optimize_large_context
     *   **Priority**: Critical
     *   **Task Name**: Optimize Large Context Handling for Code Generation Steps
     *   **Status**: Not Started
-    *   **Depends On**: ['task_unblock_retry_limit_1_8_2']
+    *   **Depends On**: ['task_unblock_retry_limit_1_8_2', 'task_1_8_X_fix_multi_target_handling', 'task_1_8_Y_ensure_docstrings_in_codegen']
 
 *   **Task ID**: task_1_8_A_test_import_optimization
     *   **Priority**: Critical

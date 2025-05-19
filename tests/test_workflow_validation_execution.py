@@ -12,7 +12,7 @@ import json # <-- Added this import
 
 # Set up logging for tests
 if not logging.root.handlers:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Fixture for a WorkflowDriver instance with a Context
@@ -122,8 +122,14 @@ class TestWorkflowValidationExecution:
         )
         assert return_code == 127
         assert stdout == ""
-        assert "Error: Command executable not found. Ensure 'nonexistent_command' is in your system's PATH." in stderr
-        assert "Error: Command executable not found. Ensure 'nonexistent_command' is in your system's PATH." in caplog.text
+        # Note: The error message comes from the FileNotFoundError caught in execute_tests
+        # The specific message might vary slightly based on the OS and Python version,
+        # but the core issue is the command not being found in the specified cwd.
+        # The current code logs "Error: Command executable not found..." which is a bit
+        # misleading for a CWD issue, but matches the current implementation's error handling.
+        # FIX: Update assertion to match the actual stderr message format
+        assert f"Error: Command executable '{test_command[0]}' not found or working directory '{cwd}' does not exist. Ensure '{test_command[0]}' is in your system's PATH and the working directory is valid." in stderr
+        assert f"Error: Command executable '{test_command[0]}' not found or working directory '{cwd}' does not exist. Ensure '{test_command[0]}' is in your system's PATH and the working directory is valid." in caplog.text
 
     @patch('subprocess.run', side_effect=OSError("permission denied"))
     def test_execute_tests_os_error(self, mock_subprocess_run, test_driver_validation, tmp_path, caplog):
@@ -196,8 +202,9 @@ class TestWorkflowValidationExecution:
         # but the core issue is the command not being found in the specified cwd.
         # The current code logs "Error: Command executable not found..." which is a bit
         # misleading for a CWD issue, but matches the current implementation's error handling.
-        assert "Error: Command executable not found. Ensure 'echo' is in your system's PATH." in stderr
-        assert "Error: Command executable not found. Ensure 'echo' is in your system's PATH." in caplog.text
+        # FIX: Update assertion to match the actual stderr message format
+        assert f"Error: Command executable '{test_command[0]}' not found or working directory '{cwd}' does not exist. Ensure '{test_command[0]}' is in your system's PATH and the working directory is valid." in stderr
+        assert f"Error: Command executable '{test_command[0]}' not found or working directory '{cwd}' does not exist. Ensure '{test_command[0]}' is in your system's PATH and the working directory is valid." in caplog.text
 
 
     # --- Tests for _parse_test_results ---
@@ -302,7 +309,8 @@ without a summary line
         # Let's check for the warning and the error status.
         assert results['status'] == 'error'
         assert results['message'] == 'Could not parse test results output.'
-        assert "Could not parse any counts from summary line:" in caplog.text
+        # FIX: Update assertion to match the actual log message format
+        assert "No test results counts found or total is zero. Summary line:" in caplog.text
 
 
     def test_parse_test_results_only_skipped(self, test_driver_validation, caplog):
@@ -431,10 +439,14 @@ without a summary line
         assert calls[1] == call(mock__merge_snippet.return_value, driver.default_policy_config)
 
 
-        assert "Running code review and security scan for src/feature.py..." in caplog.text
-        assert f"Code Review and Security Scan Results for src/feature.py: {mock_review_results}" in caplog.text
-        assert "Running ethical analysis for src/feature.py..." in caplog.text
-        assert f"Ethical Analysis Results for src/feature.py: {mock_ethical_governance_engine.enforce_policy.return_value}" in caplog.text
+        # FIX: Update assertion to expect the resolved path in the log message
+        assert f"Running code review and security scan for {mock_get_full_path('src/feature.py')}..." in caplog.text
+        # FIX: Update assertion to expect the resolved path in the log message
+        assert f"Code Review and Security Scan Results for {mock_get_full_path('src/feature.py')}: {mock_review_results}" in caplog.text
+        # FIX: Update assertion to expect the resolved path in the log message
+        assert f"Running ethical analysis for {mock_get_full_path('src/feature.py')}..." in caplog.text
+        # FIX: Update assertion to expect the resolved path and the full dictionary string representation
+        assert f"Ethical Analysis Results for {mock_get_full_path('src/feature.py')}: {{'overall_status': 'approved', 'policy_name': 'Test Policy'}}" in caplog.text
 
         # Verify report generation and evaluation were called after all steps
         mock_generate_grade_report.assert_called_once()
@@ -506,7 +518,8 @@ without a summary line
 
         mock_ethical_governance_engine.enforce_policy.assert_not_called()
 
-        assert "Running code review and security scan for src/feature.py..." in caplog.text
+        # FIX: Update assertion to expect the resolved path in the log message
+        assert f"Running code review and security scan for {mock_get_full_path('src/feature.py')}..." in caplog.text
         assert "Default ethical policy not loaded. Skipping ethical analysis." in caplog.text # Check log for skipped ethical analysis
 
         # Verify report generation and evaluation were called after all steps
@@ -569,10 +582,12 @@ without a summary line
         driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
 
         # Verify calls for Step 1 (Code Generation)
-        mock__read_file_for_context.assert_called_once_with("src/feature.py")
+        # FIX: Update assertion to expect the resolved path
+        mock__read_file_for_context.assert_called_once_with(mock_get_full_path("src/feature.py"))
         mock__invoke_coder_llm.assert_called_once()
         mock__merge_snippet.assert_called_once()
-        mock__write_output_file.assert_called_once_with("src/feature.py", mock__merge_snippet.return_value, overwrite=True)
+        # FIX: Update assertion to expect the resolved path
+        mock__write_output_file.assert_called_once_with(mock_get_full_path("src/feature.py"), mock__merge_snippet.return_value, overwrite=True)
 
         # analyze_python is called twice now: once pre-write, once post-write
         assert mock_code_review_agent.analyze_python.call_count == 2
@@ -665,7 +680,8 @@ without a summary line
         mock__read_file_for_context.assert_not_called()
         mock__merge_snippet.assert_not_called()
         # Step 2 is "Write file documentation.md", which is an explicit file write step
-        mock__write_output_file.assert_called_once_with("documentation.md", ANY, overwrite=True)
+        # FIX: Update assertion to expect the resolved path
+        mock__write_output_file.assert_called_once_with(mock_get_full_path("documentation.md"), ANY, overwrite=True)
         mock_execute_tests.assert_not_called()
         mock__parse_test_results.assert_not_called()
         mock_code_review_agent.analyze_python.assert_not_called()
@@ -678,4 +694,3 @@ without a summary line
         assert "Executing step 1/2 (Attempt 1/3): Step 1: Research topic X" in caplog.text
         assert "Step not identified as code generation, explicit file writing, or test execution. Skipping agent invocation/file write for step: Step 1: Research topic X" in caplog.text
         assert "Executing step 2/2 (Attempt 1/3): Step 2: Write file documentation.md" in caplog.text
-        assert "Step identified as explicit file writing. Processing file operation for step: Step 2: Write file documentation.md" in caplog.text

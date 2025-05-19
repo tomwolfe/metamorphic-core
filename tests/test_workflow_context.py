@@ -66,13 +66,15 @@ class TestContext:
         caplog.set_level(logging.WARNING)
         full_path = test_context.get_full_path(None)
         assert full_path is None
-        assert "Attempted to resolve path with invalid input: None" in caplog.text
+        # FIX: Update assertion to match the new log message format
+        assert f"Attempted to resolve path with invalid input type: {type(None)}" in caplog.text
 
     def test_context_get_full_path_invalid_type(self, test_context, caplog):
         caplog.set_level(logging.WARNING)
         full_path = test_context.get_full_path(123)
         assert full_path is None
-        assert "Attempted to resolve path with invalid input: 123" in caplog.text
+        # FIX: Update assertion to match the new log message format
+        assert f"Attempted to resolve path with invalid input type: {type(123)}" in caplog.text
 
     def test_context_equality(self, tmp_path):
         context1 = Context(str(tmp_path))

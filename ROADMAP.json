@@ -138,7 +138,7 @@
       "priority": "Critical",
       "task_name": "Correctly Handle Single Target File From Multi-Target Tasks in CodeGen",
       "description": "Modify `WorkflowDriver.autonomous_loop` to correctly process tasks with multiple comma-separated `target_file` entries. 1. When a code generation step is identified, and the parent task's `target_file` lists multiple files, implement logic to determine the *actual single target file* for the current plan step. This determination should prioritize explicit file mentions in the step description (e.g., 'modify fileA.py', 'in fileB.py'). If no specific file from the task's list is mentioned in the step, it should default to the first file in the `task_target_file` list and log a warning about the ambiguity. 2. Ensure the determined single file path is used for `_read_file_for_context`, pre-write validation, and `_write_output_file`. 3. Add unit tests for this parsing/determination logic in tests/test_phase1_8_features.py. 4. Add an integration test with a multi-target task and a step modifying one specific file, asserting correct file operations.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": ["task_unblock_retry_limit_1_8_2"]
     },
@@ -149,7 +149,9 @@
       "description": "Modify `WorkflowDriver.autonomous_loop` prompt construction for the CoderLLM. 1. When a plan step involves Python code generation that is likely to create new functions, methods, or classes, explicitly instruct the CoderLLM in its prompt to include comprehensive docstrings. The instruction should specify that docstrings must explain the purpose, arguments (name, type, description), and return values (type, description). Example instruction: 'IMPORTANT: For any new Python functions, methods, or classes, you MUST include a comprehensive PEP 257 compliant docstring. Use Google-style format (Args:, Returns:, Example: sections). This is required to pass automated ethical and style checks.'. 2. Add unit tests to verify that CoderLLM prompts for Python function/method generation include this instruction in tests/test_phase1_8_features.py.",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": ["task_1_8_X_fix_multi_target_handling"]
+      "depends_on": [
+        "task_1_8_X_fix_multi_target_handling"
+      ]
     },
     {
       "task_id": "task_1_8_A_optimize_large_context",

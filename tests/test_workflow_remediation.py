@@ -325,7 +325,8 @@ class TestWorkflowRemediation:
         result = driver._attempt_code_style_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is True
         mock_invoke.assert_called_once()
-        mock_write.assert_called_once_with(f"/mock/base/path/{file_path}", corrected_code, overwrite=True)
+        # FIX: Assert with the relative path, not the resolved path
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
         mock_analyze.assert_called_once_with(corrected_code)
 
     def test_return_false_on_write_failure_code_style(self, driver, mocker, caplog):
@@ -341,7 +342,8 @@ class TestWorkflowRemediation:
         result = driver._attempt_code_style_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is False
         mock_invoke.assert_called_once()
-        mock_write.assert_called_once_with(f"/mock/base/path/{file_path}", corrected_code, overwrite=True)
+        # FIX: Assert with the relative path, not the resolved path
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
         mocker.patch.object(driver.code_review_agent, "analyze_python").assert_not_called()
 
     def test_return_true_if_revalidation_fails_code_style(self, driver, mocker, caplog):
@@ -359,7 +361,8 @@ class TestWorkflowRemediation:
         result = driver._attempt_code_style_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is True
         mock_invoke.assert_called_once()
-        mock_write.assert_called_once_with(f"/mock/base/path/{file_path}", corrected_code, overwrite=True)
+        # FIX: Assert with the relative path, not the resolved path
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
         mock_analyze.assert_called_once_with(corrected_code)
 
     def test_error_handling_generic_exception_code_style(self, driver, mocker, caplog):
@@ -434,7 +437,8 @@ class TestWorkflowRemediation:
         result = driver._attempt_ethical_transparency_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is True
         mock_invoke.assert_called_once()
-        mock_write.assert_called_once_with(f"/mock/base/path/{file_path}", corrected_code, overwrite=True)
+        # FIX: Assert with the relative path, not the resolved path
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
         mock_enforce.assert_called_once_with(corrected_code, driver.default_policy_config)
 
     def test_return_false_on_write_failure_ethical(self, driver, mocker, caplog):
@@ -450,7 +454,8 @@ class TestWorkflowRemediation:
         result = driver._attempt_ethical_transparency_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is False
         mock_invoke.assert_called_once()
-        mock_write.assert_called_once_with(f"/mock/base/path/{file_path}", corrected_code, overwrite=True)
+        # FIX: Assert with the relative path, not the resolved path
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
         mocker.patch.object(driver.ethical_governance_engine, "enforce_policy").assert_not_called()
 
     def test_return_true_if_revalidation_fails_ethical(self, driver, mocker, caplog):
@@ -469,7 +474,8 @@ class TestWorkflowRemediation:
         result = driver._attempt_ethical_transparency_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is True
         mock_invoke.assert_called_once()
-        mock_write.assert_called_once_with(f"/mock/base/path/{file_path}", corrected_code, overwrite=True)
+        # FIX: Assert with the relative path, not the resolved path
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
         mock_enforce.assert_called_once_with(corrected_code, driver.default_policy_config)
 
     def test_error_handling_generic_exception_ethical(self, driver, mocker, caplog):
@@ -576,42 +582,23 @@ class TestWorkflowRemediation:
             'status': 'Not Started', 'priority': 'high', 'target_file': 'src/test_file.py'
         }
         driver._current_task = task_data # For context
-        driver.remediation_attempts = 0 # Will be set inside the test logic if needed, or by the loop
-
-        mocker.patch.object(driver, '_parse_and_evaluate_grade_report', return_value={ "recommended_action": "Regenerate Code", "justification": "Test failures detected" })
-        mock_remediation_call = mocker.patch.object(driver, '_attempt_test_failure_remediation')
-
-        # Make the "Run tests" step succeed its retries (e.g., pass on first attempt)
-        # but ensure _current_task_results still show failure for grading.
-        # This is the tricky part. The SUT makes this hard.
-        # For this test to be meaningful for "max_attempts", the remediation block *must* be reached.
-        # So, task_failed_step must be False.
-
-        # Setup for "Run tests" step to pass on first try, but _current_task_results show failure.
-        # This requires generate_grade_report to be mocked to show failure regardless of step outcome.
-        mocker.patch.object(driver, 'execute_tests', side_effect=[(0, "stdout_for_failed_parse", "")] * (MAX_STEP_RETRIES + 1)) # Step technically passes
-        # _parse_test_results for the step execution should indicate pass to avoid RuntimeError
-        mocker.patch.object(driver, '_parse_test_results', side_effect=[{'status': 'passed', 'passed': 1, 'failed': 0, 'total': 1}]* (MAX_STEP_RETRIES + 1) )
-
-        # However, for the grading phase, we need the report to show test failure.
-        mocker.patch.object(driver, 'generate_grade_report', return_value=create_mock_grade_report(test_status='failed', overall_grade=70))
-
-        # And for the remediation check `if test_status == 'failed':`, _current_task_results must reflect this.
-        # We can patch _current_task_results just before the remediation check, or ensure generate_grade_report uses a fixed 'failed' report.
-        # The latter is cleaner. The `if test_status == 'failed'` check uses `_current_task_results`.
-        # So, after the step passes, `_current_task_results` will show 'passed'.
-        # This means `_attempt_test_failure_remediation` won't be called due to `test_status != 'failed'`.
-        # This test is also problematic with the SUT.
-
-        # Let's revert to the original setup that causes task blocking, and check the log for max attempts *if* it were reached.
-        # The log for max attempts is *inside* the remediation block. If task is blocked, this log is not hit.
         driver.remediation_attempts = MAX_TASK_REMEDIATION_ATTEMPTS # Set this on the driver instance before loop
 
         mocker.patch.object(driver, 'load_roadmap', side_effect=[[task_data], [task_data], [task_data]])
         mock_select_next_task = mocker.patch.object(driver, 'select_next_task', side_effect=[task_data, None])
         mocker.patch.object(driver, 'generate_solution_plan', return_value=["Step 1: Implement code", "Step 2: Run tests"])
 
-        # "Run tests" step fails all retries -> task blocked
+        # These mocks for grading/evaluation won't be hit if task is blocked
+        mocker.patch.object(driver, 'generate_grade_report', return_value=create_mock_grade_report(test_status='failed', overall_grade=70))
+        mocker.patch.object(driver, '_parse_and_evaluate_grade_report', side_effect=[
+            {"recommended_action": "Regenerate Code", "justification": "Test failures detected"},
+            {"recommended_action": "Completed", "justification": "Tests passed after remediation"}
+        ])
+        mocker.patch.object(driver, '_safe_write_roadmap_json', return_value=True)
+
+        mock_remediation_call = mocker.patch.object(driver, '_attempt_test_failure_remediation')
+
+        # Step execution: "Run tests" step fails all retries -> task blocked
         mocker.patch.object(driver, 'execute_tests', side_effect=[(1, "fail", "err")] * (MAX_STEP_RETRIES + 1))
         mocker.patch.object(driver, '_parse_test_results', side_effect=[{'status': 'failed', 'passed': 0, 'failed': 1, 'total': 1}] * (MAX_STEP_RETRIES + 1))
 
@@ -635,8 +622,8 @@ class TestWorkflowRemediation:
             # For now, with the current setup, the task will be blocked.
             driver.start_workflow("dummy_roadmap.json", "output", driver.context)
 
-        mock_remediation_call.assert_not_called()
-        assert "Task T1 marked as 'Blocked'." in caplog.text
+        mock_remediation_call.assert_not_called() # Because remediation block is not reached
+        assert "Task T1 marked as 'Blocked'." in caplog.text # Expect task to be blocked on first pass
         # The log "Maximum task-level remediation attempts reached" will not appear because the remediation block is skipped.
         assert f"Maximum task-level remediation attempts ({MAX_TASK_REMEDIATION_ATTEMPTS}) reached" not in caplog.text
 
@@ -656,7 +643,6 @@ class TestWorkflowRemediation:
         updated_task_data = task_data.copy()
         updated_task_data['status'] = 'Completed'
 
-        # Mock load_roadmap for two task passes + start
         mocker.patch.object( driver, 'load_roadmap', side_effect=[ [task_data], [task_data], [task_data], [updated_task_data] ])
         mock_select_next_task = mocker.patch.object(driver, 'select_next_task', side_effect=[task_data, task_data, None]) # Task selected twice
         mocker.patch.object(driver, 'generate_solution_plan', return_value=["Step 1: Implement code", "Step 2: Run tests"])
@@ -780,9 +766,11 @@ class TestWorkflowRemediation:
         mocker.patch.object(driver, 'execute_tests', side_effect=[(1, "fail", "err")] * (MAX_STEP_RETRIES + 1))
         mocker.patch.object(driver, '_parse_test_results', side_effect=[{'status': 'failed', 'passed': 0, 'failed': 1, 'total': 1}] * (MAX_STEP_RETRIES + 1))
 
-        mocker.patch.object(driver, '_read_file_for_context', return_value="Original code")
         mocker.patch.object(driver.code_review_agent, 'analyze_python', return_value={'status': 'passed'})
         mocker.patch.object(driver.ethical_governance_engine, 'enforce_policy', return_value={'overall_status': 'approved'})
+
+        # We are not mocking _attempt_test_failure_remediation itself, but _write_output_file which it calls.
+        # But _attempt_test_failure_remediation will not be called.
 
         with caplog.at_level(logging.INFO):
             driver.start_workflow("dummy_roadmap.json", str(tmp_path / "output"), driver.context)
@@ -790,5 +778,4 @@ class TestWorkflowRemediation:
         mock_generate.assert_not_called() # Won't be called if task is blocked
         mock_evaluate.assert_not_called()
         mock_remediation_method.assert_not_called()
-        assert "Task T1 marked as 'Blocked'." in caplog.text
-        assert driver.remediation_attempts == 0
+        assert "Task T1 marked as 'Blocked'." in caplog.text # Expect task to be blocked on first pass

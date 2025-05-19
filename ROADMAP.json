@@ -134,13 +134,22 @@
       ]
     },
     {
+      "task_id": "task_1_8_Z_implement_llm_rate_limiting",
+      "priority": "Critical",
+      "task_name": "Implement Client-Side Rate Limiting for Gemini API Calls",
+      "description": "Modify LLMOrchestrator to add client-side rate limiting for Gemini API calls to prevent 429 errors. 1. Add attributes (`_last_gemini_call_start_time`, `_gemini_call_lock`) to LLMOrchestrator. 2. Implement a method `_apply_gemini_rate_limit` that calculates the necessary sleep duration based on a 10 RPM (6 seconds per request) limit, uses a lock for thread safety, applies `time.sleep` if needed, and updates `_last_gemini_call_start_time`. 3. Call this method in `_generate_with_retry` before invoking `_gemini_generate`. 4. Add unit tests for the rate limiting logic in `tests/test_llm_orchestration.py` to verify correct sleep timing under various conditions. 5. Ensure logging indicates when rate limiting is active.",
+      "status": "Completed",
+      "target_file": "src/core/llm_orchestration.py",
+      "depends_on": ["task_unblock_retry_limit_1_8_2"]
+    },
+    {
       "task_id": "task_1_8_X_fix_multi_target_handling",
       "priority": "Critical",
       "task_name": "Correctly Handle Single Target File From Multi-Target Tasks in CodeGen",
       "description": "Modify `WorkflowDriver.autonomous_loop` to correctly process tasks with multiple comma-separated `target_file` entries. 1. When a code generation step is identified, and the parent task's `target_file` lists multiple files, implement logic to determine the *actual single target file* for the current plan step. This determination should prioritize explicit file mentions in the step description (e.g., 'modify fileA.py', 'in fileB.py'). If no specific file from the task's list is mentioned in the step, it should default to the first file in the `task_target_file` list and log a warning about the ambiguity. 2. Ensure the determined single file path is used for `_read_file_for_context`, pre-write validation, and `_write_output_file`. 3. Add unit tests for this parsing/determination logic in tests/test_phase1_8_features.py. 4. Add an integration test with a multi-target task and a step modifying one specific file, asserting correct file operations.",
-      "status": "Completed",
+      "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": ["task_unblock_retry_limit_1_8_2"]
+      "depends_on": ["task_1_8_Z_implement_llm_rate_limiting"]
     },
     {
       "task_id": "task_1_8_Y_ensure_docstrings_in_codegen",
@@ -149,9 +158,7 @@
       "description": "Modify `WorkflowDriver.autonomous_loop` prompt construction for the CoderLLM. 1. When a plan step involves Python code generation that is likely to create new functions, methods, or classes, explicitly instruct the CoderLLM in its prompt to include comprehensive docstrings. The instruction should specify that docstrings must explain the purpose, arguments (name, type, description), and return values (type, description). Example instruction: 'IMPORTANT: For any new Python functions, methods, or classes, you MUST include a comprehensive PEP 257 compliant docstring. Use Google-style format (Args:, Returns:, Example: sections). This is required to pass automated ethical and style checks.'. 2. Add unit tests to verify that CoderLLM prompts for Python function/method generation include this instruction in tests/test_phase1_8_features.py.",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_X_fix_multi_target_handling"
-      ]
+      "depends_on": ["task_1_8_X_fix_multi_target_handling"]
     },
     {
       "task_id": "task_1_8_A_optimize_large_context",
@@ -161,8 +168,6 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py, src/core/llm_orchestration.py, src/core/chunking/recursive_summarizer.py",
       "depends_on": [
-        "task_unblock_retry_limit_1_8_2",
-        "task_1_8_X_fix_multi_target_handling",
         "task_1_8_Y_ensure_docstrings_in_codegen"
       ]
     },
@@ -240,7 +245,7 @@
       "status": "Not Started",
       "target_file": "src/core/ethics/constraints.py, src/core/optimization/adaptive_token_allocator.py",
       "depends_on": [
-        "task_1_8_1",
+        "task_1_8_A_test_import_optimization",
         "task_1_8_6"
       ]
     },

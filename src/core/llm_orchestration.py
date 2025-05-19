@@ -26,10 +26,13 @@ from src.core.optimization.token_optimizer import TokenOptimizer
 from src.core.verification.specification import FormalSpecification
 from src.core.verification.decorators import formal_proof
 
-if TYPE_CHECKING:
-    from src.core.ethics.governance import EthicalGovernanceEngine
+# <--- ADD THESE IMPORTS ---
+import time
+import threading
+# <--- END ADD ---
 
-logger = logging.getLogger(__name__) # Added logger definition
+# Ensure logger is defined if not already
+logger = logging.getLogger(__name__)
 
 
 class LLMProvider(str, Enum):
@@ -52,6 +55,14 @@ class LLMOrchestrator:
         self.active_provider = None
         self.config = self._load_config()
         self._configure_providers()
+        # --- ADD RATE LIMITING ATTRIBUTES ---
+        # Track the time the *last* Gemini call *started* (or finished, consistently)
+        self._last_gemini_call_start_time = 0.0 # Use float for time.monotonic()
+        self._gemini_call_lock = threading.Lock() # Use a lock for thread safety
+        # 10 RPM for Gemini Flash free tier. Enforce minimum interval.
+        self._GEMINI_MIN_INTERVAL_SECONDS = 6.0 # 60 seconds / 10 requests
+        # --- END ADD ---
+
 
     def _load_config(self) -> LLMConfig:
         try:
@@ -73,7 +84,7 @@ class LLMOrchestrator:
             if not self.config.gemini_api_key:
                 raise RuntimeError("GEMINI_API_KEY is required for Gemini provider")
             self.client = genai.Client(api_key=self.config.gemini_api_key)
-            self.client.model = "gemini-2.5-flash-preview-04-17" # <-- UPDATED HERE
+            self.client.model = "gemini-2.5-flash-preview-04-17"
             self.client.api_key = self.config.gemini_api_key
         elif self.config.provider == LLMProvider.HUGGING_FACE:
             if not self.config.hf_api_key:
@@ -85,25 +96,60 @@ class LLMOrchestrator:
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config.provider}")
 
+    # --- ADD NEW METHOD FOR GEMINI RATE LIMITING ---
+    def _apply_gemini_rate_limit(self):
+        """Ensures calls to Gemini API do not exceed the rate limit."""
+        if self.config.provider == LLMProvider.GEMINI:
+            # Acquire the lock to ensure only one thread checks/updates the time at once
+            with self._gemini_call_lock:
+                current_time = time.monotonic()
+                elapsed_since_last_call = current_time - self._last_gemini_call_start_time
+
+                # If not enough time has passed since the last call started
+                if elapsed_since_last_call < self._GEMINI_MIN_INTERVAL_SECONDS:
+                    sleep_duration = self._GEMINI_MIN_INTERVAL_SECONDS - elapsed_since_last_call
+                    logger.info(f"Gemini rate limit: sleeping for {sleep_duration:.2f} seconds.")
+                    time.sleep(sleep_duration)
+                    # After sleeping, get the current time again to accurately record the start time of *this* call
+                    current_time = time.monotonic()
+
+                # Update the last call start time to the current time (after potential sleep)
+                self._last_gemini_call_start_time = current_time
+    # --- END ADD ---
+
     def generate(self, prompt: str) -> str:
         return self._generate_with_retry(prompt)
 
     def _generate_with_retry(self, prompt: str) -> str:
+        # Apply rate limit *before* the first attempt and *before* any subsequent retries
+        # if they happen too quickly.
+
         for attempt in range(self.config.max_retries):
             try:
                 if self.config.provider == LLMProvider.GEMINI:
+                    # --- MODIFY _gemini_generate CALL ---
+                    # Apply rate limit logic immediately before attempting the API call
+                    self._apply_gemini_rate_limit()
+                    # --- END MODIFY ---
                     return self._gemini_generate(prompt)
                 elif self.config.provider == LLMProvider.HUGGING_FACE:
+                    # If HF also needs rate limiting, add similar logic here
                     return self._hf_generate(prompt)
             except Exception as e:
                 logging.error(f"Attempt {attempt + 1} failed: {str(e)}")
                 if attempt == self.config.max_retries - 1:
+                    # Log the prompt that caused the final failure for easier debugging
+                    logging.error(f"LLM API failed after {self.config.max_retries} attempts for prompt (first 200 chars): {prompt[:200]}")
                     raise RuntimeError(f"LLM API failed after {self.config.max_retries} attempts: {str(e)}")
+                # A small delay before retrying is still good practice for transient errors,
+                # even with rate limiting.
+                time.sleep(1) # e.g., wait 1 second before retrying
 
     def _gemini_generate(self, prompt: str) -> str:
+        # Rate limiting is now applied in _generate_with_retry before this method is called
         try:
             response = self.client.models.generate_content(
-                model="gemini-2.5-flash-preview-04-17", # <-- UPDATED HERE
+                model="gemini-2.5-flash-preview-04-17",
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     temperature=0.6,
@@ -113,10 +159,15 @@ class LLMOrchestrator:
             if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
                 parts = response.candidates[0].content.parts
                 return "".join(part.text for part in parts if hasattr(part, "text"))
+            # Handle cases where response might be empty or malformed without raising an exception
+            logger.warning(f"Gemini API returned an empty or unexpected response structure for prompt (first 200 chars): {prompt[:200]}")
             return ""
         except Exception as e:
-            logging.error(f"Gemini error: {str(e)}")
+            # Log the prompt that caused the error for easier debugging
+            logger.error(f"Gemini error during API call for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}")
+            # Re-raise to be handled by _generate_with_retry
             raise RuntimeError(f"Gemini error: {str(e)}")
+
 
     def _hf_generate(self, prompt: str) -> str:
         try:
@@ -166,6 +217,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
                 else:
                     model = self.config.provider.value
                     self.telemetry.track("model_usage", tags={"model": model})
+                    # Call the generate method from the base class (which includes retry and rate limit)
                     code = super().generate(prompt)
 
             verification_result = self.spec.verify_predictions(code)
@@ -208,7 +260,6 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         return self.summarizer.synthesize(summaries)
 
     def _get_model_costs(self):
-        # --- MODIFICATION START ---
         # Removed 'mistral-large' to prevent attempting to use an unsupported model
         # Removed 'gpt-4' as it's not handled by _call_llm_api
         return {
@@ -217,7 +268,6 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
             # Example for a configured Hugging Face model (ensure name matches config and _call_llm_api)
             # self.config.hugging_face_model: {"effective_length": 4096, "cost_per_token": 0.000002},
         }
-        # --- MODIFICATION END ---
 
     def _process_chunk(self, chunk: CodeChunk, allocation: tuple) -> str:
         tokens, model = allocation
@@ -226,7 +276,9 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
             with self.telemetry.span(f"strategy_{strategy.__name__}"):
                 try:
                     result = strategy(chunk, tokens, model)
-                    self.telemetry.track("model_success", tags={"model": model, "strategy": strategy.__name__})
+                    self.telemetry.track(
+                        "model_success", tags={"model": model, "strategy": strategy.__name__}
+                    )
                     return result
                 except Exception as e:
                     self.telemetry.track(
@@ -270,6 +322,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
     def _call_llm_api(self, text: str, model: str) -> str:
         self.telemetry.track("model_usage", tags={"model": model})
         if model == "gemini":
+            # Rate limiting is handled in _generate_with_retry before calling _gemini_generate
             return self._gemini_generate(text)
         elif model == self.config.hugging_face_model or model in ["huggingface", "hf"]: # Check against configured HF model name
             return self._hf_generate(text)
@@ -293,3 +346,4 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r"\\boxed{([^}]+)}", text)
     if match:
         return match.group(1)
+    return None # Ensure None is returned if no match

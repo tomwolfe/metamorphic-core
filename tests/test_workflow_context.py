@@ -36,6 +36,11 @@ class TestContext:
 
     def test_context_get_full_path_valid(self, test_context, tmp_path):
         relative_path = "subdir/file.txt"
+        # Create the directory and file so resolve(strict=True) works if not patched
+        # With the fix to use strict=False, this is less critical, but good practice
+        (tmp_path / "subdir").mkdir(exist_ok=True)
+        (tmp_path / relative_path).touch(exist_ok=True)
+
         expected_path = str((tmp_path / relative_path).resolve())
         full_path = test_context.get_full_path(relative_path)
         assert full_path == expected_path
@@ -46,6 +51,7 @@ class TestContext:
         relative_path = "../sensitive/file.txt"
         full_path = test_context.get_full_path(relative_path)
         assert full_path is None
+        # The log message comes from the Context.get_full_path method itself
         assert "Path traversal attempt detected during resolution" in caplog.text
 
     def test_context_get_full_path_absolute_traversal(self, test_context, tmp_path, caplog):
@@ -54,6 +60,7 @@ class TestContext:
         absolute_path = "/tmp/sensitive_file.txt" # Use a common temp dir path
         full_path = test_context.get_full_path(absolute_path)
         assert full_path is None
+        # The log message comes from the Context.get_full_path method itself
         assert "Path traversal attempt detected during resolution" in caplog.text
 
     def test_context_get_full_path_empty_string(self, test_context, tmp_path):
@@ -66,13 +73,15 @@ class TestContext:
         caplog.set_level(logging.WARNING)
         full_path = test_context.get_full_path(None)
         assert full_path is None
-        assert "Attempted to resolve path with invalid input: None" in caplog.text
+        # FIX: Update assertion to match the new log message format
+        assert "Path validation received invalid input type: <class 'NoneType'>" in caplog.text
 
     def test_context_get_full_path_invalid_type(self, test_context, caplog):
         caplog.set_level(logging.WARNING)
         full_path = test_context.get_full_path(123)
         assert full_path is None
-        assert "Attempted to resolve path with invalid input: 123" in caplog.text
+        # FIX: Update assertion to match the new log message format
+        assert "Path validation received invalid input type: <class 'int'>" in caplog.text
 
     def test_context_equality(self, tmp_path):
         context1 = Context(str(tmp_path))

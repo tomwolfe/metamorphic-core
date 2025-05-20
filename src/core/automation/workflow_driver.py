@@ -137,7 +137,7 @@ class Context:
 
             # Check if the resolved path starts with the resolved base path
             # This prevents '..' traversal and absolute paths
-            if not str(resolved_path).startswith(str(self._resolved_base_path)):
+            if not str(resolved_path).startswith(str(Path(self.base_path).resolve())): # Use self.base_path here for consistency with the check in _validate_path
                 # FIX: Updated log message to match assertion in test_workflow_context.py
                 logger.warning(f"Path traversal attempt detected during resolution: {relative_path} resolved to {resolved_path}")
                 return None
@@ -258,11 +258,83 @@ class WorkflowDriver:
         # We just return the result.
         return resolved_path
 
+    def _determine_single_target_file(self, current_step_description: str, task_target_file_spec: Optional[str], prelim_flags: Dict) -> Optional[str]:
+        """
+        Determines a single target file (relative path) from a task's target_file list
+        based on the step description, primarily for code-generation, test-writing, or
+        explicit file writing steps with multiple task targets.
+
+        Args:
+            current_step_description: The text description of the plan step.
+            task_target_file_spec: The 'target_file' string from the task definition.
+            prelim_flags: Preliminary classification flags for the step.
+
+        Returns:
+            The determined relative single target file path if multi-target logic applied
+            and a file was chosen, or None otherwise (e.g., no targets, single target,
+            or multi-target but step type not applicable for this specific logic).
+        """
+        determined_target_file_relative = None
+        potential_task_targets = []
+
+        if task_target_file_spec and isinstance(task_target_file_spec, str):
+            potential_task_targets = [f.strip() for f in task_target_file_spec.split(',') if f.strip()]
+
+        is_code_generation_step = prelim_flags.get('is_code_generation_step_prelim', False)
+        is_test_writing_step = prelim_flags.get('is_test_writing_step_prelim', False)
+        is_explicit_file_writing_step = prelim_flags.get('is_explicit_file_writing_step_prelim', False)
+
+        should_apply_multi_target_logic = is_code_generation_step or is_test_writing_step or is_explicit_file_writing_step
+
+        if len(potential_task_targets) > 1 and should_apply_multi_target_logic:
+            logger.debug(
+                f"Task has multiple target files: {potential_task_targets}. Applying multi-target selection "
+                f"for step: '{current_step_description}' (via _determine_single_target_file)"
+            )
+            found_in_step_description = False
+            step_desc_lower = current_step_description.lower()
+
+            for file_candidate_relative in potential_task_targets:
+                normalized_candidate_path_str = Path(file_candidate_relative).as_posix().lower()
+                filename_candidate_lower = Path(file_candidate_relative).name.lower()
+
+                if normalized_candidate_path_str in step_desc_lower:
+                    determined_target_file_relative = file_candidate_relative
+                    logger.info(
+                        f"Step description explicitly mentions '{determined_target_file_relative}' "
+                        f"from task target list {potential_task_targets} (via _determine_single_target_file)."
+                    )
+                    found_in_step_description = True
+                    break
+                # FIX: Adjust regex lookbehind and lookahead to exclude '.' from forbidden characters
+                # This allows matching filenames followed by punctuation like '.'
+                elif re.search(r'(?<![a-zA-Z0-9_-])' + re.escape(filename_candidate_lower) + r'(?![a-zA-Z0-9_-])', step_desc_lower):
+                    determined_target_file_relative = file_candidate_relative
+                    logger.info(
+                        f"Step description explicitly mentions filename '{filename_candidate_lower}' "
+                        f"(from '{determined_target_file_relative}') from task target list {potential_task_targets} (via _determine_single_target_file)."
+                    )
+                    found_in_step_description = True
+                    break
+
+            if not found_in_step_description:
+                determined_target_file_relative = potential_task_targets[0]
+                logger.warning(
+                    f"Step description '{current_step_description}' does not explicitly mention any file "
+                    f"from the task's target list: {potential_task_targets}. "
+                    f"Defaulting to the first file: '{determined_target_file_relative}' (via _determine_single_target_file)."
+                )
+            return determined_target_file_relative # This will be a string path
+
+        # If the above multi-target logic didn't apply (e.g., single target, no targets, or not relevant step type)
+        # return None to indicate that _resolve_target_file_for_step should use its fallback.
+        return None
+
+
     def _resolve_target_file_for_step(self, current_step_description: str, task_target_file_spec: Optional[str], prelim_flags: Dict) -> Optional[str]:
         """
-        Determines the single target file for the current step, especially when the task
-        specifies multiple target files. It prioritizes explicit mentions in the step
-        description from the task's list, then falls back to other determination logic.
+        Determines the single target file for the current step, considering task targets,
+        step type (code gen, test writing), and mentions in the step description.
         Uses _validate_path for safety.
 
         Args:
@@ -274,83 +346,54 @@ class WorkflowDriver:
         Returns:
             The resolved single target file path for the step (absolute and safe), or None.
         """
-        is_code_generation_step = prelim_flags.get('is_code_generation_step_prelim', False)
-        is_test_writing_step = prelim_flags.get('is_test_writing_step_prelim', False)
-        is_explicit_file_writing_step = prelim_flags.get('is_explicit_file_writing_step_prelim', False)
+        determined_target_file_relative = None
 
-        # Apply multi-target logic if the step is likely to involve modifying a specific file
-        # from a list of potential task targets.
-        should_apply_multi_target_logic = is_code_generation_step or is_test_writing_step or is_explicit_file_writing_step
+        # Attempt to determine the target using the specialized multi-target logic first.
+        # _determine_single_target_file will handle parsing task_target_file_spec internally
+        # and apply its logic if conditions (multiple targets, specific step type) are met.
+        # It returns a relative path string if it makes a choice, otherwise None.
+        multi_target_choice = self._determine_single_target_file(
+            current_step_description,
+            task_target_file_spec, # Pass the raw spec string
+            prelim_flags
+        )
 
-        resolved_step_target_file_relative = None # Store the relative path initially
-        potential_task_targets = []
-
-        if task_target_file_spec and isinstance(task_target_file_spec, str):
-            potential_task_targets = [f.strip() for f in task_target_file_spec.split(',') if f.strip()]
-
-        # If the task has multiple targets AND the step implies modifying one of them
-        if len(potential_task_targets) > 1 and should_apply_multi_target_logic:
+        if multi_target_choice is not None:
+            determined_target_file_relative = multi_target_choice
+        else:
+            # Fallback logic if _determine_single_target_file did not apply or returned None.
+            # This covers:
+            # 1. Single target in task_target_file_spec.
+            # 2. Multi-targets but not a code_gen/test_write/explicit_write step (handled by _d_s_t_f returning None).
+            # 3. No task_target_file_spec or it's empty.
             logger.debug(
-                f"Task has multiple target files listed: {potential_task_targets}. "
-                f"Attempting to determine specific target for step: '{current_step_description}'"
+                f"_determine_single_target_file did not apply or returned None. "
+                f"Falling back to _determine_filepath_to_use for step: '{current_step_description}'"
             )
 
-            found_in_step_description = False
-            step_desc_lower = current_step_description.lower()
+            potential_task_targets = []
+            if task_target_file_spec and isinstance(task_target_file_spec, str):
+                potential_task_targets = [f.strip() for f in task_target_file_spec.split(',') if f.strip()]
 
-            for file_candidate_relative in potential_task_targets:
-                # Normalize path for robust comparison (e.g., handle './file.py' vs 'file.py')
-                # Use as_posix() for consistent separator, then lower()
-                normalized_candidate_path_str = Path(file_candidate_relative).as_posix().lower()
-                filename_candidate_lower = Path(file_candidate_relative).name.lower()
+            if potential_task_targets: # Task has target(s) (could be single, or multi but not handled by _d_s_t_f)
+                determined_target_file_relative = self._determine_filepath_to_use(
+                    current_step_description,
+                    task_target_file_spec, # Pass original spec string
+                    prelim_flags
+                )
+            else: # No task_target_file_spec or it was empty after parsing.
+                if task_target_file_spec is not None and task_target_file_spec.strip() != "":
+                     logger.warning(f"Task target file list was unexpectedly empty after parsing '{task_target_file_spec}' for step: '{current_step_description}'")
 
-                # Check for explicit full/partial path mentions in the step description
-                if normalized_candidate_path_str in step_desc_lower:
-                    resolved_step_target_file_relative = file_candidate_relative # Use original casing from task list
-                    logger.info(
-                        f"Step description explicitly mentions '{resolved_step_target_file_relative}' "
-                        f"from task target list {potential_task_targets}."
-                    )
-                    found_in_step_description = True
-                    break
-                # Then check for filename mentions (as a whole word)
-                elif re.search(r'(?<![a-zA-Z0-9_.-])' + re.escape(filename_candidate_lower) + r'(?![a-zA-Z0-9_.-])', step_desc_lower):
-                    resolved_step_target_file_relative = file_candidate_relative # Use original casing from task list
-                    logger.info(
-                        f"Step description explicitly mentions filename '{filename_candidate_lower}' "
-                        f"(from '{resolved_step_target_file_relative}') from task target list {potential_task_targets}."
-                    )
-                    found_in_step_description = True
-                    break
-
-            if not found_in_step_description:
-                # Default to the first file if no specific file is mentioned in the step
-                resolved_step_target_file_relative = potential_task_targets[0]
-                logger.warning(
-                    f"Step description '{current_step_description}' does not explicitly mention any file "
-                    f"from the task's target list: {potential_task_targets}. "
-                    f"Defaulting to the first file: '{resolved_step_target_file_relative}'."
+                determined_target_file_relative = self._determine_filepath_to_use(
+                    current_step_description,
+                    None, # Pass None as task_target_file
+                    prelim_flags
                 )
 
-        elif potential_task_targets: # Task has one or more targets (but not multiple for code_gen/test_write/explicit_write, or only one target)
-             # Use the existing _determine_filepath_to_use logic.
-             # This handles single targets, and also non-code-gen steps with multiple targets
-             # where we might still want to pick a file mentioned in the step or the first target.
-             resolved_step_target_file_relative = self._determine_filepath_to_use(current_step_description, task_target_file_spec, prelim_flags)
-        else: # No task_target_file_spec or it's empty after parsing
-            # If task_target_file_spec was provided but resulted in an empty list, log a warning.
-            # If task_target_file_spec was None or "", an empty list is expected, no warning needed.
-            if task_target_file_spec is not None and task_target_file_spec.strip() != "":
-                 logger.warning(f"Task target file list was unexpectedly empty after parsing '{task_target_file_spec}' for step: '{current_step_description}'")
-
-            # Fallback to _determine_filepath_to_use which might find a path in the step description itself.
-            # Pass None as the task_target_file argument to the fallback.
-            resolved_step_target_file_relative = self._determine_filepath_to_use(current_step_description, None, prelim_flags)
-
-
-        # Validate the determined relative path using the new helper
+        # Validate the determined relative path using _validate_path
         # This returns the resolved absolute path or None
-        return self._validate_path(resolved_step_target_file_relative)
+        return self._validate_path(determined_target_file_relative)
 
 
     def _determine_filepath_to_use(self, step_description: str, task_target_file: str | None, preliminary_flags: dict) -> str | None:
@@ -570,6 +613,8 @@ class WorkflowDriver:
             self._current_task_results = {}
             self._current_task_results['step_errors'] = []
             self.remediation_attempts = 0
+            self._current_task = {}
+            self.task_target_file = None
             self.remediation_occurred_in_pass = False
 
             try:
@@ -605,6 +650,7 @@ class WorkflowDriver:
                     for step_index, step in enumerate(solution_plan):
                         step_retries = 0
                         step_succeeded = False
+                        step_failure_reason = None # Store reason for failure across retries
 
                         while step_retries <= MAX_STEP_RETRIES:
                             try:
@@ -613,7 +659,10 @@ class WorkflowDriver:
 
                                 # --- Step 2: Determine the actual filepath to use for the operation ---
                                 # filepath_to_use is now the resolved absolute path or None
+                                # This method should handle resolving relative paths against the base_path and potentially the task_target_file.
+                                # FIX: Use _resolve_target_file_for_step which handles multi-target logic
                                 filepath_to_use = self._resolve_target_file_for_step(step, self.task_target_file, prelim_flags)
+
 
                                 # Determine if this step involves writing content (either placeholder or LLM-generated)
                                 # and the overwrite mode.
@@ -627,9 +676,10 @@ class WorkflowDriver:
                                 if prelim_flags['is_test_execution_step_prelim']:
                                     logger.info(f"Step identified as test execution. Running tests for step: {step}")
                                     test_command = ["pytest"]
-                                    test_target_path = "tests/" # Default test path
+                                    test_target_path = "tests/" # Default test path relative to base_path
                                     # Determine the specific test target path if possible
                                     # Use _resolve_target_file_for_step to get the resolved path for the task target
+                                    # Consider if the step description itself might contain a specific test file path.
                                     resolved_task_target = self._resolve_target_file_for_step(step, self.task_target_file, prelim_flags) # Use step context too
 
                                     if resolved_task_target and "test_" in Path(resolved_task_target).name.lower():
@@ -650,13 +700,16 @@ class WorkflowDriver:
                                              logger.info(f"No specific test file identified for step or task. Running all tests in '{test_target_path}'.")
                                          else:
                                              logger.error("Could not resolve default 'tests/' path. Cannot run tests.")
-                                             raise RuntimeError("Could not resolve default test path.")
+                                             # Add error to task results
+                                             self._current_task_results['step_errors'].append(f"Step {step_index + 1} failed: Could not resolve default test path.")
+                                             raise RuntimeError("Could not resolve default test path.") # Trigger retry/failure
 
 
                                     test_command.append(test_target_path)
 
                                     try:
                                         # Execute tests from the base path context
+                                        # Assumes execute_tests is safe and handles subprocess execution correctly.
                                         return_code, stdout, stderr = self.execute_tests(test_command, self.context.base_path)
                                         test_results = self._parse_test_results(stdout)
                                         self._current_task_results['test_results'] = test_results
@@ -668,26 +721,39 @@ class WorkflowDriver:
                                         logger.info(f"Test Execution Results: Status={test_results.get('status')}, Passed={test_results.get('passed')}, Failed={test_results.get('failed')}, Total={test_results.get('total')}")
                                         # If tests fail or have errors, raise an exception to trigger step retries
                                         if test_results.get('status') == 'failed':
-                                            logger.error(f"Tests failed for step: {step}. Raw stderr:\n{stderr}")
+                                            error_msg = f"Tests failed for step: {step}. Raw stderr:\n{stderr}"
+                                            logger.error(error_msg)
+                                            step_failure_reason = error_msg
                                             raise RuntimeError("Tests failed for step.")
                                         elif test_results.get('status') == 'error':
-                                            logger.error(f"Test execution or parsing error for step: {step}. Message: {test_results.get('message')}. Raw stderr:\n{stderr}")
+                                            error_msg = f"Test execution or parsing error for step: {step}. Message: {test_results.get('message')}. Raw stderr:\n{stderr}"
+                                            logger.error(error_msg)
+                                            step_failure_reason = error_msg
                                             raise RuntimeError(f"Test execution or parsing error: {test_results.get('message')}")
                                         # If status is 'passed', the step succeeded.
+                                        step_succeeded = True # Mark step as successful
 
                                     except Exception as e:
                                         # Catch any exception during command execution or test parsing
-                                        logger.error(f"An unexpected error occurred during command execution or test parsing: {e}", exc_info=True)
+                                        error_msg = f"An unexpected error occurred during command execution or test parsing: {e}"
+                                        logger.error(error_msg, exc_info=True)
+                                        step_failure_reason = error_msg
                                         # Ensure test_results reflects the error state if not already set
                                         if 'test_results' not in self._current_task_results or self._current_task_results['test_results'].get('status') != 'error':
                                              self._current_task_results['test_results'] = {'status': 'error', 'passed': 0, 'failed': 0, 'total': 0, 'message': str(e)}
                                         raise e # Re-raise to trigger step retries
 
+                                # FIX: Use filepath_to_use (the resolved determined target file) here
                                 elif prelim_flags['is_code_generation_step_prelim'] and filepath_to_use and filepath_to_use.endswith('.py'):
                                     # This step involves generating Python code and writing it to a .py file
                                     logger.info(f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.")
                                     # Read existing content for context (filepath_to_use is already resolved)
-                                    existing_content = self._read_file_for_context(filepath_to_use)
+                                    existing_content = self._read_file_for_context(filepath_to_use) # Assumes this is safe and uses the resolved path.
+                                    if existing_content is None: # Handle read errors
+                                         step_failure_reason = f"Failed to read current content of {filepath_to_use} for code generation."
+                                         logger.error(step_failure_reason)
+                                         raise RuntimeError(step_failure_reason)
+
                                     logger.debug(f"Read {len(existing_content)} characters from {filepath_to_use}.")
                                     context_for_llm = existing_content
                                     specific_instructions = (
@@ -747,11 +813,13 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                             validation_feedback.append(f"Pre-write syntax check failed: {se}")
                                             logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se}")
                                             logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
+                                            step_failure_reason = f"Pre-write syntax check failed: {se}" # Capture specific reason
                                         except Exception as e:
                                             validation_passed = False
                                             validation_feedback.append(f"Error during pre-write syntax validation (AST parse): {e}")
                                             logger.error(f"Error during pre-write syntax validation (AST parse): {e}", exc_info=True)
                                             logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
+                                            step_failure_reason = f"Error during pre-write syntax validation: {e}" # Capture specific reason
 
                                         if validation_passed and self.default_policy_config:
                                             try:
@@ -762,6 +830,7 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                                     validation_feedback.append(f"Pre-write ethical check failed: {ethical_results}")
                                                     logger.warning(f"Pre-write ethical validation failed for snippet: {ethical_results}")
                                                     logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
+                                                    step_failure_reason = f"Pre-write ethical check failed: {ethical_results.get('message', 'Policy rejected snippet.')}" # Capture specific reason
                                                 else:
                                                     logger.info("Pre-write ethical validation passed for snippet.")
                                             except Exception as e:
@@ -769,10 +838,11 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                                 validation_feedback.append(f"Error during pre-write ethical validation: {e}")
                                                 logger.error(f"Error during pre-write ethical validation: {e}", exc_info=True)
                                                 logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
+                                                step_failure_reason = f"Error during pre-write ethical validation: {e}" # Capture specific reason
                                         elif validation_passed:
                                             logger.warning("Skipping pre-write ethical validation: Default policy not loaded.")
 
-                                        if validation_passed:
+                                        if validation_passed: # Only proceed with style/security if previous checks passed
                                             try:
                                                 # Call code review/security analysis on the snippet
                                                 style_review_results = self.code_review_agent.analyze_python(generated_snippet)
@@ -782,6 +852,7 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                                     validation_feedback.append(f"Pre-write style/security check failed: Critical findings detected.")
                                                     logger.warning(f"Pre-write style/security validation failed for snippet. Critical findings: {critical_findings}")
                                                     logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
+                                                    step_failure_reason = f"Pre-write style/security check failed: Critical findings detected." # Capture specific reason
                                                 else:
                                                     logger.info("Pre-write style/security validation passed for snippet.")
                                             except Exception as e:
@@ -789,6 +860,7 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                                 validation_feedback.append(f"Error during pre-write style/security validation: {e}")
                                                 logger.error(f"Error during pre-write style/security validation: {e}", exc_info=True)
                                                 logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
+                                                step_failure_reason = f"Error during pre-write style/security validation: {e}" # Capture specific reason
 
                                         if validation_passed:
                                             logger.info(f"Pre-write validation passed for snippet targeting {filepath_to_use}. Proceeding with merge/write.")
@@ -811,6 +883,8 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                                 except Exception as review_e:
                                                     logger.error(f"Error running code review/security scan for {filepath_to_use}: {review_e}", exc_info=True)
                                                     self._current_task_results['code_review_results'] = {'status': 'error', 'message': str(review_e)}
+                                                    # Decide if this post-write error should fail the step or just be logged.
+                                                    # For now, it doesn't fail the step, but it might be desirable.
 
                                                 if self.default_policy_config:
                                                     try:
@@ -821,26 +895,40 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                                     except Exception as ethical_e:
                                                         logger.error(f"Error running ethical analysis for {filepath_to_use}: {ethical_e}", exc_info=True)
                                                         self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': str(ethical_e)}
+                                                        # Decide if this post-write error should fail the step or just be logged.
                                                 else:
                                                     logger.warning("Default ethical policy not loaded. Skipping ethical analysis.")
                                                     self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded.'}
 
+                                                step_succeeded = True # Mark step as successful after writing and post-checks (if post-checks aren't blocking)
+
                                             except FileExistsError:
                                                 # This should not happen with overwrite=True, but handle defensively
-                                                logger.error(f"Unexpected FileExistsError when writing merged content to {filepath_to_use} with overwrite=True.")
-                                                raise FileExistsError(f"Unexpected FileExistsError during write: {filepath_to_use}")
+                                                error_msg = f"Unexpected FileExistsError when writing merged content to {filepath_to_use} with overwrite=True."
+                                                logger.error(error_msg)
+                                                step_failure_reason = error_msg
+                                                raise FileExistsError(f"Unexpected FileExistsError during write: {filepath_to_use}") # Trigger retry/failure
                                             except Exception as e:
-                                                logger.error(f"Failed to write merged content to {filepath_to_use}: {e}", exc_info=True)
-                                                raise e # Re-raise to trigger step retries
+                                                error_msg = f"Failed to write merged content to {filepath_to_use}: {e}"
+                                                logger.error(error_msg, exc_info=True)
+                                                step_failure_reason = error_msg
+                                                raise e # Re-raise to trigger retry/failure
                                         else:
                                             # Pre-write validation failed, raise exception to trigger step retries
-                                            logger.warning(f"Pre-write validation failed for snippet targeting {filepath_to_use}. Skipping write/merge. Feedback: {validation_feedback}")
-                                            raise ValueError(f"Pre-write validation failed for step {step_index + 1}.")
+                                            error_message = f"Pre-write validation failed for snippet targeting {filepath_to_use}. Skipping write/merge. Feedback: {validation_feedback}"
+                                            logger.warning(error_message)
+                                            step_failure_reason = error_message
+                                            # Instead of just raising Exception, maybe raise a specific validation error?
+                                            # This allows the retry logic to potentially use the validation_feedback.
+                                            raise ValueError(f"Pre-write validation failed: {'. '.join(validation_feedback)}") # Trigger retry/failure
                                     else:
                                         # LLM returned empty or None snippet, raise exception to trigger step retries
-                                        logger.warning(f"Coder LLM returned empty or None snippet for step {step_index + 1}. Skipping file write.")
+                                        error_message = f"Coder LLM returned empty or None snippet for step {step_index + 1}. Skipping file write."
+                                        logger.warning(error_message)
+                                        step_failure_reason = error_message
                                         raise ValueError(f"Coder LLM returned empty snippet for step {step_index + 1}.")
 
+                                # FIX: Use filepath_to_use (the resolved determined target file) here
                                 elif content_to_write is not None and filepath_to_use:
                                     # This step involves explicitly writing content (e.g., a placeholder file)
                                     # filepath_to_use is already the resolved absolute path
@@ -858,6 +946,7 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                     except Exception as e:
                                         # Any other exception during write is a step failure
                                         logger.error(f"Failed to write file {filepath_to_use}: {e}", exc_info=True)
+                                        step_failure_reason = f"Failed to write file {filepath_to_use}: {e}"
                                         raise e # Re-raise to trigger step retries
 
                                 else:
@@ -868,7 +957,8 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                     # If filepath_to_use is None for a step that *should* write, it's a failure.
                                     if (prelim_flags['is_code_generation_step_prelim'] or prelim_flags['is_explicit_file_writing_step_prelim']) and filepath_to_use is None:
                                          logger.error(f"Step identified as file writing/code generation but filepath_to_use could not be determined or resolved for step: {step}")
-                                         raise ValueError(f"File path could not be determined/resolved for step {step_index + 1}.")
+                                         step_failure_reason = f"File path could not be determined/resolved for step {step_index + 1}."
+                                         raise ValueError(step_failure_reason)
                                     else:
                                          # FIX: Updated log message to match assertion in test_workflow_reporting.py
                                          logger.info(f"Step not identified as code generation, explicit file writing, or test execution. Skipping agent invocation/file write for step: {step}")
@@ -880,32 +970,48 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                 break # Exit retry loop for this step
 
                             except Exception as e:
-                                logger.error(f"Error executing step {step_index + 1}/{len(solution_plan)} (Attempt {step_retries + 1}/{MAX_STEP_RETRIES + 1}): {step}", exc_info=True)
+                                # This catches exceptions from test execution, LLM invocation,
+                                # pre-write validation failure (if raised), merge failure, write failure, etc.
+                                logger.error(f"Step execution failed (Attempt {step_retries + 1}/{MAX_STEP_RETRIES + 1}): {step}. Error: {e}", exc_info=True)
+                                # Ensure step_failure_reason is set if it wasn't by a specific exception
+                                if step_failure_reason is None:
+                                    step_failure_reason = f"An unexpected error occurred: {e}"
+
                                 self._current_task_results['step_errors'].append({
                                     'step_index': step_index + 1,
                                     'step_description': step,
                                     'error_type': type(e).__name__,
                                     'error_message': str(e),
                                     'timestamp': datetime.utcnow().isoformat(),
-                                    'attempt': step_retries + 1
+                                    'attempt': step_retries + 1,
+                                    'reason': step_failure_reason # Store the specific reason
                                 })
                                 step_retries += 1
                                 if step_retries <= MAX_STEP_RETRIES:
                                     logger.warning(f"Step {step_index + 1} failed. Attempting retry {step_retries}/{MAX_STEP_RETRIES}...")
                                 else:
-                                    logger.error(f"Step {step_index + 1} failed after {MAX_STEP_RETRIES} retries.")
+                                    # FIX: Log message format matches the assertion in the test
+                                    logger.error(f"Step {step_index + 1}/{len(solution_plan)} failed after {MAX_STEP_RETRIES} retries: {step_failure_reason}")
                                     task_failed_step = True # Mark task as failed due to step failure
                                     break # Exit retry loop for this step, move to next step (or end task)
 
                         if task_failed_step:
                             # If any step failed after retries, mark the task as Blocked and exit the step loop
                             new_status = "Blocked"
+                            # Get the last error for this specific step
                             last_error = next(
                                 (err for err in reversed(self._current_task_results['step_errors'])
                                  if err['step_index'] == step_index + 1),
-                                {"error_type": "UnknownError", "error_message": "No specific error logged."}
+                                {"error_type": "UnknownError", "error_message": "No specific error logged.", "reason": "Unknown reason."}
                             )
-                            reason_blocked = f"Step {step_index + 1} ('{step}') failed after {MAX_STEP_RETRIES + 1} attempts. Last error: {last_error['error_type']}: {last_error['error_message']}"
+                            # Use the specific reason if available, otherwise fallback to type and message
+                            # FIX: Calculate the last error reason separately to avoid nested f-string in expression
+                            last_error_reason = last_error.get('reason')
+                            if last_error_reason is None:
+                                # Construct the default message using a separate f-string
+                                last_error_reason = f'{last_error.get("error_type", "UnknownError")}: {last_error.get("error_message", "No specific error message.")}'
+
+                            reason_blocked = f"Step {step_index + 1} ('{step}') failed after {MAX_STEP_RETRIES + 1} attempts. Last error: {last_error_reason}"
                             logger.warning(f"Task {task_id} marked as '{new_status}'. Reason: {reason_blocked}")
                             self._update_task_status_in_roadmap(task_id, new_status, reason_blocked)
                             break # Exit the step loop
@@ -2150,7 +2256,7 @@ Your response should be the complete, corrected code content that addresses the 
                     if 'code_review_results' not in self._current_task_results or self._current_task_results['code_review_results'].get('status') != 'error':
                          self._current_task_results['code_review_results'] = {'status': 'error', 'message': f"Re-validation error: {e}"}
                     if 'ethical_analysis_results' not in self._current_task_results or self._current_task_results['ethical_analysis_results'].get('overall_status') != 'error':
-                         self._current_analysis_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': f"Re-validation error: {e}"}
+                         self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': f"Re-validation error: {e}"}
 
                 return True # Remediation attempt successful if write succeeded
             else:

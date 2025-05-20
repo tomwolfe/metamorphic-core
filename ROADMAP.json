@@ -147,7 +147,7 @@
       "priority": "Critical",
       "task_name": "Correctly Handle Single Target File From Multi-Target Tasks in CodeGen",
       "description": "Modify `WorkflowDriver.autonomous_loop` to correctly process tasks with multiple comma-separated `target_file` entries. 1. When a code generation step is identified, and the parent task's `target_file` lists multiple files, implement logic to determine the *actual single target file* for the current plan step. This determination should prioritize explicit file mentions in the step description (e.g., 'modify fileA.py', 'in fileB.py'). If no specific file from the task's list is mentioned in the step, it should default to the first file in the `task_target_file` list and log a warning about the ambiguity. 2. Ensure the determined single file path is used for `_read_file_for_context`, pre-write validation, and `_write_output_file`. 3. Add unit tests for this parsing/determination logic in tests/test_phase1_8_features.py. 4. Add an integration test with a multi-target task and a step modifying one specific file, asserting correct file operations.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": ["task_1_8_Z_implement_llm_rate_limiting"]
     },

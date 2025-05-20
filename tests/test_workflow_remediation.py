@@ -509,7 +509,8 @@ class TestWorkflowRemediation:
 
         # Mock load_roadmap to provide the task. Since it will be blocked,
         # the second call to select_next_task will find no 'Not Started' tasks.
-        mocker.patch.object( driver, 'load_roadmap', side_effect=[ [task_data], [task_data] ]) # Start, first iteration
+        # FIX: Provide enough side effects for load_roadmap calls
+        mocker.patch.object( driver, 'load_roadmap', side_effect=[ [task_data], [task_data], [task_data] ]) # Start, first iteration, plus one extra
         mock_select_next_task = mocker.patch.object(driver, 'select_next_task', side_effect=[task_data, None])
         mocker.patch.object(driver, 'generate_solution_plan', return_value=["Step 1: Implement code", "Step 2: Run tests"])
 
@@ -536,7 +537,8 @@ class TestWorkflowRemediation:
 
         # ASSERTIONS ALIGNED WITH SUT BEHAVIOR (TASK BLOCKING)
         mock_remediation.assert_not_called() # Remediation should NOT be called
-        assert "Step 2 failed after 2 retries." in caplog.text
+        # FIX: Use caplog.records to assert the log message presence and match the actual log format
+        assert any("Step 2/2 failed after 2 retries:" in record.message for record in caplog.records) # Removed the period
         assert "Task T1 marked as 'Blocked'." in caplog.text
         # Check that _update_task_status_in_roadmap was called to set status to Blocked
         # This requires _safe_write_roadmap_json to be called with the updated roadmap
@@ -609,7 +611,7 @@ class TestWorkflowRemediation:
 
         with caplog.at_level(logging.WARNING):
             # Manually set remediation_attempts on driver before the loop starts the task processing
-            # The loop itself resets it to 0 at the start of *each task iteration*.
+            # The loop itself resets driver.remediation_attempts to 0 at the start of *each task iteration*.
             # To test this, we need to ensure that *within one task iteration*, if remediation is attempted multiple times,
             # this counter is respected. The current SUT structure doesn't allow multiple remediation *attempts*
             # for the same failure type within one pass easily. It's more about overall task remediation attempts.

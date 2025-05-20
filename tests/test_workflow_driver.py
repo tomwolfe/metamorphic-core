@@ -296,8 +296,8 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=[])
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}], # Initial load in start_workflow
-        [{'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}], # Load at start of loop 1
-        []  # Load at start of loop 2
+        [{'task_id': 'mock_task_1', 'task_name': 'Mock Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High'}], # Loop 1 load
+        []  # Loop 2 load
     ])
     # Removed patch.object(Context, 'get_full_path', ...) as it's in the fixture
     @patch.object(WorkflowDriver, 'generate_grade_report', return_value=json.dumps({}))
@@ -405,8 +405,8 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True")
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement logic in incorrect/file_from_step.py"]) # Step mentions a different file
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
-        {'task_id': 'task_prioritize_target', 'task_name': 'Prioritize Target File', 'status': 'Not Started', 'description': 'Test target file prioritization.', 'priority': 'High', 'target_file': 'correct/file_from_task.py'}, # Task has a target_file
-        None
+        {'task_id': 'task_prioritize_target', 'task_name': 'Prioritize Target File', 'status': 'Not Started', 'description': 'Test target file prioritization.', 'priority': 'High', 'target_file': 'correct/file_from_task.py'},
+        None # Second call returns None to exit loop
     ])
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_prioritize_target', 'task_name': 'Prioritize Target File', 'status': 'Not Started', 'description': 'Test target file prioritization.', 'priority': 'High', 'target_file': 'correct/file_from_task.py'}], # Initial
@@ -574,12 +574,12 @@ class TestWorkflowDriver:
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to error.txt", "Step 2: Another step."])
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'},
-        None
+        None # Second call returns None to exit loop
     ])
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         [{'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'}], # Initial
         [{'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'}], # Loop 1
-        [{'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Blocked', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'}] # Loop 2 (after update)
+        [{'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Blocked', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt', 'reason_blocked': ANY}] # Loop 2 (after update)
     ])
     @patch.object(WorkflowDriver, '_read_file_for_context')
     @patch.object(WorkflowDriver, '_merge_snippet')
@@ -616,19 +616,13 @@ class TestWorkflowDriver:
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}} # Simulate success
         mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved', 'policy_name': 'Mock Policy'} # Simulate success
 
-        # FIX: Define task_list_not_started and task_list_blocked for assertions
+        # Define task_list_not_started and task_list_blocked for assertions
         task_list_not_started = [{'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'}]
-        # ADDED: Define task_list_blocked for assertions
         task_list_blocked = [{'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Blocked', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt', 'reason_blocked': ANY}]
 
 
-        # FIX: Configure mock_open for json.load
+        # Configure mock_open for json.load
         mock_file = MagicMock()
-        # The first read is in start_workflow (handled by mock_load_roadmap).
-        # The second read is in the loop (handled by mock_load_roadmap).
-        # The third read is in _update_task_status_in_roadmap. It should read the state *before* the update.
-        # In this test, the task is selected in loop 1, step fails, status is updated to Blocked.
-        # The state *before* update in loop 1 is task_list_not_started.
         mock_file.read.return_value = json.dumps({'tasks': task_list_not_started})
         mock_open.return_value.__enter__.return_value = mock_file
 
@@ -642,46 +636,55 @@ class TestWorkflowDriver:
         mock_code_review_agent.analyze_python.assert_not_called()
         mock_ethical_governance_engine.enforce_policy.assert_not_called()
 
-        # _write_output_file is called for both steps because target_file is set
-        # Step 1 is file writing (non-code-gen), Step 2 is not file writing
-        # Only Step 1 should call _write_output_file
-        # FIX: The write method is called 3 times due to retries
-        assert mock_write_output_file.call_count == MAX_STEP_RETRIES + 1 # Called for Step 1, retried MAX_STEP_RETRIES times
-        # FIX: Assert overwrite=True based on the new code logic
-        # FIX: Expect the resolved path
+        # _write_output_file is called for Step 1, retried MAX_STEP_RETRIES times
+        assert mock_write_output_file.call_count == MAX_STEP_RETRIES + 1
         mock_write_output_file.assert_any_call(mock_get_full_path("error.txt"), ANY, overwrite=True)
-        # FIX: Expect the resolved path in the log message
-        assert "Failed to write file /resolved/error.txt: Generic write error" in caplog.text
-        # FIX: Expect the resolved path in the log message
-        assert caplog.text.count("Failed to write file /resolved/error.txt: Generic write error") == MAX_STEP_RETRIES + 1
+
+        # Assert the specific error log from line 948 occurred MAX_STEP_RETRIES + 1 times
+        error_log_count_at_948 = sum(
+            1 for record in caplog.records
+            if record.levelname == 'ERROR'
+            and record.pathname.endswith('workflow_driver.py')
+            and record.lineno == 948
+            and record.message == f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error"
+        )
+        assert error_log_count_at_948 == MAX_STEP_RETRIES + 1
+
+        # Assert the specific error log from line 975 occurred MAX_STEP_RETRIES + 1 times
+        error_log_count_at_975 = sum(
+            1 for record in caplog.records
+            if record.levelname == 'ERROR'
+            and record.pathname.endswith('workflow_driver.py')
+            and record.lineno == 975
+            and record.message.startswith("Step execution failed (Attempt")
+            and record.message.endswith("Error: Generic write error")
+        )
+        assert error_log_count_at_975 == MAX_STEP_RETRIES + 1
+
 
         # The loop should now complete normally and log this message in the second iteration
-        # FIX: Assertion changed from 'not in' to 'in' because the loop continues and finds no tasks in the second iteration.
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
-        # FIX: Assertion changed from 'not in' to 'in' because the loop continues and finds no tasks in the second iteration.
-        assert 'Autonomous loop terminated.' in caplog.text # This assertion should now pass with the fix in workflow_driver.py
+        assert 'Autonomous loop terminated.' in caplog.text
         step1_logs = "\n".join([log for log in caplog.text.splitlines() if "Step 1" in log])
         step2_logs = "\n".join([log for log in caplog.text.splitlines() if "Step 2" in log])
-        # The step is identified as file writing, so this log should NOT appear for step 1
-        # FIX: Corrected assertion to check for the *actual* log message
+
         assert "Step identified as explicit file writing. Processing file operation for step: Step 1: Write output to error.txt" in step1_logs
-        # Step 2 IS NOT file writing, code gen, or test execution
-        # FIX: Corrected assertion to check for the *actual* log message
-        assert "Step not identified as code generation, explicit file writing, or test execution. Skipping agent invocation/file write for step: Step 2: Another step." not in step2_logs # Step 2 is never reached due to step 1 failure
+        # Step 2 is never reached because Step 1 fails after retries and the task is blocked.
+        assert "Step not identified as code generation, explicit file writing, or test execution. Skipping agent invocation/file write for step: Step 2: Another step." not in step2_logs
 
         # Status update should happen because of step errors
-        # FIX: Assert that safe_write_roadmap was called once and check the status
         mock_safe_write_roadmap.assert_called_once()
         written_data = mock_safe_write_roadmap.call_args[0][1]
         assert written_data['tasks'][0]['status'] == 'Blocked'
-        # ADDED: Assert the full content written matches the expected blocked state
         assert written_data == {'tasks': task_list_generic_error_blocked_expected_write}
 
-        # ADDED: Assert that open was called to read the roadmap before writing the blocked status
+        # Assert that open was called to read the roadmap before writing the blocked status
         mock_open.assert_any_call('/resolved/dummy_roadmap.json', 'r')
 
-        # ADDED: Verify calls for the second loop iteration (no tasks found)
-        # FIX: This assertion is incorrect because the loop exits. Remove it.
-        # mock_select_next_task.assert_any_call(task_list_blocked)
+        # Verify calls for the second loop iteration (no tasks found)
+        mock_select_next_task.assert_any_call(task_list_blocked)
 
-        # ADDED: Verify logging for status update
+        # Verify logging for status update
+        assert "Task task_generic_error marked as 'Blocked'." in caplog.text
+        assert "Updating task status from 'Not Started' to 'Blocked' for task task_generic_error" in caplog.text
+        assert "Successfully wrote updated status for task task_generic_error in dummy_roadmap.json" in caplog.text

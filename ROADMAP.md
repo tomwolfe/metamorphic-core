@@ -70,11 +70,17 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_unblock_log_enhance_1_8_2']
 
+*   **Task ID**: task_1_8_Z_implement_llm_rate_limiting
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Client-Side Rate Limiting for Gemini API Calls
+    *   **Status**: Completed
+    *   **Depends On**: ['task_unblock_retry_limit_1_8_2']
+
 *   **Task ID**: task_1_8_X_fix_multi_target_handling
     *   **Priority**: Critical
     *   **Task Name**: Correctly Handle Single Target File From Multi-Target Tasks in CodeGen
-    *   **Status**: Completed
-    *   **Depends On**: ['task_unblock_retry_limit_1_8_2']
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_Z_implement_llm_rate_limiting']
 
 *   **Task ID**: task_1_8_Y_ensure_docstrings_in_codegen
     *   **Priority**: Critical
@@ -86,7 +92,7 @@
     *   **Priority**: Critical
     *   **Task Name**: Optimize Large Context Handling for Code Generation Steps
     *   **Status**: Not Started
-    *   **Depends On**: ['task_unblock_retry_limit_1_8_2', 'task_1_8_X_fix_multi_target_handling', 'task_1_8_Y_ensure_docstrings_in_codegen']
+    *   **Depends On**: ['task_1_8_Y_ensure_docstrings_in_codegen']
 
 *   **Task ID**: task_1_8_A_test_import_optimization
     *   **Priority**: Critical
@@ -128,7 +134,7 @@
     *   **Priority**: High
     *   **Task Name**: Address Ethical Debt in Token Allocator Policy
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1', 'task_1_8_6']
+    *   **Depends On**: ['task_1_8_A_test_import_optimization', 'task_1_8_6']
 
 *   **Task ID**: task_1_8_7
     *   **Priority**: Medium

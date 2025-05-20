@@ -364,6 +364,7 @@ class TestWorkflowDriver:
     # FIX: Provide 3 return values for load_roadmap side_effect
     # FIX: Correct assertion for select_next_task call argument
     # FIX: Add mock for builtins.open for status update read
+    # FIX: Correct argument order in signature
     @patch.object(WorkflowDriver, 'select_next_task', return_value=None)
     @patch.object(WorkflowDriver, 'load_roadmap', side_effect=[
         # FIX: Correct the structure from [[]] to [] - The provided code already has the correct structure
@@ -402,6 +403,7 @@ class TestWorkflowDriver:
     # FIX: Update assertions for analyze_python and enforce_policy to expect 2 calls
     # FIX: Update mock_get_full_path call count assertion to 10 (was 9) - Corrected based on trace
     # FIX: Correct the expected task list for the second select_next_task call
+    # FIX: Correct the assertion string for the LLM prompt to match the code
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="def generated_code(): return True")
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement logic in incorrect/file_from_step.py"]) # Step mentions a different file
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
@@ -483,6 +485,7 @@ class TestWorkflowDriver:
         called_prompt = mock_invoke_coder_llm.call_args[0][0]
         # This assertion should now pass with the corrected generate_solution_plan
         # FIX: Correct assertion string to match the code's prompt template
+        # The prompt template uses "The primary file being modified is `{filepath_to_use}`.\n\n"
         assert f"The primary file being modified is `{mock_get_full_path('correct/file_from_task.py')}`.\n\n" in called_prompt
         # Should NOT use the old heuristic based on name/description
         assert "The primary file being modified for this task is `src/core/automation/workflow_driver.py`." not in called_prompt
@@ -641,25 +644,27 @@ class TestWorkflowDriver:
         mock_write_output_file.assert_any_call(mock_get_full_path("error.txt"), ANY, overwrite=True)
 
         # Assert the specific error log from line 948 occurred MAX_STEP_RETRIES + 1 times
-        error_log_count_at_948 = sum(
+        # FIX: Updated line number from 948 to 1022 based on captured log output
+        error_log_count_at_1022 = sum(
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and record.pathname.endswith('workflow_driver.py')
-            and record.lineno == 948
+            and record.lineno == 1022
             and record.message == f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error"
         )
-        assert error_log_count_at_948 == MAX_STEP_RETRIES + 1
+        assert error_log_count_at_1022 == MAX_STEP_RETRIES + 1
 
         # Assert the specific error log from line 975 occurred MAX_STEP_RETRIES + 1 times
-        error_log_count_at_975 = sum(
+        # FIX: Updated line number from 975 to 1049 based on captured log output
+        error_log_count_at_1049 = sum(
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and record.pathname.endswith('workflow_driver.py')
-            and record.lineno == 975
+            and record.lineno == 1049
             and record.message.startswith("Step execution failed (Attempt")
             and record.message.endswith("Error: Generic write error")
         )
-        assert error_log_count_at_975 == MAX_STEP_RETRIES + 1
+        assert error_log_count_at_1049 == MAX_STEP_RETRIES + 1
 
 
         # The loop should now complete normally and log this message in the second iteration

@@ -63,6 +63,34 @@ CONCEPTUAL_KEYWORDS = [
     "project plan", "design proposal"
 ]
 
+# Define the standard docstring instruction prompt addition (Task 1.8.Y)
+DOCSTRING_INSTRUCTION_PYTHON = (
+    "IMPORTANT: For any new Python functions, methods, or classes, "
+    "you MUST include a comprehensive PEP 257 compliant docstring. "
+    "Use Google-style format (Args:, Returns:, Example: sections). "
+    "This is required to pass automated ethical and style checks."
+)
+
+# Task 1.8.Y: Keywords indicating creation of new Python code structures
+PYTHON_CREATION_KEYWORDS = [
+    "implement function", "add method", "create class", "define function",
+    "write function", "write method", "write class",
+    "implement a function", "add a method", "create a class", "define a function",
+    "write a function", "write a method", "write a class",
+    "new function", "new method", "new class", "generate function",
+    "generate method", "generate class", "add function to", "add method to", "add class to",
+    # FIX: Add more specific keywords to match common phrasing for creation,
+    # including variations with "new" or "python" which were causing the test failure.
+    "write a new function", "write a python function", "write a new python function",
+    "create a new function", "create a python function", "create a new python function",
+    "define a new function", "define a python function", "define a new python function",
+    "implement a new function", "implement a python function", "implement a new python function",
+    "add a new method", "add a python method", "add a new python method",
+    "create a new class", "create a python class", "create a new python class",
+    "define a new class", "define a python class", "define a new python class",
+    "implement a new class", "implement a python class", "implement a new python class",
+]
+
 
 def classify_plan_step(step_description: str) -> str:
     """
@@ -167,6 +195,7 @@ class WorkflowDriver:
         self.remediation_attempts = 0
         self._current_task = {}
         self.task_target_file = None
+        self.remediation_occurred_in_pass = False
         self.ethical_governance_engine = EthicalGovernanceEngine()
         self._load_default_policy()
         # FIX: Instantiate EnhancedLLMOrchestrator with required mocks
@@ -258,7 +287,7 @@ class WorkflowDriver:
         # We just return the result.
         return resolved_path
 
-    def _determine_single_target_file(self, current_step_description: str, task_target_file_spec: Optional[str], prelim_flags: Dict) -> Optional[str]:
+    def _determine_single_target_file(self, step_description: str, task_target_file_spec: Optional[str], prelim_flags: Dict) -> Optional[str]:
         """
         Determines a single target file (relative path) from a task's target_file list
         based on the step description, primarily for code-generation, test-writing, or
@@ -289,10 +318,10 @@ class WorkflowDriver:
         if len(potential_task_targets) > 1 and should_apply_multi_target_logic:
             logger.debug(
                 f"Task has multiple target files: {potential_task_targets}. Applying multi-target selection "
-                f"for step: '{current_step_description}' (via _determine_single_target_file)"
+                f"for step: '{step_description}' (via _determine_single_target_file)"
             )
             found_in_step_description = False
-            step_desc_lower = current_step_description.lower()
+            step_desc_lower = step_description.lower()
 
             for file_candidate_relative in potential_task_targets:
                 normalized_candidate_path_str = Path(file_candidate_relative).as_posix().lower()
@@ -308,6 +337,7 @@ class WorkflowDriver:
                     break
                 # FIX: Adjust regex lookbehind and lookahead to exclude '.' from forbidden characters
                 # This allows matching filenames followed by punctuation like '.'
+                # The original regex was correct, just ensuring it's used here.
                 elif re.search(r'(?<![a-zA-Z0-9_-])' + re.escape(filename_candidate_lower) + r'(?![a-zA-Z0-9_-])', step_desc_lower):
                     determined_target_file_relative = file_candidate_relative
                     logger.info(
@@ -320,7 +350,7 @@ class WorkflowDriver:
             if not found_in_step_description:
                 determined_target_file_relative = potential_task_targets[0]
                 logger.warning(
-                    f"Step description '{current_step_description}' does not explicitly mention any file "
+                    f"Step description '{step_description}' does not explicitly mention any file "
                     f"from the task's target list: {potential_task_targets}. "
                     f"Defaulting to the first file: '{determined_target_file_relative}' (via _determine_single_target_file)."
                 )
@@ -373,12 +403,15 @@ class WorkflowDriver:
 
             potential_task_targets = []
             if task_target_file_spec and isinstance(task_target_file_spec, str):
-                potential_task_targets = [f.strip() for f in task_target_file_spec.split(',') if f.strip()]
+                 potential_task_targets = [f.strip() for f in task_target_file_spec.split(',') if f.strip()]
 
             if potential_task_targets: # Task has target(s) (could be single, or multi but not handled by _d_s_t_f)
+                # Use the first target from the task spec as the default for _determine_filepath_to_use
+                # if no explicit mention is found in the step by _determine_filepath_to_use itself.
+                # _determine_filepath_to_use handles extracting from step or using the provided task target.
                 determined_target_file_relative = self._determine_filepath_to_use(
                     current_step_description,
-                    task_target_file_spec, # Pass original spec string
+                    task_target_file_spec, # Pass original spec string (can be multi-target)
                     prelim_flags
                 )
             else: # No task_target_file_spec or it was empty after parsing.
@@ -387,7 +420,7 @@ class WorkflowDriver:
 
                 determined_target_file_relative = self._determine_filepath_to_use(
                     current_step_description,
-                    None, # Pass None as task_target_file
+                    None, # Pass None as task_target_file spec
                     prelim_flags
                 )
 
@@ -408,7 +441,7 @@ class WorkflowDriver:
         if task_target_file and isinstance(task_target_file, str):
              targets = [f.strip() for f in task_target_file.split(',') if f.strip()]
              if targets:
-                 effective_task_target = targets[0]
+                 effective_task_target = targets[0] # Use the first target if multi-target spec is passed here
 
         filepath_to_use = effective_task_target
 
@@ -463,8 +496,16 @@ class WorkflowDriver:
         is_research_step_prelim = preliminary_flags.get('is_research_step_prelim', False)
         step_implies_create_new_file = any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in ["create file", "generate file"])
         # FIX: Use _validate_path to get the resolved task target file path for comparison
-        resolved_task_target_file = self._validate_path(task_target_file) if task_target_file else None
-        is_main_python_target = (resolved_task_target_file is not None and filepath_to_use == resolved_task_target_file and filepath_to_use is not None and filepath_to_use.endswith('.py'))
+        # Note: task_target_file here is the raw spec string, not necessarily the single resolved path.
+        # We need to compare the resolved filepath_to_use against the resolved *potential* task targets.
+        # Let's resolve the *first* task target if it exists, as that's often the primary one.
+        resolved_primary_task_target = None
+        if task_target_file and isinstance(task_target_file, str):
+            targets = [f.strip() for f in task_target_file.split(',') if f.strip()]
+            if targets:
+                resolved_primary_task_target = self._validate_path(targets[0])
+
+        is_main_python_target = (resolved_primary_task_target is not None and filepath_to_use == resolved_primary_task_target and filepath_to_use is not None and filepath_to_use.endswith('.py'))
 
         conceptual_define_keywords_check_prelim = ["define list", "analyze", "understand", "document decision", "identify list", "define a comprehensive list"]
         is_conceptual_step_for_main_target = is_research_step_prelim or \
@@ -603,6 +644,31 @@ class WorkflowDriver:
 
         return "\n".join(formatted_steps) + ("\n" if formatted_steps else "")
 
+    # Task 1.8.Y: Add helper method to determine if docstring instruction is needed
+    def _should_add_docstring_instruction(self, step_description: str, target_filepath: Optional[str]) -> bool:
+        """
+        Determines if the docstring instruction should be added to the CoderLLM prompt.
+        This is true if the step involves Python code generation for new structures in a .py file.
+        """
+        # 1. Check if the target file is a Python file
+        if not target_filepath or not target_filepath.lower().endswith(".py"):
+            return False # Not a Python file, no Python docstring needed
+
+        # 2. Check if the step description indicates creation of new Python structures
+        step_lower = step_description.lower()
+
+        # FIX: Revert to using any() as the explicit loop didn't seem necessary
+        if any(keyword in step_lower for keyword in PYTHON_CREATION_KEYWORDS):
+            logger.debug(f"Docstring instruction triggered for step: '{step_description}' targeting '{target_filepath}' due to a matching keyword.")
+            return True
+
+        # Could potentially add regex checks here for patterns like "def func_name" or "class ClassName"
+        # Be cautious to avoid matching modifications of existing structures.
+        # For now, relying on explicit creation keywords is safer.
+
+        return False # No creation keyword found
+
+
     def autonomous_loop(self):
         if not hasattr(self, 'roadmap_path') or (self.roadmap_path is None):
             logger.error("Roadmap path not set. Cannot start autonomous loop.")
@@ -693,7 +759,7 @@ class WorkflowDriver:
                                     else:
                                          # Otherwise, default to the 'tests/' directory relative to the base path
                                          # FIX: Resolve the default 'tests/' path using context
-                                         resolved_default_test_path = self.context.get_full_path("tests/")
+                                         resolved_default_test_path = self.context.get_full_path("tests") # Pass "tests" not "tests/"
                                          if resolved_default_test_path:
                                              test_target_path = resolved_default_test_path
                                              # FIX: Updated log message to match assertion in test_workflow_validation_execution.py
@@ -781,8 +847,16 @@ class WorkflowDriver:
                                     # FIX: Corrected prompt template to match assertion in test_workflow_driver.py
                                     target_file_context_for_coder = f"The primary file being modified is `{filepath_to_use}`.\n\n"
 
+                                    # --- START: Add Docstring Instruction Conditionally (Task 1.8.Y) ---
+                                    docstring_prompt_addition = ""
+                                    # filepath_to_use is the resolved absolute path of the target file
+                                    if self._should_add_docstring_instruction(step, filepath_to_use):
+                                        docstring_prompt_addition = "\n" + DOCSTRING_INSTRUCTION_PYTHON + "\n\n" # Add newlines for separation
+                                        logger.info(f"Adding docstring instruction to CoderLLM prompt for step: {step}")
+                                    # --- END: Add Docstring Instruction Conditionally ---
+
                                     coder_prompt = f"""You are a Coder LLM expert in Python.
-Your task is to generate only the code snippet required to implement the following specific step from a larger development plan.
+Your task is to generate only the Python code snippet needed to fulfill the following specific step from a larger development plan.
 
 Overall Task: "{next_task.get('task_name', 'Unknown Task')}"
 Task Description: {next_task.get('description', 'No description provided.')}
@@ -795,7 +869,7 @@ EXISTING CONTENT OF `{filepath_to_use}`:
 ```python
 {context_for_llm}
 ```
-{specific_instructions}"""
+{docstring_prompt_addition}{specific_instructions}""" # docstring_prompt_addition is inserted here
                                     logger.debug("Invoking Coder LLM with prompt:\n%s", coder_prompt)
                                     generated_snippet = self._invoke_coder_llm(coder_prompt)
 
@@ -991,7 +1065,7 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                     logger.warning(f"Step {step_index + 1} failed. Attempting retry {step_retries}/{MAX_STEP_RETRIES}...")
                                 else:
                                     # FIX: Log message format matches the assertion in the test
-                                    logger.error(f"Step {step_index + 1}/{len(solution_plan)} failed after {MAX_STEP_RETRIES} retries: {step_failure_reason}")
+                                    logger.error(f"Step {step_index + 1}/{len(solution_plan)} failed after {MAX_STEP_RETRIES} retries. Last error: {step_failure_reason}")
                                     task_failed_step = True # Mark task as failed due to step failure
                                     break # Exit retry loop for this step, move to next step (or end task)
 
@@ -1037,22 +1111,34 @@ EXISTING CONTENT OF `{filepath_to_use}`:
 
                                 # Determine the target file for remediation. Prioritize task_target_file.
                                 # If task_target_file is multi-target or None, try to find the last file modified in the steps.
-                                filepath_for_remediation = self.task_target_file
-                                if not filepath_for_remediation:
-                                    last_file_step_path = None
-                                    # Iterate through steps in reverse to find the last step that involved a file write
-                                    for step_idx, plan_step_desc in reversed(list(enumerate(solution_plan))):
-                                         prelim_flags_rem = self._classify_step_preliminary(plan_step_desc)
-                                         # Use _resolve_target_file_for_step to get the resolved path for the step
-                                         step_filepath_rem = self._resolve_target_file_for_step(plan_step_desc, self.task_target_file, prelim_flags_rem)
-                                         # Check if the step was intended to write/generate code AND a file path was determined/resolved
-                                         if (prelim_flags_rem.get('is_code_generation_step_prelim') or prelim_flags_rem.get('is_explicit_file_writing_step_prelim')) and step_filepath_rem:
-                                             last_file_step_path = step_filepath_rem
-                                             break
+                                filepath_for_remediation = None
+                                # Use the resolved path from the last step that involved code generation/writing
+                                last_file_step_path = None
+                                # Iterate through steps in reverse to find the last step that involved a file write
+                                for step_idx, plan_step_desc in reversed(list(enumerate(solution_plan))):
+                                     prelim_flags_rem = self._classify_step_preliminary(plan_step_desc)
+                                     # Use _resolve_target_file_for_step to get the resolved path for the step
+                                     step_filepath_rem = self._resolve_target_file_for_step(plan_step_desc, self.task_target_file, prelim_flags_rem)
+                                     # Check if the step was intended to write/generate code AND a file path was determined/resolved
+                                     if (prelim_flags_rem.get('is_code_generation_step_prelim') or prelim_flags_rem.get('is_explicit_file_writing_step_prelim')) and step_filepath_rem:
+                                         last_file_step_path = step_filepath_rem
+                                         break
 
-                                    if last_file_step_path:
-                                         filepath_for_remediation = last_file_step_path
-                                         logger.debug(f"Using file path from last file-modifying step for remediation: {filepath_for_remediation}")
+                                if last_file_step_path:
+                                     filepath_for_remediation = last_file_step_path
+                                     logger.debug(f"Using file path from last file-modifying step for remediation: {filepath_for_remediation}")
+                                elif self.task_target_file:
+                                     # If no file-modifying step found, but task has a target, try the first task target
+                                     targets = [f.strip() for f in self.task_target_file.split(',') if f.strip()]
+                                     if targets:
+                                         filepath_for_remediation = self._validate_path(targets[0])
+                                         if filepath_for_remediation:
+                                             logger.debug(f"Using first task target file for remediation: {filepath_for_remediation}")
+                                         else:
+                                             logger.warning(f"Could not resolve first task target file '{targets[0]}' for remediation.")
+                                else:
+                                     logger.warning("No file-modifying step found and no task target file specified. Cannot attempt automated remediation.")
+
 
                                 # If a target file for remediation was determined/resolved
                                 if filepath_for_remediation:
@@ -1119,14 +1205,6 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                         else:
                                              logger.info("No applicable automated remediation identified or attempted.")
 
-                                    else:
-                                        logger.error(f"Failed to read current file content for remediation: {filepath_for_remediation}. Cannot attempt remediation.")
-                                        # If file content cannot be read, remediation is impossible. Mark task as Blocked.
-                                        new_status = "Blocked"
-                                        reason_blocked = f"Remediation recommended but failed to read target file: {filepath_for_remediation}"
-                                        logger.warning(f"Task {task_id} marked as '{new_status}'. Reason: {reason_blocked}")
-                                        self._update_task_status_in_roadmap(task_id, new_status, reason_blocked)
-                                        continue # Skip status update below and proceed to next loop iteration
 
                             else:
                                 logger.warning(f"Maximum task-level remediation attempts ({MAX_TASK_REMEDIATION_ATTEMPTS}) reached for task {task_id}. Proceeding without further automated remediation.")
@@ -1246,15 +1324,23 @@ EXISTING CONTENT OF `{filepath_to_use}`:
         target_file_prompt_section = ""
         if task_target_file:
             # Use _validate_path to get the resolved path safely
-            resolved_task_target_path = self._validate_path(task_target_file)
-            if resolved_task_target_path:
-                 # Construct the prompt section using the phrasing from the test assertion
-                 target_file_prompt_section = (
-                     f"The primary file being modified for this task is specified as `{resolved_task_target_path}` "
-                     "in the task metadata. Focus your plan steps on actions related to this file.\n\n"
-                 )
+            # Note: For planning, we might want to list all targets if multi-target.
+            # The current prompt template implies a single primary file.
+            # Let's stick to resolving the *first* target for the prompt context for now.
+            targets = [f.strip() for f in task_target_file.split(',') if f.strip()]
+            if targets:
+                resolved_primary_task_target_path = self._validate_path(targets[0])
+                if resolved_primary_task_target_path:
+                     # Construct the prompt section using the phrasing from the test assertion
+                     target_file_prompt_section = (
+                         f"The primary file being modified for this task is specified as `{resolved_primary_task_target_path}` "
+                         "in the task metadata. Focus your plan steps on actions related to this file.\n\n"
+                     )
+                else:
+                     logger.warning(f"Primary task target file '{targets[0]}' from spec '{task_target_file}' could not be resolved for planning prompt context.")
             else:
-                 logger.warning(f"Task target file '{task_target_file}' could not be resolved for planning prompt context.")
+                 logger.warning(f"Task target file spec '{task_target_file}' parsed into an empty list for planning prompt context.")
+
 
         planning_prompt = f"""You are an AI assistant specializing in software development workflows.
 Your task is to generate a step-by-step solution plan for the following development task from the Metamorphic Software Genesis Ecosystem roadmap.
@@ -1646,6 +1732,7 @@ Task Description:
                 # Use .get({}, {}) to ensure these keys exist even if the outer dict is missing them
                 "tests": validation_results.get('test_results', {}),
                 "code_review": validation_results.get('code_review_results', {}),
+                # FIX: Use the correct input key 'ethical_analysis_results'
                 "ethical_analysis": validation_results.get('ethical_analysis_results', {}),
                 "step_errors": validation_results.get('step_errors', []) # Ensure step_errors is always a list
             },
@@ -1663,6 +1750,7 @@ Task Description:
         }
 
         # --- Test Success & Non-Regression ---
+        # FIX: Use the correct input key 'tests'
         test_results = validation_results.get('tests', {})
         test_status = test_results.get('status')
 
@@ -1696,6 +1784,7 @@ Task Description:
 
 
         # --- Code Style & Security Soundness ---
+        # FIX: Use the correct input key 'code_review'
         code_review_results = validation_results.get('code_review', {})
         cr_status = code_review_results.get('status')
 
@@ -1740,6 +1829,7 @@ Task Description:
 
 
         # --- Ethical Policy ---
+        # FIX: Use the correct input key 'ethical_analysis'
         ethical_analysis_results = validation_results.get('ethical_analysis', {})
         ethical_overall_status = ethical_analysis_results.get('overall_status')
 
@@ -1792,7 +1882,7 @@ Task Description:
 
         # Prioritize Step Errors
         if step_errors:
-             recommended_action = "Manual Review Required"
+             recommended_action = "Blocked" # Step errors block progress
              justification = f"Step execution errors occurred ({len(step_errors)} errors). Manual review required."
              logger.warning(f"Step execution errors detected. Recommended Action: {recommended_action}")
              return {"recommended_action": recommended_action, "justification": justification}
@@ -1954,39 +2044,47 @@ Task Description:
             grades = report_data.get('grades', {})
             validation = report_data.get('validation_results', {})
 
+            # Prioritize Step Errors - Should be handled before remediation is attempted, but double check
+            step_errors = validation.get('step_errors', [])
+            if step_errors:
+                 logger.debug("Identified Step Errors. Remediation not applicable.")
+                 return None # Remediation is not the right action for step errors
+
+            # Prioritize Critical Failures (High Security) - Ethical Rejection handled below
+            code_review_results = validation.get('code_review', {})
+            if code_review_results.get('static_analysis') and any(f.get('severity') == 'security_high' for f in code_review_results['static_analysis']):
+                 logger.debug("Identified High Security findings. Remediation not applicable (requires manual review).")
+                 return None # High security issues require manual review, not automated remediation
+
+            # Prioritize Execution Errors - Should be handled before remediation is attempted, but double check
+            if validation.get('tests', {}).get('status') == 'error' or \
+               code_review_results.get('status') == 'error' or \
+               validation.get('ethical_analysis', {}).get('overall_status') == 'error':
+                 logger.debug("Identified Execution Errors. Remediation not applicable.")
+                 return None # Execution errors block progress, not suitable for code remediation
+
+            # Prioritize Ethical Transparency Violation (Specific Check)
+            ethical_results = validation.get('ethical_analysis', {})
+            # Check if the specific TransparencyScore status is 'violation'
+            transparency_status = ethical_results.get('TransparencyScore', {}).get('status')
+            if transparency_status == 'violation':
+                 logger.debug("Identified Ethical Transparency violation as remediation target.")
+                 return "Ethical Transparency"
+
             # Prioritize Test Failure
             test_results = validation.get('tests', {})
             if test_results.get('status') == 'failed':
                  logger.debug("Identified Test Failure as remediation target.")
                  return "Test Failure"
 
-            # Prioritize Ethical Transparency Violation if overall is rejected
-            ethical_results = validation.get('ethical_analysis', {})
-            if ethical_results.get('overall_status') == 'rejected':
-                if ethical_results.get('TransparencyScore', {}).get('status') == 'violation':
-                    logger.debug("Identified Ethical Transparency as remediation target.")
-                    return "Ethical Transparency"
-                else:
-                    logger.debug("Ethical rejection not due to TransparencyScore, no specific ethical remediation target identified.")
-
-            # Prioritize Code Style issues if grade is below 100 and no critical issues above
-            code_style_grade = grades.get('code_style', {}).get('percentage', 100)
-            code_review_results = validation.get('code_review', {})
+            # Prioritize Code Style issues if findings exist
             # Check if code review results are available and not in error state
             if code_review_results.get('status') in ['success', 'failed']:
                 all_findings = code_review_results.get('static_analysis', [])
                 style_findings = [f for f in all_findings if not f.get('severity', '').startswith('security')]
-                # Check if there are any style findings (even if grade is 100 due to rounding)
-                if style_findings:
+                if style_findings: # Check if there are any style findings
                     logger.debug("Identified Code Style as remediation target.")
                     return "Code Style"
-                else:
-                    logger.debug("Code style grade below 100, but no non-security static analysis findings found.")
-            elif code_review_results.get('status') == 'error':
-                 logger.debug("Code review status is error, skipping style remediation target identification.")
-            else:
-                 logger.debug("No valid code review results available, skipping style remediation target identification.")
-
 
             logger.debug("No specific remediation target identified from grade report for automated remediation.")
             return None
@@ -2078,18 +2176,29 @@ Output only the complete, corrected Python code. Do not include explanations or 
         try:
             report_data = json.loads(grade_report_json)
             ethical_results = report_data.get('validation_results', {}).get('ethical_analysis', {})
-            transparency_details = ethical_results.get('TransparencyScore', {})
-
-            if transparency_details.get('status') != 'violation':
-                logger.warning("Ethical transparency remediation triggered, but no violation found in report.")
-                return False
+            # Check if overall status is rejected, as _identify_remediation_target should ensure this
+            # Also specifically check for TransparencyScore violation
+            transparency_status = ethical_results.get('TransparencyScore', {}).get('status')
+            if transparency_status != 'violation':
+                 logger.warning("Ethical transparency remediation triggered, but TransparencyScore status is not 'violation'.")
+                 return False
 
             # Use the details from the report, or a default message
-            feedback_str = transparency_details.get('details', "Missing required docstring(s).")
+            # Look for specific violation details if available, otherwise use a generic message
+            violation_details = []
+            # Iterate through all keys in ethical_results, not just policy names
+            for key, policy_result in ethical_results.items():
+                # Ensure policy_result is a dict and has a status key
+                if isinstance(policy_result, dict) and policy_result.get('status') == 'violation':
+                    details = policy_result.get('details', f"Violation in policy/check '{key}'.")
+                    violation_details.append(details)
+
+            feedback_str = "\n".join(violation_details) if violation_details else "Ethical transparency violation detected (details not available)."
+
             logger.debug(f"Extracted ethical transparency feedback: {feedback_str}")
 
             feedback_prompt = f"""You are a Coder LLM expert in Python documentation and code transparency.
-The following Python code failed an automated ethical transparency check, likely due to missing docstrings.
+The following Python code failed an automated ethical transparency check, likely due to missing docstrings or other transparency issues.
 File Path: {file_path}
 Original Task: "{task.get('task_name', 'Unknown Task')}"
 Plan Step: "{step_desc}"
@@ -2099,15 +2208,13 @@ Code with Issues:
 {original_code}
 ```
 
-Identified Transparency Issue:
+Identified Ethical Transparency Issue:
 {feedback_str}
 
-Your task is to rewrite the entire code block above, adding the necessary docstrings to satisfy the transparency requirement.
-Add a module-level docstring if missing.
-Add docstrings to all functions and classes.
-Docstrings should clearly explain the purpose, arguments, and return values (if any).
+Your task is to rewrite the entire code block above, addressing the identified transparency issue(s).
+This may involve adding comprehensive docstrings (PEP 257, Google style) to functions, methods, and classes, or adding comments where code logic is complex or potentially ambiguous.
 Maintain all original logic and functionality.
-Output only the complete, corrected Python code with added docstrings. Do not include explanations or markdown fences.
+Output only the complete, corrected Python code with added documentation/comments. Do not include explanations or markdown fences.
 """
             logger.debug("Invoking Coder LLM for ethical transparency remediation...")
             corrected_code = self._invoke_coder_llm(feedback_prompt)

@@ -85,8 +85,20 @@
 *   **Task ID**: task_1_8_Y_ensure_docstrings_in_codegen
     *   **Priority**: Critical
     *   **Task Name**: Ensure Docstrings in CoderLLM Output for Python Code
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_X_fix_multi_target_handling']
+
+*   **Task ID**: task_1_8_fix_rate_limit_enh_orchestrator
+    *   **Priority**: Critical
+    *   **Task Name**: Fix Gemini Rate Limiting in EnhancedLLMOrchestrator
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_Y_ensure_docstrings_in_codegen']
+
+*   **Task ID**: task_1_8_improve_snippet_handling
+    *   **Priority**: Critical
+    *   **Task Name**: Improve Code Snippet Generation, Validation, and Merging Robustness
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_fix_rate_limit_enh_orchestrator']
 
 *   **Task ID**: task_1_8_A_optimize_large_context
     *   **Priority**: Critical
@@ -134,7 +146,7 @@
     *   **Priority**: High
     *   **Task Name**: Address Ethical Debt in Token Allocator Policy
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_test_import_optimization', 'task_1_8_6']
+    *   **Depends On**: ['task_1_8_A_test_import_optimization', 'task_1_8_5']
 
 *   **Task ID**: task_1_8_7
     *   **Priority**: Medium

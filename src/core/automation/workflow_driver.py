@@ -515,7 +515,7 @@ class WorkflowDriver:
         return filepath_to_use # Return the relative path
 
 
-    def _determine_write_operation_details(self, step_description: str, filepath_to_use: str | None, task_target_file: str | None, preliminary_flags: dict) -> tuple[str | None, bool]:
+    def _determine_write_operation_details(self, step_description: str, filepath_to_use: str | None, task_target_file: str | None, preliminary_flags: Dict) -> tuple[str | None, bool]:
         step_lower = step_description.lower()
         is_explicit_file_writing_step_prelim = preliminary_flags.get('is_explicit_file_writing_step_prelim', False)
         is_research_step_prelim = preliminary_flags.get('is_research_step_prelim', False)
@@ -847,11 +847,23 @@ class WorkflowDriver:
 
                                     logger.debug(f"Read {len(existing_content)} characters from {filepath_to_use}.")
                                     context_for_llm = existing_content
+
+                                    # Define general guidelines for snippet generation
+                                    general_snippet_guidelines = (
+                                        "Key guidelines for snippet generation:\n"
+                                        "1. Ensure all string literals are correctly terminated (e.g., matching quotes, proper escaping).\n"
+                                        "2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a `METAMORPHIC_INSERT_POINT` is present.\n"
+                                        "3. Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons.\n"
+                                        "4. If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity."
+                                    )
+
+                                    # Default specific instructions including general guidelines
                                     specific_instructions = (
                                         "Generate only the Python code snippet needed to fulfill the \"Specific Plan Step\". "
                                         "Do not include any surrounding text, explanations, or markdown code block fences (```). "
-                                        "Provide just the raw code lines that need to be added or modified."
-                                    )
+                                        "Provide just the raw code lines that need to be added or modified.\n"
+                                    ) + general_snippet_guidelines
+
                                     # Optimize context for 'add imports' steps
                                     if self._is_add_imports_step(step):
                                         logger.info(f"Identified 'add imports' step. Optimizing context for {filepath_to_use}.")
@@ -860,11 +872,12 @@ class WorkflowDriver:
                                         cutoff_line = min(import_block_end_line + 5, MAX_IMPORT_CONTEXT_LINES, len(lines))
                                         cutoff_line = max(0, cutoff_line)
                                         context_for_llm = "\n".join(lines[:cutoff_line])
+                                        # Override specific instructions for import steps, combining import-specific with general
                                         specific_instructions = (
                                             "You are adding import statements. Provide *only* the new import lines that need to be added. "
                                             "Do not repeat existing imports. Do not output any other code or explanation. "
-                                            "Place the new imports appropriately within or after the existing import block."
-                                        )
+                                            "Place the new imports appropriately within or after the existing import block.\n"
+                                        ) + general_snippet_guidelines
                                         logger.debug(f"Using truncated context for imports (up to line {cutoff_line}):\n{context_for_llm}")
 
                                     # Construct the prompt for the Coder LLM
@@ -1736,12 +1749,31 @@ Task Description:
     def _merge_snippet(self, existing_content: str, snippet: str) -> str:
         if not snippet:
             return existing_content
+
         marker_index = existing_content.find(METAMORPHIC_INSERT_POINT)
         if marker_index != -1:
-            # Replace only the first occurrence
-            return existing_content.replace(METAMORPHIC_INSERT_POINT, snippet, 1)
+            # Find the start of the line containing the marker
+            line_start_index = existing_content.rfind('\n', 0, marker_index) + 1
+            
+            marker_line = existing_content[line_start_index:] # Get the rest of the line from line_start_index
+
+            # Determine leading whitespace of the marker line
+            match = re.match(r"^(\s*)", marker_line)
+            leading_whitespace = match.group(1) if match else ""
+
+            # Indent the snippet based on the marker's line indentation
+            snippet_lines = snippet.splitlines()
+            if not snippet_lines: # Handle empty snippet
+                indented_snippet_for_replace = ""
+            else:
+                # Prepend leading whitespace to each line of the snippet
+                indented_snippet_lines = [leading_whitespace + line for line in snippet_lines]
+                indented_snippet_for_replace = "\n".join(indented_snippet_lines)
+
+            # Replace the marker in the original content string with the indented snippet
+            return existing_content.replace(METAMORPHIC_INSERT_POINT, indented_snippet_for_replace, 1)
         else:
-            # Append with a newline if the existing content doesn't end with one
+            # Marker not found, append logic
             if existing_content and not existing_content.endswith('\n'):
                 return existing_content + "\n" + snippet
             return existing_content + snippet
@@ -2470,3 +2502,4 @@ Your response should be the complete, corrected code content that addresses the 
             return False
         except Exception as e:
             logger.error(f"Error during test failure remediation: {e}", exc_info=True)
+            return False

@@ -1,6 +1,6 @@
 #File: tests/test_workflow_driver.py
 import pytest
-import html
+import html # Ensure this line starts at column 1
 import shutil
 import subprocess
 
@@ -447,7 +447,7 @@ class TestWorkflowDriver:
         mock_get_full_path = test_driver_validation['mock_get_full_path'] # Get mock from fixture
 
 
-        # Set return values on the mock instances from the fixture
+        # Set return values on fixture mocks
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}}
         mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved', 'policy_name': 'Mock Policy'}
 
@@ -642,28 +642,26 @@ class TestWorkflowDriver:
         assert mock_write_output_file.call_count == MAX_STEP_RETRIES + 1
         mock_write_output_file.assert_any_call(mock_get_full_path("error.txt"), ANY, overwrite=True)
 
-        # Assert the specific error log from line 948 occurred MAX_STEP_RETRIES + 1 times
-        # FIX: Updated line number from 948 to 1022 based on captured log output
-        error_log_count_at_1022 = sum(
+        # Assert the specific error log from line 1130 occurred MAX_STEP_RETRIES + 1 times
+        error_log_count_at_1130 = sum(
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and record.pathname.endswith('workflow_driver.py')
-            and record.lineno == 1117 # Corrected line number
+            and record.lineno == 1130 # Corrected line number from 1117 to 1130
             and record.message == f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error"
         )
-        assert error_log_count_at_1022 == MAX_STEP_RETRIES + 1
+        assert error_log_count_at_1130 == MAX_STEP_RETRIES + 1
 
-        # Assert the specific error log from line 975 occurred MAX_STEP_RETRIES + 1 times
-        # FIX: Updated line number from 975 to 1049 based on captured log output
-        error_log_count_at_1049 = sum(
+        # Assert the specific error log from line 1157 occurred MAX_STEP_RETRIES + 1 times
+        error_log_count_at_1157 = sum(
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and record.pathname.endswith('workflow_driver.py')
-            and record.lineno == 1144 # Corrected line number
+            and record.lineno == 1157 # Corrected line number from 1144 to 1157
             and record.message.startswith("Step execution failed (Attempt")
             and record.message.endswith("Error: Generic write error")
         )
-        assert error_log_count_at_1049 == MAX_STEP_RETRIES + 1
+        assert error_log_count_at_1157 == MAX_STEP_RETRIES + 1
 
 
         # The loop should now complete normally and log this message in the second iteration

@@ -832,7 +832,7 @@ class WorkflowDriver:
                                         # Ensure test_results reflects the error state if not already set
                                         if 'test_results' not in self._current_task_results or self._current_task_results['test_results'].get('status') != 'error':
                                              self._current_task_results['test_results'] = {'status': 'error', 'passed': 0, 'failed': 0, 'total': 0, 'message': str(e)}
-                                        raise e # Re-raise to trigger step retries
+                                        raise e # Re-raise to trigger retry/failure
 
                                 # FIX: Use filepath_to_use (the resolved determined target file) here
                                 elif prelim_flags['is_code_generation_step_prelim'] and filepath_to_use and filepath_to_use.endswith('.py'):
@@ -1008,6 +1008,31 @@ EXISTING CONTENT OF `{filepath_to_use}`:
 
                                         if validation_passed:
                                             logger.info(f"Pre-write validation passed for snippet targeting {filepath_to_use}. Proceeding with merge/write.")
+
+                                            # --- START: Pre-Merge Full File Syntax Check (Task 1.8.improve_snippet_handling sub-task 4) ---
+                                            try:
+                                                # Create a hypothetical merged content
+                                                # Use the existing _merge_snippet logic for this hypothetical merge
+                                                hypothetical_merged_content = self._merge_snippet(existing_content, cleaned_snippet)
+                                                ast.parse(hypothetical_merged_content)
+                                                logger.info("Pre-merge full file syntax check (AST parse) passed.")
+                                            except SyntaxError as se:
+                                                validation_passed = False
+                                                validation_feedback.append(f"Pre-merge full file syntax check failed: {se}")
+                                                logger.warning(f"Pre-merge full file syntax validation failed for {filepath_to_use}: {se}")
+                                                logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
+                                                step_failure_reason = f"Pre-merge full file syntax check failed: {se}"
+                                            except Exception as e:
+                                                validation_passed = False
+                                                validation_feedback.append(f"Error during pre-merge full file syntax validation: {e}")
+                                                logger.error(f"Error during pre-merge full file syntax validation: {e}", exc_info=True)
+                                                logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
+                                                step_failure_reason = f"Error during pre-merge full file syntax validation: {e}"
+
+                                            if not validation_passed:
+                                                raise ValueError(f"Pre-merge full file syntax validation failed: {'. '.join(validation_feedback)}")
+                                            # --- END: Pre-Merge Full File Syntax Check ---
+
                                             # Merge the snippet into the existing content
                                             merged_content = self._merge_snippet(existing_content, cleaned_snippet)
                                             logger.debug("Snippet merged.")
@@ -2445,4 +2470,3 @@ Your response should be the complete, corrected code content that addresses the 
             return False
         except Exception as e:
             logger.error(f"Error during test failure remediation: {e}", exc_info=True)
-            return False

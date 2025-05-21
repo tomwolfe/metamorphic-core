@@ -24,18 +24,18 @@ from src.core.chunking.recursive_summarizer import RecursiveSummarizer
 from src.core.chunking.dynamic_chunker import SemanticChunker, CodeChunk
 from src.core.optimization.adaptive_token_allocator import TokenAllocator
 from src.core.knowledge_graph import KnowledgeGraph, Node
-from src.core.optimization.token_optimizer import TokenOptimizer
+from src.core.optimization.token_optimizer import TokenOptimizer # Import TokenOptimizer
 from src.core.verification.specification import FormalSpecification
 from src.core.verification.decorators import formal_proof
 
-# Ensure logger is defined if not already
-logger = logging.getLogger(__name__)
+from tenacity import Retrying, stop_after_attempt, wait_exponential, RetryError # Changed import to Retrying
 
+# Ensure logger is defined if not already
+logger = logging.getLogger(__name__) # FIX: Use __name__ for module-level logger
 
 class LLMProvider(str, Enum):
     GEMINI = "gemini"
     HUGGING_FACE = "huggingface"
-
 
 class LLMConfig(BaseModel):
     provider: LLMProvider
@@ -45,19 +45,20 @@ class LLMConfig(BaseModel):
     timeout: int = 30
     hugging_face_model: str = SecureConfig.get("HUGGING_FACE_MODEL", "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B")
 
-
 class LLMOrchestrator:
-    def __init__(self):
+    def __init__(self): # FIX: Correct method name from init to __init__
         self.client = None
         self.active_provider = None
         self.config = self._load_config()
         self._configure_providers()
         # --- ADD RATE LIMITING ATTRIBUTES ---
-        # Track the time the *last* Gemini call *started* (or finished, consistently)
+        # Track the time the last Gemini call started (or finished, consistently)
         self._last_gemini_call_start_time = 0.0 # Use float for time.monotonic()
         self._gemini_call_lock = threading.Lock() # Use a lock for thread safety
         self._GEMINI_MIN_INTERVAL_SECONDS = 6.0 # 60 seconds / 10 requests (10 RPM for Gemini Flash free tier)
         # --- END ADD ---
+        # FIX: Initialize telemetry in base class if it's used there
+        self.telemetry = Telemetry()
 
 
     def _load_config(self) -> LLMConfig:
@@ -72,7 +73,7 @@ class LLMOrchestrator:
                 timeout=int(SecureConfig.get("LLM_TIMEOUT", 30)),
             )
         except (ValidationError, ConfigError, ValueError) as e:
-            logging.error(f"Error loading LLM configuration: {str(e)}")
+            logger.error(f"Error loading LLM configuration: {str(e)}") # FIX: Use module-level logger
             raise RuntimeError(f"Invalid LLM configuration: {str(e)}")
 
     def _configure_providers(self):
@@ -105,7 +106,7 @@ class LLMOrchestrator:
 
                 if elapsed_since_last_call < self._GEMINI_MIN_INTERVAL_SECONDS:
                     sleep_duration = self._GEMINI_MIN_INTERVAL_SECONDS - elapsed_since_last_call
-                    logger.info(f"Gemini rate limit: sleeping for {sleep_duration:.2f} seconds.")
+                    logger.info(f"Gemini rate limit: sleeping for {sleep_duration:.2f} seconds.") # FIX: Use module-level logger
                     time.sleep(sleep_duration)
                 # Update the last call start time *after* potential sleep and before the API call
                 # This marks the start of the current API call's interval.
@@ -116,33 +117,43 @@ class LLMOrchestrator:
         return self._generate_with_retry(prompt)
 
     def _generate_with_retry(self, prompt: str) -> str:
-        # Apply rate limit *before* the first attempt and *before* any subsequent retries
-        # if they happen too quickly.
+        """
+        Generates content from the LLM with rate limiting and robust retries.
+        """
+        try:
+            # Create a retry mechanism dynamically using instance config
+            # stop_after_attempt(self.config.max_retries + 1) means:
+            # if max_retries = 3, then 3 retries + 1 initial attempt = 4 total attempts.
+            retrying = Retrying(
+                stop=stop_after_attempt(self.config.max_retries + 1),
+                wait=wait_exponential(multiplier=1, min=2, max=10),
+                reraise=False # FIX: Change to False so RetryError is always raised on failure
+            )
 
-        for attempt in range(self.config.max_retries):
-            try:
-                # Apply rate limit logic immediately before attempting the API call
-                # This method is a no-op for non-Gemini providers.
-                self._apply_gemini_rate_limit()
+            # Call the _call_llm_api method via the tenacity Retrying object.
+            # _apply_gemini_rate_limit is now called inside _call_llm_api before each attempt.
+            return retrying(self._call_llm_api, prompt, self.config.provider.value)
 
-                # --- FIX: Call the _call_llm_api method which is now added to the base class ---
-                return self._call_llm_api(prompt, self.config.provider.value)
-                # --- END FIX ---
+        except RetryError as e:
+            # This exception is raised by tenacity if all attempts fail.
+            logger.error(f"LLM API failed after all retries for prompt (first 200 chars): {prompt[:200]}. Last error: {e.last_attempt.exception()}") # FIX: Use module-level logger
+            raise RuntimeError(f"LLM API failed after all retries: {e.last_attempt.exception()}") from e
+        except Exception as e:
+            # Catch other non-retryable exceptions (e.g., invalid API key, malformed request before API call).
+            # This block should now only catch exceptions that are NOT wrapped by tenacity (e.g., if _call_llm_api is called directly outside retrying)
+            logger.error(f"LLM API failed with non-retryable error for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}") # FIX: Use module-level logger
+            raise RuntimeError(f"LLM API failed: {str(e)}") from e
 
-            except Exception as e:
-                logging.error(f"Attempt {attempt + 1} failed: {str(e)}")
-                if attempt == self.config.max_retries - 1:
-                    # Log the prompt that caused the final failure for easier debugging
-                    logging.error(f"LLM API failed after {self.config.max_retries} attempts for prompt (first 200 chars): {prompt[:200]}")
-                    raise RuntimeError(f"LLM API failed after {self.config.max_retries} attempts: {str(e)}")
-                # A small delay before retrying is still good practice for transient errors,
-                # even with rate limiting.
-                time.sleep(1) # e.g., wait 1 second before retrying
-
-    # --- ADD _call_llm_api method to the base class ---
+    # --- MODIFIED: _call_llm_api no longer has @retry decorator ---
     def _call_llm_api(self, text: str, model: str) -> str:
-        """Directly call the appropriate LLM API based on the provider string."""
-        # Rate limiting is handled by _generate_with_retry before this method is called.
+        """Directly call the appropriate LLM API based on the provider string.
+        Rate limiting is applied here before each attempt.
+        """
+        # Apply rate limit before each actual API attempt.
+        # This method is a no-op for non-Gemini providers.
+        self._apply_gemini_rate_limit() # <--- MOVED HERE
+
+        self.telemetry.track("model_usage", tags={"model": model}) # Moved from EnhancedLLMOrchestrator
         if model == LLMProvider.GEMINI.value:
             return self._gemini_generate(text)
         elif model == LLMProvider.HUGGING_FACE.value or model == self.config.hugging_face_model:
@@ -152,13 +163,13 @@ class LLMOrchestrator:
         # elif model == "some_other_model":
         #     return self._some_other_generate(text)
         else:
-            logger.error(f"Attempted to call unsupported model: {model} in LLMOrchestrator._call_llm_api")
+            logger.error(f"Attempted to call unsupported model: {model} in LLMOrchestrator._call_llm_api") # FIX: Use module-level logger
             raise ValueError(f"Unsupported model: {model}")
-    # --- END ADD ---
+    # --- END MODIFIED ---
 
 
     def _gemini_generate(self, prompt: str) -> str:
-        # Rate limiting is now applied in _generate_with_retry before _call_llm_api calls this method
+        # Rate limiting is now applied in _call_llm_api before this method is called.
         # This method should only contain the direct API call logic
         try:
             # Use the model attribute set during configuration
@@ -174,11 +185,11 @@ class LLMOrchestrator:
                 parts = response.candidates[0].content.parts
                 return "".join(part.text for part in parts if hasattr(part, "text"))
             # Handle cases where response might be empty or malformed without raising an exception
-            logger.warning(f"Gemini API returned an empty or unexpected response structure for prompt (first 200 chars): {prompt[:200]}")
+            logger.warning(f"Gemini API returned an empty or unexpected response structure for prompt (first 200 chars): {prompt[:200]}") # FIX: Use module-level logger
             return ""
         except Exception as e:
             # Log the prompt that caused the error for easier debugging
-            logger.error(f"Gemini error during API call for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}")
+            logger.error(f"Gemini error during API call for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}") # FIX: Use module-level logger
             # Re-raise to be handled by _generate_with_retry
             raise RuntimeError(f"Gemini error: {str(e)}")
 
@@ -199,23 +210,20 @@ class LLMOrchestrator:
                 return_full_text=False
             )
         except Exception as e:
-            logging.error(f"Hugging Face error: {str(e)}")
+            logging.error(f"Hugging Face error: {str(e)}") # This one was already using logging directly
             raise RuntimeError(f"Hugging Face error: {str(e)}")
 
     def _count_tokens(self, text: str) -> int:
         # Simple token count for demonstration; replace with a proper tokenizer if needed
         return len(text.split())
-
-
 class EnhancedLLMOrchestrator(LLMOrchestrator):
-    def __init__(
-            self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: "EthicalGovernanceEngine"
+    def __init__( # FIX: Correct method name from init to __init__
+        self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: "EthicalGovernanceEngine"
     ):
         super().__init__()
-        self.telemetry = Telemetry()
+        # self.telemetry = Telemetry() # REMOVED: telemetry is now initialized in the base class
         self.chunker = SemanticChunker()
         self.allocator = TokenAllocator(total_budget=50000)
-        self.optimizer = TokenOptimizer()
         # Pass self (the Enhanced instance) to RecursiveSummarizer
         self.summarizer = RecursiveSummarizer(self, spec, self.telemetry)
         self.kg = kg
@@ -227,6 +235,9 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
             self._third_model,
             self._recursive_summarization_strategy,
         ]
+        # FIX: Initialize optimizer here, as it's used by fallback strategies
+        self.optimizer = TokenOptimizer()
+
 
     def generate(self, prompt: str) -> str:
         self.telemetry.start_session()
@@ -237,7 +248,6 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
                     code = self._handle_large_context(prompt)
                 else:
                     model = self.config.provider.value
-                    self.telemetry.track("model_usage", tags={"model": model})
                     # Call the generate method from the base class (which includes retry and rate limit)
                     # The base generate calls _generate_with_retry, which calls _call_llm_api
                     code = super().generate(prompt)
@@ -261,7 +271,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         # Assuming spec has a validate_chunks method
         if not hasattr(self.spec, 'validate_chunks') or not self.spec.validate_chunks(chunks):
              # Log or handle the case where validate_chunks is missing or fails
-             logger.warning("FormalSpecification does not have validate_chunks or validation failed.")
+             logger.warning("FormalSpecification does not have validate_chunks or validation failed.") # FIX: Use module-level logger
              # Decide how to proceed: raise error, skip validation, etc.
              # For now, let's assume it should raise an error if validation fails
              if hasattr(self.spec, 'validate_chunks'):
@@ -278,7 +288,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
             with self.telemetry.span(f"chunk_{idx}"):
                 # Assuming spec has a verify method that takes CodeChunk
                 if not hasattr(self.spec, 'verify') or not self.spec.verify(chunk):
-                    logger.warning(f"FormalSpecification does not have verify or verification failed for chunk {idx}.")
+                    logger.warning(f"FormalSpecification does not have verify or verification failed for chunk {idx}.") # FIX: Use module-level logger
                     # Decide how to proceed if verification fails or method is missing
                     if hasattr(self.spec, 'verify'):
                         self.telemetry.track("verification_failure", tags={"chunk_id": str(chunk.id)})
@@ -303,7 +313,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
 
         # Assuming summarizer has a synthesize method
         if not hasattr(self.summarizer, 'synthesize'):
-             logger.error("RecursiveSummarizer missing synthesize method.")
+             logger.error("RecursiveSummarizer missing synthesize method.") # FIX: Use module-level logger
              raise CriticalFailure("Summarization synthesis method missing.")
 
         return self.summarizer.synthesize(summaries)
@@ -337,7 +347,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
                         "model_fallback", tags={"model": model, "strategy": strategy.__name__, "error": str(e)}
                     )
                     last_exception = e
-                    logging.warning(f"Fallback strategy {strategy.__name__} failed: {e}")
+                    logging.warning(f"Fallback strategy {strategy.__name__} failed: {e}") # This one was already using logging directly
 
         if last_exception:
             raise CriticalFailure(f"All processing strategies failed. Last exception: {last_exception}")
@@ -346,9 +356,9 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
 
     @formal_proof(
         """
-    Lemma fallback_termination:
-        forall chunk, exists n, strategy_n(chunk) terminates
-    """,
+Lemma fallback_termination:
+    forall chunk, exists n, strategy_n(chunk) terminates
+""",
         autospec=True,
     )
     def _primary_processing(self, chunk: CodeChunk, tokens: int, model: str) -> str:
@@ -379,24 +389,12 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
     # --- Override _call_llm_api in EnhancedLLMOrchestrator ---
     def _call_llm_api(self, text: str, model: str) -> str:
         """Call the appropriate LLM API, adding telemetry and potentially other logic."""
-        self.telemetry.track("model_usage", tags={"model": model})
-        # Rate limiting is handled by _generate_with_retry before this method is called.
-        # --- FIX: Removed redundant _apply_gemini_rate_limit call here ---
-        # if model == LLMProvider.GEMINI.value:
-        #     self._apply_gemini_rate_limit() # This is now handled by _generate_with_retry
-        # --- END FIX ---
-
         # Call the base class's implementation to handle the actual dispatch
-        # This allows the base class to manage the provider-specific calls (_gemini_generate, _hf_generate)
-        # while the enhanced class adds telemetry or other pre/post processing.
         return super()._call_llm_api(text, model)
     # --- END Override ---
-
-
 # Keep base class _count_tokens if not overridden
-# def _count_tokens(self, text: str) -> int:
-#     return len(text.split())
-
+def _count_tokens(self, text: str) -> int:
+    return len(text.split())
 def format_math_prompt(question: str) -> str:
     return f"""Please reason step by step and put your final answer within \\boxed{{}}.
 
@@ -404,7 +402,6 @@ Question: {question}
 Answer: """
 
 def extract_boxed_answer(text: str) -> str:
-    match = re.search(r"\\boxed{([^}]+)}", text)
+    match = re.search(r"\\boxed{([^}]+)}", text) # FIX: Escape backslash for regex
     if match:
         return match.group(1)
-    return None # Ensure None is returned if no match

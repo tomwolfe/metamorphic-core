@@ -24,3 +24,4 @@ zaproxy>=0.4.0
 redis>=5.2.1
 jsonschema>=4.23.0 # Added for JSON schema validation in EthicalPolicyEngine
 spacy>=3.8.3
+tenacity>=9.1.2

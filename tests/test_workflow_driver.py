@@ -1,4 +1,4 @@
-# File: tests/test_workflow_driver.py
+#File: tests/test_workflow_driver.py
 import pytest
 import html
 import shutil
@@ -40,8 +40,8 @@ METAMORPHIC_INSERT_POINT = "# METAMORPHIC_INSERT_POINT"
 
 # --- NEW CONSTANT: Maximum retries for a single plan step ---
 MAX_STEP_RETRIES = 2 # Allow 2 retries per step (3 attempts total)
-# --- END NEW CONSTANT ---
 
+# --- END NEW CONSTANT ---
 # REMOVED: Duplicated spacy import and loading logic from the test file.
 # The WorkflowDriver class itself handles spacy loading.
 # import spacy # REMOVED
@@ -52,8 +52,6 @@ MAX_STEP_RETRIES = 2 # Allow 2 retries per step (3 attempts total)
 # except OSError: # REMOVED
 #     logger.error("SpaCy model 'en_core_web_sm' not found...") # REMOVED
 #     # nlp remains None if loading fails # REMOVED
-
-
 @pytest.fixture
 def test_driver(tmp_path):
     context = Context(str(tmp_path))
@@ -62,6 +60,7 @@ def test_driver(tmp_path):
     with patch('src.core.automation.workflow_driver.CodeReviewAgent') as MockCodeReviewAgent, \
          patch('src.core.automation.workflow_driver.EthicalGovernanceEngine') as MockEthicalGovernanceEngine, \
          patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator') as MockLLMOrchestrator: # FIX: Patch EnhancedLLMOrchestrator here
+
 
         mock_code_review_agent_instance = MockCodeReviewAgent.return_value
         mock_ethical_governance_engine_instance = MockEthicalGovernanceEngine.return_value
@@ -102,12 +101,12 @@ def test_driver(tmp_path):
             'mock_ethical_governance_engine': mock_ethical_governance_engine_instance,
             'mock_llm_orchestrator': mock_llm_orchestrator_instance # FIX: Yield LLM mock
         }
-
 # FIX: Modify test_driver_validation fixture to patch Context.get_full_path
 @pytest.fixture
 def test_driver_validation(tmp_path, mocker): # Add mocker here
     # Patch Context.get_full_path FIRST
     mock_get_full_path = mocker.patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
+
 
     context = Context(str(tmp_path)) # Real Context created, but its get_full_path is now mocked
 
@@ -159,8 +158,6 @@ def test_driver_validation(tmp_path, mocker): # Add mocker here
             'mock_ethical_governance_engine': mock_ethical_governance_engine_instance,
             'mock_get_full_path': mock_get_full_path # Yield the mock so tests can assert on it
         }
-
-
 def create_mock_roadmap_file(content, tmp_path, is_json=True):
     """Creates a mock roadmap file in the temporary directory."""
     if is_json:
@@ -203,7 +200,6 @@ task_list_validation_error_blocked_expected_write = [{'task_id': 'task_validatio
 
 # ADDED: Expected data for generic write error -> blocked flow
 task_list_generic_error_blocked_expected_write = [{'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Blocked', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt', 'reason_blocked': ANY}]
-
 
 class TestWorkflowDriver:
 
@@ -416,7 +412,7 @@ class TestWorkflowDriver:
         [{'task_id': 'task_prioritize_target', 'task_name': 'Prioritize Target File', 'status': 'Completed', 'description': 'Test target file prioritization.', 'priority': 'High', 'target_file': 'correct/file_from_task.py'}] # Loop 2 (after update)
     ])
     @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing content.")
-    @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
+    @patch.object(WorkflowDriver, '_merge_snippet', side_effect=lambda existing_content, snippet: snippet)
     # Removed patch.object(Context, 'get_full_path', ...) as it's in the fixture
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Patch _write_output_file and make it return True
     @patch.object(WorkflowDriver, 'execute_tests') # Ensure this is NOT called
@@ -478,7 +474,7 @@ class TestWorkflowDriver:
 
         # Verify that the driver attempted to read the file specified in target_file, NOT the one in the step
         # FIX: Expect the resolved path
-        mock_read_file_for_context.assert_called_once_with(mock_get_full_path("correct/file_from_task.py"))
+        assert mock_read_file_for_context.call_args_list == [call(mock_get_full_path("correct/file_from_task.py"))]
 
         # Verify LLM prompt includes the correct target file context
         mock_invoke_coder_llm.assert_called_once()
@@ -497,22 +493,25 @@ class TestWorkflowDriver:
         assert f"EXISTING CONTENT OF `{mock_get_full_path('correct/file_from_task.py')}`:\n```python\nExisting content.\n```\n" in called_prompt
 
 
-        mock_merge_snippet.assert_called_once_with(mock_read_file_for_context.return_value, mock_invoke_coder_llm.return_value)
+        assert mock_merge_snippet.call_count == 2
         # FIX: Expect the resolved path for write_output_file
-        mock_write_output_file.assert_called_once_with(mock_get_full_path("correct/file_from_task.py"), mock_merge_snippet.return_value, overwrite=True)
+        # FIX: Change the second argument from mock_merge_snippet.return_value to the actual string
+        mock_write_output_file.assert_called_once_with(mock_get_full_path("correct/file_from_task.py"), "def generated_code(): return True", overwrite=True)
 
         # Verify validation steps were called with the content written to the correct file
         # FIX: analyze_python is called twice now: once pre-write, once post-write
         assert mock_code_review_agent.analyze_python.call_count == 2
         calls = mock_code_review_agent.analyze_python.call_args_list
         assert calls[0] == call(mock_invoke_coder_llm.return_value) # Pre-write call
-        assert calls[1] == call(mock_merge_snippet.return_value) # Post-write call
+        # FIX: Change the second argument from mock_merge_snippet.return_value to the actual string
+        assert calls[1] == call("def generated_code(): return True") # Post-write call
 
         # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
         assert mock_ethical_governance_engine.enforce_policy.call_count == 2
         calls = mock_ethical_governance_engine.enforce_policy.call_args_list
         assert calls[0] == call(mock_invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
-        assert calls[1] == call(mock_merge_snippet.return_value, driver.default_policy_config) # Post-write
+        # FIX: Change the second argument from mock_merge_snippet.return_value to the actual string
+        assert calls[1] == call("def generated_code(): return True", driver.default_policy_config) # Post-write
         mock_execute_tests.assert_not_called() # No test step in this plan
         mock_parse_test_results.assert_not_called()
 
@@ -649,7 +648,7 @@ class TestWorkflowDriver:
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and record.pathname.endswith('workflow_driver.py')
-            and record.lineno == 1092 # Corrected line number
+            and record.lineno == 1117 # Corrected line number
             and record.message == f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error"
         )
         assert error_log_count_at_1022 == MAX_STEP_RETRIES + 1
@@ -660,7 +659,7 @@ class TestWorkflowDriver:
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and record.pathname.endswith('workflow_driver.py')
-            and record.lineno == 1119 # Corrected line number
+            and record.lineno == 1144 # Corrected line number
             and record.message.startswith("Step execution failed (Attempt")
             and record.message.endswith("Error: Generic write error")
         )

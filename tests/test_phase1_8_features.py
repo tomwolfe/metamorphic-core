@@ -1,4 +1,4 @@
-# tests/test_phase1_8_features.py
+# File: tests/test_phase1_8_features.py
 
 import pytest
 import unittest
@@ -8,11 +8,11 @@ from pathlib import Path
 import logging
 import tempfile
 import os
-import json # Import json for roadmap content in integration test
-import ast # Import ast for syntax check
-import html # Import html for escaping
+import json
+import ast
+import html
 import sys
-import shutil # Added for TestPhase18DocstringPrompt
+import shutil
 
 # Add the src directory to the Python path if not already done in conftest.py
 # Use Pathlib for robust path joining
@@ -366,11 +366,13 @@ class TestPreWriteValidation:
             validation_feedback.append(f"Pre-write syntax check failed: {se}")
             logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se}")
             logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
+            # REMOVED: raise ValueError(f"Pre-write validation failed for step.") # <--- REMOVED THIS LINE
         except Exception as e:
             validation_passed = False
             validation_feedback.append(f"Error during pre-write syntax validation (AST parse): {e}")
             logger.error(f"Error during pre-write syntax validation (AST parse): {e}", exc_info=True)
             logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
+            # REMOVED: raise ValueError(f"Pre-write validation failed for step.") # <--- REMOVED THIS LINE
 
         if validation_passed and driver.default_policy_config:
             try:
@@ -389,10 +391,11 @@ class TestPreWriteValidation:
                 validation_feedback.append(f"Error during pre-write ethical validation: {e}")
                 logger.error(f"Error during pre-write ethical validation: {e}", exc_info=True)
                 logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
+                # REMOVED: raise ValueError(f"Pre-write validation failed for step.") # <--- REMOVED THIS LINE
         elif validation_passed:
             logger.warning("Skipping pre-write ethical validation: Default policy not loaded.")
 
-        if validation_passed:
+        if validation_passed: # Only proceed with style/security if previous checks passed
             try:
                 # Call the actual mocked code_review_agent instance method
                 # FIX: Use the passed mock_code_review_agent
@@ -410,6 +413,7 @@ class TestPreWriteValidation:
                 validation_feedback.append(f"Error during pre-write style/security validation: {e}")
                 logger.error(f"Error during pre-write style/security validation: {e}", exc_info=True)
                 logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
+                # REMOVED: raise ValueError(f"Pre-write validation failed for step.") # <--- REMOVED THIS LINE
 
         if not validation_passed:
             logger.warning(f"Pre-write validation failed for snippet targeting {filepath_to_use}. Skipping write/merge. Feedback: {validation_feedback}")
@@ -423,6 +427,30 @@ class TestPreWriteValidation:
             # FIX: Use the passed mock_write_output and mock_merge_snippet
             existing_content = mock_read_file.return_value # Get content from mock read
             merged_content = mock_merge_snippet(existing_content, generated_snippet)
+            
+            # --- START: Pre-Merge Full File Syntax Check (Task 1.8.improve_snippet_handling sub-task 4) ---
+            try:
+                # Create a hypothetical merged content
+                # Use the existing _merge_snippet logic for this hypothetical merge
+                # This is the second call to mock_ast_parse in the real code, for the merged content
+                mock_ast_parse(merged_content) # <-- CORRECTED: Pass merged_content here
+                logger.info("Pre-merge full file syntax check (AST parse) passed.") # This log is for the full file
+            except SyntaxError as se:
+                validation_passed = False
+                validation_feedback.append(f"Pre-merge full file syntax check failed: {se}")
+                logger.warning(f"Pre-merge full file syntax validation failed for {filepath_to_use}: {se}")
+                logger.warning(f"Hypothetical merged content (cleaned):\n---\n{merged_content}\n---")
+                raise ValueError(f"Pre-merge full file syntax validation failed: {'. '.join(validation_feedback)}")
+            except Exception as e:
+                validation_passed = False
+                validation_feedback.append(f"Error during pre-merge full file syntax validation: {e}")
+                logger.error(f"Error during pre-merge full file syntax validation: {e}", exc_info=True)
+                logger.warning(f"Hypothetical merged content (cleaned):\n---\n{merged_content}\n---")
+                raise ValueError(f"Pre-merge full file syntax validation failed: {'. '.join(validation_feedback)}")
+
+            # If pre-merge validation passed, proceed to actual write and post-write validation
+            # The outer `if not validation_passed` will catch the `ValueError` raised above.
+            # If we reach here, it means pre-merge validation also passed.
             mock_write_output(filepath_to_use, merged_content, overwrite=True)
             # Call the actual mocked agent instance methods for post-write validation
             # FIX: Use the passed mock_code_review_agent and mock_ethical_governance_engine
@@ -450,7 +478,8 @@ class TestPreWriteValidation:
         mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved'}
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': []}
         # Set return value on the mock_ast_parse from the decorator
-        mock_ast_parse.return_value = True
+        # FIX: Ensure ast.parse is called twice and succeeds for both snippet and merged content
+        mock_ast_parse.side_effect = [None, None] # First for snippet, second for merged content
 
         # Get the resolved target path from the mocked _resolve_target_file_for_step (called inside helper)
         # Note: This mock is set in the fixture using mocker.patch.object(wd, ...)
@@ -465,11 +494,15 @@ class TestPreWriteValidation:
         # Get the resolved target path from the mocked _resolve_target_file_for_step (called inside helper)
         resolved_target_path = mock_resolve_target_file.return_value # Get the value returned by the mock
 
-        assert "Pre-write syntax check (AST parse) passed" in caplog.text
-        assert "Pre-write ethical validation passed" in caplog.text
-        assert "Pre-write style/security validation passed" in caplog.text
+        # More robust log assertions using caplog.records
+        log_messages = [record.message for record in caplog.records]
+        assert any("Pre-write syntax check (AST parse) passed" in msg for msg in log_messages)
+        assert any("Pre-write ethical validation passed" in msg for msg in log_messages)
+        assert any("Pre-write style/security validation passed" in msg for msg in log_messages)
+        assert any("Pre-merge full file syntax check (AST parse) passed." in msg for msg in log_messages) # New assertion for pre-merge check
         # Assert on the resolved path in the log message
-        assert f"Pre-write validation passed for snippet targeting {resolved_target_path}. Proceeding with merge/write." in caplog.text
+        assert any(f"Pre-write validation passed for snippet targeting {resolved_target_path}. Proceeding with merge/write." in msg for msg in log_messages)
+        
         # Assert on the resolved path in the write call (patched in fixture)
         # FIX: Assert with the actual string content, not the mock's return_value attribute
         expected_merged_content = mock_merge_snippet("", snippet) # Simulate the merge in the test
@@ -513,10 +546,12 @@ class TestPreWriteValidation:
 
         # _write_output_file is patched in the fixture, assert on the instance mock
         mock_write_output.assert_not_called()
-        assert "Pre-write syntax validation (AST parse) failed for snippet:" in caplog.text
-        assert f"Failed snippet:\n---\n{snippet}\n---" in caplog.text
+        # More robust log assertions using caplog.records
+        log_messages = [record.message for record in caplog.records]
+        assert any("Pre-write syntax validation (AST parse) failed for snippet:" in msg for msg in log_messages)
+        assert any(f"Failed snippet:\n---\n{snippet}\n---" in msg for msg in log_messages)
         # Assert on the resolved path in the log message
-        assert f"Pre-write validation failed for snippet targeting {resolved_target_path}. Skipping write/merge." in caplog.text
+        assert any(f"Pre-write validation failed for snippet targeting {resolved_target_path}. Skipping write/merge." in msg for msg in log_messages)
         # Post-write validation should not be called (mocks from fixture)
         mock_code_review_agent.analyze_python.assert_not_called()
         mock_ethical_governance_engine.enforce_policy.assert_not_called()
@@ -554,10 +589,12 @@ class TestPreWriteValidation:
 
         # _write_output_file is patched in the fixture, assert on the instance mock
         mock_write_output.assert_not_called()
-        assert "Pre-write ethical validation failed for snippet" in caplog.text
-        assert f"Failed snippet:\n---\n{snippet}\n---" in caplog.text
+        # More robust log assertions using caplog.records
+        log_messages = [record.message for record in caplog.records]
+        assert any("Pre-write ethical validation failed for snippet" in msg for msg in log_messages)
+        assert any(f"Failed snippet:\n---\n{snippet}\n---" in msg for msg in log_messages)
         # Assert on the resolved path in the log message
-        assert f"Pre-write validation failed for snippet targeting {resolved_target_path}. Skipping write/merge." in caplog.text
+        assert any(f"Pre-write validation failed for snippet targeting {resolved_target_path}. Skipping write/merge." in msg for msg in log_messages)
         # Style/Security and post-write validation should not be called (mocks from fixture)
         mock_code_review_agent.analyze_python.assert_not_called()
         # Ethical check is called once for pre-write validation (mock from fixture)
@@ -597,14 +634,89 @@ class TestPreWriteValidation:
 
         # _write_output_file is patched in the fixture, assert on the instance mock
         mock_write_output.assert_not_called()
-        assert "Pre-write style/security validation failed for snippet" in caplog.text
-        assert f"Failed snippet:\n---\n{snippet}\n---" in caplog.text
+        # More robust log assertions using caplog.records
+        log_messages = [record.message for record in caplog.records]
+        assert any("Pre-write style/security validation failed for snippet" in msg for msg in log_messages)
+        assert any(f"Failed snippet:\n---\n{snippet}\n---" in msg for msg in log_messages)
         # Assert on the resolved path in the log message
-        assert f"Pre-write validation failed for snippet targeting {resolved_target_path}. Skipping write/merge." in caplog.text
+        assert any(f"Pre-write validation failed for snippet targeting {resolved_target_path}. Skipping write/merge." in msg for msg in log_messages)
         # Ethical check is called once for pre-write validation (mock from fixture)
         mock_ethical_governance_engine.enforce_policy.assert_called_once_with(snippet, driver.default_policy_config)
         # Style/Security check is called once for pre-write validation (mock from fixture)
         mock_code_review_agent.analyze_python.assert_called_once_with(snippet)
+
+    @patch('core.automation.workflow_driver.ast.parse') # Patch ast.parse here
+    def test_pre_write_validation_full_file_syntax_fails(self, mock_ast_parse, driver_pre_write, caplog):
+        # FIX: Change log level to INFO to capture the "passed for snippet" message
+        caplog.set_level(logging.INFO)
+        # Unpack fixture result
+        driver = driver_pre_write['driver']
+        mock_code_review_agent = driver_pre_write['mock_code_review_agent']
+        mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
+        mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
+        mock_read_file = driver_pre_write['mock_read_file']
+        mock_merge_snippet = driver_pre_write['mock_merge_snippet']
+        mock_write_output = driver_pre_write['mock_write_output']
+
+        # Scenario: Snippet is fine, but merging it creates a syntax error in the full file.
+        # Example: Inserting an indented method directly at the module level without a class.
+        snippet = "    def new_method():\n        pass" # Indented snippet
+        existing_content = "import os\n\n# METAMORPHIC_INSERT_POINT\n\ndef existing_function():\n    pass" # Existing code, but the snippet's indentation is wrong for this context
+
+        # Configure mocks
+        mock_read_file.return_value = existing_content
+        mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved'}
+        mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': []}
+
+        # Configure ast.parse to succeed for the snippet, but fail for the merged content
+        # The first call to ast.parse is on the `cleaned_snippet` (which is `snippet` here).
+        # The second call to ast.parse is on the `hypothetical_merged_content`.
+        # FIX: Use a callable side_effect to explicitly control calls
+        def ast_parse_side_effect_func(code_str):
+            if ast_parse_side_effect_func.call_count == 0:
+                ast_parse_side_effect_func.call_count += 1
+                return None # First call (on snippet) succeeds
+            else:
+                # The second call should be on the merged content, which will fail
+                # Add a check for robustness in the mock
+                expected_merged_prefix = "import os\n\n# METAMORPHIC_INSERT_POINT\n\ndef existing_function():\n    pass\n    def new_method():"
+                if not code_str.startswith(expected_merged_prefix):
+                    raise AssertionError(f"Expected merged content for second AST parse call, got: {code_str[:100]}...")
+                raise SyntaxError("unexpected indent", ('<string>', 3, 5, "    def new_method():\n")) # Second call (on merged content) fails
+        ast_parse_side_effect_func.call_count = 0 # Initialize call count
+        mock_ast_parse.side_effect = ast_parse_side_effect_func
+
+        # Get the resolved target path from the mocked _resolve_target_file_for_step (called inside helper)
+        resolved_target_path = mock_resolve_target_file.return_value
+
+        # Call the helper function that simulates the loop's pre-write validation
+        with pytest.raises(ValueError, match="Pre-merge full file syntax validation failed:"):
+            self._simulate_step_execution_for_pre_write_validation(
+                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file,
+                mock_merge_snippet, mock_write_output, mock_code_review_agent, mock_ethical_governance_engine
+            )
+
+        # Assertions
+        # _write_output_file should NOT be called
+        mock_write_output.assert_not_called()
+
+        # Verify logs using caplog.records for robustness
+        log_messages = [record.message for record in caplog.records]
+        assert any("Pre-write syntax check (AST parse) passed for snippet." in msg for msg in log_messages) # Snippet itself passed
+        assert any("Pre-merge full file syntax validation failed for" in msg for msg in log_messages)
+        # Construct the expected hypothetical merged content for the log assertion
+        hypothetical_merged_content = existing_content + "\n" + snippet # <--- CHANGE THIS LINE
+        assert any(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---" in msg for msg in log_messages)
+        # FIX: Update log assertion to match the specific log message for the pre-merge syntax failure
+        assert any(f"Pre-merge full file syntax validation failed for {resolved_target_path}: unexpected indent" in msg for msg in log_messages)
+
+        # Verify that ethical and style checks on the *snippet* passed (as per mock)
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(snippet, driver.default_policy_config)
+        mock_code_review_agent.analyze_python.assert_called_once_with(snippet)
+
+        # Verify that ethical and style checks on the *merged content* were NOT called
+        assert mock_ethical_governance_engine.enforce_policy.call_count == 1
+        assert mock_code_review_agent.analyze_python.call_count == 1
 
 
 class TestPathResolutionAndValidation:
@@ -1235,7 +1347,9 @@ class TestMultiTargetIntegration:
         # Use the real mocker fixture to patch ast.parse
         # mock_ast_parse_m6 is already a mock from the decorator, no need to use mocker.patch for it.
         # If you need to control its return value for a specific call, do it on mock_ast_parse_m6
-        mock_ast_parse_m6.return_value = True # ast.parse mock
+        # FIX: Ensure ast.parse is called twice and succeeds for both snippet and merged content
+        mock_ast_parse_m6.side_effect = [None, None] # First for snippet, second for merged content
+
 
         # Mock post-write validation calls (they will be called with the merged content)
         # Use the mock instance obtained from the patch decorator
@@ -1297,7 +1411,7 @@ class TestMultiTargetIntegration:
 
         # Verify _merge_snippet was called with the correct content
         # FIX: Assert with the actual generated snippet
-        mock_merge_snippet_m3.assert_called_once_with("Existing content of fileB.", generated_snippet)
+        mock_merge_snippet_m3.assert_called_with("Existing content of fileB.", generated_snippet)
 
         # Verify _write_output_file was called with the correct resolved file path and merged content
         mock_write_output_file_m4.assert_called_once_with(resolved_file_b, mock_merged_content, overwrite=True)
@@ -1306,7 +1420,7 @@ class TestMultiTargetIntegration:
         mock_classify_step_m9.assert_called_once_with(step_description)
         mock_determine_write_details_m10.assert_called_once_with(step_description, resolved_file_b, task_target_file_spec, mock_classify_step_m9.return_value)
         # FIX: Assert with the actual generated snippet
-        mock_ast_parse_m6.assert_called_once_with(generated_snippet) # Check the ast.parse mock
+        mock_ast_parse_m6.assert_has_calls([call(generated_snippet), call(mock_merged_content)]) # Check the ast.parse mock
         # Use the mock instance obtained from the patch decorator
         # FIX: Assert with the actual generated snippet
         mock_ethical_engine_instance.enforce_policy.assert_any_call(generated_snippet, driver.default_policy_config)
@@ -1488,7 +1602,8 @@ class TestMultiTargetIntegration:
         # Use the real mocker fixture to patch ast.parse
         # mock_ast_parse_m6 is already a mock from the decorator, no need to use mocker.patch for it.
         # If you need to control its return value for a specific call, do it on mock_ast_parse_m6
-        mock_ast_parse_m6.return_value = True # ast.parse mock
+        # FIX: Ensure ast.parse is called twice and succeeds for both snippet and merged content
+        mock_ast_parse_m6.side_effect = [None, None] # First for snippet, second for merged content
 
         # Mock post-write validation calls (they will be called with the merged content)
         # Use the mock instance obtained from the patch decorator
@@ -1550,7 +1665,7 @@ class TestMultiTargetIntegration:
 
         # Verify _merge_snippet was called with the correct content
         # FIX: Assert with the actual generated snippet
-        mock_merge_snippet_m3.assert_called_once_with("Existing content of fileA.", generated_snippet)
+        mock_merge_snippet_m3.assert_called_with("Existing content of fileA.", generated_snippet)
 
         # Verify _write_output_file was called with the correct resolved file path (default) and merged content
         # FIX: Use the actual merged content
@@ -1561,7 +1676,7 @@ class TestMultiTargetIntegration:
         mock_classify_step_m9.assert_called_once_with(step_description)
         mock_determine_write_details_m10.assert_called_once_with(step_description, resolved_file_a, task_target_file_spec, mock_classify_step_m9.return_value)
         # FIX: Assert with the actual generated snippet
-        mock_ast_parse_m6.assert_called_once_with(generated_snippet) # Check the ast.parse mock
+        mock_ast_parse_m6.assert_has_calls([call(generated_snippet), call(actual_merged_content)]) # Check the ast.parse mock
         # Use the mock instance obtained from the patch decorator
         # FIX: Assert with the actual generated snippet
         mock_ethical_engine_instance.enforce_policy.assert_any_call(generated_snippet, driver.default_policy_config)
@@ -1600,8 +1715,6 @@ class TestMultiTargetIntegration:
         # Since we are mocking _determine_single_target_file_m30 directly and setting its return_value,
         # the internal logging of that method won't be captured unless the mock itself logs.
         # For this test, we verify the mock was called correctly and returned the expected default.
-        # If you want to test the *logging* of the real method, you'd mock its dependencies instead.
-        # For now, we'll assume the mock call implies the logic it represents.
         # To check the log if the *real* method was called and it defaulted:
         # assert f"Step description '{step_description}' does not explicitly mention any file from the task's target list: ['src/fileA.py', 'src/fileB.py']. Defaulting to the first file: 'src/fileA.py'." in caplog.text
         assert f"Successfully wrote merged content to {resolved_file_a}." in caplog.text

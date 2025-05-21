@@ -382,8 +382,8 @@ without a summary line
         None
     ])
     @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_review_exec', 'task_name': 'Review Exec Test', 'status': 'Not Started', 'description': 'Desc Review execution flow.', 'priority': 'High', 'target_file': 'src/feature.py'}])
-    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing content.")
-    @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="")
+    @patch.object(WorkflowDriver, '_merge_snippet', return_value="def generated_code(): return True") # CHANGED: Now returns valid Python
     @patch.object(WorkflowDriver, 'execute_tests') # Ensure this is NOT called
     @patch.object(WorkflowDriver, '_parse_test_results') # Ensure this is NOT called
     # The side_effect lambda here now correctly uses Path because it's imported
@@ -471,8 +471,8 @@ without a summary line
         None
     ])
     @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_ethical_skipped', 'task_name': 'Ethical Skipped Test', 'status': 'Not Started', 'description': 'Desc Ethical skipped flow.', 'priority': 'High', 'target_file': 'src/feature.py'}])
-    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing content.")
-    @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="")
+    @patch.object(WorkflowDriver, '_merge_snippet', return_value="def generated_code(): return True") # CHANGED: Now returns valid Python
     @patch.object(WorkflowDriver, 'execute_tests') # Ensure this is NOT called
     @patch.object(WorkflowDriver, '_parse_test_results') # Ensure this is NOT called
     # The side_effect lambda here now correctly uses Path because it's imported
@@ -546,8 +546,8 @@ without a summary line
         None
     ])
     @patch.object(WorkflowDriver, 'load_roadmap', return_value=[{'task_id': 'task_test_exec', 'task_name': 'Test Exec Test', 'status': 'Not Started', 'description': 'Desc Test execution flow.', 'priority': 'High', 'target_file': 'src/feature.py'}])
-    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="Existing content.")
-    @patch.object(WorkflowDriver, '_merge_snippet', return_value="Merged content")
+    @patch.object(WorkflowDriver, '_read_file_for_context', return_value="")
+    @patch.object(WorkflowDriver, '_merge_snippet', return_value="def generated_code(): return True") # CHANGED: Now returns valid Python
     @patch.object(Context, 'get_full_path', side_effect=lambda path: str(Path("/resolved") / path) if path else "/resolved/")
     @patch.object(WorkflowDriver, '_write_output_file', return_value=True) # Patch _write_output_file and make it return True
     @patch.object(WorkflowDriver, 'execute_tests', return_value=(0, "Pytest output", "")) # Mock execute_tests to succeed
@@ -593,7 +593,14 @@ without a summary line
         # FIX: Update assertion to expect the resolved path
         mock__read_file_for_context.assert_called_once_with(mock_get_full_path("src/feature.py"))
         mock__invoke_coder_llm.assert_called_once()
-        mock__merge_snippet.assert_called_once()
+        # CHANGED: _merge_snippet is called twice for a successful code generation step
+        assert mock__merge_snippet.call_count == 2
+        calls = mock__merge_snippet.call_args_list
+        # The first call is for pre-merge validation, the second for the actual merge
+        expected_snippet = "def generated_code(): return True"
+        assert calls[0] == call("", expected_snippet)
+        assert calls[1] == call("", expected_snippet)
+
         # FIX: Update assertion to expect the resolved path
         mock__write_output_file.assert_called_once_with(mock_get_full_path("src/feature.py"), mock__merge_snippet.return_value, overwrite=True)
 
@@ -666,7 +673,7 @@ without a summary line
         mock_execute_tests, # Corresponds to the patch before that
         mock__write_output_file, # Corresponds to the patch before that
         mock_get_full_path, # Corresponds to the patch before that
-        mock__merge_snippet, # Corresponds to the patch before that
+        mock__merge_snippet, # Should not be called
         mock__read_file_for_context, # Corresponds to the patch before that
         mock_load_roadmap, # Corresponds to the patch before that
         mock_select_next_task, # Corresponds to the patch before that

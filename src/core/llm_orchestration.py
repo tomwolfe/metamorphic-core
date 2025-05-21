@@ -24,13 +24,13 @@ from src.core.chunking.recursive_summarizer import RecursiveSummarizer
 from src.core.chunking.dynamic_chunker import SemanticChunker, CodeChunk
 from src.core.optimization.adaptive_token_allocator import TokenAllocator
 from src.core.knowledge_graph import KnowledgeGraph, Node
-from src.core.optimization.token_optimizer import TokenOptimizer
+from src.core.optimization.token_optimizer import TokenOptimizer # Import TokenOptimizer
 from src.core.verification.specification import FormalSpecification
 from src.core.verification.decorators import formal_proof
 
-from tenacity import retry, stop_after_attempt, wait_exponential, RetryError # Import RetryError
+from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 # Ensure logger is defined if not already
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # This is the module-level logger
 
 
 class LLMProvider(str, Enum):
@@ -59,6 +59,8 @@ class LLMOrchestrator:
         self._gemini_call_lock = threading.Lock() # Use a lock for thread safety
         self._GEMINI_MIN_INTERVAL_SECONDS = 6.0 # 60 seconds / 10 requests (10 RPM for Gemini Flash free tier)
         # --- END ADD ---
+        # FIX: Initialize telemetry in base class if it's used there
+        self.telemetry = Telemetry()
 
 
     def _load_config(self) -> LLMConfig:
@@ -73,7 +75,7 @@ class LLMOrchestrator:
                 timeout=int(SecureConfig.get("LLM_TIMEOUT", 30)),
             )
         except (ValidationError, ConfigError, ValueError) as e:
-            logging.error(f"Error loading LLM configuration: {str(e)}")
+            logger.error(f"Error loading LLM configuration: {str(e)}") # FIX: Use module-level logger
             raise RuntimeError(f"Invalid LLM configuration: {str(e)}")
 
     def _configure_providers(self):
@@ -106,7 +108,7 @@ class LLMOrchestrator:
 
                 if elapsed_since_last_call < self._GEMINI_MIN_INTERVAL_SECONDS:
                     sleep_duration = self._GEMINI_MIN_INTERVAL_SECONDS - elapsed_since_last_call
-                    logger.info(f"Gemini rate limit: sleeping for {sleep_duration:.2f} seconds.")
+                    logger.info(f"Gemini rate limit: sleeping for {sleep_duration:.2f} seconds.") # FIX: Use module-level logger
                     time.sleep(sleep_duration)
                 # Update the last call start time *after* potential sleep and before the API call
                 # This marks the start of the current API call's interval.
@@ -129,11 +131,11 @@ class LLMOrchestrator:
             return self._call_llm_api(prompt, self.config.provider.value)
         except RetryError as e:
             # This exception is raised by tenacity if all attempts fail.
-            self.logger.error(f"LLM API failed after all retries for prompt (first 200 chars): {prompt[:200]}. Last error: {e.last_attempt.exception()}")
+            logger.error(f"LLM API failed after all retries for prompt (first 200 chars): {prompt[:200]}. Last error: {e.last_attempt.exception()}") # FIX: Use module-level logger
             raise RuntimeError(f"LLM API failed after all retries: {e.last_attempt.exception()}") from e
         except Exception as e:
             # Catch other non-retryable exceptions (e.g., invalid API key, malformed request before API call).
-            self.logger.error(f"LLM API failed with non-retryable error for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}")
+            logger.error(f"LLM API failed with non-retryable error for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}") # FIX: Use module-level logger
             raise RuntimeError(f"LLM API failed: {str(e)}") from e
 
     # --- ADD _call_llm_api method to the base class ---
@@ -157,7 +159,7 @@ class LLMOrchestrator:
         # elif model == "some_other_model":
         #     return self._some_other_generate(text)
         else:
-            self.logger.error(f"Attempted to call unsupported model: {model} in LLMOrchestrator._call_llm_api")
+            logger.error(f"Attempted to call unsupported model: {model} in LLMOrchestrator._call_llm_api") # FIX: Use module-level logger
             raise ValueError(f"Unsupported model: {model}")
     # --- END ADD ---
 
@@ -179,11 +181,11 @@ class LLMOrchestrator:
                 parts = response.candidates[0].content.parts
                 return "".join(part.text for part in parts if hasattr(part, "text"))
             # Handle cases where response might be empty or malformed without raising an exception
-            self.logger.warning(f"Gemini API returned an empty or unexpected response structure for prompt (first 200 chars): {prompt[:200]}")
+            logger.warning(f"Gemini API returned an empty or unexpected response structure for prompt (first 200 chars): {prompt[:200]}") # FIX: Use module-level logger
             return ""
         except Exception as e:
             # Log the prompt that caused the error for easier debugging
-            self.logger.error(f"Gemini error during API call for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}")
+            logger.error(f"Gemini error during API call for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}") # FIX: Use module-level logger
             # Re-raise to be handled by _generate_with_retry
             raise RuntimeError(f"Gemini error: {str(e)}")
 
@@ -204,7 +206,7 @@ class LLMOrchestrator:
                 return_full_text=False
             )
         except Exception as e:
-            logging.error(f"Hugging Face error: {str(e)}")
+            logging.error(f"Hugging Face error: {str(e)}") # This one was already using logging directly
             raise RuntimeError(f"Hugging Face error: {str(e)}")
 
     def _count_tokens(self, text: str) -> int:
@@ -217,7 +219,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
             self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: "EthicalGovernanceEngine"
     ):
         super().__init__()
-        self.telemetry = Telemetry()
+        # self.telemetry = Telemetry() # REMOVED: telemetry is now initialized in the base class
         self.chunker = SemanticChunker()
         self.allocator = TokenAllocator(total_budget=50000)
         # Pass self (the Enhanced instance) to RecursiveSummarizer
@@ -231,6 +233,9 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
             self._third_model,
             self._recursive_summarization_strategy,
         ]
+        # FIX: Initialize optimizer here, as it's used by fallback strategies
+        self.optimizer = TokenOptimizer()
+
 
     def generate(self, prompt: str) -> str:
         self.telemetry.start_session()
@@ -264,7 +269,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         # Assuming spec has a validate_chunks method
         if not hasattr(self.spec, 'validate_chunks') or not self.spec.validate_chunks(chunks):
              # Log or handle the case where validate_chunks is missing or fails
-             logger.warning("FormalSpecification does not have validate_chunks or validation failed.")
+             logger.warning("FormalSpecification does not have validate_chunks or validation failed.") # FIX: Use module-level logger
              # Decide how to proceed: raise error, skip validation, etc.
              # For now, let's assume it should raise an error if validation fails
              if hasattr(self.spec, 'validate_chunks'):
@@ -281,7 +286,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
             with self.telemetry.span(f"chunk_{idx}"):
                 # Assuming spec has a verify method that takes CodeChunk
                 if not hasattr(self.spec, 'verify') or not self.spec.verify(chunk):
-                    logger.warning(f"FormalSpecification does not have verify or verification failed for chunk {idx}.")
+                    logger.warning(f"FormalSpecification does not have verify or verification failed for chunk {idx}.") # FIX: Use module-level logger
                     # Decide how to proceed if verification fails or method is missing
                     if hasattr(self.spec, 'verify'):
                         self.telemetry.track("verification_failure", tags={"chunk_id": str(chunk.id)})
@@ -306,7 +311,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
 
         # Assuming summarizer has a synthesize method
         if not hasattr(self.summarizer, 'synthesize'):
-             logger.error("RecursiveSummarizer missing synthesize method.")
+             logger.error("RecursiveSummarizer missing synthesize method.") # FIX: Use module-level logger
              raise CriticalFailure("Summarization synthesis method missing.")
 
         return self.summarizer.synthesize(summaries)
@@ -340,7 +345,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
                         "model_fallback", tags={"model": model, "strategy": strategy.__name__, "error": str(e)}
                     )
                     last_exception = e
-                    logging.warning(f"Fallback strategy {strategy.__name__} failed: {e}")
+                    logging.warning(f"Fallback strategy {strategy.__name__} failed: {e}") # This one was already using logging directly
 
         if last_exception:
             raise CriticalFailure(f"All processing strategies failed. Last exception: {last_exception}")

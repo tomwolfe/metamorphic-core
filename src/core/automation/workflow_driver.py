@@ -228,16 +228,8 @@ class WorkflowDriver:
             # If fences are found, use the captured content between them
             return match.group(1).strip()
         else:
-            # Fallback: If no standard fences matched the regex, try stripping common prefixes/suffixes
-            if cleaned.lower().startswith("```python"):
-                cleaned = cleaned[len("```python"):].lstrip()
-            elif cleaned.startswith("```"):
-                cleaned = cleaned[len("```"):].lstrip()
-
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-len("```")].rstrip()
-
-        return cleaned.strip()
+            # Fallback: If no standard fences matched the regex, return the original cleaned (stripped) string.
+            return cleaned
 
     def _load_default_policy(self):
         # FIX: Use context.get_full_path to resolve the policy path safely
@@ -878,7 +870,7 @@ class WorkflowDriver:
                                     # Construct the prompt for the Coder LLM
                                     # filepath_to_use is already the resolved absolute path
                                     # FIX: Corrected prompt template to match assertion in test_workflow_driver.py
-                                    target_file_context_for_coder = f"The primary file being modified is `{filepath_to_use}`.\n\n"
+                                    target_file_context_for_coder = f"The primary file being modified is specified as `{filepath_to_use}` in the task metadata. Focus your plan steps on actions related to this file.\n\n"
 
                                     # --- START: Add Docstring Instruction Conditionally (Task 1.8.Y) ---
                                     docstring_prompt_addition = ""
@@ -2453,3 +2445,4 @@ Your response should be the complete, corrected code content that addresses the 
             return False
         except Exception as e:
             logger.error(f"Error during test failure remediation: {e}", exc_info=True)
+            return False

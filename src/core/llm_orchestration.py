@@ -28,6 +28,7 @@ from src.core.optimization.token_optimizer import TokenOptimizer
 from src.core.verification.specification import FormalSpecification
 from src.core.verification.decorators import formal_proof
 
+from tenacity import retry, stop_after_attempt, wait_exponential, RetryError # Import RetryError
 # Ensure logger is defined if not already
 logger = logging.getLogger(__name__)
 
@@ -116,32 +117,36 @@ class LLMOrchestrator:
         return self._generate_with_retry(prompt)
 
     def _generate_with_retry(self, prompt: str) -> str:
-        # Apply rate limit *before* the first attempt and *before* any subsequent retries
-        # if they happen too quickly.
+        """
+        Generates content from the LLM with rate limiting and robust retries.
+        """
+        try:
+            # Apply rate limit before the (first) API call.
+            # This method is a no-op for non-Gemini providers.
+            self._apply_gemini_rate_limit()
 
-        for attempt in range(self.config.max_retries):
-            try:
-                # Apply rate limit logic immediately before attempting the API call
-                # This method is a no-op for non-Gemini providers.
-                self._apply_gemini_rate_limit()
-
-                # --- FIX: Call the _call_llm_api method which is now added to the base class ---
-                return self._call_llm_api(prompt, self.config.provider.value)
-                # --- END FIX ---
-
-            except Exception as e:
-                logging.error(f"Attempt {attempt + 1} failed: {str(e)}")
-                if attempt == self.config.max_retries - 1:
-                    # Log the prompt that caused the final failure for easier debugging
-                    logging.error(f"LLM API failed after {self.config.max_retries} attempts for prompt (first 200 chars): {prompt[:200]}")
-                    raise RuntimeError(f"LLM API failed after {self.config.max_retries} attempts: {str(e)}")
-                # A small delay before retrying is still good practice for transient errors,
-                # even with rate limiting.
-                time.sleep(1) # e.g., wait 1 second before retrying
+            # Call the decorated _call_llm_api method. Tenacity will handle retries.
+            return self._call_llm_api(prompt, self.config.provider.value)
+        except RetryError as e:
+            # This exception is raised by tenacity if all attempts fail.
+            self.logger.error(f"LLM API failed after all retries for prompt (first 200 chars): {prompt[:200]}. Last error: {e.last_attempt.exception()}")
+            raise RuntimeError(f"LLM API failed after all retries: {e.last_attempt.exception()}") from e
+        except Exception as e:
+            # Catch other non-retryable exceptions (e.g., invalid API key, malformed request before API call).
+            self.logger.error(f"LLM API failed with non-retryable error for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}")
+            raise RuntimeError(f"LLM API failed: {str(e)}") from e
 
     # --- ADD _call_llm_api method to the base class ---
+    @retry(
+        stop=stop_after_attempt(3), # Max 3 attempts (initial + 2 retries)
+        wait=wait_exponential(multiplier=1, min=2, max=10), # Exponential backoff: 2s, 4s, 8s...
+        reraise=True # Re-raise the last exception if all retries fail
+    )
     def _call_llm_api(self, text: str, model: str) -> str:
-        """Directly call the appropriate LLM API based on the provider string."""
+        """Directly call the appropriate LLM API based on the provider string.
+        Retries are handled by the @retry decorator.
+        """
+        self.telemetry.track("model_usage", tags={"model": model}) # Moved from EnhancedLLMOrchestrator
         # Rate limiting is handled by _generate_with_retry before this method is called.
         if model == LLMProvider.GEMINI.value:
             return self._gemini_generate(text)
@@ -152,7 +157,7 @@ class LLMOrchestrator:
         # elif model == "some_other_model":
         #     return self._some_other_generate(text)
         else:
-            logger.error(f"Attempted to call unsupported model: {model} in LLMOrchestrator._call_llm_api")
+            self.logger.error(f"Attempted to call unsupported model: {model} in LLMOrchestrator._call_llm_api")
             raise ValueError(f"Unsupported model: {model}")
     # --- END ADD ---
 
@@ -174,11 +179,11 @@ class LLMOrchestrator:
                 parts = response.candidates[0].content.parts
                 return "".join(part.text for part in parts if hasattr(part, "text"))
             # Handle cases where response might be empty or malformed without raising an exception
-            logger.warning(f"Gemini API returned an empty or unexpected response structure for prompt (first 200 chars): {prompt[:200]}")
+            self.logger.warning(f"Gemini API returned an empty or unexpected response structure for prompt (first 200 chars): {prompt[:200]}")
             return ""
         except Exception as e:
             # Log the prompt that caused the error for easier debugging
-            logger.error(f"Gemini error during API call for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}")
+            self.logger.error(f"Gemini error during API call for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}")
             # Re-raise to be handled by _generate_with_retry
             raise RuntimeError(f"Gemini error: {str(e)}")
 
@@ -215,7 +220,6 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         self.telemetry = Telemetry()
         self.chunker = SemanticChunker()
         self.allocator = TokenAllocator(total_budget=50000)
-        self.optimizer = TokenOptimizer()
         # Pass self (the Enhanced instance) to RecursiveSummarizer
         self.summarizer = RecursiveSummarizer(self, spec, self.telemetry)
         self.kg = kg
@@ -237,7 +241,6 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
                     code = self._handle_large_context(prompt)
                 else:
                     model = self.config.provider.value
-                    self.telemetry.track("model_usage", tags={"model": model})
                     # Call the generate method from the base class (which includes retry and rate limit)
                     # The base generate calls _generate_with_retry, which calls _call_llm_api
                     code = super().generate(prompt)
@@ -379,7 +382,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
     # --- Override _call_llm_api in EnhancedLLMOrchestrator ---
     def _call_llm_api(self, text: str, model: str) -> str:
         """Call the appropriate LLM API, adding telemetry and potentially other logic."""
-        self.telemetry.track("model_usage", tags={"model": model})
+        # Telemetry tracking moved to the base class's _call_llm_api
         # Rate limiting is handled by _generate_with_retry before this method is called.
         # --- FIX: Removed redundant _apply_gemini_rate_limit call here ---
         # if model == LLMProvider.GEMINI.value:
@@ -387,8 +390,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         # --- END FIX ---
 
         # Call the base class's implementation to handle the actual dispatch
-        # This allows the base class to manage the provider-specific calls (_gemini_generate, _hf_generate)
-        # while the enhanced class adds telemetry or other pre/post processing.
+        # The @retry decorator is on the base class's _call_llm_api.
         return super()._call_llm_api(text, model)
     # --- END Override ---
 
@@ -407,4 +409,3 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r"\\boxed{([^}]+)}", text)
     if match:
         return match.group(1)
-    return None # Ensure None is returned if no match

@@ -1,4 +1,4 @@
-# tests/test_workflow_driver_snippet_handling.py
+# tests/test_workflow_driver_snippet_cleaning.py
 
 import pytest
 import re
@@ -196,7 +196,7 @@ class TestReprLoggingForSyntaxErrors:
                                         "original_snippet_repr": repr(original_snippet),
                                         "cleaned_snippet_repr": repr(_cleaned_snippet),
                                         "syntax_error_details": {
-                                            "message": str(se_in_block),
+                                            "message": se_in_block.msg, # MODIFIED LINE: Use .msg attribute
                                             "lineno": se_in_block.lineno,
                                             "offset": se_in_block.offset,
                                             "text": se_in_block.text
@@ -264,7 +264,7 @@ class TestReprLoggingForSyntaxErrors:
                                 "original_snippet_repr": repr(original_snippet),
                                 "cleaned_snippet_repr": repr(_cleaned_snippet),
                                 "syntax_error_details": {
-                                    "message": str(se_in_block),
+                                    "message": se_in_block.msg, # MODIFIED LINE: Use .msg attribute
                                     "lineno": se_in_block.lineno,
                                     "offset": se_in_block.offset,
                                     "text": se_in_block.text

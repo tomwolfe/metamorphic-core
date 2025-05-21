@@ -170,11 +170,11 @@ class TestWorkflowReporting:
 
     def test__calculate_grades_all_pass(self, test_driver_reporting):
         driver = test_driver_reporting['driver'] # Access driver from dict
-        # FIX: Added top-level keys to match the *input* structure of _calculate_grades (which comes from the report JSON)
+        # FIX: Changed top-level keys to match the *input* structure of _calculate_grades (which comes from _current_task_results)
         mock_validation_results = {
-            'tests': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
-            'code_review': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
-            'ethical_analysis': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
+            'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
+            'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
+            'ethical_analysis_results': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
             'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
@@ -188,11 +188,11 @@ class TestWorkflowReporting:
 
     def test__calculate_grades_tests_fail(self, test_driver_reporting):
         driver = test_driver_reporting['driver'] # Access driver from dict
-        # FIX: Added top-level keys to match the *input* structure of _calculate_grades (which comes from the report JSON)
+        # FIX: Changed top-level keys to match the *input* structure of _calculate_grades
         mock_validation_results = {
-            'tests': {'status': 'failed', 'passed': 5, 'failed': 5, 'total': 10, 'message': 'Parsed successfully.'},
-            'code_review': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
-            'ethical_analysis': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
+            'test_results': {'status': 'failed', 'passed': 5, 'failed': 5, 'total': 10, 'message': 'Parsed successfully.'},
+            'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
+            'ethical_analysis_results': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
             'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
@@ -206,10 +206,10 @@ class TestWorkflowReporting:
 
     def test__calculate_grades_code_style_issues(self, test_driver_reporting):
         driver = test_driver_reporting['driver'] # Access driver from dict
-        # FIX: Added top-level keys to match the *input* structure of _calculate_grades (which comes from the report JSON)
+        # FIX: Changed top-level keys to match the *input* structure of _calculate_grades
         mock_validation_results = {
-            'tests': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
-            'code_review': {
+            'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
+            'code_review_results': {
                 'status': 'failed',
                 'static_analysis': [
                     {'severity': 'error', 'code': 'E001', 'message': 'Issue 1'},
@@ -219,7 +219,7 @@ class TestWorkflowReporting:
                 ],
                 'errors': {'flake8': None, 'bandit': None}
             },
-            'ethical_analysis': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
+            'ethical_analysis_results': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
             'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
@@ -239,11 +239,11 @@ class TestWorkflowReporting:
 
     def test__calculate_grades_ethical_violation(self, test_driver_reporting):
         driver = test_driver_reporting['driver'] # Access driver from dict
-        # FIX: Added top-level keys to match the *input* structure of _calculate_grades (which comes from the report JSON)
+        # FIX: Changed top-level keys to match the *input* structure of _calculate_grades
         mock_validation_results = {
-            'tests': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
-            'code_review': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
-            'ethical_analysis': {'overall_status': 'rejected', 'policy_name': 'Strict Bias Risk Policy', 'BiasRisk': {'status': 'violation'}},
+            'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
+            'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
+            'ethical_analysis_results': {'overall_status': 'rejected', 'policy_name': 'Strict Bias Risk Policy', 'BiasRisk': {'status': 'violation'}},
             'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
@@ -258,17 +258,17 @@ class TestWorkflowReporting:
 
     def test__calculate_grades_security_violation_high(self, test_driver_reporting):
         driver = test_driver_reporting['driver'] # Access driver from dict
-        # FIX: Added top-level keys to match the *input* structure of _calculate_grades (which comes from the report JSON)
+        # FIX: Changed top-level keys to match the *input* structure of _calculate_grades
         mock_validation_results = {
-            'tests': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
-            'code_review': {
+            'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
+            'code_review_results': {
                 'status': 'failed',
                 'static_analysis': [
                     {'severity': 'security_high', 'code': 'B603', 'message': 'Subprocess used'}
                 ],
                 'errors': {'flake8': None, 'bandit': None}
             },
-            'ethical_analysis': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
+            'ethical_analysis_results': {'overall_status': 'approved', 'policy_name': 'Strict Bias Risk Policy'},
             'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
@@ -284,11 +284,11 @@ class TestWorkflowReporting:
 
     def test__calculate_grades_missing_results(self, test_driver_reporting):
         driver = test_driver_reporting['driver'] # Access driver from dict
-        # FIX: Added top-level keys with empty dicts as values to match the *input* structure of _calculate_grades
+        # FIX: Changed top-level keys to match the *input* structure of _calculate_grades
         mock_validation_results = {
-            'tests': {},
-            'code_review': {},
-            'ethical_analysis': {},
+            'test_results': {},
+            'code_review_results': {},
+            'ethical_analysis_results': {},
             'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
@@ -310,11 +310,11 @@ class TestWorkflowReporting:
 
     def test__calculate_grades_execution_errors(self, test_driver_reporting):
         driver = test_driver_reporting['driver'] # Access driver from dict
-        # FIX: Added top-level keys to match the *input* structure of _calculate_grades (which comes from the report JSON)
+        # FIX: Changed top-level keys to match the *input* structure of _calculate_grades
         mock_validation_results = {
-            'tests': {'status': 'error', 'message': 'Test execution failed.'},
-            'code_review': {'status': 'error', 'errors': {'flake8': 'Flake8 error', 'bandit': 'Bandit error'}},
-            'ethical_analysis': {'overall_status': 'error', 'message': 'Ethical analysis failed.'},
+            'test_results': {'status': 'error', 'message': 'Test execution failed.'},
+            'code_review_results': {'status': 'error', 'errors': {'flake8': 'Flake8 error', 'bandit': 'Bandit error'}},
+            'ethical_analysis_results': {'overall_status': 'error', 'message': 'Ethical analysis failed.'},
             'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)
@@ -336,11 +336,11 @@ class TestWorkflowReporting:
 
     def test__calculate_grades_ethical_skipped(self, test_driver_reporting):
         driver = test_driver_reporting['driver'] # Access driver from dict
-        # FIX: Added top-level keys to match the *input* structure of _calculate_grades (which comes from the report JSON)
+        # FIX: Changed top-level keys to match the *input* structure of _calculate_grades
         mock_validation_results = {
-            'tests': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
-            'code_review': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
-            'ethical_analysis': {'overall_status': 'skipped', 'message': 'Default policy not loaded.'},
+            'test_results': {'status': 'passed', 'passed': 10, 'failed': 0, 'total': 10, 'message': 'Parsed successfully.'},
+            'code_review_results': {'status': 'success', 'static_analysis': [], 'errors': {'flake8': None, 'bandit': None}},
+            'ethical_analysis_results': {'overall_status': 'skipped', 'message': 'Default policy not loaded.'},
             'step_errors': [] # Include step_errors for completeness in mock
         }
         grades = driver._calculate_grades(mock_validation_results)

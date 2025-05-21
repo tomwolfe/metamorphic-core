@@ -486,7 +486,7 @@ class TestWorkflowDriver:
         # This assertion should now pass with the corrected generate_solution_plan
         # FIX: Correct assertion string to match the code's prompt template
         # The prompt template uses "The primary file being modified is `{filepath_to_use}`.\n\n"
-        assert f"The primary file being modified is `{mock_get_full_path('correct/file_from_task.py')}`.\n\n" in called_prompt
+        assert f"The primary file being modified is specified as `{mock_get_full_path('correct/file_from_task.py')}` in the task metadata. Focus your plan steps on actions related to this file.\n\n" in called_prompt
         # Should NOT use the old heuristic based on name/description
         assert "The primary file being modified for this task is `src/core/automation/workflow_driver.py`." not in called_prompt
         # Ensure Task Name and Description are still present
@@ -649,7 +649,7 @@ class TestWorkflowDriver:
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and record.pathname.endswith('workflow_driver.py')
-            and record.lineno == 1022
+            and record.lineno == 1092 # Corrected line number
             and record.message == f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error"
         )
         assert error_log_count_at_1022 == MAX_STEP_RETRIES + 1
@@ -660,7 +660,7 @@ class TestWorkflowDriver:
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and record.pathname.endswith('workflow_driver.py')
-            and record.lineno == 1049
+            and record.lineno == 1119 # Corrected line number
             and record.message.startswith("Step execution failed (Attempt")
             and record.message.endswith("Error: Generic write error")
         )

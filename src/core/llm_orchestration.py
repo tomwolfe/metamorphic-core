@@ -28,15 +28,14 @@ from src.core.optimization.token_optimizer import TokenOptimizer # Import TokenO
 from src.core.verification.specification import FormalSpecification
 from src.core.verification.decorators import formal_proof
 
-from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
-# Ensure logger is defined if not already
-logger = logging.getLogger(__name__) # This is the module-level logger
+from tenacity import Retrying, stop_after_attempt, wait_exponential, RetryError # Changed import to Retrying
 
+# Ensure logger is defined if not already
+logger = logging.getLogger(__name__) # FIX: Use __name__ for module-level logger
 
 class LLMProvider(str, Enum):
     GEMINI = "gemini"
     HUGGING_FACE = "huggingface"
-
 
 class LLMConfig(BaseModel):
     provider: LLMProvider
@@ -46,15 +45,14 @@ class LLMConfig(BaseModel):
     timeout: int = 30
     hugging_face_model: str = SecureConfig.get("HUGGING_FACE_MODEL", "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B")
 
-
 class LLMOrchestrator:
-    def __init__(self):
+    def __init__(self): # FIX: Correct method name from init to __init__
         self.client = None
         self.active_provider = None
         self.config = self._load_config()
         self._configure_providers()
         # --- ADD RATE LIMITING ATTRIBUTES ---
-        # Track the time the *last* Gemini call *started* (or finished, consistently)
+        # Track the time the last Gemini call started (or finished, consistently)
         self._last_gemini_call_start_time = 0.0 # Use float for time.monotonic()
         self._gemini_call_lock = threading.Lock() # Use a lock for thread safety
         self._GEMINI_MIN_INTERVAL_SECONDS = 6.0 # 60 seconds / 10 requests (10 RPM for Gemini Flash free tier)
@@ -123,33 +121,39 @@ class LLMOrchestrator:
         Generates content from the LLM with rate limiting and robust retries.
         """
         try:
-            # Apply rate limit before the (first) API call.
-            # This method is a no-op for non-Gemini providers.
-            self._apply_gemini_rate_limit()
+            # Create a retry mechanism dynamically using instance config
+            # stop_after_attempt(self.config.max_retries + 1) means:
+            # if max_retries = 3, then 3 retries + 1 initial attempt = 4 total attempts.
+            retrying = Retrying(
+                stop=stop_after_attempt(self.config.max_retries + 1),
+                wait=wait_exponential(multiplier=1, min=2, max=10),
+                reraise=False # FIX: Change to False so RetryError is always raised on failure
+            )
 
-            # Call the decorated _call_llm_api method. Tenacity will handle retries.
-            return self._call_llm_api(prompt, self.config.provider.value)
+            # Call the _call_llm_api method via the tenacity Retrying object.
+            # _apply_gemini_rate_limit is now called inside _call_llm_api before each attempt.
+            return retrying(self._call_llm_api, prompt, self.config.provider.value)
+
         except RetryError as e:
             # This exception is raised by tenacity if all attempts fail.
             logger.error(f"LLM API failed after all retries for prompt (first 200 chars): {prompt[:200]}. Last error: {e.last_attempt.exception()}") # FIX: Use module-level logger
             raise RuntimeError(f"LLM API failed after all retries: {e.last_attempt.exception()}") from e
         except Exception as e:
             # Catch other non-retryable exceptions (e.g., invalid API key, malformed request before API call).
+            # This block should now only catch exceptions that are NOT wrapped by tenacity (e.g., if _call_llm_api is called directly outside retrying)
             logger.error(f"LLM API failed with non-retryable error for prompt (first 200 chars): {prompt[:200]}. Error: {str(e)}") # FIX: Use module-level logger
             raise RuntimeError(f"LLM API failed: {str(e)}") from e
 
-    # --- ADD _call_llm_api method to the base class ---
-    @retry(
-        stop=stop_after_attempt(3), # Max 3 attempts (initial + 2 retries)
-        wait=wait_exponential(multiplier=1, min=2, max=10), # Exponential backoff: 2s, 4s, 8s...
-        reraise=True # Re-raise the last exception if all retries fail
-    )
+    # --- MODIFIED: _call_llm_api no longer has @retry decorator ---
     def _call_llm_api(self, text: str, model: str) -> str:
         """Directly call the appropriate LLM API based on the provider string.
-        Retries are handled by the @retry decorator.
+        Rate limiting is applied here before each attempt.
         """
+        # Apply rate limit before each actual API attempt.
+        # This method is a no-op for non-Gemini providers.
+        self._apply_gemini_rate_limit() # <--- MOVED HERE
+
         self.telemetry.track("model_usage", tags={"model": model}) # Moved from EnhancedLLMOrchestrator
-        # Rate limiting is handled by _generate_with_retry before this method is called.
         if model == LLMProvider.GEMINI.value:
             return self._gemini_generate(text)
         elif model == LLMProvider.HUGGING_FACE.value or model == self.config.hugging_face_model:
@@ -161,11 +165,11 @@ class LLMOrchestrator:
         else:
             logger.error(f"Attempted to call unsupported model: {model} in LLMOrchestrator._call_llm_api") # FIX: Use module-level logger
             raise ValueError(f"Unsupported model: {model}")
-    # --- END ADD ---
+    # --- END MODIFIED ---
 
 
     def _gemini_generate(self, prompt: str) -> str:
-        # Rate limiting is now applied in _generate_with_retry before _call_llm_api calls this method
+        # Rate limiting is now applied in _call_llm_api before this method is called.
         # This method should only contain the direct API call logic
         try:
             # Use the model attribute set during configuration
@@ -212,11 +216,9 @@ class LLMOrchestrator:
     def _count_tokens(self, text: str) -> int:
         # Simple token count for demonstration; replace with a proper tokenizer if needed
         return len(text.split())
-
-
 class EnhancedLLMOrchestrator(LLMOrchestrator):
-    def __init__(
-            self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: "EthicalGovernanceEngine"
+    def __init__( # FIX: Correct method name from init to __init__
+        self, kg: KnowledgeGraph, spec: FormalSpecification, ethics_engine: "EthicalGovernanceEngine"
     ):
         super().__init__()
         # self.telemetry = Telemetry() # REMOVED: telemetry is now initialized in the base class
@@ -354,9 +356,9 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
 
     @formal_proof(
         """
-    Lemma fallback_termination:
-        forall chunk, exists n, strategy_n(chunk) terminates
-    """,
+Lemma fallback_termination:
+    forall chunk, exists n, strategy_n(chunk) terminates
+""",
         autospec=True,
     )
     def _primary_processing(self, chunk: CodeChunk, tokens: int, model: str) -> str:
@@ -387,23 +389,12 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
     # --- Override _call_llm_api in EnhancedLLMOrchestrator ---
     def _call_llm_api(self, text: str, model: str) -> str:
         """Call the appropriate LLM API, adding telemetry and potentially other logic."""
-        # Telemetry tracking moved to the base class's _call_llm_api
-        # Rate limiting is handled by _generate_with_retry before this method is called.
-        # --- FIX: Removed redundant _apply_gemini_rate_limit call here ---
-        # if model == LLMProvider.GEMINI.value:
-        #     self._apply_gemini_rate_limit() # This is now handled by _generate_with_retry
-        # --- END FIX ---
-
         # Call the base class's implementation to handle the actual dispatch
-        # The @retry decorator is on the base class's _call_llm_api.
         return super()._call_llm_api(text, model)
     # --- END Override ---
-
-
 # Keep base class _count_tokens if not overridden
-# def _count_tokens(self, text: str) -> int:
-#     return len(text.split())
-
+def _count_tokens(self, text: str) -> int:
+    return len(text.split())
 def format_math_prompt(question: str) -> str:
     return f"""Please reason step by step and put your final answer within \\boxed{{}}.
 
@@ -411,6 +402,6 @@ Question: {question}
 Answer: """
 
 def extract_boxed_answer(text: str) -> str:
-    match = re.search(r"\\boxed{([^}]+)}", text)
+    match = re.search(r"\\boxed{([^}]+)}", text) # FIX: Escape backslash for regex
     if match:
         return match.group(1)

@@ -941,7 +941,7 @@ EXISTING CONTENT OF `{filepath_to_use}`:
                                                         "original_snippet_repr": repr(generated_snippet),
                                                         "cleaned_snippet_repr": repr(cleaned_snippet),
                                                         "syntax_error_details": {
-                                                            "message": str(se),
+                                                            "message": se.msg, # CHANGED: Use se.msg instead of str(se)
                                                             "lineno": se.lineno,
                                                             "offset": se.offset,
                                                             "text": se.text

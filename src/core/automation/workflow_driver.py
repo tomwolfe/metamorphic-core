@@ -16,7 +16,7 @@ import builtins
 import spacy
 from spacy.matcher import PhraseMatcher
 import ast
-from typing import List, Dict, Optional, Tuple # Ensure Optional is imported
+from typing import List, Dict, Optional, Tuple, Any # Ensure Optional is imported
 
 # FIX: Import write_file here as it's used by _write_output_file
 from src.cli.write_file import write_file
@@ -29,6 +29,15 @@ MAX_READ_FILE_SIZE = 1024 * 1024 # 1 MB
 METAMORPHIC_INSERT_POINT = "# METAMORPHIC_INSERT_POINT"
 MAX_STEP_RETRIES = 2
 MAX_IMPORT_CONTEXT_LINES = 200
+
+# New constant for general snippet guidelines
+GENERAL_SNIPPET_GUIDELINES = (
+    "Key guidelines for snippet generation:\n"
+    "1. Ensure all string literals are correctly terminated (e.g., matching quotes, proper escaping).\n"
+    "2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a `METAMORPHIC_INSERT_POINT` is present.\n"
+    "3. Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons.\n"
+    "4. If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity."
+)
 
 nlp = None
 try:
@@ -693,6 +702,63 @@ class WorkflowDriver:
 
         return False # No creation keyword found
 
+    def _construct_coder_llm_prompt(self, task: Dict[str, Any], step_description: str, filepath_to_use: str, existing_content: str) -> str:
+        """
+        Constructs the full prompt for the Coder LLM based on task, step, and file context,
+        incorporating general, import-specific, and docstring guidelines.
+        """
+        # Define the base general guidelines for snippet generation robustness
+        general_guidelines = (
+            "1. Ensure all string literals are correctly terminated (e.g., matching quotes, proper escaping).\n"
+            "2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a `METAMORPHIC_INSERT_POINT` is present.\n"
+            "3. Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons.\n"
+            "4. If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity."
+        )
+
+        # Define the default specific instructions, which include the general guidelines
+        default_specific_instructions = (
+            "Generate only the Python code snippet needed to fulfill the \"Specific Plan Step\". "
+            "Do not include any surrounding text, explanations, or markdown code block fences (```). "
+            "Provide just the raw code lines that need to be added or modified.\n"
+            "Key guidelines for snippet generation:\n"
+            f"{general_guidelines}"
+        )
+        specific_instructions = default_specific_instructions
+
+        # Override specific_instructions if it's an import step
+        if self._is_add_imports_step(step_description):
+            specific_instructions = (
+                "You are adding import statements. Provide *only* the new import lines that need to be added. "
+                "Do not repeat existing imports. Do not output any other code or explanation. "
+                "Place the new imports appropriately within or after the existing import block.\n"
+                "Key guidelines for snippet generation:\n"
+                f"{general_guidelines}" # Still include general guidelines
+            )
+
+        # Add docstring instruction conditionally
+        docstring_prompt_addition = ""
+        if self._should_add_docstring_instruction(step_description, filepath_to_use):
+            docstring_prompt_addition = "\n" + DOCSTRING_INSTRUCTION_PYTHON + "\n\n"
+
+        # Construct the full prompt
+        coder_prompt = f"""You are a Coder LLM expert in Python.
+Your task is to generate only the Python code snippet needed to fulfill the following specific step from a larger development plan.
+
+Overall Task: "{task.get('task_name', 'Unknown Task')}"
+Task Description: {task.get('description', 'No description provided.')}
+
+The primary file being modified is specified as `{filepath_to_use}` in the task metadata. Focus your plan steps on actions related to this file.
+
+Specific Plan Step:
+{step_description}
+
+EXISTING CONTENT OF `{filepath_to_use}`:
+```python
+{existing_content}
+```
+{docstring_prompt_addition}{specific_instructions}"""
+
+        return coder_prompt
 
     def autonomous_loop(self):
         if not hasattr(self, 'roadmap_path') or (self.roadmap_path is None):
@@ -831,7 +897,7 @@ class WorkflowDriver:
                                         step_failure_reason = error_msg
                                         # Ensure test_results reflects the error state if not already set
                                         if 'test_results' not in self._current_task_results or self._current_task_results['test_results'].get('status') != 'error':
-                                             self._current_task_results['test_results'] = {'status': 'error', 'passed': 0, 'failed': 0, 'total': 0, 'message': str(e)}
+                                              self._current_task_results['test_results'] = {'status': 'error', 'passed': 0, 'failed': 0, 'total': 0, 'message': str(e)}
                                         raise e # Re-raise to trigger retry/failure
 
                                 # FIX: Use filepath_to_use (the resolved determined target file) here
@@ -846,71 +912,11 @@ class WorkflowDriver:
                                          raise RuntimeError(step_failure_reason)
 
                                     logger.debug(f"Read {len(existing_content)} characters from {filepath_to_use}.")
-                                    context_for_llm = existing_content
-
-                                    # Define general guidelines for snippet generation
-                                    general_snippet_guidelines = (
-                                        "Key guidelines for snippet generation:\n"
-                                        "1. Ensure all string literals are correctly terminated (e.g., matching quotes, proper escaping).\n"
-                                        "2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a `METAMORPHIC_INSERT_POINT` is present.\n"
-                                        "3. Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons.\n"
-                                        "4. If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity."
-                                    )
-
-                                    # Default specific instructions including general guidelines
-                                    specific_instructions = (
-                                        "Generate only the Python code snippet needed to fulfill the \"Specific Plan Step\". "
-                                        "Do not include any surrounding text, explanations, or markdown code block fences (```). "
-                                        "Provide just the raw code lines that need to be added or modified.\n"
-                                    ) + general_snippet_guidelines
-
-                                    # Optimize context for 'add imports' steps
-                                    if self._is_add_imports_step(step):
-                                        logger.info(f"Identified 'add imports' step. Optimizing context for {filepath_to_use}.")
-                                        lines = existing_content.splitlines()
-                                        import_block_end_line = self._find_import_block_end(lines)
-                                        cutoff_line = min(import_block_end_line + 5, MAX_IMPORT_CONTEXT_LINES, len(lines))
-                                        cutoff_line = max(0, cutoff_line)
-                                        context_for_llm = "\n".join(lines[:cutoff_line])
-                                        # Override specific instructions for import steps, combining import-specific with general
-                                        specific_instructions = (
-                                            "You are adding import statements. Provide *only* the new import lines that need to be added. "
-                                            "Do not repeat existing imports. Do not output any other code or explanation. "
-                                            "Place the new imports appropriately within or after the existing import block.\n"
-                                        ) + general_snippet_guidelines
-                                        logger.debug(f"Using truncated context for imports (up to line {cutoff_line}):\n{context_for_llm}")
-
-                                    # Construct the prompt for the Coder LLM
-                                    # filepath_to_use is already the resolved absolute path
-                                    # FIX: Corrected prompt template to match assertion in test_workflow_driver.py
-                                    target_file_context_for_coder = f"The primary file being modified is specified as `{filepath_to_use}` in the task metadata. Focus your plan steps on actions related to this file.\n\n"
-
-                                    # --- START: Add Docstring Instruction Conditionally (Task 1.8.Y) ---
-                                    docstring_prompt_addition = ""
-                                    # filepath_to_use is the resolved absolute path of the target file
-                                    if self._should_add_docstring_instruction(step, filepath_to_use):
-                                        docstring_prompt_addition = "\n" + DOCSTRING_INSTRUCTION_PYTHON + "\n\n" # Add newlines for separation
-                                        logger.info(f"Adding docstring instruction to CoderLLM prompt for step: {step}")
-                                    # --- END: Add Docstring Instruction Conditionally ---
-
-                                    coder_prompt = f"""You are a Coder LLM expert in Python.
-Your task is to generate only the Python code snippet needed to fulfill the following specific step from a larger development plan.
-
-Overall Task: "{next_task.get('task_name', 'Unknown Task')}"
-Task Description: {next_task.get('description', 'No description provided.')}
-
-{target_file_context_for_coder}
-Specific Plan Step:
-{step}
-
-EXISTING CONTENT OF `{filepath_to_use}`:
-```python
-{context_for_llm}
-```
-{docstring_prompt_addition}{specific_instructions}""" # docstring_prompt_addition is inserted here
+                                    # Construct the Coder LLM prompt using the new helper method
+                                    coder_prompt = self._construct_coder_llm_prompt(self._current_task, step, filepath_to_use, existing_content)
                                     logger.debug("Invoking Coder LLM with prompt:\n%s", coder_prompt)
                                     generated_snippet = self._invoke_coder_llm(coder_prompt)
-
+ 
                                     if generated_snippet:
                                         logger.info(f"Coder LLM generated snippet (first 100 chars): {generated_snippet[:100]}...")
                                         # >>> ADD CLEANING STEP HERE <<<
@@ -1747,33 +1753,61 @@ Task Description:
         return return_code, stdout, stderr
 
     def _merge_snippet(self, existing_content: str, snippet: str) -> str:
-        if not snippet:
-            return existing_content
+        """
+        Merges a snippet into existing content, applying indentation if a marker is found.
+        If no marker, appends the snippet.
+        """
+        lines = existing_content.splitlines()
+        marker_line_index = -1
+        leading_whitespace = ""
 
-        marker_index = existing_content.find(METAMORPHIC_INSERT_POINT)
-        if marker_index != -1:
-            # Find the start of the line containing the marker
-            line_start_index = existing_content.rfind('\n', 0, marker_index) + 1
-            
-            marker_line = existing_content[line_start_index:] # Get the rest of the line from line_start_index
+        # Find the line containing the marker and its leading whitespace
+        for i, line in enumerate(lines):
+            if METAMORPHIC_INSERT_POINT in line:
+                marker_line_index = i
+                match = re.match(r"^(\s*)", line)
+                if match:
+                    leading_whitespace = match.group(1)
+                break
 
-            # Determine leading whitespace of the marker line
-            match = re.match(r"^(\s*)", marker_line)
-            leading_whitespace = match.group(1) if match else ""
-
-            # Indent the snippet based on the marker's line indentation
+        if marker_line_index != -1:
+            # Marker found
             snippet_lines = snippet.splitlines()
-            if not snippet_lines: # Handle empty snippet
-                indented_snippet_for_replace = ""
-            else:
-                # Prepend leading whitespace to each line of the snippet
-                indented_snippet_lines = [leading_whitespace + line for line in snippet_lines]
-                indented_snippet_for_replace = "\n".join(indented_snippet_lines)
 
-            # Replace the marker in the original content string with the indented snippet
-            return existing_content.replace(METAMORPHIC_INSERT_POINT, indented_snippet_for_replace, 1)
+            # Handle empty snippet: replace marker with an empty line at the correct indentation
+            if not snippet:
+                indented_snippet_lines = [leading_whitespace]
+            else:
+                # Calculate the minimum indentation of the snippet itself
+                # This helps to "normalize" the snippet's internal indentation
+                non_empty_snippet_lines = [s_line for s_line in snippet_lines if s_line.strip()]
+                snippet_min_indent = 0
+                if non_empty_snippet_lines:
+                    # Find the minimum leading whitespace among non-empty lines of the snippet
+                    snippet_min_indent = min(
+                        len(re.match(r'^\s*', s_line).group(0))
+                        for s_line in non_empty_snippet_lines
+                    )
+
+                indented_snippet_lines = []
+                for snippet_line in snippet_lines:
+                    if snippet_line.strip(): # Only apply indentation to non-empty lines
+                        # Remove snippet's own base indentation, then add marker's indentation
+                        indented_snippet_lines.append(leading_whitespace + snippet_line[snippet_min_indent:])
+                    else:
+                        # Preserve empty lines, but ensure they also get the base indentation
+                        indented_snippet_lines.append(leading_whitespace)
+
+            # Replace the marker line with the indented snippet lines
+            lines = lines[:marker_line_index] + indented_snippet_lines + lines[marker_line_index + 1:]
+            return "\n".join(lines)
         else:
             # Marker not found, append logic
+            # If snippet is empty and no marker, return existing content unchanged
+            if not snippet:
+                return existing_content
+
+            # Otherwise, append snippet, adding a newline if existing content doesn't end with one
             if existing_content and not existing_content.endswith('\n'):
                 return existing_content + "\n" + snippet
             return existing_content + snippet

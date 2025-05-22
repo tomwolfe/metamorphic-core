@@ -97,8 +97,14 @@
 *   **Task ID**: task_1_8_improve_snippet_handling
     *   **Priority**: Critical
     *   **Task Name**: Improve Code Snippet Generation, Validation, and Merging Robustness
-    *   **Status**: In Progress
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_fix_rate_limit_enh_orchestrator']
+
+*   **Task ID**: task_1_8_improve_snippet_handling_tests
+    *   **Priority**: High
+    *   **Task Name**: Add Unit Tests for Snippet Handling Enhancements
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_improve_snippet_handling']
 
 *   **Task ID**: task_1_8_A_optimize_large_context
     *   **Priority**: Critical

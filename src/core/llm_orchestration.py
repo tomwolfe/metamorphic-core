@@ -81,9 +81,9 @@ class LLMOrchestrator:
             if not self.config.gemini_api_key:
                 raise RuntimeError("GEMINI_API_KEY is required for Gemini provider")
             # Initialize the client instance
-            self.client = genai.Client(api_key=self.config.gemini_api_key)
-            # Set model and api_key attributes on the instance
-            self.client.model = "gemini-2.5-flash-preview-04-17"
+            self.client = genai.Client(api_key=self.config.gemini_api_key) # Changed model to 05-20
+            # Set model and api_key attributes on the instance # Changed model to 05-20
+            self.client.model = "gemini-2.5-flash-05-20" # Changed model to 05-20
             self.client.api_key = self.config.gemini_api_key # Redundant but harmless if already set by Client()
         elif self.config.provider == LLMProvider.HUGGING_FACE:
             if not self.config.hf_api_key:

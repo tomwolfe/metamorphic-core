@@ -47,8 +47,8 @@ def test_gemini_configuration(mock_get):
         orchestrator = LLMOrchestrator() # Re-initialize orchestrator under the patch
         MockClient.assert_called_once_with(api_key='test_key')
         # Check attributes on the actual orchestrator client instance
-        assert orchestrator.client.api_key == 'test_key'
-        assert orchestrator.client.model == 'gemini-2.5-flash-preview-04-17'
+        assert orchestrator.client.api_key == 'test_key' # Changed model to 05-20
+        assert orchestrator.client.model == 'gemini-2.5-flash-05-20' # Changed model to 05-20
 
 @patch('src.utils.config.SecureConfig.get')
 def test_hf_configuration(mock_get):
@@ -173,7 +173,7 @@ def test_gemini_client_initialization(mock_get, mock_client):
     mock_client.assert_called_once_with(api_key='test_key')
     # Check that the client's model and api_key are set on the instance
     assert orchestrator.client.api_key == 'test_key'
-    assert orchestrator.client.model == 'gemini-2.5-flash-preview-04-17'
+    assert orchestrator.client.model == 'gemini-2.5-flash-05-20'
 
 @patch.object(EnhancedLLMOrchestrator, '_handle_large_context') # Use patch.object for clarity
 def test_large_context_handling(mock_handle_large_context):

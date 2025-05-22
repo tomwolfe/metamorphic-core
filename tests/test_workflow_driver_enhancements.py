@@ -14,6 +14,7 @@ from src.core.automation.workflow_driver import (
     METAMORPHIC_INSERT_POINT,
     DOCSTRING_INSTRUCTION_PYTHON,
     PYTHON_CREATION_KEYWORDS,
+    END_OF_CODE_MARKER, # Import the new constant
 )
 
 # Set up logging for tests
@@ -93,6 +94,8 @@ class TestWorkflowDriverPromptRefinement:
         # Also assert that import-specific and docstring instructions are NOT present
         assert "You are adding import statements." not in coder_prompt
         assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt
+        assert f"IMPORTANT: End your code snippet with the exact line: `{END_OF_CODE_MARKER}`" in coder_prompt
+
 
     def test_coder_prompt_includes_import_specific_guidelines(self, driver_enhancements):
         """Verify that import-specific guidelines are included when applicable."""
@@ -120,6 +123,7 @@ class TestWorkflowDriverPromptRefinement:
         # Also verify general guidelines are still present (as they are appended)
         assert "1. Ensure all string literals are correctly terminated" in coder_prompt
         assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt
+        assert f"IMPORTANT: End your import lines with the exact line: `{END_OF_CODE_MARKER}`" in coder_prompt
 
 
     def test_coder_prompt_includes_docstring_instruction_when_needed(self, driver_enhancements):
@@ -147,6 +151,8 @@ class TestWorkflowDriverPromptRefinement:
         # Verify general guidelines are also present
         assert "1. Ensure all string literals are correctly terminated" in coder_prompt
         assert "You are adding import statements." not in coder_prompt
+        assert f"IMPORTANT: End your code snippet with the exact line: `{END_OF_CODE_MARKER}`" in coder_prompt
+
 
 class TestWorkflowDriverMergeStrategy:
     """Tests for the improved _merge_snippet method."""
@@ -173,7 +179,6 @@ class TestWorkflowDriverMergeStrategy:
         # Empty existing content, with marker (should still apply indentation if marker implies it)
         ("    # METAMORPHIC_INSERT_POINT", "snippet", "    snippet"),
         # Snippet with internal indentation
-        # FIX: Corrected expected_merged_content for this case
         ("    # METAMORPHIC_INSERT_POINT", "def func():\n        pass", "    def func():\n            pass"),
         # Snippet with internal indentation and existing content indentation
         ("class MyClass:\n    # METAMORPHIC_INSERT_POINT\n    def method(): pass", "    def new_method():\n        pass", "class MyClass:\n    def new_method():\n        pass\n    def method(): pass"),
@@ -208,3 +213,48 @@ class TestWorkflowDriverMergeStrategy:
         expected = "line1\ninserted\nline2\n# METAMORPHIC_INSERT_POINT\nline3"
         merged = driver._merge_snippet(existing, snippet)
         assert merged == expected
+
+
+# Fixture for a WorkflowDriver instance
+@pytest.fixture
+def driver_for_cleaning(tmp_path, mocker):
+    context = Context(str(tmp_path))
+    mocker.patch.object(WorkflowDriver, '_load_default_policy') # Mock policy loading
+    driver = WorkflowDriver(context)
+    mocker.patch.object(driver, 'logger', MagicMock()) # Mock logger more explicitly
+    return driver
+
+class TestEnhancedSnippetCleaning:
+    @pytest.mark.parametrize("input_snippet, expected_output", [
+        # Cases with END_OF_CODE_MARKER
+        (f"def func():\n    pass\n{END_OF_CODE_MARKER}\nOkay, thanks!", "def func():\n    pass"),
+        (f"import os\n{END_OF_CODE_MARKER}", "import os"),
+        (f"{END_OF_CODE_MARKER}def func():\n    pass", ""), # Marker at the beginning
+        (f"def func():\n    pass\n{END_OF_CODE_MARKER}  ", "def func():\n    pass"), # Marker with trailing whitespace
+        # Corrected expectation: Marker inside fences, then fences stripped
+        (f"```python\ndef func():\n    pass\n{END_OF_CODE_MARKER}\n```\nSome text.", "def func():\n    pass"),
+
+        # Cases with markdown fences (marker not present or after fences)
+        ("```python\ndef hello():\n    print('world')\n```", "def hello():\n    print('world')"),
+        ("Some text before\n```python\ndef hello():\n    print('world')\n```\nSome text after", "def hello():\n    print('world')"),
+        ("```\nimport os\n```", "import os"),
+        ("```PYTHON\n# comment\npass\n```", "# comment\npass"),
+        # This case has the marker, so the marker logic should apply first.
+        # The marker is outside the fences, so the fences remain after marker truncation.
+        # Then the fence stripping logic applies.
+        (f"No fences, but marker\nprint('ok')\n{END_OF_CODE_MARKER} trailing", "No fences, but marker\nprint('ok')"),
+
+        # Fallback cases (no marker, no standard fences)
+        ("Raw code line 1\nRaw code line 2", "Raw code line 1\nRaw code line 2"),
+        ("  Stripped raw code  ", "Stripped raw code"),
+        ("", ""),
+        (None, ""),
+
+        # Test case for the original failure mode:
+        ("def _read_targeted_file_content():\n    return \"\"\nOkay, here is the refactored code snippet.",
+         "def _read_targeted_file_content():\n    return \"\"\nOkay, here is the refactored code snippet."), # Corrected expectation: No marker, no fences, so no truncation of trailing text
+        (f"def _read_targeted_file_content():\n    return \"\"\n{END_OF_CODE_MARKER}\nOkay, here is the refactored code snippet.",
+         "def _read_targeted_file_content():\n    return \"\""),
+    ])
+    def test_enhanced_clean_llm_snippet(self, driver_for_cleaning, input_snippet, expected_output):
+        assert driver_for_cleaning._clean_llm_snippet(input_snippet) == expected_output

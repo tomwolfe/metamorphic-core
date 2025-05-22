@@ -642,26 +642,26 @@ class TestWorkflowDriver:
         assert mock_write_output_file.call_count == MAX_STEP_RETRIES + 1
         mock_write_output_file.assert_any_call(mock_get_full_path("error.txt"), ANY, overwrite=True)
 
-        # Assert the specific error log from line 1130 occurred MAX_STEP_RETRIES + 1 times
-        error_log_count_at_1130 = sum(
+        # Assert the specific error log from line 1158 occurred MAX_STEP_RETRIES + 1 times
+        error_log_count_at_1158 = sum( # Renamed variable for clarity
             1 for record in caplog.records
             if record.levelname == 'ERROR'
-            and record.pathname.endswith('workflow_driver.py')
-            and record.lineno == 1136 # Corrected line number from 1117 to 1130
+            and record.pathname.endswith('workflow_driver.py') # Ensure this matches the actual path in logs
+            and record.lineno == 1157 # Corrected line number based on log output
             and record.message == f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error"
         )
-        assert error_log_count_at_1130 == MAX_STEP_RETRIES + 1
+        assert error_log_count_at_1158 == MAX_STEP_RETRIES + 1
 
-        # Assert the specific error log from line 1157 occurred MAX_STEP_RETRIES + 1 times
-        error_log_count_at_1157 = sum(
+        # Assert the specific error log from line 1185 occurred MAX_STEP_RETRIES + 1 times
+        error_log_count_at_1185 = sum( # Renamed variable for clarity
             1 for record in caplog.records
             if record.levelname == 'ERROR'
-            and record.pathname.endswith('workflow_driver.py')
-            and record.lineno == 1163 # Corrected line number from 1144 to 1157
+            and record.pathname.endswith('workflow_driver.py') # Ensure this matches the actual path in logs
+            and record.lineno == 1184 # Corrected line number based on log output
             and record.message.startswith("Step execution failed (Attempt")
             and record.message.endswith("Error: Generic write error")
         )
-        assert error_log_count_at_1157 == MAX_STEP_RETRIES + 1
+        assert error_log_count_at_1185 == MAX_STEP_RETRIES + 1
 
 
         # The loop should now complete normally and log this message in the second iteration

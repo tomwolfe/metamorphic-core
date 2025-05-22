@@ -51,9 +51,9 @@ class TestSnippetCleaning:
         ("  ```python\n  indented code\n  ```  ", "indented code"),
         ("```python\n```", ""), # Only fences
         ("```\n  \n```", ""), # Fences with only whitespace
-        ("Leading text ```python\ncode\n```", "Leading text ```python\ncode\n```"), # Regex won't match if not start/end
-        ("```python\ncode\n``` Trailing text", "```python\ncode\n``` Trailing text"), # Regex won't match
-        ("```python\ncode1\n```\nSome text\n```python\ncode2\n```", "code1\n```\nSome text\n```python\ncode2"), # Regex matches first block
+        ("Leading text ```python\ncode\n```", "code"), # Should extract code if fences found
+        ("```python\ncode\n``` Trailing text", "code"), # Should extract code if fences found
+        ("```python\ncode1\n```\nSome text\n```python\ncode2\n```", "code1"), # Should extract first code block
         ("", ""),
         (None, ""),
         ("`single backtick`", "`single backtick`"), # Should not strip single backticks
@@ -114,14 +114,6 @@ class TestReprLoggingForSyntaxErrors:
                 # For now, let's manually set these as if they were in scope
                 # and call the logging part directly if it were a separate method,
                 # or ensure the mock setup triggers the SUT's logging.
-
-                # Let's assume the SUT's try-except block is hit:
-                # We need to ensure `generated_snippet` and `cleaned_snippet` are in scope
-                # for the logging part.
-                # The SUT's `except SyntaxError` block:
-                #   debug_data = { ... "original_snippet_repr": repr(generated_snippet), "cleaned_snippet_repr": repr(cleaned_snippet) ... }
-                # So, we need to ensure these are set on `driver` or passed if the logging was a helper.
-                # Since it's inline, we'd have to replicate more of the loop.
 
                 # A simpler way for this unit test is to extract the logging logic into a helper
                 # and test that helper. Or, we can assert the mock_open call.

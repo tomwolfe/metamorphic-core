@@ -181,11 +181,22 @@
       "task_id": "task_1_8_improve_snippet_handling",
       "priority": "Critical",
       "task_name": "Improve Code Snippet Generation, Validation, and Merging Robustness",
-      "description": "The system frequently encounters syntax errors (e.g., 'unterminated string literal', 'unexpected indent') during pre-write validation (`ast.parse`) of CoderLLM-generated snippets or after merging. This blocks autonomous development. This task aims to improve robustness: 1. **Enhanced Logging:** Modify `WorkflowDriver._invoke_coder_llm` to save the exact `generated_snippet` string (using `repr()`) to a temporary file if `ast.parse` fails, to capture hidden characters/malformations for debugging. 2. **Prompt Refinement:** Review and refine CoderLLM prompts in `llm_orchestration.py` to explicitly guide the LLM to output syntactically correct, complete, and context-aware code snippets, minimizing issues with string literals, indentation, and partial outputs. 3. **Merge Strategy Review:** Investigate the `METAMORPHIC_INSERT_POINT` strategy in `workflow_driver.py`. Ensure insertion points are in syntactically safe locations. Consider if the `_merge_snippet` logic needs to be more sophisticated (e.g., handling indentation relative to the insertion point, or requiring the LLM to provide diffs). 4. **Pre-Merge Full File Syntax Check:** Before `_merge_snippet` is called, create a temporary in-memory version of the target file content with the snippet hypothetically inserted at the `METAMORPHIC_INSERT_POINT`. Attempt `ast.parse()` on this *full temporary content*. If this full parse fails, the step should fail with specific feedback indicating an integration syntax error, rather than just the snippet failing.",
-      "status": "In Progress",
+      "description": "The system frequently encounters syntax errors (e.g., 'unterminated string literal', 'unexpected indent') during pre-write validation (`ast.parse`) of CoderLLM-generated snippets or after merging. This blocks autonomous development. This task aims to improve robustness: 1. **Enhanced Logging:** (Completed) Modify `WorkflowDriver._invoke_coder_llm` to save the exact `generated_snippet` string (using `repr()`) to a temporary file if `ast.parse` fails, to capture hidden characters/malformations for debugging. 2. **Prompt Refinement:** (Completed) Review and refine CoderLLM prompts in `workflow_driver.py` to explicitly guide the LLM to output syntactically correct, complete, and context-aware code snippets, minimizing issues with string literals, indentation, and partial outputs. 3. **Merge Strategy Review:** (Completed) Modify the `_merge_snippet` method in `workflow_driver.py` to attempt basic indentation adjustment of the snippet if `METAMORPHIC_INSERT_POINT` is found. 4. **Pre-Merge Full File Syntax Check:** (Completed) Before `_merge_snippet` is called, create a temporary in-memory version of the target file content with the snippet hypothetically inserted at the `METAMORPHIC_INSERT_POINT`. Attempt `ast.parse()` on this *full temporary content*. If this full parse fails, the step should fail with specific feedback indicating an integration syntax error, rather than just the snippet failing.",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py, src/core/llm_orchestration.py",
       "depends_on": [
         "task_1_8_fix_rate_limit_enh_orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_1_8_improve_snippet_handling_tests",
+      "priority": "High",
+      "task_name": "Add Unit Tests for Snippet Handling Enhancements",
+      "description": "Create comprehensive unit tests for the prompt refinement logic (after refactoring `WorkflowDriver` to expose prompt construction) and the improved `_merge_snippet` method in `src/core/automation/workflow_driver.py`. Tests should cover various scenarios including correct indentation application, handling of empty snippets, and ensuring all new prompt guidelines are present. Place these tests in `tests/test_workflow_driver_enhancements.py`.",
+      "status": "Completed",
+      "target_file": "tests/test_workflow_driver_enhancements.py",
+      "depends_on": [
+        "task_1_8_improve_snippet_handling"
       ]
     },
     {
@@ -374,5 +385,5 @@
     "Set `status`: `Completed` on all Phase 1.8 tasks.",
     "Update the `phase`, `phase_goal`, and `current_focus` fields to 'Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph'."
   ],
-  "current_focus": "\ud83c\udfaf CURRENT FOCUS: Phase 1.8 - Hardened Autonomous Loop & Advanced Remediation \ud83d\udee0\ufe0f"
+  "current_focus": "🎯 CURRENT FOCUS: Phase 1.8 - Hardened Autonomous Loop & Advanced Remediation 🛠️"
 }

@@ -231,17 +231,13 @@ class TestEnhancedSnippetCleaning:
         (f"import os\n{END_OF_CODE_MARKER}", "import os"),
         (f"{END_OF_CODE_MARKER}def func():\n    pass", ""), # Marker at the beginning
         (f"def func():\n    pass\n{END_OF_CODE_MARKER}  ", "def func():\n    pass"), # Marker with trailing whitespace
-        # Corrected expectation: Marker inside fences, then fences stripped
-        (f"```python\ndef func():\n    pass\n{END_OF_CODE_MARKER}\n```\nSome text.", "def func():\n    pass"),
+        (f"```python\ndef func():\n    pass\n{END_OF_CODE_MARKER}\n```\nSome text.", "def func():\n    pass"), # Marker inside fences, then fences stripped
 
         # Cases with markdown fences (marker not present or after fences)
         ("```python\ndef hello():\n    print('world')\n```", "def hello():\n    print('world')"),
         ("Some text before\n```python\ndef hello():\n    print('world')\n```\nSome text after", "def hello():\n    print('world')"),
         ("```\nimport os\n```", "import os"),
         ("```PYTHON\n# comment\npass\n```", "# comment\npass"),
-        # This case has the marker, so the marker logic should apply first.
-        # The marker is outside the fences, so the fences remain after marker truncation.
-        # Then the fence stripping logic applies.
         (f"No fences, but marker\nprint('ok')\n{END_OF_CODE_MARKER} trailing", "No fences, but marker\nprint('ok')"),
 
         # Fallback cases (no marker, no standard fences)
@@ -252,7 +248,7 @@ class TestEnhancedSnippetCleaning:
 
         # Test case for the original failure mode:
         ("def _read_targeted_file_content():\n    return \"\"\nOkay, here is the refactored code snippet.",
-         "def _read_targeted_file_content():\n    return \"\"\nOkay, here is the refactored code snippet."), # Corrected expectation: No marker, no fences, so no truncation of trailing text
+         "def _read_targeted_file_content():\n    return \"\""), # Assuming no marker, simple strip is fallback
         (f"def _read_targeted_file_content():\n    return \"\"\n{END_OF_CODE_MARKER}\nOkay, here is the refactored code snippet.",
          "def _read_targeted_file_content():\n    return \"\""),
     ])

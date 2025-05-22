@@ -50,3 +50,5 @@ combined_files.txt
 *.glob
 *.vok
 *.vos
+
+.debug/

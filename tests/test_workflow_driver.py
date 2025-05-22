@@ -643,26 +643,25 @@ class TestWorkflowDriver:
         mock_write_output_file.assert_any_call(mock_get_full_path("error.txt"), ANY, overwrite=True)
 
         # Assert the specific error log from line 1158 occurred MAX_STEP_RETRIES + 1 times
-        error_log_count_at_1158 = sum( # Renamed variable for clarity
+        error_log_count_at_1183 = sum( # Renamed variable for clarity
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and record.pathname.endswith('workflow_driver.py') # Ensure this matches the actual path in logs
-            and record.lineno == 1157 # Corrected line number based on log output
+            and record.lineno == 1183 # Corrected line number based on log output
             and record.message == f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error"
         )
-        assert error_log_count_at_1158 == MAX_STEP_RETRIES + 1
+        assert error_log_count_at_1183 == MAX_STEP_RETRIES + 1
 
         # Assert the specific error log from line 1185 occurred MAX_STEP_RETRIES + 1 times
-        error_log_count_at_1185 = sum( # Renamed variable for clarity
+        error_log_count_at_1210 = sum( # Renamed variable for clarity
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and record.pathname.endswith('workflow_driver.py') # Ensure this matches the actual path in logs
-            and record.lineno == 1184 # Corrected line number based on log output
+            and record.lineno == 1210 # Corrected line number based on log output
             and record.message.startswith("Step execution failed (Attempt")
             and record.message.endswith("Error: Generic write error")
         )
-        assert error_log_count_at_1185 == MAX_STEP_RETRIES + 1
-
+        assert error_log_count_at_1210 == MAX_STEP_RETRIES + 1
 
         # The loop should now complete normally and log this message in the second iteration
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text

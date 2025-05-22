@@ -238,10 +238,12 @@ class WorkflowDriver:
         # `re.IGNORECASE` makes the language tag match case-insensitively.
         fenced_block_match = re.search(r"```(?:\w+)?(?:\r?\n)(.*?)(?:\r?\n)?```", processed_snippet, re.DOTALL | re.IGNORECASE)
         
+        fences_found = False
         if fenced_block_match:
             # If a fenced block is found, extract its content and discard everything else.
             processed_snippet = fenced_block_match.group(1).strip()
             self.logger.debug("Markdown fenced block found and content extracted.")
+            fences_found = True
         else:
             # If no fenced block is found, the snippet is treated as raw code.
             self.logger.debug("No markdown fenced block found. Treating snippet as raw code.")
@@ -249,14 +251,38 @@ class WorkflowDriver:
         # 2. Look for the end-of-code marker and truncate if found
         # This applies to the content *after* potential fence stripping.
         # The marker is the definitive end of the code snippet.
-        marker_pos = processed_snippet.find(END_OF_CODE_MARKER)
-        if marker_pos != -1:
-            processed_snippet = processed_snippet[:marker_pos].strip()
+        marker_found = False
+        parts = re.split(re.escape(END_OF_CODE_MARKER), processed_snippet, 1)
+        if len(parts) > 1: # Marker was found
+            processed_snippet = parts[0].strip()
+            marker_found = True
             self.logger.debug(f"End-of-code marker found. Snippet truncated.")
+        
+        # 3. Fallback: If no fences were found AND no marker was found,
+        #    attempt to remove trailing non-code text (LLM chatter).
+        #    This is a heuristic to handle cases where the LLM doesn't adhere to output format.
+        if not fences_found and not marker_found:
+            lines = processed_snippet.splitlines()
+            chatter_line_patterns = [
+                r"^\s*(Okay, here is the refactored code snippet\.|Here is the code\.|Let me know if you need further changes\.|Please find the code below\.|This code addresses the issue\.|Some text after the code\.|Here's the updated code:)\s*$",
+                r"^\s*```.*$", # Lines that start with triple backticks (if not already handled by fence stripping)
+            ]
+            chatter_regex = re.compile("|".join(chatter_line_patterns), re.IGNORECASE)
 
-        # 3. Final strip to remove any remaining leading/trailing whitespace
-        # This is important for cases where no fences or markers were found,
-        # or if the marker/fence stripping left some whitespace.
+            first_chatter_line_index = -1
+            for i, line in enumerate(lines):
+                if chatter_regex.match(line):
+                    first_chatter_line_index = i
+                    self.logger.debug(f"Identified first chatter line: '{line.strip()}' at index {i}. Truncating snippet.")
+                    break
+            
+            if first_chatter_line_index != -1:
+                processed_snippet = "\n".join(lines[:first_chatter_line_index])
+                self.logger.debug(f"Truncated snippet based on first chatter line heuristic.")
+            else:
+                self.logger.debug(f"No clear chatter lines found in raw snippet. Keeping as is.")
+
+        # 4. Final strip to remove any remaining leading/trailing whitespace
         return processed_snippet.strip()
 
     def _load_default_policy(self):

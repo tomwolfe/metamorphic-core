@@ -204,12 +204,11 @@
       "priority": "Critical",
       "task_name": "Optimize Large Context Handling for Code Generation Steps",
       "description": "Refine `WorkflowDriver.autonomous_loop` and `EnhancedLLMOrchestrator._handle_large_context` to significantly reduce redundant LLM calls when processing large context files for code generation steps. 1. Modify `WorkflowDriver`'s prompt construction for the CoderLLM. When a plan step involves simple additions to specific, known locations in a file (e.g., adding imports at the top, adding a new method to a class), provide only the relevant, minimal section of the existing file content as context in the `coder_prompt`. For instance, for adding imports, only the first ~100 lines or the existing import block should be included. This aims to prevent `EnhancedLLMOrchestrator._handle_large_context` from unnecessarily chunking and processing the entire file with multiple LLM calls. 2. Review and potentially optimize the `RecursiveSummarizer.summarize_code_recursively` logic if it's still being triggered too often or inefficiently for code generation tasks even with reduced context. Consider if summarization is always the best strategy or if direct processing of smaller, targeted context is feasible. 3. Ensure the LLM is explicitly prompted to output *only* the new/changed lines for such targeted modifications, not the entire file or section, to simplify merging and reduce output tokens.",
-      "status": "Blocked",
+      "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py, src/core/llm_orchestration.py, src/core/chunking/recursive_summarizer.py",
       "depends_on": [
         "task_1_8_Y_ensure_docstrings_in_codegen"
-      ],
-      "reason_blocked": "Step 3 ('Modify CoderLLM Prompt Construction:    In WorkflowDriver.autonomousloop, when building the coderprompt for the CoderLLM, use the minimal context extracted in the previous step instead of the entire file content for targeted modifications.    Explicitly instruct the LLM within this coderprompt to output only the new or changed lines, not the entire file or section. For example: \"Provide only the new import statements, not the entire file content.\" or \"Output only the new method definition, not the entire class.\"') failed after 3 attempts. Last error: Pre-write validation failed for snippet targeting /app/src/core/automation/workflow_driver.py. Skipping write/merge. Feedback: ['Pre-write syntax check failed: unterminated string literal (detected at line 3) (<unknown>, line 3)']"
+      ]
     },
     {
       "task_id": "task_1_8_A_test_import_optimization",

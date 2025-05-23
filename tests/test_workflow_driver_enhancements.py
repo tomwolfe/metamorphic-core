@@ -36,11 +36,29 @@ _FULL_DEFAULT_OUTPUT_FORMAT_INSTRUCTION = (
 )
 
 _FULL_IMPORT_SPECIFIC_GUIDANCE = (
-    "You are adding import statements. Provide *only* the new import lines that need to be added. "
-    "Do not repeat existing imports. Do not output any other code or explanation. "
+    "You are adding import statements. Do not repeat existing imports. Do not output any other code or explanation. "
     "Place the new imports appropriately within or after the existing import block.\n"
     f"{_EXPECTED_IMPORT_SPECIFIC_GUIDANCE_PART}\n"
 )
+
+# NEW CONSTANTS FOR REFINED PROMPT
+_CRITICAL_OUTPUT_INSTRUCTIONS = (
+    "CRITICAL INSTRUCTIONS FOR YOUR RESPONSE FORMAT:\n"
+    "1. Your entire response MUST be ONLY a valid Python code snippet.\n"
+    "2. Do NOT include any explanations, introductory text, apologies, or markdown formatting like ```python or ```.\n"
+    "3. The Python code snippet you generate will be directly parsed and inserted into an existing Python file.\n"
+    # This constant must exactly match the string produced by the SUT's f-string.
+    # The SUT's f-string uses {{...}} for the example, so the test constant should too.
+    f"4. Your Python code snippet MUST end with the exact marker line, on its own line, with no preceding or trailing characters on that line: `{END_OF_CODE_MARKER}` (e.g., `# {{METAMORPHIC_END_OF_CODE_SNIPPET}}`)\n"
+    "5. If the plan step asks for an explanation or analysis, and you are invoked as a CoderLLM, this is an error. In such a case, output only a Python comment explaining the error and then the marker. Example: `# ERROR: This step requires analysis, not code generation.\\n# {{METAMORPHIC_END_OF_CODE_SNIPPET}}`"
+)
+
+_NEW_INTRODUCTORY_LINE_TEMPLATE = "Based on the \"Specific Plan Step\" below, generate the required Python code snippet to modify the target file (`{filepath_to_use}`)."
+
+# This is the full string including the example, as it appears in the prompt
+_DOCSTRING_INSTRUCTION_WITH_EXAMPLE = f"{DOCSTRING_INSTRUCTION_PYTHON} # (e.g., 'IMPORTANT: For any new Python functions... you MUST include a comprehensive PEP 257 compliant docstring.')" # No curly braces here, so this line is fine.
+# The SUT adds leading/trailing newlines to this block. The test constant should reflect that.
+_DOCSTRING_INSTRUCTION_WITH_EXAMPLE_IN_PROMPT = f"\n{DOCSTRING_INSTRUCTION_PYTHON} # (e.g., 'IMPORTANT: For any new Python functions... you MUST include a comprehensive PEP 257 compliant docstring.')\n\n"
 
 
 # Fixture for a WorkflowDriver instance with mocked dependencies for isolated testing
@@ -82,15 +100,16 @@ class TestWorkflowDriverPromptRefinement:
     """
 
     @pytest.mark.parametrize("step_description, expected_instruction_substring", [
-        ("Implement a new function.", "1. Ensure all string literals are correctly terminated"),
-        ("Add a class definition.", "2. Pay close attention to Python's indentation rules."),
-        ("Refactor the main logic.", "3. Generate complete and runnable Python code snippets."),
-        ("Fix a bug in the utility module.", "4. If modifying existing code, ensure the snippet integrates seamlessly"),
+        ("Implement a new function.", "1. Your entire response MUST be ONLY a valid Python code snippet."),
+        ("Add a class definition.", "2. Do NOT include any explanations, introductory text, apologies, or markdown formatting"),
+        ("Refactor the main logic.", "3. The Python code snippet you generate will be directly parsed"),
+        ("Fix a bug in the utility module.", f"4. Your Python code snippet MUST end with the exact marker line, on its own line, with no preceding or trailing characters on that line: `{END_OF_CODE_MARKER}` (e.g., `# {{METAMORPHIC_END_OF_CODE_SNIPPET}}`)\n"),
+        ("Analyze the requirements.", "5. If the plan step asks for an explanation or analysis"), # Test point 5
     ])
-    def test_coder_prompt_includes_general_guidelines(self, driver_enhancements, step_description, expected_instruction_substring):
+    def test_coder_prompt_includes_critical_output_instructions_and_new_intro(self, driver_enhancements, step_description, expected_instruction_substring):
         """
-        Verify that the general snippet generation guidelines are included in the prompt
-        when no specific conditions (like imports or docstrings) are met.
+        Verify that the new critical output instructions are at the top of the prompt
+        and the new introductory line is present.
         """
         driver = driver_enhancements
         mock_task = {
@@ -106,51 +125,31 @@ class TestWorkflowDriverPromptRefinement:
         driver._is_add_imports_step.return_value = False
         driver._should_add_docstring_instruction.return_value = False
 
-        # Call the SUT's prompt construction method
         coder_prompt = driver._construct_coder_llm_prompt(
             mock_task, step_description, mock_filepath, mock_existing_content
         )
 
+        # Assert critical instructions are present
         assert expected_instruction_substring in coder_prompt
-        # Also assert that import-specific and docstring instructions are NOT present
-        assert "You are adding import statements." not in coder_prompt
-        assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt
-        # Corrected assertion for the end marker line phrasing
-        assert _EXPECTED_DEFAULT_OUTPUT_FORMAT_INSTRUCTION_PART in coder_prompt
+        assert _CRITICAL_OUTPUT_INSTRUCTIONS in coder_prompt # Check the whole block
 
+        # Assert new introductory line is present and correctly formatted
+        expected_intro_line = _NEW_INTRODUCTORY_LINE_TEMPLATE.format(filepath_to_use=mock_filepath)
+        assert expected_intro_line in coder_prompt
 
-    def test_coder_prompt_includes_import_specific_guidelines(self, driver_enhancements):
-        """Verify that import-specific guidelines are included when applicable."""
-        driver = driver_enhancements
-        mock_task = {
-            'task_id': 'import_task',
-            'task_name': 'Add new imports',
-            'description': 'Add imports to src/main.py',
-            'target_file': 'src/main.py'
-        }
-        mock_filepath = 'src/main.py'
-        mock_existing_content = 'import os\n\n# METAMORPHIC_INSERT_POINT\n\ndef main(): pass'
+        # Assert the order: critical instructions should come before the new intro line
+        assert coder_prompt.find(_CRITICAL_OUTPUT_INSTRUCTIONS) < coder_prompt.find(expected_intro_line)
 
-        # Configure mocks to simulate an import step
-        driver._is_add_imports_step.return_value = True # This is the key mock for this test
-        driver._should_add_docstring_instruction.return_value = False # Ensure docstring is off
+        # Assert other conditional parts are NOT present
+        assert _DOCSTRING_INSTRUCTION_WITH_EXAMPLE not in coder_prompt
+        assert "SPECIFIC GUIDANCE FOR IMPORT STATEMENTS:" not in coder_prompt
+        # Ensure GENERAL_SNIPPET_GUIDELINES are still present at the end
+        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
 
-        # Call the SUT's prompt construction method
-        coder_prompt = driver._construct_coder_llm_prompt(
-            mock_task, mock_task['description'], mock_filepath, mock_existing_content
-        )
-
-        assert "You are adding import statements." in coder_prompt
-        assert "Do not repeat existing imports." in coder_prompt
-        # Also verify general guidelines are still present (as they are appended)
-        assert "1. Ensure all string literals are correctly terminated" in coder_prompt
-        assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt
-        # Corrected assertion for the import end marker line phrasing
-        assert _EXPECTED_IMPORT_SPECIFIC_GUIDANCE_PART in coder_prompt
-
-
-    def test_coder_prompt_includes_docstring_instruction_when_needed(self, driver_enhancements):
-        """Verify that the docstring instruction is added when _should_add_docstring_instruction returns True."""
+    def test_coder_prompt_includes_docstring_instruction_with_example(self, driver_enhancements):
+        """
+        Verify that the docstring instruction is added with its example when _should_add_docstring_instruction returns True.
+        """
         driver = driver_enhancements
         mock_task = {
             'task_id': 'docstring_task',
@@ -165,70 +164,92 @@ class TestWorkflowDriverPromptRefinement:
         driver._is_add_imports_step.return_value = False # Ensure not an import step
         driver._should_add_docstring_instruction.return_value = True # This is the key mock for this test
 
-        # Call the SUT's prompt construction method
         coder_prompt = driver._construct_coder_llm_prompt(
             mock_task, mock_task['description'], mock_filepath, mock_existing_content
         )
 
-        assert DOCSTRING_INSTRUCTION_PYTHON in coder_prompt
-        # Verify general guidelines are also present
-        assert "1. Ensure all string literals are correctly terminated" in coder_prompt
-        assert "You are adding import statements." not in coder_prompt
-        # Corrected assertion for the end marker line phrasing
-        assert _EXPECTED_DEFAULT_OUTPUT_FORMAT_INSTRUCTION_PART in coder_prompt
+        # Assert the docstring instruction with example is present
+        assert _DOCSTRING_INSTRUCTION_WITH_EXAMPLE_IN_PROMPT in coder_prompt
 
-    def test_coder_prompt_includes_new_output_format_instruction(self, driver_enhancements):
+        # Assert other parts are present as expected
+        assert _CRITICAL_OUTPUT_INSTRUCTIONS in coder_prompt
+        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
+        expected_intro_line = _NEW_INTRODUCTORY_LINE_TEMPLATE.format(filepath_to_use=mock_filepath)
+        assert expected_intro_line in coder_prompt
+
+        # Assert conditional parts are NOT present
+        assert "SPECIFIC GUIDANCE FOR IMPORT STATEMENTS:" not in coder_prompt
+
+    def test_coder_prompt_includes_import_specific_guidelines_and_new_intro(self, driver_enhancements):
         """
-        Verify that the new output_format_instruction is included in the prompt,
-        along with GENERAL_SNIPPET_GUIDELINES, and conditional instructions.
+        Verify that import-specific guidelines are included and the new intro line is present.
         """
         driver = driver_enhancements
         mock_task = {
-            'task_id': 'test_task_format',
-            'task_name': 'Test Output Format',
-            'description': 'Implement new logic for testing output format.',
-            'target_file': 'src/test_file_format.py'
+            'task_id': 'import_task',
+            'task_name': 'Add new imports',
+            'description': 'Add imports to src/main.py',
+            'target_file': 'src/main.py'
         }
-        step_description_code_gen = "Implement a new class MyClass in src/test_file_format.py"
-        step_description_import = "Add import for json in src/test_file_format.py"
-        mock_filepath = 'src/test_file_format.py'
-        mock_existing_content = 'pass'
+        mock_filepath = 'src/main.py'
+        mock_existing_content = 'import os\n\n# METAMORPHIC_INSERT_POINT\n\ndef main(): pass'
 
-        # --- Test Case 1: Standard code generation (with docstring) ---
-        driver._is_add_imports_step.return_value = False
-        driver._should_add_docstring_instruction.return_value = True # Trigger docstring
+        # Configure mocks to simulate an import step
+        driver._is_add_imports_step.return_value = True # This is the key mock for this test
+        driver._should_add_docstring_instruction.return_value = False # Ensure docstring is off
 
-        coder_prompt_gen = driver._construct_coder_llm_prompt(
-            mock_task, step_description_code_gen, mock_filepath, mock_existing_content
+        coder_prompt = driver._construct_coder_llm_prompt(
+            mock_task, mock_task['description'], mock_filepath, mock_existing_content
         )
 
-        # Assert the full default output format instruction is present
-        assert _FULL_DEFAULT_OUTPUT_FORMAT_INSTRUCTION in coder_prompt_gen
-        # Assert the general guidelines header and content
-        assert "Key guidelines for snippet generation" in coder_prompt_gen
-        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt_gen
-        # Assert conditional instructions
-        assert DOCSTRING_INSTRUCTION_PYTHON in coder_prompt_gen
-        assert "You are adding import statements." not in coder_prompt_gen # Import specific should not be there
+        # Assert import-specific guidance is present
+        assert "SPECIFIC GUIDANCE FOR IMPORT STATEMENTS:" in coder_prompt
+        assert "You are adding import statements." in coder_prompt
 
-        # --- Test Case 2: Import step (no docstring for this simple import) ---
-        driver._is_add_imports_step.return_value = True # Trigger import
-        driver._should_add_docstring_instruction.return_value = False
+        # Assert new introductory line is present
+        expected_intro_line = _NEW_INTRODUCTORY_LINE_TEMPLATE.format(filepath_to_use=mock_filepath)
+        assert expected_intro_line in coder_prompt
 
-        coder_prompt_import = driver._construct_coder_llm_prompt(
-            mock_task, step_description_import, mock_filepath, mock_existing_content
+        # Assert other parts are present as expected
+        assert _CRITICAL_OUTPUT_INSTRUCTIONS in coder_prompt
+        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
+
+        # Assert conditional parts are NOT present
+        assert _DOCSTRING_INSTRUCTION_WITH_EXAMPLE not in coder_prompt
+
+    def test_coder_prompt_all_conditional_elements_present(self, driver_enhancements):
+        """
+        Verify that all conditional elements (docstring, imports) are present when applicable,
+        along with critical instructions and new intro.
+        """
+        driver = driver_enhancements
+        mock_task = {
+            'task_id': 'complex_task',
+            'task_name': 'Add imports and create new function',
+            'description': 'Add necessary imports and implement a new utility function in src/utils.py',
+            'target_file': 'src/utils.py'
+        }
+        mock_filepath = 'src/utils.py'
+        mock_existing_content = 'existing_code'
+
+        # Configure mocks to trigger both conditional elements
+        driver._is_add_imports_step.return_value = True
+        driver._should_add_docstring_instruction.return_value = True
+
+        coder_prompt = driver._construct_coder_llm_prompt(
+            mock_task, mock_task['description'], mock_filepath, mock_existing_content
         )
 
-        # Assert the full default output format instruction is present (it's always appended)
-        assert _FULL_DEFAULT_OUTPUT_FORMAT_INSTRUCTION in coder_prompt_import
-        # Assert the full import specific guidance is present
-        assert _FULL_IMPORT_SPECIFIC_GUIDANCE in coder_prompt_import
-        # Assert the general guidelines header and content
-        assert "Key guidelines for snippet generation" in coder_prompt_import
-        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt_import
-        # Assert conditional instructions
-        assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt_import
-        assert "You are adding import statements." in coder_prompt_import # Import specific should be there
+        # Assert all expected parts are present
+        assert _CRITICAL_OUTPUT_INSTRUCTIONS in coder_prompt
+        expected_intro_line = _NEW_INTRODUCTORY_LINE_TEMPLATE.format(filepath_to_use=mock_filepath)
+        assert expected_intro_line in coder_prompt
+        assert _DOCSTRING_INSTRUCTION_WITH_EXAMPLE in coder_prompt
+        assert "SPECIFIC GUIDANCE FOR IMPORT STATEMENTS:" in coder_prompt
+        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
+
+        # Assert order of conditional elements (docstring instruction comes before import guidance in the SUT)
+        assert coder_prompt.find(_DOCSTRING_INSTRUCTION_WITH_EXAMPLE) < coder_prompt.find("SPECIFIC GUIDANCE FOR IMPORT STATEMENTS:")
 
 
 class TestWorkflowDriverMergeStrategy:

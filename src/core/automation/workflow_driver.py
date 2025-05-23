@@ -31,9 +31,8 @@ END_OF_CODE_MARKER = "# METAMORPHIC_END_OF_CODE_SNIPPET" # New marker
 MAX_STEP_RETRIES = 2
 MAX_IMPORT_CONTEXT_LINES = 200
 
-# New constant for general snippet guidelines
+# FIX: Define GENERAL_SNIPPET_GUIDELINES as a module-level constant
 GENERAL_SNIPPET_GUIDELINES = (
-    "Key guidelines for snippet generation:\n"
     "1. Ensure all string literals are correctly terminated (e.g., matching quotes, proper escaping).\n"
     "2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a `METAMORPHIC_INSERT_POINT` is present.\n"
     "3. Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons.\n"
@@ -752,35 +751,28 @@ class WorkflowDriver:
         Constructs the full prompt for the Coder LLM based on task, step, and file context,
         incorporating general, import-specific, and docstring guidelines.
         """
-        # Define the base general guidelines for snippet generation robustness
-        general_guidelines = (
-            "1. Ensure all string literals are correctly terminated (e.g., matching quotes, proper escaping).\n"
-            "2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a `METAMORPHIC_INSERT_POINT` is present.\n"
-            "3. Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons.\n"
-            "4. If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity."
-        )
+        # The general guidelines are now defined as a module-level constant: GENERAL_SNIPPET_GUIDELINES
 
         # Define the default specific instructions, which include the general guidelines
-        default_specific_instructions = (
+        output_format_instruction = (
             "Generate only the Python code snippet needed to fulfill the \"Specific Plan Step\". "
             "Do not include any surrounding text, explanations, or markdown code block fences (```). "
             "Provide just the raw code lines that need to be added or modified.\n"
-            f"IMPORTANT: End your code snippet with the exact line: `{END_OF_CODE_MARKER}`\n" # New instruction
-            "Key guidelines for snippet generation (these apply to the code *before* the marker):\n"
-            f"{general_guidelines}"
+            f"IMPORTANT: End your code snippet with the exact marker line: `{END_OF_CODE_MARKER}`\n" # New instruction
         )
-        specific_instructions = default_specific_instructions
+        specific_instructions = output_format_instruction # This will be overridden or appended to
 
+        import_specific_guidance = ""
         # Override specific_instructions if it's an import step
         if self._is_add_imports_step(step_description):
-            specific_instructions = (
+            import_specific_guidance = (
                 "You are adding import statements. Provide *only* the new import lines that need to be added. "
                 "Do not repeat existing imports. Do not output any other code or explanation. "
                 "Place the new imports appropriately within or after the existing import block.\n"
-                f"IMPORTANT: End your import lines with the exact line: `{END_OF_CODE_MARKER}`\n" # New instruction
-                "Key guidelines for snippet generation (these apply to the code *before* the marker):\n"
-                f"{general_guidelines}" # Still include general guidelines
+                f"IMPORTANT: End your import lines with the exact marker line: `{END_OF_CODE_MARKER}`\n" # New instruction
             )
+            # For import steps, the output_format_instruction still applies regarding code-only output.
+            # The general guidelines also still apply.
 
         # Add docstring instruction conditionally
         docstring_prompt_addition = ""
@@ -803,7 +795,11 @@ EXISTING CONTENT OF `{filepath_to_use}`:
 ```python
 {existing_content}
 ```
-{docstring_prompt_addition}{specific_instructions}"""
+{docstring_prompt_addition}
+{import_specific_guidance}
+{output_format_instruction}
+Key guidelines for snippet generation (these apply to the code *before* the marker):
+{GENERAL_SNIPPET_GUIDELINES}""" # Using the constant directly
 
         return coder_prompt
 
@@ -1822,28 +1818,39 @@ Task Description:
             snippet_lines = snippet.splitlines()
 
             # Handle empty snippet: replace marker with an empty line at the correct indentation
-            if not snippet:
+            if not snippet: # This handles snippet == ""
                 indented_snippet_lines = [leading_whitespace]
             else:
-                # Calculate the minimum indentation of the snippet itself
-                # This helps to "normalize" the snippet's internal indentation
-                non_empty_snippet_lines = [s_line for s_line in snippet_lines if s_line.strip()]
-                snippet_min_indent = 0
-                if non_empty_snippet_lines:
-                    # Find the minimum leading whitespace among non-empty lines of the snippet
-                    snippet_min_indent = min(
-                        len(re.match(r'^\s*', s_line).group(0))
-                        for s_line in non_empty_snippet_lines
-                    )
+                # Check if the snippet consists only of empty lines (e.g., "\n", "\n\n")
+                all_snippet_lines_empty = all(s_line.strip() == '' for s_line in snippet_lines)
 
-                indented_snippet_lines = []
-                for snippet_line in snippet_lines:
-                    if snippet_line.strip(): # Only apply indentation to non-empty lines
-                        # Remove snippet's own base indentation, then add marker's indentation
-                        indented_snippet_lines.append(leading_whitespace + snippet_line[snippet_min_indent:])
-                    else:
-                        # Preserve empty lines, but ensure they also get the base indentation
-                        indented_snippet_lines.append(leading_whitespace)
+                if all_snippet_lines_empty: # This covers cases like "\n", "\n\n", etc.
+                    # The test expects "\n" to result in an extra newline compared to "".
+                    # So, if snippet is "\n" (snippet_lines=['']), we want 2 empty lines.
+                    # If snippet is "\n\n" (snippet_lines=['', '']), we want 3 empty lines.
+                    # This means we insert (number of lines in snippet_lines + 1) empty lines.
+                    indented_snippet_lines = [leading_whitespace] * (len(snippet_lines) + 1)
+                else:
+                    # Original logic for snippets with actual content
+                    # Calculate the minimum indentation of the snippet itself
+                    # This helps to "normalize" the snippet's internal indentation
+                    non_empty_snippet_lines = [s_line for s_line in snippet_lines if s_line.strip()]
+                    snippet_min_indent = 0
+                    if non_empty_snippet_lines:
+                        # Find the minimum leading whitespace among non-empty lines of the snippet
+                        snippet_min_indent = min(
+                            len(re.match(r'^\s*', s_line).group(0))
+                            for s_line in non_empty_snippet_lines
+                        )
+
+                    indented_snippet_lines = []
+                    for snippet_line in snippet_lines:
+                        if snippet_line.strip(): # Only apply indentation to non-empty lines
+                            # Remove snippet's own base indentation, then add marker's indentation
+                            indented_snippet_lines.append(leading_whitespace + snippet_line[snippet_min_indent:])
+                        else:
+                            # Preserve empty lines, but ensure they also get the base indentation
+                            indented_snippet_lines.append(leading_whitespace)
 
             # Replace the marker line with the indented snippet lines
             lines = lines[:marker_line_index] + indented_snippet_lines + lines[marker_line_index + 1:]

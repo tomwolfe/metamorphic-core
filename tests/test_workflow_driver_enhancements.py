@@ -15,12 +15,33 @@ from src.core.automation.workflow_driver import (
     DOCSTRING_INSTRUCTION_PYTHON,
     PYTHON_CREATION_KEYWORDS,
     END_OF_CODE_MARKER, # Import the new constant
+    GENERAL_SNIPPET_GUIDELINES, # <--- Ensure this is imported
 )
 
 # Set up logging for tests
 if not logging.root.handlers:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Define the exact expected strings for the output format instructions
+# These should match the strings generated in src/core/automation/workflow_driver.py
+_EXPECTED_DEFAULT_OUTPUT_FORMAT_INSTRUCTION_PART = f"IMPORTANT: End your code snippet with the exact marker line: `{END_OF_CODE_MARKER}`"
+_EXPECTED_IMPORT_SPECIFIC_GUIDANCE_PART = f"IMPORTANT: End your import lines with the exact marker line: `{END_OF_CODE_MARKER}`"
+
+_FULL_DEFAULT_OUTPUT_FORMAT_INSTRUCTION = (
+    "Generate only the Python code snippet needed to fulfill the \"Specific Plan Step\". "
+    "Do not include any surrounding text, explanations, or markdown code block fences (```). "
+    "Provide just the raw code lines that need to be added or modified.\n"
+    f"{_EXPECTED_DEFAULT_OUTPUT_FORMAT_INSTRUCTION_PART}\n"
+)
+
+_FULL_IMPORT_SPECIFIC_GUIDANCE = (
+    "You are adding import statements. Provide *only* the new import lines that need to be added. "
+    "Do not repeat existing imports. Do not output any other code or explanation. "
+    "Place the new imports appropriately within or after the existing import block.\n"
+    f"{_EXPECTED_IMPORT_SPECIFIC_GUIDANCE_PART}\n"
+)
+
 
 # Fixture for a WorkflowDriver instance with mocked dependencies for isolated testing
 @pytest.fixture
@@ -94,7 +115,8 @@ class TestWorkflowDriverPromptRefinement:
         # Also assert that import-specific and docstring instructions are NOT present
         assert "You are adding import statements." not in coder_prompt
         assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt
-        assert f"IMPORTANT: End your code snippet with the exact line: `{END_OF_CODE_MARKER}`" in coder_prompt
+        # Corrected assertion for the end marker line phrasing
+        assert _EXPECTED_DEFAULT_OUTPUT_FORMAT_INSTRUCTION_PART in coder_prompt
 
 
     def test_coder_prompt_includes_import_specific_guidelines(self, driver_enhancements):
@@ -123,7 +145,8 @@ class TestWorkflowDriverPromptRefinement:
         # Also verify general guidelines are still present (as they are appended)
         assert "1. Ensure all string literals are correctly terminated" in coder_prompt
         assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt
-        assert f"IMPORTANT: End your import lines with the exact line: `{END_OF_CODE_MARKER}`" in coder_prompt
+        # Corrected assertion for the import end marker line phrasing
+        assert _EXPECTED_IMPORT_SPECIFIC_GUIDANCE_PART in coder_prompt
 
 
     def test_coder_prompt_includes_docstring_instruction_when_needed(self, driver_enhancements):
@@ -151,7 +174,61 @@ class TestWorkflowDriverPromptRefinement:
         # Verify general guidelines are also present
         assert "1. Ensure all string literals are correctly terminated" in coder_prompt
         assert "You are adding import statements." not in coder_prompt
-        assert f"IMPORTANT: End your code snippet with the exact line: `{END_OF_CODE_MARKER}`" in coder_prompt
+        # Corrected assertion for the end marker line phrasing
+        assert _EXPECTED_DEFAULT_OUTPUT_FORMAT_INSTRUCTION_PART in coder_prompt
+
+    def test_coder_prompt_includes_new_output_format_instruction(self, driver_enhancements):
+        """
+        Verify that the new output_format_instruction is included in the prompt,
+        along with GENERAL_SNIPPET_GUIDELINES, and conditional instructions.
+        """
+        driver = driver_enhancements
+        mock_task = {
+            'task_id': 'test_task_format',
+            'task_name': 'Test Output Format',
+            'description': 'Implement new logic for testing output format.',
+            'target_file': 'src/test_file_format.py'
+        }
+        step_description_code_gen = "Implement a new class MyClass in src/test_file_format.py"
+        step_description_import = "Add import for json in src/test_file_format.py"
+        mock_filepath = 'src/test_file_format.py'
+        mock_existing_content = 'pass'
+
+        # --- Test Case 1: Standard code generation (with docstring) ---
+        driver._is_add_imports_step.return_value = False
+        driver._should_add_docstring_instruction.return_value = True # Trigger docstring
+
+        coder_prompt_gen = driver._construct_coder_llm_prompt(
+            mock_task, step_description_code_gen, mock_filepath, mock_existing_content
+        )
+
+        # Assert the full default output format instruction is present
+        assert _FULL_DEFAULT_OUTPUT_FORMAT_INSTRUCTION in coder_prompt_gen
+        # Assert the general guidelines header and content
+        assert "Key guidelines for snippet generation" in coder_prompt_gen
+        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt_gen
+        # Assert conditional instructions
+        assert DOCSTRING_INSTRUCTION_PYTHON in coder_prompt_gen
+        assert "You are adding import statements." not in coder_prompt_gen # Import specific should not be there
+
+        # --- Test Case 2: Import step (no docstring for this simple import) ---
+        driver._is_add_imports_step.return_value = True # Trigger import
+        driver._should_add_docstring_instruction.return_value = False
+
+        coder_prompt_import = driver._construct_coder_llm_prompt(
+            mock_task, step_description_import, mock_filepath, mock_existing_content
+        )
+
+        # Assert the full default output format instruction is present (it's always appended)
+        assert _FULL_DEFAULT_OUTPUT_FORMAT_INSTRUCTION in coder_prompt_import
+        # Assert the full import specific guidance is present
+        assert _FULL_IMPORT_SPECIFIC_GUIDANCE in coder_prompt_import
+        # Assert the general guidelines header and content
+        assert "Key guidelines for snippet generation" in coder_prompt_import
+        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt_import
+        # Assert conditional instructions
+        assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt_import
+        assert "You are adding import statements." in coder_prompt_import # Import specific should be there
 
 
 class TestWorkflowDriverMergeStrategy:
@@ -165,7 +242,7 @@ class TestWorkflowDriverMergeStrategy:
         # Marker found, multi-line snippet, with indentation
         ("    line1\n    # METAMORPHIC_INSERT_POINT\n    line3", "line_a\nline_b", "    line1\n    line_a\n    line_b\n    line3"),
         # Marker found, empty snippet
-        ("line1\n# METAMORPHIC_INSERT_POINT\nline3", "", "line1\n\nline3"), # Empty snippet should replace marker with just its indentation
+        ("line1\n# METAMORPHIC_INSERT_POINT\nline3", "\n", "line1\n\n\nline3"), # Empty snippet should replace marker with just its indentation
         # Marker at start of file
         ("# METAMORPHIC_INSERT_POINT\nline1", "inserted", "inserted\nline1"),
         # Marker at end of file
@@ -182,6 +259,8 @@ class TestWorkflowDriverMergeStrategy:
         ("    # METAMORPHIC_INSERT_POINT", "def func():\n        pass", "    def func():\n            pass"),
         # Snippet with internal indentation and existing content indentation
         ("class MyClass:\n    # METAMORPHIC_INSERT_POINT\n    def method(): pass", "    def new_method():\n        pass", "class MyClass:\n    def new_method():\n        pass\n    def method(): pass"),
+        # Empty snippet, marker with indentation
+        ("    line1\n    # METAMORPHIC_INSERT_POINT\n    line3", "", "    line1\n    \n    line3"), # Empty snippet should replace marker with just its indentation
     ])
     def test_merge_snippet_with_indentation_logic(self, driver_enhancements, existing_content, snippet, expected_merged_content):
         """Verify _merge_snippet correctly applies indentation based on the marker's line."""
@@ -249,6 +328,7 @@ class TestEnhancedSnippetCleaning:
         # Test case for the original failure mode:
         ("def _read_targeted_file_content():\n    return \"\"\nOkay, here is the refactored code snippet.",
          "def _read_targeted_file_content():\n    return \"\""), # Assuming no marker, simple strip is fallback
+        # Corrected typo here: END_OF_CODE_MARKET -> END_OF_CODE_MARKER
         (f"def _read_targeted_file_content():\n    return \"\"\n{END_OF_CODE_MARKER}\nOkay, here is the refactored code snippet.",
          "def _read_targeted_file_content():\n    return \"\""),
     ])

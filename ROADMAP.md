@@ -109,7 +109,7 @@
 *   **Task ID**: task_1_8_A_optimize_large_context
     *   **Priority**: Critical
     *   **Task Name**: Optimize Large Context Handling for Code Generation Steps
-    *   **Status**: Not Started
+    *   **Status**: Blocked
     *   **Depends On**: ['task_1_8_Y_ensure_docstrings_in_codegen']
 
 *   **Task ID**: task_1_8_A_test_import_optimization

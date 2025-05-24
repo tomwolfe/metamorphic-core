@@ -668,7 +668,7 @@ class TestWorkflowDriver:
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and 'workflow_driver.py' in record.pathname # Use 'in' for robustness
-            and record.lineno == 1186 # Corrected line number based on log output
+            and record.lineno == 1188 # Corrected line number based on log output
             and record.message == f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error"
         )
         assert error_log_count_at_1183 == MAX_STEP_RETRIES + 1
@@ -678,7 +678,7 @@ class TestWorkflowDriver:
             1 for record in caplog.records
             if record.levelname == 'ERROR'
             and 'workflow_driver.py' in record.pathname # Use 'in' for robustness
-            and record.lineno == 1213 # Corrected line number based on log output
+            and record.lineno == 1215 # Corrected line number based on log output
             and record.message.startswith("Step execution failed (Attempt")
             and record.message.endswith("Error: Generic write error")
         )

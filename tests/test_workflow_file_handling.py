@@ -600,7 +600,7 @@ class TestWorkflowFileHandling:
     def test_is_valid_filename_valid_formats(self, test_driver_file_handling):
         driver = test_driver_file_handling
         assert driver._is_valid_filename("file.txt") is True
-        assert driver._is_valid_filename("file_name-123.py") is True
+        assert driver._is_valid_filename("file_name-123.py") is True # Removed test_func = "this_is_a_test_function"
         assert driver._is_valid_filename("directory_name") is True
         assert driver._is_valid_filename("a") is True
         assert driver._is_valid_filename("1") is True

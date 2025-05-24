@@ -9,7 +9,7 @@ from unittest.mock import MagicMock # Keep MagicMock for the mock KG/Spec/Ethics
 import subprocess
 from src.core.agents.code_review_agent import CodeReviewAgent # type: ignore
 from src.core.ethics.governance import EthicalGovernanceEngine
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import builtins
 import spacy
@@ -18,6 +18,7 @@ import ast
 from typing import List, Dict, Optional, Tuple, Any # Ensure Optional is imported
 
 from src.cli.write_file import write_file
+from src.core.constants import CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS # Import the constant
 
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
 
@@ -735,21 +736,16 @@ class WorkflowDriver:
 
         return False # No creation keyword found
 
-    def _construct_coder_llm_prompt(self, task: Dict[str, Any], step_description: str, filepath_to_use: str, existing_content: str) -> str:
+    def _construct_coder_llm_prompt(self, task: Dict[str, Any], step_description: str, filepath_to_use: str, existing_content: str, retry_feedback_content: Optional[str] = None) -> str:
         """
         Constructs the full prompt for the Coder LLM based on task, step, and file context,
-        incorporating general, import-specific, and docstring guidelines.
+        incorporating general, import-specific, docstring guidelines, and retry feedback.
         """
-        # The general guidelines are now defined as a module-level constant: GENERAL_SNIPPET_GUIDELINES
+        # The general guidelines are now defined as a module-level constant: GENERAL_SNIPPET_GUIDELMines
 
         # New, more forceful output instructions
-        output_instructions = (
-            "CRITICAL INSTRUCTIONS FOR YOUR RESPONSE FORMAT:\n"
-            "1. Your entire response MUST be ONLY a valid Python code snippet.\n"
-            "2. Do NOT include any explanations, introductory text, apologies, or markdown formatting like ```python or ```.\n"
-            "3. The Python code snippet you generate will be directly parsed and inserted into an existing Python file.\n"
-            f"4. Your Python code snippet MUST end with the exact marker line, on its own line, with no preceding or trailing characters on that line: `{END_OF_CODE_MARKER}` (e.g., `# {{METAMORPHIC_END_OF_CODE_SNIPPET}}`)\n"
-            "5. If the plan step asks for an explanation or analysis, and you are invoked as a CoderLLM, this is an error. In such a case, output only a Python comment explaining the error and then the marker. Example: `# ERROR: This step requires analysis, not code generation.\\n# {{METAMORPHIC_END_OF_CODE_SNIPPET}}`"
+        output_instructions = CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(
+            END_OF_CODE_MARKER=END_OF_CODE_MARKER
         )
 
         import_specific_guidance_content = ""
@@ -766,6 +762,11 @@ class WorkflowDriver:
         if self._should_add_docstring_instruction(step_description, filepath_to_use):
             # Include the example directly in the docstring prompt addition
             docstring_prompt_addition = "\n" + DOCSTRING_INSTRUCTION_PYTHON + " # (e.g., 'IMPORTANT: For any new Python functions... you MUST include a comprehensive PEP 257 compliant docstring.')\n\n"
+
+        # Add retry feedback section if provided
+        retry_feedback_section = ""
+        if retry_feedback_content:
+            retry_feedback_section = retry_feedback_content
 
         # --- NEW: Construct target file context section ---
         target_file_prompt_section = ""
@@ -794,6 +795,7 @@ class WorkflowDriver:
             f"Overall Task: \"{task.get('task_name', 'Unknown Task')}\"\n",
             f"Task Description: {task.get('description', 'No description provided.')}\n",
             "\n", # Newline after task description
+            retry_feedback_section, # Add retry feedback here
             "Specific Plan Step:\n",
             f"{step_description}\n",
             "\n", # Newline after step description
@@ -2053,7 +2055,7 @@ Task Description:
         # Use the correct input key 'ethical_analysis_results'
         ethical_analysis_results = validation_results.get('ethical_analysis_results', {})
         ethical_overall_status = ethical_analysis_results.get('overall_status')
-
+        
         if ethical_overall_status == 'approved':
             grades['ethical_policy'] = {"percentage": 100, "justification": "Ethical analysis status: approved."}
         elif ethical_overall_status == 'rejected':
@@ -2064,7 +2066,7 @@ Task Description:
             grades['ethical_policy'] = {"percentage": 0, "justification": f"Ethical analysis execution error: {ethical_analysis_results.get('message', 'Unknown error')}."}
         else: # Handle None or unexpected status
             grades['ethical_policy'] = {"percentage": 0, "justification": "No valid ethical analysis results available or unexpected status."}
-
+        
 
         # --- Overall Grade ---
         # Calculate overall percentage based on weights
@@ -2075,7 +2077,7 @@ Task Description:
             grades['ethical_policy']['percentage'] * 0.20 +
             grades['security_soundness']['percentage'] * 0.20
         )
-        grades['overall_percentage_grade'] = round(overall_percentage)
+        grades['overall_percentage_grade'] = round(overall_percentage) # Round to nearest integer
 
         return grades
 
@@ -2114,7 +2116,7 @@ Task Description:
             justification = "Ethical analysis rejected the code."
         elif code_review_results.get('static_analysis') and any(f.get('severity') == 'security_high' for f in code_review_results['static_analysis']):
             recommended_action = "Blocked"
-            justification = "High-risk security findings detected."
+            justification = "High-risk security findings detected." # Consistent with _identify_remediation_target
         # Prioritize Execution Errors (Tests, Code Review, Ethical Analysis)
         elif test_results.get('status') == 'error':
             recommended_action = "Regenerate Code" # Or Manual Review? Regenerate seems more appropriate for execution errors
@@ -2127,7 +2129,7 @@ Task Description:
             justification = f"Code review or security scan execution error: {error_message}"
         elif ethical_analysis_results.get('overall_status') == 'error':
             recommended_action = "Regenerate Code" # Or Manual Review?
-            # Updated justification string to match assertion in the workflow_driver.py
+            # Updated justification string to match assertion in test_workflow_reporting.py
             justification = f"Ethical analysis execution error: {ethical_analysis_results.get('message', 'Unknown error')}."
         # Prioritize Test Failures
         elif test_results.get('status') == 'failed':
@@ -2274,7 +2276,7 @@ Task Description:
             # Prioritize Critical Failures (High Security) - Ethical Rejection handled below
             code_review_results = validation.get('code_review', {})
             if code_review_results.get('static_analysis') and any(f.get('severity') == 'security_high' for f in code_review_results['static_analysis']):
-                logger.debug("Identified High Security findings. Remediation not applicable (requires manual review).")
+                logger.debug("Identified High Security findings. Remediation not applicable (requires manual review).") # Consistent with _parse_and_evaluate_grade_report
                 return None # High security issues require manual review, not automated remediation
 
             # Prioritize Execution Errors - Should be handled before remediation is attempted, but double check

@@ -20,6 +20,7 @@ from src.core.constants import (
     DOCSTRING_INSTRUCTION_PYTHON,
     PYTHON_CREATION_KEYWORDS,
     CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS,
+    CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS,
 )
 
 # Import necessary components from workflow_driver
@@ -81,11 +82,17 @@ class TestWorkflowDriverPromptRefinement:
     """
 
     @pytest.mark.parametrize("step_description, expected_instruction_substring_from_constant", [
-        ("Implement a new function.", "1. Your entire response MUST be ONLY a valid Python code snippet."), # Part 1
-        ("Add a class definition.", "2. Do NOT include any explanations, introductory text, apologies, or markdown formatting"), # Part 2
-        ("Refactor the main logic.", "3. The Python code snippet you generate will be directly parsed"), # Part 3
-        ("Fix a bug in the utility module.", f"4. Your Python code snippet MUST end with the exact marker line, on its own line, with no preceding or trailing characters on that line: `{END_OF_CODE_MARKER}` (e.g., `# {{METAMORPHIC_END_OF_CODE_SNIPPET}}`)\n"), # Part 4
-        ("Analyze the requirements.", "5. If the plan step asks for an explanation or analysis"), # Part 5
+        # Dynamically generate the expected string for each point from the constant itself
+        # This makes the test more robust to changes in the constant's content or formatting.
+        # splitlines() removes trailing newlines, so we add them back if the original constant line had one.
+        # The indices correspond to the lines in the CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS constant.
+        # Line 0 is "CRITICAL INSTRUCTIONS FOR YOUR RESPONSE FORMAT:"
+        ("Implement a new function.", CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER).splitlines()[1] + "\n"), # Point 1 (index 1)
+        ("Add a class definition.", CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER).splitlines()[2] + "\n"), # Point 2 (index 2)
+        ("Refactor the main logic.", CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER).splitlines()[3] + "\n"), # Point 3 (index 3)
+        ("Fix a bug in the utility module.", CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER).splitlines()[4] + "\n"), # Point 4 (index 4)
+        ("Optimize an existing algorithm.", CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER).splitlines()[5] + "\n"), # Point 5 (index 5)
+        ("Analyze the requirements.", CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER).splitlines()[11]), # Point 6 (index 11, no trailing newline in constant)
     ])
     def test_coder_prompt_includes_critical_output_instructions_and_new_intro(self, driver_enhancements, step_description, expected_instruction_substring_from_constant):
         """
@@ -231,6 +238,39 @@ class TestWorkflowDriverPromptRefinement:
 
         # Assert order of conditional elements (docstring instruction comes before import guidance in the SUT)
         assert coder_prompt.find(f"\n{DOCSTRING_INSTRUCTION_PYTHON}") < coder_prompt.find("SPECIFIC GUIDANCE FOR IMPORT STATEMENTS:")
+
+    def test_coder_prompt_includes_targeted_mod_instructions_and_order(self, driver_enhancements):
+        """
+        Verify that targeted modification instructions are included and appear after critical instructions.
+        """
+        driver = driver_enhancements
+        mock_task = {
+            'task_id': 'mod_task',
+            'task_name': 'Modify existing function',
+            'description': 'Refactor a function in src/module.py',
+            'target_file': 'src/module.py'
+        }
+        mock_filepath = 'src/module.py'
+        mock_existing_content = 'def existing_func(): pass'
+
+        driver._is_add_imports_step.return_value = False
+        driver._should_add_docstring_instruction.return_value = False
+
+        coder_prompt = driver._construct_coder_llm_prompt(
+            mock_task, mock_task['description'], mock_filepath, mock_existing_content
+        )
+
+        assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt
+        assert "SPECIFIC GUIDANCE FOR IMPORT STATEMENTS:" not in coder_prompt
+        
+        # Verify both critical and targeted modification instructions are included
+        idx_critical = coder_prompt.find(CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER))
+        idx_targeted_mod = coder_prompt.find(CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS)
+        
+        assert idx_critical != -1, "Critical output instructions not found."
+        assert idx_targeted_mod != -1, "Targeted modification instructions not found."
+        # Assert the relative order, as this is a semantic part of the prompt structure
+        assert idx_critical < idx_targeted_mod, "Critical instructions should appear before targeted modification instructions."
 
 
 class TestWorkflowDriverMergeStrategy:

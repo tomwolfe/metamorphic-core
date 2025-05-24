@@ -18,7 +18,8 @@ import ast
 from typing import List, Dict, Optional, Tuple, Any # Ensure Optional is imported
 
 from src.cli.write_file import write_file
-from src.core.constants import CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS # Import the constant
+# Import the constant
+from src.core.constants import CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, END_OF_CODE_MARKER, GENERAL_SNIPPET_GUIDELINES, DOCSTRING_INSTRUCTION_PYTHON
 
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
 
@@ -788,6 +789,7 @@ class WorkflowDriver:
         coder_prompt_parts = [
             "You are an expert Python Coder LLM.\n",
             output_instructions,
+            CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, # Add instruction for minimal, targeted output
             "\n", # Newline after output_instructions
             target_file_prompt_section,
             f"Based on the \"Specific Plan Step\" below, generate the required Python code snippet to modify the target file (`{filepath_to_use}`).\n",

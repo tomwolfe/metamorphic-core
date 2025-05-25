@@ -1049,7 +1049,11 @@ class WorkflowDriver:
                                             # This check runs only if the snippet-level AST parse didn't throw a non-SyntaxError.
                                             try:
                                                 # Call ethical analysis on the snippet
-                                                ethical_results = self.ethical_governance_engine.enforce_policy(cleaned_snippet, self.default_policy_config)
+                                                ethical_results = self.ethical_governance_engine.enforce_policy(
+                                                    cleaned_snippet, 
+                                                    self.default_policy_config,
+                                                    is_snippet=True # MODIFIED: Pass is_snippet=True
+                                                )
                                                 if ethical_results.get('overall_status') == 'rejected':
                                                     validation_passed = False
                                                     validation_feedback.append(f"Pre-write ethical check failed: {ethical_results}")

@@ -642,7 +642,7 @@ class TestWorkflowReporting:
             mock_ethical_governance_engine.enforce_policy.assert_called() # Should be called twice
             calls = mock_ethical_governance_engine.enforce_policy.call_args_list
             # FIX: Update assertion to expect the cleaned snippet for the first call
-            assert calls[0] == call(mock__invoke_coder_llm.return_value, driver.default_policy_config) # Pre-write
+            assert calls[0] == call(mock__invoke_coder_llm.return_value, driver.default_policy_config, is_snippet=True) # Pre-write
             # FIX: Update assertion to expect the dynamically merged content for the second call
             assert calls[1] == call(expected_merged_content, driver.default_policy_config)
 
@@ -827,7 +827,7 @@ class TestWorkflowReporting:
             # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
             assert mock_ethical_governance_engine.enforce_policy.call_count == 2
             calls = mock_ethical_governance_engine.enforce_policy.call_args_list
-            assert calls[0] == call(mock__invoke_coder_llm.return_value, driver.default_policy_config)
+            assert calls[0] == call(mock__invoke_coder_llm.return_value, driver.default_policy_config, is_snippet=True)
             assert calls[1] == call(expected_merged_content, driver.default_policy_config)
 
 

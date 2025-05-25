@@ -292,7 +292,6 @@ def test_enforce_policy_missing_constraint_section(engine, tmp_path, compliant_c
     assert "SafetyBoundary" in result # Check the key exists
     # Since the section was missing, the .get() in enforce_policy should use defaults
     assert result["SafetyBoundary"]["status"] == "compliant"
-    # Verify the code being tested actually returns None here
     assert result["SafetyBoundary"]["threshold"] is None # Default threshold from .get() is None if not provided
     assert result["SafetyBoundary"]["enforcement_level"] is None # Default level from .get() is None if not provided
 
@@ -302,3 +301,52 @@ def test_enforce_policy_missing_constraint_section(engine, tmp_path, compliant_c
 
     # Final assertion should now pass
     assert result["overall_status"] == "approved"
+
+# --- New Tests for Snippet-Aware Transparency Check ---
+# Add these test methods to the TestEthicalGovernanceEngine class
+
+    def test_check_transparency_snippet_no_module_docstring_passes_if_no_defs(self, engine):
+        """Test snippet without module docstring passes if it has no internal funcs/classes."""
+        code_snippet = "my_list = [1, 2, 3]\nprint(my_list)"
+        assert engine._check_transparency(code_snippet, is_snippet=True) is True
+
+    def test_check_transparency_snippet_missing_func_docstring_fails(self, engine):
+        """Test snippet fails if an internal function misses a docstring."""
+        code_snippet = "def foo():\n    pass # Missing docstring"
+        assert engine._check_transparency(code_snippet, is_snippet=True) is False
+
+    def test_check_transparency_snippet_with_func_docstring_passes(self, engine):
+        """Test snippet passes if an internal function has a docstring."""
+        code_snippet = 'def foo():\n    """My docstring."""\n    pass'
+        assert engine._check_transparency(code_snippet, is_snippet=True) is True
+
+    def test_check_transparency_snippet_missing_class_docstring_fails(self, engine):
+        """Test snippet fails if an internal class misses a docstring."""
+        code_snippet = "class MyClass:\n    def method(self):\n        pass" # Class and method missing docstrings
+        assert engine._check_transparency(code_snippet, is_snippet=True) is False
+
+    def test_check_transparency_snippet_with_class_and_method_docstrings_passes(self, engine):
+        """Test snippet passes if internal class and method have docstrings."""
+        code_snippet = 'class MyClass:\n    """My class."""\n    def method(self):\n        """My method."""\n        pass'
+        assert engine._check_transparency(code_snippet, is_snippet=True) is True
+    
+    def test_check_transparency_full_code_missing_module_docstring_fails(self, engine):
+        """Test full code (not snippet) fails if module docstring is missing."""
+        full_code = "def foo():\n    '''My func docstring.'''\n    pass"
+        assert engine._check_transparency(full_code, is_snippet=False) is False
+
+    def test_check_transparency_full_code_with_all_docstrings_passes(self, engine):
+        """Test full code (not snippet) passes if all docstrings are present."""
+        full_code = '"""Module docstring."""\ndef foo():\n    """My func docstring."""\n    pass'
+        assert engine._check_transparency(full_code, is_snippet=False) is True
+
+    def test_check_transparency_empty_code_fails(self, engine):
+        """Test empty code fails for both snippet and full code."""
+        assert engine._check_transparency("", is_snippet=True) is False
+        assert engine._check_transparency("", is_snippet=False) is False
+        
+    def test_check_transparency_syntax_error_fails(self, engine):
+        """Test code with syntax error fails for both snippet and full code."""
+        code_with_syntax_error = "def foo(:\n pass"
+        assert engine._check_transparency(code_with_syntax_error, is_snippet=True) is False
+        assert engine._check_transparency(code_with_syntax_error, is_snippet=False) is False

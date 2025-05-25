@@ -373,7 +373,11 @@ class TestPreWriteValidation:
             try:
                 # Call the actual mocked ethical_governance_engine instance method
                 # FIX: Use the passed mock_ethical_governance_engine
-                ethical_results = mock_ethical_governance_engine.enforce_policy(generated_snippet, driver.default_policy_config)
+                ethical_results = mock_ethical_governance_engine.enforce_policy(
+                    generated_snippet,
+                    driver.default_policy_config,
+                    is_snippet=True # MODIFIED: Pass is_snippet=True
+                )
                 if ethical_results.get('overall_status') == 'rejected':
                     validation_passed = False
                     validation_feedback.append(f"Pre-write ethical check failed: {ethical_results}")
@@ -502,7 +506,7 @@ class TestPreWriteValidation:
         # analyze_python is called twice (pre and post)
         mock_code_review_agent.analyze_python.assert_has_calls([call(snippet), call(expected_merged_content)])
         # enforce_policy is called twice (pre and post)
-        mock_ethical_governance_engine.enforce_policy.assert_has_calls([call(snippet, driver.default_policy_config), call(expected_merged_content, driver.default_policy_config)])
+        mock_ethical_governance_engine.enforce_policy.assert_has_calls([call(snippet, driver.default_policy_config, is_snippet=True), call(expected_merged_content, driver.default_policy_config)])
 
         assert not driver._current_task_results['step_errors']
 
@@ -557,7 +561,7 @@ class TestPreWriteValidation:
         # The "Skipping write/merge" log is not hit in this specific helper path, so remove assertion for it.
         # Pre-write ethical and style checks ARE called because snippet-level SyntaxError proceeds to them.
         mock_code_review_agent.analyze_python.assert_called_once_with(snippet)
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(snippet, driver.default_policy_config)
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(snippet, driver.default_policy_config, is_snippet=True)
         # Post-write validation (on merged content) should still not be called
         assert mock_code_review_agent.analyze_python.call_count == 1
         assert mock_ethical_governance_engine.enforce_policy.call_count == 1
@@ -604,7 +608,7 @@ class TestPreWriteValidation:
         # Style/Security and post-write validation should not be called (mocks from fixture)
         mock_code_review_agent.analyze_python.assert_not_called()
         # Ethical check is called once for pre-write validation (mock from fixture)
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(snippet, driver.default_policy_config)
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(snippet, driver.default_policy_config, is_snippet=True)
 
 
     # Remove the patch decorator here, _write_output_file is patched in the fixture
@@ -647,7 +651,7 @@ class TestPreWriteValidation:
         # Assert on the resolved path in the log message
         assert any(f"Pre-write validation failed for snippet targeting {resolved_target_path}. Skipping write/merge." in msg for msg in log_messages)
         # Ethical check is called once for pre-write validation (mock from fixture)
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(snippet, driver.default_policy_config)
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(snippet, driver.default_policy_config, is_snippet=True)
         # Style/Security check is called once for pre-write validation (mock from fixture)
         mock_code_review_agent.analyze_python.assert_called_once_with(snippet)
 
@@ -717,7 +721,7 @@ class TestPreWriteValidation:
         assert any(f"Pre-merge full file syntax validation failed for {resolved_target_path}: unexpected indent" in msg for msg in log_messages)
 
         # Verify that ethical and style checks on the *snippet* passed (as per mock)
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(snippet, driver.default_policy_config)
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(snippet, driver.default_policy_config, is_snippet=True)
         mock_code_review_agent.analyze_python.assert_called_once_with(snippet)
 
         # Verify that ethical and style checks on the *merged content* were NOT called
@@ -1434,7 +1438,7 @@ class TestMultiTargetIntegration:
         mock_ast_parse_m6.assert_has_calls([call(generated_snippet), call(mock_merged_content)]) # Check the ast.parse mock
         # Use the mock instance obtained from the patch decorator
         # FIX: Assert with the actual generated snippet
-        mock_ethical_engine_instance.enforce_policy.assert_any_call(generated_snippet, driver.default_policy_config)
+        mock_ethical_engine_instance.enforce_policy.assert_any_call(generated_snippet, driver.default_policy_config, is_snippet=True)
         # Use the mock instance obtained from the patch decorator
         # FIX: Assert with the actual generated snippet
         driver.code_review_agent.analyze_python.assert_any_call(generated_snippet)
@@ -1702,7 +1706,7 @@ class TestMultiTargetIntegration:
         mock_ast_parse_m6.assert_has_calls([call(generated_snippet), call(actual_merged_content)]) # Check the ast.parse mock
         # Use the mock instance obtained from the patch decorator
         # FIX: Assert with the actual generated snippet
-        mock_ethical_engine_instance.enforce_policy.assert_any_call(generated_snippet, driver.default_policy_config)
+        mock_ethical_engine_instance.enforce_policy.assert_any_call(generated_snippet, driver.default_policy_config, is_snippet=True)
         # Use the mock instance obtained from the patch decorator
         # FIX: Assert with the actual generated snippet
         driver.code_review_agent.analyze_python.assert_any_call(generated_snippet)

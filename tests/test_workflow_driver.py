@@ -530,7 +530,7 @@ class TestWorkflowDriver:
         # Ethical check is called twice: pre-write (on snippet) and post-write (on merged content)
         assert mock_ethical_governance_engine.enforce_policy.call_count == 2
         calls = mock_ethical_governance_engine.enforce_policy.call_args_list
-        assert calls[0] == call(llm_responses_for_mock[1], driver.default_policy_config) # Pre-write on generated snippet
+        assert calls[0] == call(llm_responses_for_mock[1], driver.default_policy_config, is_snippet=True) # Pre-write on generated snippet
         # FIX: Change the second argument from mock_merge_snippet.return_value to the actual string
         assert calls[1] == call(llm_responses_for_mock[1], driver.default_policy_config) # Post-write on merged content
         mock_execute_tests.assert_not_called() # No test step in this plan
@@ -666,9 +666,9 @@ class TestWorkflowDriver:
         # Assert the specific error log from line 1190 occurred MAX_STEP_RETRIES + 1 times
         error_log_count_at_1190 = sum( # Renamed variable for clarity
             1 for record in caplog.records
-            if record.levelname == 'ERROR'
-            and 'workflow_driver.py' in record.pathname
-            and record.lineno == 1206 # Corrected line number based on log output
+            if record.levelname == 'ERROR' # Check log level
+            and 'workflow_driver.py' in record.pathname # Check file
+            and record.lineno == 1210 # Corrected line number from 1206 to 1210
             and record.message == f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error"
         )
         assert error_log_count_at_1190 == MAX_STEP_RETRIES + 1
@@ -677,8 +677,8 @@ class TestWorkflowDriver:
         error_log_count_at_1233 = sum( # Renamed variable for clarity
             1 for record in caplog.records
             if record.levelname == 'ERROR'
-            and 'workflow_driver.py' in record.pathname
-            and record.lineno == 1233 # Corrected line number based on log output
+            and 'workflow_driver.py' in record.pathname # Check file
+            and record.lineno == 1237 # Corrected line number from 1233 to 1237
             and record.message.startswith("Step execution failed (Attempt")
             and record.message.endswith("Error: Generic write error")
         )

@@ -85,17 +85,21 @@ class EthicalGovernanceEngine:
         except Exception as e: raise Exception(f"Unexpected validation error: {e}") from e
         return policy
 
-    def _check_transparency(self, code: str) -> bool:
+    def _check_transparency(self, code: str, is_snippet: bool = False) -> bool:
         """
-        Checks for module docstring if code is non-empty, and function/class docstrings.
+        Checks for docstrings in the provided code.
+        If `is_snippet` is True, it skips the module-level docstring requirement
+        but still enforces docstrings for functions and classes defined within the snippet.
+        If `is_snippet` is False, it requires a module-level docstring for non-empty code
+        and docstrings for all functions and classes.
+        Empty code is always considered non-transparent (critical safety property).
         Returns True if compliant, False otherwise.
         """
-        logger.debug(f"--- Running transparency check ---")
+        logger.debug(f"--- Running transparency check (is_snippet={is_snippet}) ---")
         try:
-            # --- REVISED Check: Fail if code is empty OR if it's not empty but lacks a module docstring ---
             if not code.strip():
                  logger.debug("Violation: Code is empty. Returning False.")
-                 return False # Treat empty code as non-transparent (missing module docstring)
+                 return False # Empty code is always considered non-transparent.
 
             tree = ast.parse(code)
             module_docstring = ast.get_docstring(tree)
@@ -103,9 +107,12 @@ class EthicalGovernanceEngine:
 
             if not module_docstring:
                  logger.debug("Violation: Missing module docstring. Returning False.")
-                 return False # Non-empty code requires a module docstring
+                 # Only fail for missing module docstring if it's not a snippet
+                 if not is_snippet:
+                     return False
+                 else:
+                    logger.debug("Skipping module docstring check for snippet.")
 
-            # Check function/class docstrings (only if module docstring exists)
             violation_found = False
             for node in ast.walk(tree):
                 if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
@@ -131,24 +138,24 @@ class EthicalGovernanceEngine:
             logger.error(f"ERROR during AST parsing for transparency: {e}", exc_info=True)
             return False
 
-    def enforce_policy(self, code: str, policy_config: Dict) -> Dict:
+    def enforce_policy(self, code: str, policy_config: Dict, is_snippet: bool = False) -> Dict:
         constraints_config = policy_config.get("constraints", {})
         enforcement_results = {"policy_name": policy_config.get("policy_name", "Unknown"), "description": policy_config.get("description", ""), "overall_status": "approved"}
         any_violation = False
 
         # BiasRisk
         bias_config = constraints_config.get("BiasRisk", {}); bias_keywords = bias_config.get("keywords", []); bias_violation = any(kw.lower() in code.lower() for kw in bias_keywords if kw)
-        bias_status = "violation" if bias_violation else "compliant"; enforcement_results["BiasRisk"] = {"status": bias_status, "threshold": bias_config.get("threshold"), "enforcement_level": bias_config.get("enforcement_level"), "details": f"Violating keywords: {[kw for kw in bias_keywords if kw and kw.lower() in code.lower()]}" if bias_violation else "No violating keywords."}
+        bias_status = "violation" if bias_violation else "compliant"; enforcement_results["BiasRisk"] = {"status": bias_status, "threshold": bias_config.get("threshold"), "enforcement_level": bias_config.get("enforcement_level"), "details": f"Violating keywords: {[kw for kw in bias_keywords if kw and kw.lower() in code.lower()]}." if bias_violation else "No violating keywords."}
         if bias_status == "violation": any_violation = True; logger.debug("any_violation set by BiasRisk")
 
         # TransparencyScore
-        transparency_config = constraints_config.get("TransparencyScore", {}); is_transparent = self._check_transparency(code); transparency_status = "compliant" if is_transparent else "violation"
+        transparency_config = constraints_config.get("TransparencyScore", {}); is_transparent = self._check_transparency(code, is_snippet); transparency_status = "compliant" if is_transparent else "violation"
         enforcement_results["TransparencyScore"] = {"status": transparency_status, "threshold": transparency_config.get("threshold"), "enforcement_level": transparency_config.get("enforcement_level"), "details": "Docstrings compliant." if is_transparent else "Missing required docstring(s)."}
         if transparency_status == "violation": any_violation = True; logger.debug("any_violation set by Transparency")
 
         # SafetyBoundary
         safety_config = constraints_config.get("SafetyBoundary", {}); unsafe_ops = safety_config.get("unsafe_operations", []); found_unsafe = [op for op in unsafe_ops if op and op in code]; safety_violation = bool(found_unsafe)
-        safety_status = "violation" if safety_violation else "compliant"; enforcement_results["SafetyBoundary"] = {"status": safety_status, "threshold": safety_config.get("threshold"), "enforcement_level": safety_config.get("enforcement_level"), "details": f"Unsafe operations: {found_unsafe}" if safety_violation else "No unsafe operations."}
+        safety_status = "violation" if safety_violation else "compliant"; enforcement_results["SafetyBoundary"] = {"status": safety_status, "threshold": safety_config.get("threshold"), "enforcement_level": safety_config.get("enforcement_level"), "details": f"Unsafe operations: {found_unsafe}." if safety_violation else "No unsafe operations."}
         if safety_status == "violation": any_violation = True; logger.debug("any_violation set by Safety")
 
         # Final Status

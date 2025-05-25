@@ -45,14 +45,23 @@ CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS = (
 DOCSTRING_INSTRUCTION_PYTHON = (
     "IMPORTANT: For any new Python functions, methods, or classes, you MUST include a comprehensive PEP 257 compliant docstring. Use Google-style format (Args:, Returns:, Example: sections). This is required to pass automated ethical and style checks."
 )
-PYTHON_CREATION_KEYWORDS = [
-    "implement function", "define function", "create function", "write function", "generate function",
-    "implement method", "define method", "create method", "write method", "generate method",
-    "implement class", "define class", "create class", "write class", "generate class",
-    "modify function", "refactor function", "replace function", "update function",
-    "modify method", "refactor method", "replace method", "update method",
-    "modify class", "refactor class", "replace class", "update class",
-    "new function", "new method", "new class",
+PYTHON_CREATION_KEYWORDS = [ # Task 1.8.Y: Keywords indicating creation of new Python code structures
+    "implement function", "add method", "create class", "define function",
+    "write function", "write method", "write class",
+    "implement a function", "add a method", "create a class", "define a function",
+    "write a function", "write a method", "write a class",
+    "new function", "new method", "new class", "generate function",
+    "generate method", "generate class", "add function to", "add method to", "add class to",
+    "write a new function", "write a python function", "write a new python function",
+    "create a new function", "create a python function", "create a new python function",
+    "define a new function", "define a python function", # Removed duplicate "define a new class"
+    "define a new python class", # Added keyword for test case
+    "implement a new function", "implement a python function", "implement a new python function",
+    "add a new method", "add a python method", "add a new python method",
+    "create a new class", "create a python class", "create a new python class",
+    "define a new class", "define a python class",
+    "implement a new class", "implement a python class", "implement a new python class",
+    # These were already in constants, but ensure they are covered
     "add function", "add method", "add class"
 ]
 

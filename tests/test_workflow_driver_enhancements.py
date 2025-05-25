@@ -135,6 +135,64 @@ class TestWorkflowDriverPromptRefinement:
         # Ensure GENERAL_SNIPPET_GUIDELINES are still present at the end
         assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
 
+    def test_coder_prompt_uses_full_block_instructions_for_creation(self, driver_enhancements):
+        """
+        Verify that the coder prompt uses CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS
+        and omits CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS and CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS
+        when a new file is being created (indicated by empty existing_content).
+        """
+        driver = driver_enhancements
+        mock_task = {
+            'task_id': 'new_file_task',
+            'task_name': 'Create new module',
+            'description': 'Create a new Python module with a class.',
+            'target_file': 'src/new_module.py'
+        }
+        mock_filepath = 'src/new_module.py'
+        mock_existing_content = '' # Empty content signifies new file creation
+
+        # Configure mocks to simulate a new file creation step
+        driver._is_add_imports_step.return_value = False
+        driver._should_add_docstring_instruction.return_value = True # Docstring instruction should still be present
+
+        coder_prompt = driver._construct_coder_llm_prompt(
+            mock_task, mock_task['description'], mock_filepath, mock_existing_content
+        )
+
+        assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in coder_prompt
+        assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) not in coder_prompt
+        assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS not in coder_prompt
+        assert DOCSTRING_INSTRUCTION_PYTHON in coder_prompt # Docstring instruction should also be present
+
+    def test_coder_prompt_uses_targeted_instructions_for_modification(self, driver_enhancements, mocker):
+        """
+        Verify that the coder prompt uses CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS and
+        CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS when modifying an existing file,
+        and omits CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.
+        """
+        driver = driver_enhancements
+        mock_task = {
+            'task_id': 'mod_file_task',
+            'task_name': 'Modify existing function',
+            'description': 'Refactor a function in src/existing_module.py',
+            'target_file': 'src/existing_module.py'
+        }
+        mock_filepath = 'src/existing_module.py'
+        mock_existing_content = 'def existing_func(): pass' # Non-empty content signifies modification
+
+        # Configure mocks for a modification step
+        driver._is_add_imports_step.return_value = False
+        driver._should_add_docstring_instruction.return_value = False # For this test, assume no docstring needed
+
+        coder_prompt = driver._construct_coder_llm_prompt(
+            mock_task, mock_task['description'], mock_filepath, mock_existing_content
+        )
+
+        assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in coder_prompt
+        assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in coder_prompt
+        assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) not in coder_prompt
+        assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt # Should be omitted based on mock
+
     def test_coder_prompt_includes_docstring_instruction_with_example(self, driver_enhancements):
         """
         Verify that the docstring instruction is added with its example when _should_add_docstring_instruction returns True.
@@ -161,7 +219,9 @@ class TestWorkflowDriverPromptRefinement:
         assert f"\n{DOCSTRING_INSTRUCTION_PYTHON} # (e.g., 'IMPORTANT: For any new Python functions... you MUST include a comprehensive PEP 257 compliant docstring.')\n\n" in coder_prompt
 
         # Assert other parts are present as expected
-        assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in coder_prompt
+        # When docstring instruction is added, it implies new structure creation, so FULL_BLOCK instructions are used.
+        assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in coder_prompt
+        assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS not in coder_prompt # Should not be present with FULL_BLOCK
         assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
         expected_intro_line = f"Based on the \"Specific Plan Step\" below, generate the required Python code snippet to modify the target file (`{mock_filepath}`)."
         assert expected_intro_line in coder_prompt
@@ -230,7 +290,9 @@ class TestWorkflowDriverPromptRefinement:
         )
 
         # Assert all expected parts are present
-        assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in coder_prompt
+        # When docstring instruction is added, it implies new structure creation, so FULL_BLOCK instructions are used.
+        assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in coder_prompt
+        assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS not in coder_prompt # Should not be present with FULL_BLOCK
         expected_intro_line = f"Based on the \"Specific Plan Step\" below, generate the required Python code snippet to modify the target file (`{mock_filepath}`)."
         assert expected_intro_line in coder_prompt
         assert f"\n{DOCSTRING_INSTRUCTION_PYTHON} # (e.g., 'IMPORTANT: For any new Python functions... you MUST include a comprehensive PEP 257 compliant docstring.')\n\n" in coder_prompt

@@ -305,6 +305,55 @@ def test_enforce_policy_missing_constraint_section(engine, tmp_path, compliant_c
 # --- New Tests for Snippet-Aware Transparency Check ---
 # Add these test methods to the TestEthicalGovernanceEngine class
 
+    def test_check_transparency_indented_snippet_with_docstring(self, engine):
+        """Test that an indented snippet with a docstring passes transparency check."""
+        code_snippet = """
+    def my_function():
+        \"\"\"This is a docstring.\"\"\"
+        pass
+"""
+        assert engine._check_transparency(code_snippet, is_snippet=True) is True
+
+    def test_check_transparency_indented_snippet_missing_docstring_fails(self, engine):
+        """Test that an indented snippet without a docstring fails transparency check."""
+        code_snippet = """
+    def my_function():
+        pass # No docstring
+"""
+        assert engine._check_transparency(code_snippet, is_snippet=True) is False
+
+    def test_check_transparency_dedent_failure_parses_original(self, engine, caplog):
+        """Test that if dedent fails, it attempts to parse the original snippet."""
+        # This snippet has inconsistent indentation, textwrap.dedent might struggle or do nothing.
+        # ast.parse should then catch the SyntaxError on the original.
+        code_snippet_inconsistent_indent = """
+    def my_function():
+      pass # Inconsistent indent
+"""
+        caplog.set_level(logging.WARNING)
+        assert engine._check_transparency(code_snippet_inconsistent_indent, is_snippet=True) is False
+        assert "Failed to dedent snippet" in caplog.text # Check if dedent was attempted and logged a warning
+        assert "Syntax error during transparency check" in caplog.text # Check if parsing the original (or dedented) failed
+
+    def test_check_transparency_snippet_no_definitions_passes(self, engine):
+        """Test snippet with no function/class definitions (e.g., just imports or assignments) passes."""
+        code_snippet_imports = "import os\\nimport sys"
+        assert engine._check_transparency(code_snippet_imports, is_snippet=True) is True
+        code_snippet_assignment = "x = 1\\ny = 2"
+        assert engine._check_transparency(code_snippet_assignment, is_snippet=True) is True
+        code_snippet_expression = "print('hello')"
+        assert engine._check_transparency(code_snippet_expression, is_snippet=True) is True
+
+    def test_check_transparency_full_code_no_definitions_no_module_docstring_fails(self, engine):
+        """Test full code with no definitions and no module docstring fails."""
+        full_code_no_defs_no_module_doc = "x = 1\\ny = 2"
+        assert engine._check_transparency(full_code_no_defs_no_module_doc, is_snippet=False) is False
+
+    def test_check_transparency_full_code_no_definitions_with_module_docstring_passes(self, engine):
+        """Test full code with no definitions but with a module docstring passes."""
+        full_code_no_defs_with_module_doc = '"""Module docstring."""\\nx = 1\\ny = 2'
+        assert engine._check_transparency(full_code_no_defs_with_module_doc, is_snippet=False) is True
+
     def test_check_transparency_snippet_no_module_docstring_passes_if_no_defs(self, engine):
         """Test snippet without module docstring passes if it has no internal funcs/classes."""
         code_snippet = "my_list = [1, 2, 3]\nprint(my_list)"

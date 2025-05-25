@@ -19,8 +19,9 @@ from typing import List, Dict, Optional, Tuple, Any # Ensure Optional is importe
 
 from src.cli.write_file import write_file
 # Import the constant
-from src.core.constants import CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, END_OF_CODE_MARKER, GENERAL_SNIPPET_GUIDELINES, DOCSTRING_INSTRUCTION_PYTHON
-
+from src.core.constants import CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, END_OF_CODE_MARKER, GENERAL_SNIPPET_GUIDELINES, DOCSTRING_INSTRUCTION_PYTHON, PYTHON_CREATION_KEYWORDS
+# Add CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS to the existing import
+from src.core.constants import CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
 
 logger = logging.getLogger(__name__) # Corrected logger name
@@ -78,24 +79,6 @@ DOCSTRING_INSTRUCTION_PYTHON = (
 "Use Google-style format (Args:, Returns:, Example: sections). "
 "This is required to pass automated ethical and style checks."
 )
-
-# Task 1.8.Y: Keywords indicating creation of new Python code structures
-PYTHON_CREATION_KEYWORDS = [
-"implement function", "add method", "create class", "define function",
-"write function", "write method", "write class",
-"implement a function", "add a method", "create a class", "define a function",
-"write a function", "write a method", "write a class",
-"new function", "new method", "new class", "generate function",
-"generate method", "generate class", "add function to", "add method to", "add class to",
-"write a new function", "write a python function", "write a new python function",
-"create a new function", "create a python function", "create a new python function",
-"define a new function", "define a python function", "define a new python function",
-"implement a new function", "implement a python function", "implement a new python function",
-"add a new method", "add a python method", "add a new python method",
-"create a new class", "create a python class", "create a new python class",
-"define a new class", "define a python class", "define a new python class",
-"implement a new class", "implement a python class", "implement a new python class",
-]
 
 def classify_plan_step(step_description: str) -> str:
     """
@@ -746,9 +729,21 @@ class WorkflowDriver:
         # The general guidelines are now defined as a module-level constant: GENERAL_SNIPPET_GUIDELINES
 
         # New, more forceful output instructions
-        output_instructions = CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(
-            END_OF_CODE_MARKER=END_OF_CODE_MARKER
-        )
+        # Determine if this step is likely generating a full new block (function, method, class).
+        # We reuse _should_add_docstring_instruction as it already identifies "new structure" generation.
+        is_generating_full_block = self._should_add_docstring_instruction(step_description, filepath_to_use)
+
+        if is_generating_full_block:
+            output_instructions = CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(
+                END_OF_CODE_MARKER=END_OF_CODE_MARKER
+            )
+            # For full blocks, the "targeted modification" instructions are less relevant.
+            targeted_mod_instructions_content = ""
+        else:
+            output_instructions = CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(
+                END_OF_CODE_MARKER=END_OF_CODE_MARKER
+            )
+            targeted_mod_instructions_content = CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS
 
         import_specific_guidance_content = ""
         if self._is_add_imports_step(step_description):
@@ -789,10 +784,13 @@ class WorkflowDriver:
         # if there's an obscure Python version bug or hidden character issue.
         coder_prompt_parts = [
             "You are an expert Python Coder LLM.\n",
-            output_instructions,
-            CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, # Add instruction for minimal, targeted output
-            "\n", # Newline after output_instructions
-            target_file_prompt_section,
+            output_instructions, # This is now dynamic based on is_generating_full_block
+        ]
+        if targeted_mod_instructions_content: # Only add if NOT generating a full block
+            coder_prompt_parts.append(targeted_mod_instructions_content)
+        coder_prompt_parts.extend([
+            "\n", # Newline after output instructions
+            target_file_prompt_section, # Added this line back
             f"Based on the \"Specific Plan Step\" below, generate the required Python code snippet to modify the target file (`{filepath_to_use}`).\n",
             "\n", # Newline after the above line
             f"Overall Task: \"{task.get('task_name', 'Unknown Task')}\"\n",
@@ -809,7 +807,7 @@ class WorkflowDriver:
             import_specific_guidance_content,
             f"Key guidelines for the Python code snippet itself (these apply to the code before the {END_OF_CODE_MARKER}):\n",
             GENERAL_SNIPPET_GUIDELINES
-        ]
+        ])
         coder_prompt = "".join(coder_prompt_parts)
 
 

@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from z3 import ModelRef
 from jsonschema import validate, ValidationError, SchemaError
+import textwrap # Add this import
 import logging
 
 from ..ethical_governance import EthicalPrinciple
@@ -96,12 +97,27 @@ class EthicalGovernanceEngine:
         Returns True if compliant, False otherwise.
         """
         logger.debug(f"--- Running transparency check (is_snippet={is_snippet}) ---")
-        try:
-            if not code.strip():
-                 logger.debug("Violation: Code is empty. Returning False.")
-                 return False # Empty code is always considered non-transparent.
+        processed_code = code # Initialize with original code
 
-            tree = ast.parse(code)
+        if not code.strip():
+            logger.debug("Violation: Code is empty. Returning False.")
+            return False # Empty code is always considered non-transparent.
+
+        if is_snippet:
+            try:
+                # Dedent snippets to handle LLM-generated indented blocks
+                dedented_code = textwrap.dedent(code)
+                processed_code = dedented_code # Use dedented code for parsing
+                logger.debug("Snippet dedented for transparency check.")
+            except Exception as e:
+                # If dedent fails (e.g., inconsistent indentation), parse original.
+                # This is unlikely to cause major issues as ast.parse will catch syntax errors.
+                logger.warning(f"Failed to dedent snippet: {e}. Proceeding with original code.")
+                processed_code = code # Fallback to original code if dedent fails
+
+        try:
+            tree = ast.parse(processed_code) # Parse the potentially dedented code
+            # Module docstring check
             module_docstring = ast.get_docstring(tree)
             logger.debug(f"Module docstring found: {bool(module_docstring)}")
 
@@ -109,13 +125,17 @@ class EthicalGovernanceEngine:
                  logger.debug("Violation: Missing module docstring. Returning False.")
                  # Only fail for missing module docstring if it's not a snippet
                  if not is_snippet:
-                     return False
+                    return False
                  else:
-                    logger.debug("Skipping module docstring check for snippet.")
+                    # Snippets typically don't have module-level docstrings, so this is not a violation.
+                    logger.debug("Snippet has no module-level docstring (as expected for snippets).")
+
 
             violation_found = False
+            has_definitions = False # Initialize flag for presence of definitions
             for node in ast.walk(tree):
                 if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                    has_definitions = True # Set flag if any function/class definition is found
                     node_name = getattr(node, 'name', 'unknown_node')
                     func_class_docstring = ast.get_docstring(node)
                     logger.debug(f"Checking node: {node_name}, Type: {type(node).__name__}, Docstring found: {bool(func_class_docstring)}")
@@ -124,18 +144,29 @@ class EthicalGovernanceEngine:
                         violation_found = True
                         # Don't break early, log all missing ones if needed for detailed reporting later
 
-            if violation_found:
+            if has_definitions and violation_found: # Only fail if definitions exist and some are missing docstrings
                  logger.debug("Violation found in function/class docstrings. Returning False.")
                  return False
-            else:
-                 logger.debug("No docstring violations found. Returning True.")
-                 return True # All checks passed
+            elif not has_definitions and is_snippet and not module_docstring:
+                # If it's a snippet, has no definitions, and no module docstring,
+                # it's likely a simple expression or import block. Consider it transparent.
+                logger.debug("Snippet has no definitions and no module docstring. Considered transparent.")
+                return True
+            elif not has_definitions and not is_snippet and not module_docstring:
+                # If it's full code, has no definitions, but also no module docstring, it's a violation.
+                logger.debug("Full code has no definitions and no module docstring. Violation. Returning False.")
+                return False
 
-        except SyntaxError:
-            logger.debug("Syntax error during transparency check. Returning False.")
+
+            logger.debug("No docstring violations found. Returning True.")
+            return True
+
+        except SyntaxError as se:
+            # If parsing fails (even after dedent), it's not transparent as we can't analyze it.
+            logger.warning(f"Syntax error during transparency check: {se}. Code (first 100 chars): '{processed_code[:100]}'. Returning False.")
             return False
         except Exception as e:
-            logger.error(f"ERROR during AST parsing for transparency: {e}", exc_info=True)
+            logger.error(f"ERROR during AST parsing for transparency: {e}. Code (first 100 chars): '{processed_code[:100]}'. Returning False.", exc_info=True)
             return False
 
     def enforce_policy(self, code: str, policy_config: Dict, is_snippet: bool = False) -> Dict:

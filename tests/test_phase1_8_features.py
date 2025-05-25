@@ -1,5 +1,3 @@
-# File: tests/test_phase1_8_features.py
-
 import pytest
 import unittest
 from unittest.mock import patch, MagicMock, mock_open, call, ANY
@@ -17,25 +15,27 @@ import shutil
 # Add the src directory to the Python path if not already done in conftest.py
 # Use Pathlib for robust path joining
 current_file_dir = Path(__file__).parent
+
 # Adjust path to go up three levels to project root, then into src
 src_dir = current_file_dir.parent.parent / 'src'
 sys.path.insert(0, str(src_dir.resolve()))
-
 
 # Assuming WorkflowDriver is in src.core.automation
 # FIX: Import all necessary components used in tests
 # Added DOCSTRING_INSTRUCTION_PYTHON for the new tests
 # Added PYTHON_CREATION_KEYWORDS for the unit test mock implementation
-from core.automation.workflow_driver import WorkflowDriver, Context, MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, classify_plan_step, CODE_KEYWORDS, CONCEPTUAL_KEYWORDS, MAX_STEP_RETRIES, DOCSTRING_INSTRUCTION_PYTHON, PYTHON_CREATION_KEYWORDS
+from src.core.automation.workflow_driver import WorkflowDriver, Context, MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, classify_plan_step, CODE_KEYWORDS, CONCEPTUAL_KEYWORDS, MAX_STEP_RETRIES, DOCSTRING_INSTRUCTION_PYTHON, PYTHON_CREATION_KEYWORDS, GENERAL_SNIPPET_GUIDELINES
+from src.utils.config import SecureConfig # Import SecureConfig for patching
+
 # FIX: Import EnhancedLLMOrchestrator as it's patched
-from core.llm_orchestration import EnhancedLLMOrchestrator
+from src.core.llm_orchestration import EnhancedLLMOrchestrator
 
 import spacy
 from spacy.matcher import PhraseMatcher
 
 # Import CodeReviewAgent and EthicalGovernanceEngine for type hinting and mocking
-from core.agents.code_review_agent import CodeReviewAgent
-from core.ethics.governance import EthicalGovernanceEngine
+from src.core.agents.code_review_agent import CodeReviewAgent
+from src.core.ethics.governance import EthicalGovernanceEngine
 
 # Set up logging for tests
 # Ensure logging is configured only once
@@ -82,16 +82,15 @@ def test_driver_phase1_8(tmp_path, mocker): # Added mocker
 
         # FIX: Yield the driver instance directly, not a dictionary
         yield driver
-
-
 # Fixture specifically for testing _resolve_target_file_for_step and _validate_path
 @pytest.fixture
 def driver_for_multi_target_resolution(tmp_path, mocker):
     mock_context = Context(str(tmp_path))
     def mock_get_full_path_side_effect(relative_path_str):
         if not isinstance(relative_path_str, str): # Handle non-string input
-             logger.warning(f"Mock Path validation received invalid input: {relative_path_str}")
-             return None
+            logger.warning(f"Mock Path validation received invalid input: {relative_path_str}")
+            return None
+
 
         try:
             # Handle empty string specifically as resolving to base path
@@ -184,8 +183,6 @@ def driver_for_multi_target_resolution(tmp_path, mocker):
 
         # FIX: Yield the driver instance directly
         yield driver
-
-
 class TestPhase1_8Features:
     def test_research_step_classification(self, test_driver_phase1_8):
         driver = test_driver_phase1_8
@@ -193,6 +190,7 @@ class TestPhase1_8Features:
         prelim_flags = driver._classify_step_preliminary(step1)
         assert prelim_flags["is_research_step_prelim"] is True
         assert prelim_flags["is_code_generation_step_prelim"] is False
+
 
     def test_code_generation_step_classification(self, test_driver_phase1_8):
         driver = test_driver_phase1_8
@@ -273,14 +271,13 @@ class TestPhase1_8Features:
         # FIX: Ensure the log message matches the actual log output format
         expected_log_message = f"Skipping placeholder write to main Python target {resolved_target_path} for conceptual step: '{plan_step}'."
         assert any(expected_log_message in record.message for record in caplog.records)
-
-
 class TestPreWriteValidation:
     @pytest.fixture
     def driver_pre_write(self, mocker, tmp_path):
         mock_context = Context(str(tmp_path))
         # FIX: Mock Context.get_full_path here as well, as _load_default_policy calls it
         mock_context_get_full_path = mocker.patch.object(mock_context, 'get_full_path', side_effect=lambda path: str(Path(mock_context.base_path) / path) if path else str(Path(mock_context.base_path)))
+
 
         with patch('src.core.automation.workflow_driver.CodeReviewAgent') as MockCodeReviewAgent, \
              patch('src.core.automation.workflow_driver.EthicalGovernanceEngine') as MockEthicalGovernanceEngine, \
@@ -359,20 +356,18 @@ class TestPreWriteValidation:
         validation_feedback = []
         try:
             # FIX: Use the passed mock_ast_parse
-            mock_ast_parse(generated_snippet)
+            mock_ast_parse(generated_snippet) # First call: snippet
             logger.info("Pre-write syntax check (AST parse) passed for snippet.")
         except SyntaxError as se:
-            validation_passed = False
+            # SUT allows SyntaxError on snippet to proceed to full file check
             validation_feedback.append(f"Pre-write syntax check failed: {se}")
             logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se}")
             logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
-            # REMOVED: raise ValueError(f"Pre-write validation failed for step.") # <--- REMOVED THIS LINE
         except Exception as e:
             validation_passed = False
             validation_feedback.append(f"Error during pre-write syntax validation (AST parse): {e}")
             logger.error(f"Error during pre-write syntax validation (AST parse): {e}", exc_info=True)
             logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
-            # REMOVED: raise ValueError(f"Pre-write validation failed for step.") # <--- REMOVED THIS LINE
 
         if validation_passed and driver.default_policy_config:
             try:
@@ -391,7 +386,6 @@ class TestPreWriteValidation:
                 validation_feedback.append(f"Error during pre-write ethical validation: {e}")
                 logger.error(f"Error during pre-write ethical validation: {e}", exc_info=True)
                 logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
-                # REMOVED: raise ValueError(f"Pre-write validation failed for step.") # <--- REMOVED THIS LINE
         elif validation_passed:
             logger.warning("Skipping pre-write ethical validation: Default policy not loaded.")
 
@@ -413,7 +407,6 @@ class TestPreWriteValidation:
                 validation_feedback.append(f"Error during pre-write style/security validation: {e}")
                 logger.error(f"Error during pre-write style/security validation: {e}", exc_info=True)
                 logger.warning(f"Failed snippet:\n---\n{generated_snippet}\n---")
-                # REMOVED: raise ValueError(f"Pre-write validation failed for step.") # <--- REMOVED THIS LINE
 
         if not validation_passed:
             logger.warning(f"Pre-write validation failed for snippet targeting {filepath_to_use}. Skipping write/merge. Feedback: {validation_feedback}")
@@ -433,7 +426,7 @@ class TestPreWriteValidation:
                 # Create a hypothetical merged content
                 # Use the existing _merge_snippet logic for this hypothetical merge
                 # This is the second call to mock_ast_parse in the real code, for the merged content
-                mock_ast_parse(merged_content) # <-- CORRECTED: Pass merged_content here
+                mock_ast_parse(merged_content) # Second call: merged content
                 logger.info("Pre-merge full file syntax check (AST parse) passed.") # This log is for the full file
             except SyntaxError as se:
                 validation_passed = False
@@ -460,7 +453,7 @@ class TestPreWriteValidation:
 
 
     # Remove the patch decorator here, _write_output_file is patched in the fixture
-    @patch('core.automation.workflow_driver.ast.parse') # Patch ast.parse here
+    @patch('src.core.automation.workflow_driver.ast.parse') # Patch ast.parse here
     def test_pre_write_validation_all_pass(self, mock_ast_parse, driver_pre_write, caplog):
         caplog.set_level(logging.INFO)
         # Unpack fixture result
@@ -477,9 +470,8 @@ class TestPreWriteValidation:
         # Set return values on the actual mock instances from the fixture
         mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved'}
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': []}
-        # Set return value on the mock_ast_parse from the decorator
-        # FIX: Ensure ast.parse is called twice and succeeds for both snippet and merged content
-        mock_ast_parse.side_effect = [None, None] # First for snippet, second for merged content
+        # Configure ast.parse to succeed for both snippet and merged content
+        mock_ast_parse.side_effect = [None, None] # First call (on snippet), second call (on merged content)
 
         # Get the resolved target path from the mocked _resolve_target_file_for_step (called inside helper)
         # Note: This mock is set in the fixture using mocker.patch.object(wd, ...)
@@ -500,7 +492,6 @@ class TestPreWriteValidation:
         assert any("Pre-write ethical validation passed" in msg for msg in log_messages)
         assert any("Pre-write style/security validation passed" in msg for msg in log_messages)
         assert any("Pre-merge full file syntax check (AST parse) passed." in msg for msg in log_messages) # New assertion for pre-merge check
-        # Assert on the resolved path in the log message
         assert any(f"Pre-write validation passed for snippet targeting {resolved_target_path}. Proceeding with merge/write." in msg for msg in log_messages)
         
         # Assert on the resolved path in the write call (patched in fixture)
@@ -516,7 +507,7 @@ class TestPreWriteValidation:
         assert not driver._current_task_results['step_errors']
 
     # Remove the patch decorator here, _write_output_file is patched in the fixture
-    @patch('core.automation.workflow_driver.ast.parse') # Patch ast.parse here
+    @patch('src.core.automation.workflow_driver.ast.parse') # Patch ast.parse here
     def test_pre_write_validation_syntax_fails(self, mock_ast_parse, driver_pre_write, caplog):
         caplog.set_level(logging.WARNING)
         # Unpack fixture result
@@ -530,15 +521,21 @@ class TestPreWriteValidation:
 
 
         snippet = "def invalid syntax"
-        # Set return value on the mock_ast_parse from the decorator
-        mock_ast_parse.side_effect = SyntaxError("Mock syntax error", ('<string>', 1, 1, 'def invalid syntax'))
+        # Configure ast.parse to fail for both snippet and merged content
+        # The first call (on snippet) will raise SyntaxError.
+        # The helper will then proceed to the second call (on merged content), which will also fail.
+        mock_ast_parse.side_effect = [
+            SyntaxError("Mock syntax error", ('<string>', 1, 1, 'def invalid syntax')), # For snippet
+            SyntaxError("Mock merged syntax error", ('<string>', 1, 1, 'def invalid syntax')) # For merged content
+        ]
 
 
         # Get the resolved target path from the mocked _resolve_target_file_for_step (called inside helper)
         resolved_target_path = mock_resolve_target_file.return_value # Get the value returned by the mock
 
         # FIX: Pass mock_ast_parse and other mocks to the helper
-        with pytest.raises(ValueError, match="Pre-write validation failed for step."):
+        # Adjust the regex to match the specific error message when pre-merge full file syntax check fails
+        with pytest.raises(ValueError, match=r"Pre-merge full file syntax validation failed: Pre-write syntax check failed: Mock syntax error.*Pre-merge full file syntax check failed: Mock merged syntax error"):
             self._simulate_step_execution_for_pre_write_validation(
                 driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file,
                 mock_merge_snippet, mock_write_output, mock_code_review_agent, mock_ethical_governance_engine
@@ -547,18 +544,27 @@ class TestPreWriteValidation:
         # _write_output_file is patched in the fixture, assert on the instance mock
         mock_write_output.assert_not_called()
         # More robust log assertions using caplog.records
-        log_messages = [record.message for record in caplog.records]
-        assert any("Pre-write syntax validation (AST parse) failed for snippet:" in msg for msg in log_messages)
+        log_messages = [record.message for record in caplog.records] # Capture logs for assertion
+        # This log comes from the test helper's own logging
+        assert any("Pre-write syntax validation (AST parse) failed for snippet: Mock syntax error (<string>, line 1)" in msg for msg in log_messages)
+        # The pre-merge full file syntax check should now also fail, check for its specific log
+        assert any(f"Pre-merge full file syntax validation failed for {resolved_target_path}: Mock merged syntax error (<string>, line 1)" in msg for msg in log_messages)
+        # This log should NOT be present as the process fails before reaching this point
+        assert not any(f"All pre-write validations passed for snippet targeting {resolved_target_path}. Proceeding with actual merge/write." in msg for msg in log_messages) 
+        # This log should NOT be present as the process fails before reaching this point
+        assert not any(f"Pre-write validation passed for snippet targeting {resolved_target_path}. Proceeding with merge/write." in msg for msg in log_messages)
         assert any(f"Failed snippet:\n---\n{snippet}\n---" in msg for msg in log_messages)
-        # Assert on the resolved path in the log message
-        assert any(f"Pre-write validation failed for snippet targeting {resolved_target_path}. Skipping write/merge." in msg for msg in log_messages)
-        # Post-write validation should not be called (mocks from fixture)
-        mock_code_review_agent.analyze_python.assert_not_called()
-        mock_ethical_governance_engine.enforce_policy.assert_not_called()
+        # The "Skipping write/merge" log is not hit in this specific helper path, so remove assertion for it.
+        # Pre-write ethical and style checks ARE called because snippet-level SyntaxError proceeds to them.
+        mock_code_review_agent.analyze_python.assert_called_once_with(snippet)
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(snippet, driver.default_policy_config)
+        # Post-write validation (on merged content) should still not be called
+        assert mock_code_review_agent.analyze_python.call_count == 1
+        assert mock_ethical_governance_engine.enforce_policy.call_count == 1
 
 
     # Remove the patch decorator here, _write_output_file is patched in the fixture
-    @patch('core.automation.workflow_driver.ast.parse') # Patch ast.parse here
+    @patch('src.core.automation.workflow_driver.ast.parse') # Patch ast.parse here
     def test_pre_write_validation_ethical_fails(self, mock_ast_parse, driver_pre_write, caplog):
         caplog.set_level(logging.WARNING)
         # Unpack fixture result
@@ -602,7 +608,7 @@ class TestPreWriteValidation:
 
 
     # Remove the patch decorator here, _write_output_file is patched in the fixture
-    @patch('core.automation.workflow_driver.ast.parse') # Patch ast.parse here
+    @patch('src.core.automation.workflow_driver.ast.parse') # Patch ast.parse here
     def test_pre_write_validation_style_fails(self, mock_ast_parse, driver_pre_write, caplog):
         caplog.set_level(logging.WARNING)
         # Unpack fixture result
@@ -645,7 +651,7 @@ class TestPreWriteValidation:
         # Style/Security check is called once for pre-write validation (mock from fixture)
         mock_code_review_agent.analyze_python.assert_called_once_with(snippet)
 
-    @patch('core.automation.workflow_driver.ast.parse') # Patch ast.parse here
+    @patch('src.core.automation.workflow_driver.ast.parse') # Patch ast.parse here
     def test_pre_write_validation_full_file_syntax_fails(self, mock_ast_parse, driver_pre_write, caplog):
         # FIX: Change log level to INFO to capture the "passed for snippet" message
         caplog.set_level(logging.INFO)
@@ -717,8 +723,6 @@ class TestPreWriteValidation:
         # Verify that ethical and style checks on the *merged content* were NOT called
         assert mock_ethical_governance_engine.enforce_policy.call_count == 1
         assert mock_code_review_agent.analyze_python.call_count == 1
-
-
 class TestPathResolutionAndValidation:
     def test_validate_path_safe_relative(self, driver_for_multi_target_resolution, tmp_path):
         driver = driver_for_multi_target_resolution
@@ -726,6 +730,7 @@ class TestPathResolutionAndValidation:
         # Create the dummy file so the mock get_full_path can resolve it
         (tmp_path / relative_path).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / relative_path).touch()
+
 
         # The mock get_full_path in the fixture returns the resolved path
         expected_full_path = str((tmp_path / relative_path).resolve(strict=False)) # Use strict=False here too for consistency
@@ -857,7 +862,7 @@ class TestPathResolutionAndValidation:
         # The log about explicit mention comes from the real _determine_single_target_file, which is mocked.
         # We can't assert that log here.
 
-    def test_resolve_multi_target_no_mention_defaults_first(self, driver_for_multi_target_resolution, caplog, tmp_path):
+    def test_resolve_multi_target_no_mention_defaults_to_first(self, driver_for_multi_target_resolution, caplog, tmp_path):
         caplog.set_level(logging.WARNING)
         driver = driver_for_multi_target_resolution
         step_desc = "Implement the new algorithm."
@@ -1020,21 +1025,18 @@ class TestPathResolutionAndValidation:
         # FIX: Assert for the correct log message that indicates the empty list parsing issue.
         assert f"Task target file list was unexpectedly empty after parsing '{task_target_spec}' for step: '{step_desc}'" in caplog.text
         assert resolved_file is None
-
-
 # --- Unit Tests for File Determination Logic (using the new method) ---
-
 # Assume you add this method to WorkflowDriver:
 # def _determine_single_target_file(self, step_description: str, task_target_file_spec: str | None, prelim_flags: Dict) -> Optional[str]:
-#     """
-#     Determines the single target file from a task's target_file list based on step description.
-#     Returns the *relative* path string or None.
-#     """
-#     # ... implementation from Step 1 ...
-#     pass # Add this method to WorkflowDriver
-
+# """
+# Determines the single target file from a task's target_file list based on step description.
+# Returns the relative path string or None.
+# """
+# # ... implementation from Step 1 ...
+# pass # Add this method to WorkflowDriver
 class TestMultiTargetFileDetermination: # Changed to use pytest
     # No setUp/tearDown needed with pytest fixtures
+
 
     # Mock logger for this test class
     @pytest.fixture(autouse=True)
@@ -1043,7 +1045,7 @@ class TestMultiTargetFileDetermination: # Changed to use pytest
         # Assuming the logger is accessed via `logger` global variable in the module
         # If it's accessed via `self.logger`, you'd patch the instance attribute on the mock driver
         # Let's patch the global logger for simplicity in this unit test class
-        mock_logger = mocker.patch('core.automation.workflow_driver.logger')
+        mock_logger = mocker.patch('src.core.automation.workflow_driver.logger')
         yield mock_logger
 
     @pytest.fixture
@@ -1204,10 +1206,7 @@ class TestMultiTargetFileDetermination: # Changed to use pytest
         mock_logger.warning.assert_not_called()
         mock_logger.debug.assert_not_called()
         mock_logger.info.assert_not_called()
-
-
 # --- Integration Test for Multi-Target Handling ---
-
 # This test will simulate the execution of a single code generation step
 # within the autonomous loop, verifying that the correct file is targeted
 # when the task has multiple target files.
@@ -1219,7 +1218,7 @@ class TestMultiTargetIntegration:
     @patch.object(WorkflowDriver, '_merge_snippet', side_effect=lambda existing, snippet: existing + "\n" + snippet) # M3
     @patch.object(WorkflowDriver, '_write_output_file')                                                  # M4
     @patch.object(WorkflowDriver, '_validate_path', side_effect=lambda path: str(Path(tempfile.gettempdir()) / path).replace('\\', '/') if path is not None else None) # M5
-    @patch('core.automation.workflow_driver.ast.parse')                                                 # M6
+    @patch('src.core.automation.workflow_driver.ast.parse')                                                 # M6
     @patch.object(WorkflowDriver, '_is_add_imports_step', return_value=False)                             # M7
     @patch.object(WorkflowDriver, '_find_import_block_end', return_value=0)                               # M8
     @patch.object(WorkflowDriver, '_classify_step_preliminary')                                           # M9
@@ -1244,53 +1243,63 @@ class TestMultiTargetIntegration:
     @patch.object(WorkflowDriver, 'select_next_task')                                                     # M28
     @patch.object(WorkflowDriver, 'generate_solution_plan')                                               # M29
     @patch.object(WorkflowDriver, '_determine_single_target_file')                                        # M30
-    @patch('core.automation.workflow_driver.EthicalGovernanceEngine')                                     # M31
+    # M33 (NEW): Patch SecureConfig.get to provide dummy values for LLM config
+    @patch('src.core.llm_orchestration.SecureConfig.get', side_effect=lambda var_name, default=None: {
+        "LLM_PROVIDER": "gemini",
+        "GEMINI_API_KEY": "mock_gemini_api_key_123456789012345678901234567890123456789", # Min length 39
+        "HUGGING_FACE_API_KEY": "hf_mock_hf_api_key_123456789012345678901234567890", # Min length 34
+        "YOUR_GITHUB_API_KEY": "ghp_mock_github_api_key_123456789012345678901234567890123456", # Min length 40
+        "HUGGING_FACE_MODEL": "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+        "LLM_MAX_RETRIES": "3", "LLM_TIMEOUT": "30",
+    }.get(var_name, default))
+    @patch('src.core.llm_orchestration.SecureConfig.load')                                                # M32 (NEW)
+    @patch('src.core.automation.workflow_driver.EthicalGovernanceEngine')                                     # M31
     def test_integration_multi_target_explicit_match(self,
-                                                      mock_ethical_engine_m31,
-                                                      mock_determine_single_target_file_m30,
-                                                      mock_generate_plan_m29,
-                                                      mock_select_next_task_m28,
-                                                      mock_load_roadmap_m27,
-                                                      mock_load_default_policy_m26,
-                                                      mock_parse_test_results_m25,
-                                                      mock_execute_tests_m24,
-                                                      mock_update_status_m23,
-                                                      mock_getsize_m22,
-                                                      mock_isfile_m21,
-                                                      mock_exists_m20,
-                                                      mock_open_m19,
-                                                      mock_safe_write_roadmap_json_m18, # M18 - Keep the mock, but remove the assertion on it
-                                                      mock_parse_and_evaluate_grade_report_m17,
-                                                      mock_generate_grade_report_m16,
-                                                      mock_identify_remediation_target_m15,
-                                                      mock_ethical_remediation_m14,
-                                                      mock_style_remediation_m13,
-                                                      mock_test_remediation_m12,
-                                                      mock_determine_filepath_to_use_m11,
-                                                      mock_determine_write_details_m10,
-                                                      mock_classify_step_m9,
-                                                      mock_find_import_block_end_m8,
-                                                      mock_is_add_imports_step_m7,
-                                                      mock_ast_parse_m6,
-                                                      mock_validate_path_m5,
-                                                      mock_write_output_file_m4,
-                                                      mock_merge_snippet_m3,
-                                                      mock_read_file_for_context_m2,
-                                                      mock_invoke_coder_llm_m1,
+                                                      mock_ethical_engine_m31, # M31
+                                                      mock_secure_config_load_m32, # M32 (NEW)
+                                                      mock_secure_config_get_m33, # M33 (NEW)
+                                                      mock_determine_single_target_file_m30, # M30
+                                                      mock_generate_plan_m29, # M29
+                                                      mock_select_next_task_m28, # M28
+                                                      mock_load_roadmap_m27, # M27
+                                                      mock_load_default_policy_m26, # M26
+                                                      mock_parse_test_results_m25, # M25
+                                                      mock_execute_tests_m24, # M24
+                                                      mock_update_status_m23, # M23
+                                                      mock_getsize_m22, # M22
+                                                      mock_isfile_m21, # M21
+                                                      mock_exists_m20, # M20
+                                                      mock_open_m19, # M19
+                                                      mock_safe_write_roadmap_json_m18, # M18
+                                                      mock_parse_and_evaluate_grade_report_m17, # M17
+                                                      mock_generate_grade_report_m16, # M16
+                                                      mock_identify_remediation_target_m15, # M15
+                                                      mock_ethical_remediation_m14, # M14
+                                                      mock_style_remediation_m13, # M13
+                                                      mock_test_remediation_m12, # M12
+                                                      mock_determine_filepath_to_use_m11, # M11
+                                                      mock_determine_write_details_m10, # M10
+                                                      mock_classify_step_m9, # M9
+                                                      mock_find_import_block_end_m8, # M8
+                                                      mock_is_add_imports_step_m7, # M7
+                                                      mock_ast_parse_m6, # M6
+                                                      mock_validate_path_m5, # M5
+                                                      mock_write_output_file_m4, # M4
+                                                      mock_merge_snippet_m3, # M3
+                                                      mock_read_file_for_context_m2, # M2
+                                                      mock_invoke_coder_llm_m1, # M1
                                                       mocker, # Pytest fixture
                                                       tmp_path, # Pytest fixture
                                                       caplog # Pytest fixture
                                                       ):
+
 
         caplog.set_level(logging.INFO)
 
         # --- Setup Mock Driver and Context ---
         context = Context(str(tmp_path))
         driver = WorkflowDriver(context)
-        # Configure the mocked ethical engine instance obtained from the patch decorator
-        driver.ethical_governance_engine = mock_ethical_engine_m31.return_value # Ensure mock instance
-        driver.code_review_agent = MagicMock() # Ensure mock instance
-        driver.llm_orchestrator = MagicMock() # Ensure mock instance
+        mock_secure_config_load_m32.return_value = None # SecureConfig.load doesn't return anything
         driver.default_policy_config = {'policy_name': 'Mock Policy'} # Ensure policy is loaded
 
         # --- Configure Mocks for this specific scenario ---
@@ -1343,16 +1352,18 @@ class TestMultiTargetIntegration:
         # Use the mock instance obtained from the patch decorator
         mock_ethical_engine_instance = mock_ethical_engine_m31.return_value
         mock_ethical_engine_instance.enforce_policy.return_value = {'overall_status': 'approved'}
+        driver.code_review_agent = MagicMock() # Ensure mock instance
         driver.code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': []}
         # Use the real mocker fixture to patch ast.parse
         # mock_ast_parse_m6 is already a mock from the decorator, no need to use mocker.patch for it.
         # If you need to control its return value for a specific call, do it on mock_ast_parse_m6
-        # FIX: Ensure ast.parse is called twice and succeeds for both snippet and merged content
+        # Configure ast.parse to succeed for both snippet and merged content
         mock_ast_parse_m6.side_effect = [None, None] # First for snippet, second for merged content
 
 
         # Mock post-write validation calls (they will be called with the merged content)
         # Use the mock instance obtained from the patch decorator
+        # FIX: Assert with the actual generated snippet
         mock_ethical_engine_instance.enforce_policy.side_effect = [
             {'overall_status': 'approved'}, # Pre-write ethical
             {'overall_status': 'approved'}  # Post-write ethical
@@ -1445,6 +1456,7 @@ class TestMultiTargetIntegration:
         mock_parse_and_evaluate_grade_report_m17.assert_called_once_with(ANY)
 
         # Verify roadmap status update was called
+        mock_secure_config_load_m32.assert_called_once() # Verify SecureConfig.load was called
         mock_update_status_m23.assert_called_once_with('multi_target_e2e', 'Completed', None)
         # REMOVE THIS ASSERTION: _safe_write_roadmap_json is called by the mocked _update_task_status_in_roadmap
         # mock_safe_write_roadmap_json_m18.assert_called_once()
@@ -1463,11 +1475,11 @@ class TestMultiTargetIntegration:
 
 
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value="# Generated snippet")                 # M1
-    @patch.object(WorkflowDriver, '_read_file_for_context')                                             # M2
+    @patch.object(WorkflowDriver, '_read_file_for_context', )                                            # M2
     @patch.object(WorkflowDriver, '_merge_snippet', side_effect=lambda existing, snippet: existing + "\n" + snippet) # M3
     @patch.object(WorkflowDriver, '_write_output_file')                                                  # M4
     @patch.object(WorkflowDriver, '_validate_path', side_effect=lambda path: str(Path(tempfile.gettempdir()) / path).replace('\\', '/') if path is not None else None) # M5
-    @patch('core.automation.workflow_driver.ast.parse')                                                 # M6
+    @patch('src.core.automation.workflow_driver.ast.parse')                                                 # M6
     @patch.object(WorkflowDriver, '_is_add_imports_step', return_value=False)                             # M7
     @patch.object(WorkflowDriver, '_find_import_block_end', return_value=0)                               # M8
     @patch.object(WorkflowDriver, '_classify_step_preliminary')                                           # M9
@@ -1492,53 +1504,62 @@ class TestMultiTargetIntegration:
     @patch.object(WorkflowDriver, 'select_next_task')                                                     # M28
     @patch.object(WorkflowDriver, 'generate_solution_plan')                                               # M29
     @patch.object(WorkflowDriver, '_determine_single_target_file')                                        # M30
-    @patch('core.automation.workflow_driver.EthicalGovernanceEngine')                                     # M31
+    # M33 (NEW): Patch SecureConfig.get to provide dummy values for LLM config
+    @patch('src.core.llm_orchestration.SecureConfig.get', side_effect=lambda var_name, default=None: {
+        "LLM_PROVIDER": "gemini",
+        "GEMINI_API_KEY": "mock_gemini_api_key_123456789012345678901234567890123456789", # Min length 39
+        "HUGGING_FACE_API_KEY": "hf_mock_hf_api_key_123456789012345678901234567890", # Min length 34
+        "YOUR_GITHUB_API_KEY": "ghp_mock_github_api_key_123456789012345678901234567890123456", # Min length 40
+        "HUGGING_FACE_MODEL": "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+        "LLM_MAX_RETRIES": "3", "LLM_TIMEOUT": "30",
+    }.get(var_name, default))
+    @patch('src.core.llm_orchestration.SecureConfig.load')                                                # M32 (NEW)
+    @patch('src.core.automation.workflow_driver.EthicalGovernanceEngine')                                     # M31
     def test_integration_multi_target_default_to_first(self,
-                                                       mock_ethical_engine_m31,
-                                                       mock_determine_single_target_file_m30,
-                                                       mock_generate_plan_m29,
-                                                       mock_select_next_task_m28,
-                                                       mock_load_roadmap_m27,
-                                                       mock_load_default_policy_m26,
-                                                       mock_parse_test_results_m25,
-                                                       mock_execute_tests_m24,
-                                                       mock_update_status_m23,
-                                                       mock_getsize_m22,
-                                                       mock_isfile_m21,
-                                                       mock_exists_m20,
-                                                       mock_open_m19,
-                                                       mock_safe_write_roadmap_json_m18, # M18 - Keep the mock, but remove the assertion on it
-                                                       mock_parse_and_evaluate_grade_report_m17,
-                                                      mock_generate_grade_report_m16,
-                                                      mock_identify_remediation_target_m15,
-                                                      mock_ethical_remediation_m14,
-                                                      mock_style_remediation_m13,
-                                                      mock_test_remediation_m12,
-                                                      mock_determine_filepath_to_use_m11,
-                                                      mock_determine_write_details_m10,
-                                                      mock_classify_step_m9,
-                                                      mock_find_import_block_end_m8,
-                                                      mock_is_add_imports_step_m7,
-                                                      mock_ast_parse_m6,
-                                                      mock_validate_path_m5,
-                                                      mock_write_output_file_m4,
-                                                      mock_merge_snippet_m3,
-                                                      mock_read_file_for_context_m2,
-                                                      mock_invoke_coder_llm_m1,
-                                                      mocker, # Pytest fixture
-                                                      tmp_path, # Pytest fixture
-                                                      caplog # Pytest fixture
-                                                      ):
+                                                       mock_ethical_engine_m31, # M31
+                                                       mock_secure_config_load_m32, # M32 (NEW)
+                                                       mock_secure_config_get_m33, # M33 (NEW)
+                                                       mock_determine_single_target_file_m30, # M30
+                                                       mock_generate_plan_m29, # M29
+                                                       mock_select_next_task_m28, # M28
+                                                       mock_load_roadmap_m27, # M27
+                                                       mock_load_default_policy_m26, # M26
+                                                       mock_parse_test_results_m25, # M25
+                                                       mock_execute_tests_m24, # M24
+                                                       mock_update_status_m23, # M23
+                                                       mock_getsize_m22, # M22
+                                                       mock_isfile_m21, # M21
+                                                       mock_exists_m20, # M20
+                                                       mock_open_m19, # M19
+                                                       mock_safe_write_roadmap_json_m18, # M18
+                                                       mock_parse_and_evaluate_grade_report_m17, # M17
+                                                       mock_generate_grade_report_m16, # M16
+                                                       mock_identify_remediation_target_m15, # M15
+                                                       mock_ethical_remediation_m14, # M14
+                                                       mock_style_remediation_m13, # M13
+                                                       mock_test_remediation_m12, # M12
+                                                       mock_determine_filepath_to_use_m11, # M11
+                                                       mock_determine_write_details_m10, # M10
+                                                       mock_classify_step_m9, # M9
+                                                       mock_find_import_block_end_m8, # M8
+                                                       mock_is_add_imports_step_m7, # M7
+                                                       mock_ast_parse_m6, # M6
+                                                       mock_validate_path_m5, # M5
+                                                       mock_write_output_file_m4, # M4
+                                                       mock_merge_snippet_m3, # M3
+                                                       mock_read_file_for_context_m2, # M2
+                                                       mock_invoke_coder_llm_m1, # M1
+                                                       mocker, # Pytest fixture
+                                                       tmp_path, # Pytest fixture
+                                                       caplog # Pytest fixture
+                                                       ):
 
         caplog.set_level(logging.INFO)
 
         # --- Setup Mock Driver and Context ---
         context = Context(str(tmp_path))
         driver = WorkflowDriver(context)
-        # Configure the mocked ethical engine instance obtained from the patch decorator
-        driver.ethical_governance_engine = mock_ethical_engine_m31.return_value # Ensure mock instance
-        driver.code_review_agent = MagicMock()
-        driver.llm_orchestrator = MagicMock()
+        mock_secure_config_load_m32.return_value = None # SecureConfig.load doesn't return anything
         driver.default_policy_config = {'policy_name': 'Mock Policy'}
 
         # --- Configure Mocks for this specific scenario ---
@@ -1598,15 +1619,17 @@ class TestMultiTargetIntegration:
         # Use the mock instance obtained from the patch decorator
         mock_ethical_engine_instance = mock_ethical_engine_m31.return_value
         mock_ethical_engine_instance.enforce_policy.return_value = {'overall_status': 'approved'}
+        driver.code_review_agent = MagicMock() # Ensure mock instance
         driver.code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': []}
         # Use the real mocker fixture to patch ast.parse
         # mock_ast_parse_m6 is already a mock from the decorator, no need to use mocker.patch for it.
         # If you need to control its return value for a specific call, do it on mock_ast_parse_m6
-        # FIX: Ensure ast.parse is called twice and succeeds for both snippet and merged content
+        # Configure ast.parse to succeed for both snippet and merged content
         mock_ast_parse_m6.side_effect = [None, None] # First for snippet, second for merged content
 
         # Mock post-write validation calls (they will be called with the merged content)
         # Use the mock instance obtained from the patch decorator
+        # FIX: Assert with the actual generated snippet
         mock_ethical_engine_instance.enforce_policy.side_effect = [
             {'overall_status': 'approved'}, # Pre-write ethical
             {'overall_status': 'approved'}  # Post-write ethical
@@ -1704,6 +1727,7 @@ class TestMultiTargetIntegration:
         mock_parse_and_evaluate_grade_report_m17.assert_called_once_with(ANY)
 
         # Verify roadmap status update was called
+        mock_secure_config_load_m32.assert_called_once() # Verify SecureConfig.load was called
         mock_update_status_m23.assert_called_once_with('multi_target_e2e_default', 'Completed', None)
         # REMOVE THIS ASSERTION: _safe_write_roadmap_json is called by the mocked _update_task_status_in_roadmap
         # mock_safe_write_roadmap_json_m18.assert_called_once()
@@ -1721,11 +1745,10 @@ class TestMultiTargetIntegration:
         assert "Grade Report Evaluation: Recommended Action='Completed'" in caplog.text
         assert "Updating task status from 'Not Started' to 'Completed' for task multi_target_e2e_default" in caplog.text
         assert "No tasks available in Not Started status. Exiting autonomous loop." in caplog.text
-
-
 # --- New Test Class for Docstring Instruction Logic (from LLM Response) ---
 # FIX: Change to use pytest fixtures instead of unittest.TestCase setup
 class TestPhase18DocstringPrompt:
+
 
     @pytest.fixture(autouse=True)
     def setup_driver(self, tmp_path, mocker):
@@ -1886,7 +1909,7 @@ class TestPhase18DocstringPrompt:
         filepath_to_use = mock_resolve_target_file.return_value
         context_for_llm = mock_read_file.return_value
         specific_instructions = "Original specific instructions."
-        target_file_context_for_coder = f"The primary file being modified is specified as `{filepath_to_use}` in the task metadata. Focus your plan steps on actions related to this file.\n\n" # FIX: Match the exact phrasing from the SUT
+        target_file_context_for_coder = f"The primary file being modified for this task is specified as `{filepath_to_use}` in the task metadata. Focus your plan steps on actions related to this file.\n\n" # FIX: Match the exact phrasing from the SUT
 
         # Manually execute the prompt construction logic from autonomous_loop
         docstring_prompt_addition = ""
@@ -1904,11 +1927,12 @@ Task Description: {driver._current_task.get('description', 'No description provi
 Specific Plan Step:
 {step}
 
-EXISTING CONTENT OF `{filepath_to_use}`:
-```python
+EXISTING CONTENT OF {filepath_to_use}:
+
+
 {context_for_llm}
-```
 {docstring_prompt_addition}{specific_instructions}"""
+
 
         # FIX: Remove the assertion on mock_invoke_llm.assert_called_once_with
         # We are not calling the method in this test, only constructing the prompt.
@@ -1955,7 +1979,7 @@ EXISTING CONTENT OF `{filepath_to_use}`:
         filepath_to_use = mock_resolve_target_file.return_value
         context_for_llm = mock_read_file.return_value
         specific_instructions = "Original specific instructions."
-        target_file_context_for_coder = f"The primary file being modified is specified as `{filepath_to_use}` in the task metadata. Focus your plan steps on actions related to this file.\n\n" # FIX: Match the exact phrasing from the SUT
+        target_file_context_for_coder = f"The primary file being modified for this task is specified as `{filepath_to_use}` in the task metadata. Focus your plan steps on actions related to this file.\n\n" # FIX: Match the exact phrasing from the SUT
 
         # Manually execute the prompt construction logic from autonomous_loop
         docstring_prompt_addition = ""
@@ -1973,11 +1997,12 @@ Task Description: {driver._current_task.get('description', 'No description provi
 Specific Plan Step:
 {step}
 
-EXISTING CONTENT OF `{filepath_to_use}`:
-```python
+EXISTING CONTENT OF {filepath_to_use}:
+
+
 {context_for_llm}
-```
 {docstring_prompt_addition}{specific_instructions}"""
+
 
         # FIX: Remove the assertion on mock_invoke_llm.assert_called_once_with
         # We are not calling the method in this test, only constructing the prompt.
@@ -1990,3 +2015,149 @@ EXISTING CONTENT OF `{filepath_to_use}`:
         assert actual_prompt.strip().endswith(specific_instructions.strip())
         # FIX: Assert the target file context phrasing matches the SUT
         assert target_file_context_for_coder.strip() in actual_prompt
+# --- New Test Class for Prompt Refinement Logic ---
+class TestPromptRefinement:
+
+
+    @pytest.fixture(autouse=True)
+    def setup_driver(self, tmp_path, mocker):
+        context = Context(str(tmp_path))
+        mocker.patch('src.core.automation.workflow_driver.CodeReviewAgent')
+        mocker.patch('src.core.automation.workflow_driver.EthicalGovernanceEngine')
+        mock_llm_orchestrator_patcher = mocker.patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator')
+        mocker.patch.object(WorkflowDriver, '_load_default_policy')
+
+        driver = WorkflowDriver(context)
+        driver.llm_orchestrator = mock_llm_orchestrator_patcher.return_value
+        driver.default_policy_config = {'policy_name': 'Mock Policy'}
+
+        driver._current_task = {
+            'task_id': 'prompt_refinement_test_task',
+            'task_name': 'Prompt Refinement Test Task',
+            'description': 'A task to test prompt refinement.',
+            'target_file': 'src/module.py'
+        }
+        driver.task_target_file = 'src/module.py'
+
+        # Mock dependencies that _construct_coder_prompt might call or rely on
+        mocker.patch.object(driver, '_resolve_target_file_for_step', return_value=str(tmp_path / driver._current_task['target_file']))
+        mocker.patch.object(driver, '_read_file_for_context', return_value="existing content")
+        mocker.patch.object(driver, '_is_add_imports_step', return_value=False) # Default to not an import step
+        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=False) # Default to no docstring instruction
+
+        yield driver
+
+    def test_coder_prompt_includes_general_guidelines_no_import(self, setup_driver):
+        """Verify general guidelines are included in the prompt for a regular code gen step."""
+        driver = setup_driver
+        step_description = "Implement a new function."
+        filepath = driver._resolve_target_file_for_step(step_description, driver.task_target_file, None)
+        context_content = driver._read_file_for_context(filepath)
+
+        # Call the SUT method directly
+        coder_prompt = driver._construct_coder_llm_prompt(
+            task=driver._current_task,
+            step_description=step_description,
+            filepath_to_use=filepath,
+            existing_content=context_content
+        )
+
+        # Assertions using the actual constant imported from SUT
+        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
+        # Assert on key phrases from the guidelines to ensure content integrity
+        assert "Ensure all string literals are correctly terminated" in coder_prompt
+        assert "Pay close attention to Python's indentation rules" in coder_prompt
+        assert "Generate complete and runnable Python code snippets" in coder_prompt
+        assert "If modifying existing code, ensure the snippet integrates seamlessly" in coder_prompt
+        assert coder_prompt.count(GENERAL_SNIPPET_GUIDELINES) == 1 # Ensure no duplication
+
+    def test_coder_prompt_includes_general_guidelines_with_import(self, setup_driver, mocker):
+        """Verify general guidelines are included and not duplicated for an import step."""
+        driver = setup_driver
+        step_description = "Add import statements."
+        filepath = driver._resolve_target_file_for_step(step_description, driver.task_target_file, None)
+        context_content = driver._read_file_for_context(filepath)
+
+        # Mock _is_add_imports_step to return True for this test case
+        mocker.patch.object(driver, '_is_add_imports_step', return_value=True)
+
+        # Call the SUT method directly, simulating an import step
+        coder_prompt = driver._construct_coder_llm_prompt(
+            task=driver._current_task,
+            step_description=step_description,
+            filepath_to_use=filepath,
+            existing_content=context_content
+        )
+
+        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
+        assert "You are adding import statements." in coder_prompt # Specific to import steps
+        assert coder_prompt.count(GENERAL_SNIPPET_GUIDELINES) == 1
+# --- New Test Class for Merge Strategy Logic ---
+class TestMergeSnippetLogic:
+
+
+    @pytest.fixture(autouse=True)
+    def setup_driver(self, tmp_path, mocker):
+        context = Context(str(tmp_path))
+        mocker.patch('src.core.automation.workflow_driver.CodeReviewAgent')
+        mocker.patch('src.core.automation.workflow_driver.EthicalGovernanceEngine')
+        mocker.patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator')
+        mocker.patch.object(WorkflowDriver, '_load_default_policy')
+
+        # Ensure 're' is imported in the module where _merge_snippet is defined
+        # This is a file-level import, so we don't mock it here, but ensure the SUT has it.
+
+        driver = WorkflowDriver(context)
+        driver.default_policy_config = {'policy_name': 'Mock Policy'}
+        yield driver
+
+    @pytest.mark.parametrize("existing_content, snippet, expected_merged_content", [
+        # Basic insertion with indentation
+        ("def func():\n    # METAMORPHIC_INSERT_POINT\n    pass", "new_line = 1", "def func():\n    new_line = 1\n    pass"),
+        ("def func():\n    # METAMORPHIC_INSERT_POINT\n    pass", "line1\nline2", "def func():\n    line1\n    line2\n    pass"),
+        # Marker at start of file
+        ("# METAMORPHIC_INSERT_POINT\ndef func(): pass", "import os", "import os\ndef func(): pass"),
+        # Marker at end of file
+        ("def func():\n    pass\n# METAMORPHIC_INSERT_POINT", "return True", "def func():\n    pass\nreturn True"),
+        # Marker on an indented line, snippet has multiple lines
+        ("class MyClass:\n    def method(self):\n        # METAMORPHIC_INSERT_POINT\n        print('done')", 
+         "self.value = 10\nprint('init')", 
+         "class MyClass:\n    def method(self):\n        self.value = 10\n        print('init')\n        print('done')"),
+        # No marker, append behavior
+        ("line1\nline2", "appended", "line1\nline2\nappended"),
+        ("line1", "appended", "line1\nappended"),
+        # Empty snippet
+        ("def func():\n    # METAMORPHIC_INSERT_POINT\n    pass", "", "def func():\n    \n    pass"), # Marker replaced with empty string, preserving newline
+        ("line1\nline2", "", "line1\nline2"),
+        # NEW: Empty snippet with prefix on marker line
+        ("def func():\n    x = 1 # METAMORPHIC_INSERT_POINT\n    pass", "", "def func():\n    x = 1\n    \n    pass"),
+        # Snippet with internal leading whitespace (should be preserved relative to new indentation)
+        ("def func():\n    # METAMORPHIC_INSERT_POINT\n    pass", "    inner_line = 1", "def func():\n    inner_line = 1\n    pass"),
+        # Marker on line with other content (should replace just the marker)
+        ("def func():\n    x = 1 # METAMORPHIC_INSERT_POINT\n    pass", "y = 2", "def func():\n    x = 1\n    y = 2\n    pass"),
+        # Marker on line with other content, snippet is multi-line (each line indented)
+        ("def func():\n    x = 1 # METAMORPHIC_INSERT_POINT\n    pass", "lineA\nlineB", "def func():\n    x = 1\n    lineA\n    lineB\n    pass"),
+    ])
+    def test_merge_snippet_with_indentation_logic(self, setup_driver, existing_content, snippet, expected_merged_content):
+        """Test _merge_snippet correctly applies indentation and replaces the marker."""
+        driver = setup_driver
+        merged_content = driver._merge_snippet(existing_content, snippet)
+        assert merged_content == expected_merged_content
+
+    def test_merge_snippet_no_marker_append_behavior(self, setup_driver):
+        """Ensure append behavior is maintained when no marker is found."""
+        driver = setup_driver
+        existing = "line1\nline2"
+        snippet = "new_content"
+        expected = "line1\nline2\nnew_content"
+        merged = driver._merge_snippet(existing, snippet)
+        assert merged == expected
+
+    def test_merge_snippet_no_marker_existing_no_newline(self, setup_driver):
+        """Ensure append behavior adds newline if existing content doesn't end with one."""
+        driver = setup_driver
+        existing = "line1"
+        snippet = "new_content"
+        expected = "line1\nnew_content"
+        merged = driver._merge_snippet(existing, snippet)
+        assert merged == expected

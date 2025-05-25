@@ -43,19 +43,26 @@ CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS = (
 
 # Python Code Creation Keywords (for docstring instruction)
 DOCSTRING_INSTRUCTION_PYTHON = (
-    "IMPORTANT: For any new Python functions, methods, or classes, "
-    "you MUST include a comprehensive PEP 257 compliant docstring. "
-    "Use Google-style format (Args:, Returns:, Example: sections). "
-    "This is required to pass automated ethical and style checks."
+    "IMPORTANT: For any new Python functions, methods, or classes, you MUST include a comprehensive PEP 257 compliant docstring. Use Google-style format (Args:, Returns:, Example: sections). This is required to pass automated ethical and style checks."
 )
 PYTHON_CREATION_KEYWORDS = [
-    "implement function", "add method", "create class", "define function", "write function", "write method", "write class",
-    "implement a function", "add a method", "create a class", "define a function", "write a function", "write a method", "write a class",
-    "new function", "new method", "new class", "generate function", "generate method", "generate class", "add function to", "add method to", "add class to",
-    "write a new function", "write a python function", "write a new python function", "create a new function", "create a python function",
-    "create a new python function", "define a new function", "define a python function", "define a new python function",
-    "implement a new function", "implement a python function", "implement a new python function", "add a new method",
-    "add a python method", "add a new python method", "create a new class", "create a python class", "create a new python class",
-    "define a new class", "define a python class", "define a new python class", "implement a new class", "implement a python class",
-    "implement a new python class",
+    "implement function", "define function", "create function", "write function", "generate function",
+    "implement method", "define method", "create method", "write method", "generate method",
+    "implement class", "define class", "create class", "write class", "generate class",
+    "modify function", "refactor function", "replace function", "update function",
+    "modify method", "refactor method", "replace method", "update method",
+    "modify class", "refactor class", "replace class", "update class",
+    "new function", "new method", "new class",
+    "add function", "add method", "add class"
 ]
+
+# New critical output instructions specifically for full Python blocks (functions, methods, classes)
+CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS = (
+    "CRITICAL INSTRUCTIONS FOR YOUR RESPONSE FORMAT (Full Block/Method/Class Focus):\n"
+    "1. Your entire response MUST be ONLY a valid Python code snippet representing the complete new or modified function, method, or class.\n"
+    "2. Do NOT include any explanations, introductory text, apologies, or markdown formatting like ```python or ```.\n"
+    "3. The Python code snippet you generate will be directly parsed and then merged.\n"
+    "4. Your Python code snippet MUST end with the exact marker line, on its own line: `{END_OF_CODE_MARKER}`\n"
+    "5. Ensure the generated function/method/class is syntactically correct and complete in itself.\n"
+    "6. The base indentation of your snippet should be 0 (i.e., the `def` or `class` keyword should not be indented within the snippet itself), unless the snippet is meant to be a nested structure that is itself a complete parsable unit.\n"
+)

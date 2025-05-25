@@ -21,6 +21,7 @@ from src.core.constants import (
     PYTHON_CREATION_KEYWORDS,
     CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS,
     CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS,
+    CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS # Import the new constant
 )
 
 # Import necessary components from workflow_driver
@@ -283,8 +284,8 @@ class TestWorkflowDriverMergeStrategy:
         ("    line1\n    # METAMORPHIC_INSERT_POINT\n    line3", "inserted_line", "    line1\n    inserted_line\n    line3"),
         # Marker found, multi-line snippet, with indentation
         ("    line1\n    # METAMORPHIC_INSERT_POINT\n    line3", "line_a\nline_b", "    line1\n    line_a\n    line_b\n    line3"),
-        # Marker found, empty snippet
-        ("line1\n# METAMORPHIC_INSERT_POINT\nline3", "\n", "line1\n\n\nline3"), # Empty snippet should replace marker with just its indentation
+        # Marker found, snippet is a single newline character
+        ("line1\n# METAMORPHIC_INSERT_POINT\nline3", "\n", "line1\n\nline3"), # Inserting a single newline character should result in one blank line
         # Marker at start of file
         (f"{METAMORPHIC_INSERT_POINT}\nline1", "inserted", "inserted\nline1"),
         # Marker at end of file

@@ -667,22 +667,22 @@ class TestWorkflowDriver:
         error_log_count_at_1190 = sum( # Renamed variable for clarity
             1 for record in caplog.records
             if record.levelname == 'ERROR'
-            and 'workflow_driver.py' in record.pathname # Use 'in' for robustness
-            and record.lineno == 1190 # Corrected line number based on log output
+            and 'workflow_driver.py' in record.pathname
+            and record.lineno == 1206 # Corrected line number based on log output
             and record.message == f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error"
         )
         assert error_log_count_at_1190 == MAX_STEP_RETRIES + 1
 
         # Assert the specific error log from line 1217 occurred MAX_STEP_RETRIES + 1 times
-        error_log_count_at_1217 = sum( # Renamed variable for clarity
+        error_log_count_at_1233 = sum( # Renamed variable for clarity
             1 for record in caplog.records
             if record.levelname == 'ERROR'
-            and 'workflow_driver.py' in record.pathname # Use 'in' for robustness
-            and record.lineno == 1217 # Corrected line number based on log output
+            and 'workflow_driver.py' in record.pathname
+            and record.lineno == 1233 # Corrected line number based on log output
             and record.message.startswith("Step execution failed (Attempt")
             and record.message.endswith("Error: Generic write error")
         )
-        assert error_log_count_at_1217 == MAX_STEP_RETRIES + 1
+        assert error_log_count_at_1233 == MAX_STEP_RETRIES + 1
 
         # The loop should now complete normally and log this message in the second iteration
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text

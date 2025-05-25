@@ -345,17 +345,18 @@ class WorkflowDriver:
         """
         # Removed 'or not relative_path' check to allow empty string paths ("")
         if not isinstance(relative_path, str):
-            logger.warning(f"Path validation received invalid input type: {type(relative_path)}")
+            self.logger.warning(f"Path validation received invalid input type: {type(relative_path)}")
             return None
 
         # Use context.get_full_path for the actual safety check and resolution
         # This method already handles traversal checks and logging warnings/errors.
         # It also handles empty string paths by resolving to the base path.
-        resolved_path = self.context.get_full_path(relative_path)
+        resolved_path = self.context.get_full_path(relative_path) # type: ignore
 
         # get_full_path already logs a warning/error for traversal attempts or resolution failures
-        # We just return the result.
+        # We just return the result. Also, ensure the logger is used correctly.
         return resolved_path
+
 
     def _determine_single_target_file(self, step_description: str, task_target_file_spec: Optional[str], prelim_flags: Dict) -> Optional[str]:
         """
@@ -568,7 +569,7 @@ class WorkflowDriver:
         # Use _validate_path to get the resolved task target file path for comparison
         # Note: task_target_file here is the raw spec string, not necessarily the single resolved path.
         # We need to compare the resolved filepath_to_use against the resolved *potential* task targets.
-        # Let's stick to resolving the *first* task target if it exists, as that's often the primary one.
+        # Let's stick to resolving the *first* task target for the prompt context for now.
         resolved_primary_task_target = None
         if task_target_file and isinstance(task_target_file, str):
             targets = [f.strip() for f in task_target_file.split(',') if f.strip()]
@@ -742,7 +743,7 @@ class WorkflowDriver:
         Constructs the full prompt for the Coder LLM based on task, step, and file context,
         incorporating general, import-specific, docstring guidelines, and retry feedback.
         """
-        # The general guidelines are now defined as a module-level constant: GENERAL_SNIPPET_GUIDELMines
+        # The general guidelines are now defined as a module-level constant: GENERAL_SNIPPET_GUIDELINES
 
         # New, more forceful output instructions
         output_instructions = CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(
@@ -982,12 +983,17 @@ class WorkflowDriver:
                                         validation_passed = True
                                         validation_feedback = []
                                         try:
-                                            ast.parse(cleaned_snippet) # <<< PARSE THE CLEANED SNIPPET
-                                            logger.info("Pre-write syntax check (AST parse) passed for snippet.")
+                                            # Attempt to parse the snippet in isolation.
+                                            # This helps catch fundamental syntax errors within the snippet itself
+                                            # that are not related to its integration context (e.g., typos).
+                                            ast.parse(cleaned_snippet)
+                                            logger.info("Snippet AST parse check passed (isolated).")
                                         except SyntaxError as se:
-                                            validation_passed = False
-                                            validation_feedback.append(f"Pre-write syntax check failed: {se}")
-                                            logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se}")
+                                            # If it's a SyntaxError (including IndentationError), it might be acceptable
+                                            # if the snippet integrates correctly into the full file.
+                                            # We will still proceed to the full file check, which is more definitive.
+                                            logger.warning(f"Snippet AST parse check (isolated) failed with SyntaxError: {se}. This might be acceptable if the snippet integrates correctly. Proceeding to full file check.")
+                                            # validation_passed remains True here, as the full file check is the ultimate arbiter for syntax.
                                             logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Log the cleaned snippet
                                             step_failure_reason = f"Pre-write syntax check failed: {se}" # Capture specific reason
 
@@ -1025,13 +1031,13 @@ class WorkflowDriver:
                                                         json.dump(debug_data, f_err, indent=2)
                                                     self.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
                                                 else:
-                                                    self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
+                                                    self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet details.")
 
                                             except Exception as write_err:
                                                 self.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
                                             # --- END of manual addition ---
 
-                                        except Exception as e:
+                                        except Exception as e: # Catches non-SyntaxError from ast.parse, or other unexpected issues
                                             validation_passed = False
                                             validation_feedback.append(f"Error during pre-write syntax validation (AST parse): {e}")
                                             logger.error(f"Error during pre-write syntax validation (AST parse): {e}", exc_info=True)
@@ -1039,6 +1045,8 @@ class WorkflowDriver:
                                             step_failure_reason = f"Error during pre-write syntax validation: {e}" # Capture specific reason
 
                                         if validation_passed and self.default_policy_config:
+                                            # Ethical check on the snippet itself.
+                                            # This check runs only if the snippet-level AST parse didn't throw a non-SyntaxError.
                                             try:
                                                 # Call ethical analysis on the snippet
                                                 ethical_results = self.ethical_governance_engine.enforce_policy(cleaned_snippet, self.default_policy_config)
@@ -1060,6 +1068,7 @@ class WorkflowDriver:
                                             logger.warning("Skipping pre-write ethical validation: Default policy not loaded.")
 
                                         if validation_passed: # Only proceed with style/security if previous checks passed
+                                            # Style/Security check on the snippet itself.
                                             try:
                                                 # Call code review/security analysis on the snippet
                                                 style_review_results = self.code_review_agent.analyze_python(cleaned_snippet)
@@ -1079,10 +1088,12 @@ class WorkflowDriver:
                                                 logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Log the cleaned snippet
                                                 step_failure_reason = f"Error during pre-write style/security validation: {e}" # Capture specific reason
 
-                                        if validation_passed:
-                                            logger.info(f"Pre-write validation passed for snippet targeting {filepath_to_use}. Proceeding with merge/write.")
+                                        # The definitive syntax check is the pre-merge full file check.
+                                        # If snippet-level ethical/style checks failed, validation_passed is False.
+                                        # If snippet-level AST parse had a SyntaxError, validation_passed is still True.
+                                        if validation_passed: # Snippet-level ethical/style checks passed (and no non-SyntaxError from AST parse)
+                                            logger.info(f"All pre-write validations passed for snippet targeting {filepath_to_use}. Proceeding to pre-merge full file syntax check.")
 
-                                            # --- START: Pre-Merge Full File Syntax Check (Task 1.8.improve_snippet_handling sub-task 4) ---
                                             try:
                                                 # Create a hypothetical merged content
                                                 # Use the existing _merge_snippet logic for this hypothetical merge
@@ -1090,12 +1101,15 @@ class WorkflowDriver:
                                                 ast.parse(hypothetical_merged_content)
                                                 logger.info("Pre-merge full file syntax check (AST parse) passed.")
                                             except SyntaxError as se:
+                                                # This is a definitive syntax error, as the full file should always be parsable.
                                                 validation_passed = False
                                                 validation_feedback.append(f"Pre-merge full file syntax check failed: {se}")
                                                 logger.warning(f"Pre-merge full file syntax validation failed for {filepath_to_use}: {se}")
                                                 logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
                                                 step_failure_reason = f"Pre-merge full file syntax check failed: {se}"
+                                                # Save debug info for merge failure too (already handled by existing logic)
                                             except Exception as e:
+                                                # This is also a definitive syntax-related error, or other unexpected issue during full file parse.
                                                 validation_passed = False
                                                 validation_feedback.append(f"Error during pre-merge full file syntax validation: {e}")
                                                 logger.error(f"Error during pre-merge full file syntax validation: {e}", exc_info=True)
@@ -1106,6 +1120,8 @@ class WorkflowDriver:
                                                 raise ValueError(f"Pre-merge full file syntax validation failed: {'. '.join(validation_feedback)}")
                                             # --- END: Pre-Merge Full File Syntax Check ---
 
+                                        if validation_passed:
+                                            logger.info(f"All pre-write validations passed for snippet targeting {filepath_to_use}. Proceeding with actual merge/write.") # This log is now more accurate
                                             # Merge the snippet into the existing content
                                             merged_content = self._merge_snippet(existing_content, cleaned_snippet)
                                             logger.debug("Snippet merged.")
@@ -1159,7 +1175,7 @@ class WorkflowDriver:
                                             # Pre-write validation failed, raise exception to trigger step retries
                                             error_message = f"Pre-write validation failed for snippet targeting {filepath_to_use}. Skipping write/merge. Feedback: {validation_feedback}"
                                             logger.warning(error_message)
-                                            step_failure_reason = error_message
+                                            # step_failure_reason is already set by the specific check that failed earlier.
                                             # Instead of just raising Exception, maybe raise a specific validation error?
                                             # This allows the retry logic to potentially use the validation_feedback.
                                             raise ValueError(f"Pre-write validation failed: {'. '.join(validation_feedback)}") # Trigger retry/failure
@@ -1749,7 +1765,7 @@ Task Description:
             return result
         except FileExistsError as e:
             if not overwrite:
-                # Re-raise if overwrite is False, this is an expected condition
+                # Re-raise if overwrite is False, this is an an expected condition
                 raise e
             # Log unexpected FileExistsError if overwrite was True
             logger.error(f"Unexpected FileExistsError from write_file for {full_filepath} with overwrite=True: {e}", exc_info=True)
@@ -1805,65 +1821,91 @@ Task Description:
         self._current_task_results['last_test_cwd'] = cwd
         return return_code, stdout, stderr
 
+    def _get_min_indentation(self, text: str) -> int:
+        """Calculates the minimum indentation of non-empty lines in a given text."""
+        lines = text.splitlines()
+        min_indent = float('inf')
+        for line in lines:
+            stripped_line = line.lstrip()
+            if stripped_line: # Only consider non-empty lines
+                indent = len(line) - len(stripped_line)
+                min_indent = min(min_indent, indent)
+        return min_indent if min_indent != float('inf') else 0 # Return 0 for empty content or all empty lines
+
+
     def _merge_snippet(self, existing_content: str, snippet: str) -> str:
         """
         Merges a snippet into existing content, applying indentation if a marker is found.
         If no marker, appends the snippet.
         """
-        lines = existing_content.splitlines()
+        original_lines = existing_content.splitlines()
+        # Work on a copy to avoid modifying the list while iterating if we were to use enumerate directly on lines
+        lines = list(original_lines)
         marker_line_index = -1
-        leading_whitespace = ""
+        
+        original_marker_line_indent = "" # Indentation of the line where marker is found
+        line_prefix_before_marker = ""   # Content on the marker line before the marker itself (excluding original_marker_line_indent)
+        line_suffix_after_marker = ""    # Content on the marker line after the marker itself
 
-        # Find the line containing the marker and its leading whitespace
         for i, line in enumerate(lines):
             if METAMORPHIC_INSERT_POINT in line:
                 marker_line_index = i
                 match = re.match(r"^(\s*)", line)
                 if match:
-                    leading_whitespace = match.group(1)
+                    original_marker_line_indent = match.group(1)
+                
+                content_on_marker_line = line[len(original_marker_line_indent):]
+                
+                parts = content_on_marker_line.split(METAMORPHIC_INSERT_POINT, 1)
+                line_prefix_before_marker = parts[0]
+                if len(parts) > 1:
+                    line_suffix_after_marker = parts[1]
                 break
 
         if marker_line_index != -1:
             # Marker found
-            snippet_lines = snippet.splitlines()
+            final_inserted_lines = []
 
-            # Handle empty snippet: replace marker with an empty line at the correct indentation
-            if not snippet: # This handles snippet == ""
-                indented_snippet_lines = [leading_whitespace]
-            else:
-                # Check if the snippet consists only of empty lines (e.g., "\n", "\n\n")
-                all_snippet_lines_empty = all(s_line.strip() == '' for s_line in snippet_lines)
-
-                if all_snippet_lines_empty: # This covers cases like "\n", "\n\n", etc.
-                    # The test expects "\n" to result in an extra newline compared to "".
-                    # So, if snippet is "\n" (snippet_lines=['']), we want 2 empty lines.
-                    # If snippet is "\n\n" (snippet_lines=['', '']), we want 3 empty lines.
-                    # This means we insert (number of lines in snippet_lines + 1) empty lines.
-                    indented_snippet_lines = [leading_whitespace] * (len(snippet_lines) + 1)
+            if not snippet.strip(): # Handles "", "\n", "   \n\n"
+                # If snippet is empty or only contains blank lines, replace marker with its indentation/prefix/suffix.
+                # If there's a prefix and no suffix, add a blank line with marker's indentation after the prefix.
+                if line_prefix_before_marker.strip() and not line_suffix_after_marker.strip():
+                    final_inserted_lines.append(original_marker_line_indent + line_prefix_before_marker.rstrip())
+                    final_inserted_lines.append(original_marker_line_indent) # Add a blank line with marker's indentation
                 else:
-                    # Original logic for snippets with actual content
-                    # Calculate the minimum indentation of the snippet itself
-                    # This helps to "normalize" the snippet's internal indentation
-                    non_empty_snippet_lines = [s_line for s_line in snippet_lines if s_line.strip()]
-                    snippet_min_indent = 0
-                    if non_empty_snippet_lines:
-                        # Find the minimum leading whitespace among non-empty lines of the snippet
-                        snippet_min_indent = min(
-                            len(re.match(r'^\s*', s_line).group(0))
-                            for s_line in non_empty_snippet_lines
-                        )
+                    final_inserted_lines.append(original_marker_line_indent + line_prefix_before_marker + line_suffix_after_marker)
+            else:
+                snippet_lines = snippet.splitlines()
+                
+                # Add the content before the marker, if any, on its own line
+                # This ensures "x = 1 # MARKER" becomes "x = 1\n    <snippet>"
+                if line_prefix_before_marker.strip():
+                    final_inserted_lines.append(original_marker_line_indent + line_prefix_before_marker.rstrip())
+                
+                # Calculate the base indentation of the snippet
+                snippet_base_indent = self._get_min_indentation(snippet)
+                
+                # The indentation to apply to each line of the snippet is the marker's indentation
+                # adjusted by the snippet's own base indentation.
+                indent_to_apply_to_snippet_lines = len(original_marker_line_indent) - snippet_base_indent
+                
+                for s_line_content in snippet_lines:
+                    if not s_line_content.strip(): # Preserve blank lines, applying marker's indentation
+                        final_inserted_lines.append(original_marker_line_indent)
+                    else:
+                        # Calculate current indentation of the snippet line
+                        current_snippet_line_indent = len(s_line_content) - len(s_line_content.lstrip())
+                        # Apply the adjustment to get the new indentation
+                        new_indent = current_snippet_line_indent + indent_to_apply_to_snippet_lines
+                    new_indent = max(0, new_indent) # Ensure new_indent is not negative
+                    final_inserted_lines.append(" " * new_indent + s_line_content.lstrip())
 
-                    indented_snippet_lines = []
-                    for snippet_line in snippet_lines:
-                        if snippet_line.strip(): # Only apply indentation to non-empty lines
-                            # Remove snippet's own base indentation, then add marker's indentation
-                            indented_snippet_lines.append(leading_whitespace + snippet_line[snippet_min_indent:])
-                        else:
-                            # Preserve empty lines, but ensure they also get the base indentation
-                            indented_snippet_lines.append(leading_whitespace)
-
-            # Replace the marker line with the indented snippet lines
-            lines = lines[:marker_line_index] + indented_snippet_lines + lines[marker_line_index + 1:]
+                # Add the content after the marker, if any, on its own line
+                # This ensures "MARKER print('done')" becomes "<snippet>\n    print('done')"
+                if line_suffix_after_marker.strip():
+                    final_inserted_lines.append(original_marker_line_indent + line_suffix_after_marker.lstrip())
+            
+            lines = lines[:marker_line_index] + final_inserted_lines + lines[marker_line_index + 1:]
             return "\n".join(lines)
         else:
             # Marker not found, append logic

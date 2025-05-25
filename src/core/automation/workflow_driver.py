@@ -849,6 +849,7 @@ class WorkflowDriver:
                         step_retries = 0
                         step_succeeded = False
                         step_failure_reason = None # Store reason for failure across retries
+                        retry_feedback_for_prompt = None # Initialize outside try block
 
                         while step_retries <= MAX_STEP_RETRIES:
                             try:

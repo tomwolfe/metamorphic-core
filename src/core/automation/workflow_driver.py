@@ -15,28 +15,25 @@ import builtins
 import spacy
 from spacy.matcher import PhraseMatcher
 import ast
-from typing import List, Dict, Optional, Tuple, Any # Ensure Optional is imported
+from typing import List, Dict, Optional, Tuple, Any, Union # Ensure Optional is imported
 
 from src.cli.write_file import write_file
-# Import the constant
-from src.core.constants import CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, END_OF_CODE_MARKER, GENERAL_SNIPPET_GUIDELINES, DOCSTRING_INSTRUCTION_PYTHON, PYTHON_CREATION_KEYWORDS
-# Add CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS to the existing import
-from src.core.constants import CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS
+from src.core.constants import (
+    CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS,
+    END_OF_CODE_MARKER, GENERAL_SNIPPET_GUIDELINES, DOCSTRING_INSTRUCTION_PYTHON,
+    PYTHON_CREATION_KEYWORDS, CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS,
+    MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, MAX_STEP_RETRIES
+)
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
 
 logger = logging.getLogger(__name__) # Corrected logger name
-
-MAX_READ_FILE_SIZE = 1024 * 1024 # 1 MB
-METAMORPHIC_INSERT_POINT = "# METAMORPHIC_INSERT_POINT"
-END_OF_CODE_MARKER = "# METAMORPHIC_END_OF_CODE_SNIPPET" # New marker
-MAX_STEP_RETRIES = 2
 MAX_IMPORT_CONTEXT_LINES = 200
 
-GENERAL_SNIPPET_GUIDELINES = (
-"1. Ensure all string literals are correctly terminated (e.g., matching quotes, proper escaping).\n"
-"2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a METAMORPHIC_INSERT_POINT is present.\n"
-"3. Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons.\n"
-"4. If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity."
+# New constant for minimal context instruction (Task 1.8.A)
+CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION = (
+    "You have been provided with a **targeted, minimal section** of the source file relevant to the current step. "
+    "Your task is to implement the required changes within this context. "
+    "Do NOT output the entire file content. Only provide the new or changed lines."
 )
 
 nlp = None
@@ -126,15 +123,6 @@ def classify_plan_step(step_description: str) -> str:
         else:
             return 'uncertain'
 class Context:
-    def __init__(self, base_path):
-        self.base_path = base_path
-        try:
-            self._resolved_base_path = Path(self.base_path).resolve()
-        except Exception as e:
-            logger.error(f"Error resolving base path '{self.base_path}': {e}", exc_info=True)
-            self._resolved_base_path = None
-
-
     def get_full_path(self, relative_path):
         if self._resolved_base_path is None:
             logger.error(f"Base path failed to resolve. Cannot resolve relative path '{relative_path}'.")
@@ -171,6 +159,14 @@ class Context:
 
     def __repr__(self):
         return f"Context(base_path='{self.base_path}')"
+
+    def __init__(self, base_path):
+        self.base_path = base_path
+        try:
+            self._resolved_base_path = Path(self.base_path).resolve()
+        except Exception as e:
+            logger.error(f"Error resolving base path '{self.base_path}': {e}", exc_info=True)
+            self._resolved_base_path = None
 class WorkflowDriver:
     def __init__(self, context: Context):
         self.context = context
@@ -189,7 +185,7 @@ class WorkflowDriver:
             ethics_engine=self.ethical_governance_engine # Use the real or mocked engine instance
         )
         self.code_review_agent = CodeReviewAgent()
-        # Ensure logger is available on self if used in methods
+        # Ensure logger is available on self if used in methods (already done by class-level logger)
         self.logger = logger # Add this if methods use self.logger
 
 
@@ -336,10 +332,97 @@ class WorkflowDriver:
         # It also handles empty string paths by resolving to the base path.
         resolved_path = self.context.get_full_path(relative_path) # type: ignore
 
-        # get_full_path already logs a warning/error for traversal attempts or resolution failures
         # We just return the result. Also, ensure the logger is used correctly.
         return resolved_path
 
+    def _get_context_type_for_step(self, step_description: str) -> Optional[str]:
+        """
+        Identifies the type of context needed based on the step description.
+        Uses stricter regex for class/method detection and defaults to None for ambiguity.
+        Returns: "add_import", "add_method_to_class", "add_global_function", or None.
+        """
+        step_lower = step_description.lower()
+        
+        # Match import-related steps
+        # Broaden keywords for import detection (Qwen's suggestion adapted)
+        if any(kw in step_lower for kw in ["add import", "new import", "import module", "import library", 
+                                            "add some imports", "add an import", "add imports"]):
+            return "add_import"
+        
+        # Match method additions to specific classes using stricter regex (Qwen's suggestion)
+        # (?!\w) is a negative lookahead asserting that the character immediately following \w+ is not a word character.
+        match_method_class = re.search(r"(?:add|new|implement)\s+method\s+(?:.*?)(?:to|in)\s+(?:an\s+existing\s+class\s+called\s+|class\s+)?(\w+)(?!\w)", step_lower)
+        if match_method_class:
+            return "add_method_to_class"
+
+        if any(kw in step_lower for kw in PYTHON_CREATION_KEYWORDS if "function" in kw or "method" in kw or "class" in kw) and \
+           not match_method_class and \
+           not any(kw in step_lower for kw in ["add import", "new import", "import module", "import library", "add some imports", "add an import", "add imports"]): # Avoid double-counting
+            # More generic function/class creation if not specifically adding to a class
+            # "Refactor" or "define" a function/method might imply modification, not new creation.
+            # If it's explicitly about creating a new class, it might need broader context for now.
+            if "class" in step_lower: # If it's about adding a class, it's likely top-level or needs broader context
+                return None # Fallback to full context for new class definitions for now
+            return "add_global_function" # For adding a new global function or method to an implicitly known class
+
+        # For "refactor" or general modifications, default to full context for now.
+        logger.debug(f"Could not determine specific context type for step: '{step_description}'. Defaulting to full context.")
+        return None # Default to full context for ambiguous steps or modifications not yet covered
+
+    def _extract_targeted_context(self, file_path: str, file_content: str, context_type: Optional[str], step_description: str) -> Tuple[str, bool]:
+        """
+        Extracts a targeted (minimal) context from file_content based on context_type.
+        Returns: (context_string, is_minimal_context_bool)
+        """
+        if not context_type or not file_path.endswith(".py"):
+            return file_content, False # Return full content if not a known type or not Python
+
+        lines = file_content.splitlines()
+        tree = None
+        try:
+            tree = ast.parse(file_content)
+        except SyntaxError:
+            logger.warning(f"SyntaxError parsing {file_path} for targeted context extraction. Falling back to full content.")
+            return file_content, False
+
+        if context_type == "add_import":
+            # AST nodes for top-level imports (level=0 for direct imports in the current file)
+            import_nodes = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom)) and getattr(n, 'level', 0) == 0]
+            if import_nodes:
+                min_line = min(n.lineno for n in import_nodes) # 1-indexed
+                # Use end_lineno if available (for multi-line imports), otherwise lineno
+                max_line_node = max(import_nodes, key=lambda n: n.end_lineno if hasattr(n, 'end_lineno') and n.end_lineno is not None else n.lineno)
+                max_line = max_line_node.end_lineno if hasattr(max_line_node, 'end_lineno') and max_line_node.end_lineno is not None else max_line_node.lineno # 1-indexed
+                
+                # Buffer: 1 line before first import, 2 lines after last (to catch trailing comments/blank lines)
+                start_idx = max(0, min_line - 2) # Convert to 0-indexed and add buffer
+                end_idx = min(len(lines), max_line + 2)  # Convert to 0-indexed slice end and add buffer (Qwen's suggestion adapted)
+                logger.debug(f"Extracting import context for {file_path}: lines {start_idx+1} to {end_idx}.")
+                return "\n".join(lines[start_idx:end_idx]), True
+            else: # No existing imports, take top N lines as context for new imports
+                logger.debug(f"No existing imports in {file_path}. Providing top {MAX_IMPORT_CONTEXT_LINES} lines for new import context.")
+                return "\n".join(lines[:MAX_IMPORT_CONTEXT_LINES]), True
+
+        elif context_type == "add_method_to_class":
+            # Regex to find class name from step description (e.g., "add method X to class Y")
+            class_name_match = re.search(r"class\s+(\w+)(?!\w)", step_description, re.IGNORECASE)
+            # Updated regex to match more flexible patterns for class name extraction
+            class_name_match = re.search(r"(?:to|in)\s+(?:an\s+existing\s+class\s+called\s+|class\s+)?(\w+)(?!\w)", step_description, re.IGNORECASE)
+            if class_name_match:
+                target_class_name = class_name_match.group(1)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ClassDef) and node.name == target_class_name:
+                        # Buffer: 1 line before class def, 1 line after (Qwen's suggestion adapted)
+                        start_idx = max(0, node.lineno - 4) # Increase buffer to include more lines before class
+                        class_end_lineno = node.end_lineno if hasattr(node, 'end_lineno') and node.end_lineno is not None else node.lineno
+                        end_idx = min(len(lines), class_end_lineno + 1) # Convert to 0-indexed slice end and add buffer
+                        logger.debug(f"Extracting class context for '{target_class_name}' in {file_path}: lines {start_idx+1} to {end_idx}.")
+                        return "\n".join(lines[start_idx:end_idx]), True
+            logger.warning(f"Could not find class for 'add_method_to_class' in {file_path} from step: {step_description}. Falling back to full content.")
+
+        # Fallback for other types or if specific extraction fails
+        logger.debug(f"No specific context extraction rule for type '{context_type}' or extraction failed for {file_path}. Using full content.")
+        return file_content, False
 
     def _determine_single_target_file(self, step_description: str, task_target_file_spec: Optional[str], prelim_flags: Dict) -> Optional[str]:
         """
@@ -482,7 +565,6 @@ class WorkflowDriver:
         # This returns the resolved absolute path or None
         return self._validate_path(determined_target_file_relative)
 
-
     def _determine_filepath_to_use(self, step_description: str, task_target_file: str | None, preliminary_flags: dict) -> str | None:
         # This method is now primarily a fallback used by _resolve_target_file_for_step
         # It should return a *relative* path string or None.
@@ -542,7 +624,6 @@ class WorkflowDriver:
                 logger.info(f"Using fallback filepath '{filepath_to_use}' extracted from step description.")
 
         return filepath_to_use # Return the relative path
-
 
     def _determine_write_operation_details(self, step_description: str, filepath_to_use: str | None, task_target_file: str | None, preliminary_flags: Dict) -> tuple[str | None, bool]:
         step_lower = step_description.lower()
@@ -697,11 +778,10 @@ class WorkflowDriver:
 
         return "\n".join(formatted_steps) + ("\n" if formatted_steps else "")
 
-    # Task 1.8.Y: Add helper method to determine if docstring instruction is needed
     def _should_add_docstring_instruction(self, step_description: str, target_filepath: Optional[str]) -> bool:
         """
         Determines if the docstring instruction should be added to the CoderLLM prompt.
-        This is true if the step involves Python code generation for new structures in a .py file.
+        This is true if the step involves Python code generation for new structures (functions, methods, classes) in a .py file.
         """
         # 1. Check if the target file is a Python file
         if not target_filepath or not target_filepath.lower().endswith(".py"):
@@ -720,98 +800,6 @@ class WorkflowDriver:
         # For now, relying on explicit creation keywords is safer.
 
         return False # No creation keyword found
-
-    def _construct_coder_llm_prompt(self, task: Dict[str, Any], step_description: str, filepath_to_use: str, existing_content: str, retry_feedback_content: Optional[str] = None) -> str:
-        """
-        Constructs the full prompt for the Coder LLM based on task, step, and file context,
-        incorporating general, import-specific, docstring guidelines, and retry feedback.
-        """
-        # The general guidelines are now defined as a module-level constant: GENERAL_SNIPPET_GUIDELINES
-
-        # New, more forceful output instructions
-        # Determine if this step is likely generating a full new block (function, method, class).
-        # We reuse _should_add_docstring_instruction as it already identifies "new structure" generation.
-        is_generating_full_block = self._should_add_docstring_instruction(step_description, filepath_to_use)
-
-        if is_generating_full_block:
-            output_instructions = CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(
-                END_OF_CODE_MARKER=END_OF_CODE_MARKER
-            )
-            # For full blocks, the "targeted modification" instructions are less relevant.
-            targeted_mod_instructions_content = ""
-        else:
-            output_instructions = CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(
-                END_OF_CODE_MARKER=END_OF_CODE_MARKER
-            )
-            targeted_mod_instructions_content = CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS
-
-        import_specific_guidance_content = ""
-        if self._is_add_imports_step(step_description):
-            import_specific_guidance_content = (
-                "\n\nSPECIFIC GUIDANCE FOR IMPORT STATEMENTS:\n"
-                "You are adding import statements. Provide *only* the new import lines that need to be added. "
-                "Do not repeat existing imports. Do not output any other code or explanation. "
-                "Place the new imports appropriately within or after the existing import block.\n"
-            )
-
-        # Add docstring instruction conditionally
-        docstring_prompt_addition = ""
-        if self._should_add_docstring_instruction(step_description, filepath_to_use):
-            # Include the example directly in the docstring prompt addition
-            docstring_prompt_addition = "\n" + DOCSTRING_INSTRUCTION_PYTHON + " # (e.g., 'IMPORTANT: For any new Python functions... you MUST include a comprehensive PEP 257 compliant docstring.')\n\n"
-
-        # Add retry feedback section if provided
-        retry_feedback_section = ""
-        if retry_feedback_content:
-            retry_feedback_section = retry_feedback_content
-
-        # --- NEW: Construct target file context section ---
-        target_file_prompt_section = ""
-        task_target_file = task.get('target_file')
-        if task_target_file:
-            targets = [f.strip() for f in task_target_file.split(',') if f.strip()]
-            if targets:
-                resolved_primary_task_target_path = self._validate_path(targets[0])
-                if resolved_primary_task_target_path:
-                    target_file_prompt_section = (
-                        f"The primary file being modified for this task is specified as `{resolved_primary_task_target_path}` "
-                        "in the task metadata. Focus your plan steps on actions related to this file.\n\n"
-                    )
-        # --- END NEW SECTION ---
-
-        # Construct the full prompt
-        # Reconstructing the prompt using concatenation to avoid potential f-string multi-line issues
-        # if there's an obscure Python version bug or hidden character issue.
-        coder_prompt_parts = [
-            "You are an expert Python Coder LLM.\n",
-            output_instructions, # This is now dynamic based on is_generating_full_block
-        ]
-        if targeted_mod_instructions_content: # Only add if NOT generating a full block
-            coder_prompt_parts.append(targeted_mod_instructions_content)
-        coder_prompt_parts.extend([
-            "\n", # Newline after output instructions
-            target_file_prompt_section, # Added this line back
-            f"Based on the \"Specific Plan Step\" below, generate the required Python code snippet to modify the target file (`{filepath_to_use}`).\n",
-            "\n", # Newline after the above line
-            f"Overall Task: \"{task.get('task_name', 'Unknown Task')}\"\n",
-            f"Task Description: {task.get('description', 'No description provided.')}\n",
-            "\n", # Newline after task description
-            retry_feedback_section, # Add retry feedback here
-            "Specific Plan Step:\n",
-            f"{step_description}\n",
-            "\n", # Newline after step description
-            f"EXISTING CONTENT OF `{filepath_to_use}`:\n",
-            "\n", # Empty line after colon
-            f"{existing_content}\n",
-            docstring_prompt_addition,
-            import_specific_guidance_content,
-            f"Key guidelines for the Python code snippet itself (these apply to the code before the {END_OF_CODE_MARKER}):\n",
-            GENERAL_SNIPPET_GUIDELINES
-        ])
-        coder_prompt = "".join(coder_prompt_parts)
-
-
-        return coder_prompt
 
     def autonomous_loop(self):
         if not hasattr(self, 'roadmap_path') or (self.roadmap_path is None):
@@ -956,18 +944,20 @@ class WorkflowDriver:
                                 # Use filepath_to_use (the resolved determined target file) here
                                 elif prelim_flags['is_code_generation_step_prelim'] and filepath_to_use and filepath_to_use.endswith('.py'):
                                     # This step involves generating Python code and writing it to a .py file
-                                    logger.info(f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.")
+                                    logger.info(f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.") # Log resolved path
                                     # Read existing content for context (filepath_to_use is already resolved)
-                                    existing_content = self._read_file_for_context(filepath_to_use) # Assumes this is safe and uses the resolved path.
-                                    if existing_content is None: # Handle read errors
+                                    original_full_content = self._read_file_for_context(filepath_to_use)
+                                    if original_full_content is None: # Handle read errors
                                         step_failure_reason = f"Failed to read current content of {filepath_to_use} for code generation."
                                         logger.error(step_failure_reason)
                                         raise RuntimeError(step_failure_reason)
 
-                                    logger.debug(f"Read {len(existing_content)} characters from {filepath_to_use}.")
+                                    context_type = self._get_context_type_for_step(step)
+                                    context_for_llm, is_minimal_context = self._extract_targeted_context(filepath_to_use, original_full_content, context_type, step)
+                                    logger.debug(f"Context for LLM (is_minimal={is_minimal_context}, len={len(context_for_llm)} chars) for file {filepath_to_use}.")
                                     # Construct the Coder LLM prompt using the new helper method
-                                    coder_prompt = self._construct_coder_llm_prompt(self._current_task, step, filepath_to_use, existing_content)
-                                    logger.debug("Invoking Coder LLM with prompt:\n%s", coder_prompt)
+                                    coder_prompt = self._construct_coder_llm_prompt(self._current_task, step, filepath_to_use, context_for_llm, is_minimal_context, retry_feedback_for_prompt if step_retries > 0 else None)
+                                    logger.debug("Invoking Coder LLM with prompt (first 500 chars):\n%s", coder_prompt[:500]) # Log truncated prompt
                                     generated_snippet = self._invoke_coder_llm(coder_prompt)
 
                                     if generated_snippet:
@@ -1099,7 +1089,7 @@ class WorkflowDriver:
                                             try:
                                                 # Create a hypothetical merged content
                                                 # Use the existing _merge_snippet logic for this hypothetical merge
-                                                hypothetical_merged_content = self._merge_snippet(existing_content, cleaned_snippet)
+                                                hypothetical_merged_content = self._merge_snippet(original_full_content, cleaned_snippet)
                                                 ast.parse(hypothetical_merged_content)
                                                 logger.info("Pre-merge full file syntax check (AST parse) passed.")
                                             except SyntaxError as se:
@@ -1125,7 +1115,7 @@ class WorkflowDriver:
                                         if validation_passed:
                                             logger.info(f"All pre-write validations passed for snippet targeting {filepath_to_use}. Proceeding with actual merge/write.") # This log is now more accurate
                                             # Merge the snippet into the existing content
-                                            merged_content = self._merge_snippet(existing_content, cleaned_snippet)
+                                            merged_content = self._merge_snippet(original_full_content, cleaned_snippet)
                                             logger.debug("Snippet merged.")
                                             # Write the merged content to the file (filepath_to_use is already resolved)
                                             logger.info(f"Attempting to write merged content to {filepath_to_use}.")
@@ -1562,6 +1552,102 @@ Task Description:
         logger.debug(f"Parsed and sanitized plan steps: {sanitized_steps}")
         return sanitized_steps
 
+    def _construct_coder_llm_prompt(self, task: Dict[str, Any], step_description: str, filepath_to_use: str, context_for_llm: str, is_minimal_context: bool, retry_feedback_content: Optional[str] = None) -> str:
+        """
+        Constructs the full prompt for the Coder LLM based on task, step, and file context,
+        incorporating general, import-specific, docstring guidelines, and retry feedback.
+        """
+        
+        preamble = "You are an expert Python Coder LLM.\n"
+        if is_minimal_context:
+            preamble += (
+                CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION + "\n" # Use the new constant
+            )
+        
+        # Determine if this step is likely generating a full new block (function, method, class).
+        # We reuse _should_add_docstring_instruction as it already identifies "new structure" generation.
+        is_generating_full_block = self._should_add_docstring_instruction(step_description, filepath_to_use)
+
+        # Define the output instructions based on whether a full block is being generated
+        if is_generating_full_block:
+            output_instructions = CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(
+                END_OF_CODE_MARKER=END_OF_CODE_MARKER
+            )
+            # For full blocks, the "targeted modification" instructions are less relevant.
+            targeted_mod_instructions_content = ""
+        else:
+            output_instructions = CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(
+                END_OF_CODE_MARKER=END_OF_CODE_MARKER
+            )
+            targeted_mod_instructions_content = CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS
+
+        import_specific_guidance_content = ""
+        if self._is_add_imports_step(step_description):
+            import_specific_guidance_content = (
+                "\n\nSPECIFIC GUIDANCE FOR IMPORT STATEMENTS:\n"
+                "You are adding import statements. Provide *only* the new import lines that need to be added. "
+                "Do not repeat existing imports. Do not output any other code or explanation. "
+                "Place the new imports appropriately within or after the existing import block.\n"
+            )
+
+        # Add docstring instruction conditionally
+        docstring_prompt_addition = ""
+        if self._should_add_docstring_instruction(step_description, filepath_to_use):
+            # Include the example directly in the docstring prompt addition
+            docstring_prompt_addition = "\n" + DOCSTRING_INSTRUCTION_PYTHON + " # (e.g., 'IMPORTANT: For any new Python functions... you MUST include a comprehensive PEP 257 compliant docstring.')\n\n"
+
+        # Add retry feedback section if provided
+        retry_feedback_section = ""
+        if retry_feedback_content:
+            retry_feedback_section = retry_feedback_content
+
+        # --- NEW: Construct target file context section ---
+        target_file_prompt_section = ""
+        task_target_file = task.get('target_file')
+        if task_target_file:
+            targets = [f.strip() for f in task_target_file.split(',') if f.strip()]
+            if targets:
+                resolved_primary_task_target_path = self._validate_path(targets[0])
+                if resolved_primary_task_target_path:
+                    target_file_prompt_section = (
+                        f"The primary file being modified for this task is specified as `{resolved_primary_task_target_path}` "
+                        "in the task metadata. Focus your plan steps on actions related to this file.\n\n"
+                    )
+        # --- END NEW SECTION ---
+
+        # Construct the full prompt
+        # Reconstructing the prompt using concatenation to avoid potential f-string multi-line issues
+        coder_prompt_parts = [
+            preamble,
+            output_instructions, # This dynamic based on is_generating_full_block
+        ]
+        if targeted_mod_instructions_content: # Only add if NOT generating a full block
+            coder_prompt_parts.append(targeted_mod_instructions_content)
+        coder_prompt_parts.extend([
+            "\n", # Newline after output instructions
+            target_file_prompt_section, # Added this line back
+            f"Based on the \"Specific Plan Step\" below, generate the required Python code snippet to modify the target file (`{filepath_to_use}`).\n",
+            "\n", # Newline after the above line
+            f"Overall Task: \"{task.get('task_name', 'Unknown Task')}\"\n",
+            f"Task Description: {task.get('description', 'No description provided.')}\n",
+            "\n", # Newline after task description
+            retry_feedback_section, # Add retry feedback here
+            "Specific Plan Step:\n",
+            f"{step_description}\n",
+            "\n",
+            f"PROVIDED CONTEXT FROM `{filepath_to_use}` (this might be the full file or a targeted section):\n",
+            "\n",
+            f"{context_for_llm}\n", # Use context_for_llm here
+            docstring_prompt_addition,
+            import_specific_guidance_content,
+            f"Key guidelines for the Python code snippet itself (these apply to the code before the {END_OF_CODE_MARKER}):\n",
+            GENERAL_SNIPPET_GUIDELINES
+        ])
+        coder_prompt = "".join(coder_prompt_parts)
+
+
+        return coder_prompt
+
     def _invoke_coder_llm(self, coder_llm_prompt: str) -> str:
         try:
             response = self.llm_orchestrator.generate(coder_llm_prompt)
@@ -1859,7 +1945,8 @@ Task Description:
                 content_on_marker_line = line[len(original_marker_line_indent):]
                 
                 parts = content_on_marker_line.split(METAMORPHIC_INSERT_POINT, 1)
-                line_prefix_before_marker = parts[0]
+                if len(parts) > 0: # Ensure parts[0] exists
+                    line_prefix_before_marker = parts[0]
                 if len(parts) > 1:
                     line_suffix_after_marker = parts[1]
                 break
@@ -1899,8 +1986,8 @@ Task Description:
                         current_snippet_line_indent = len(s_line_content) - len(s_line_content.lstrip())
                         # Apply the adjustment to get the new indentation
                         new_indent = current_snippet_line_indent + indent_to_apply_to_snippet_lines
-                    new_indent = max(0, new_indent) # Ensure new_indent is not negative
-                    final_inserted_lines.append(" " * new_indent + s_line_content.lstrip())
+                        new_indent = max(0, new_indent) # Ensure new_indent is not negative
+                        final_inserted_lines.append(" " * new_indent + s_line_content.lstrip())
 
                 # Add the content after the marker, if any, on its own line
                 # This ensures "MARKER print('done')" becomes "<snippet>\n    print('done')"

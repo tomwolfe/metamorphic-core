@@ -115,7 +115,11 @@ class TestWorkflowDriverPromptRefinement:
         driver._should_add_docstring_instruction.return_value = False
 
         coder_prompt = driver._construct_coder_llm_prompt(
-            mock_task, step_description, mock_filepath, mock_existing_content
+            task=mock_task,
+            step_description=step_description,
+            filepath_to_use=mock_filepath,
+            context_for_llm=mock_existing_content, # Pass existing_content as context_for_llm
+            is_minimal_context=False # Pass is_minimal_context
         )
 
         # Assert critical instructions are present
@@ -156,7 +160,11 @@ class TestWorkflowDriverPromptRefinement:
         driver._should_add_docstring_instruction.return_value = True # Docstring instruction should still be present
 
         coder_prompt = driver._construct_coder_llm_prompt(
-            mock_task, mock_task['description'], mock_filepath, mock_existing_content
+            task=mock_task, step_description=mock_task['description'], filepath_to_use=mock_filepath,
+            # Add the new arguments
+            context_for_llm=mock_existing_content, # Pass existing_content as context_for_llm
+            # For new file creation, context is empty, so it's not "minimal" in the sense of being a *subset* of existing.
+            is_minimal_context=False # It's the full (empty) context
         )
 
         assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in coder_prompt
@@ -185,7 +193,10 @@ class TestWorkflowDriverPromptRefinement:
         driver._should_add_docstring_instruction.return_value = False # For this test, assume no docstring needed
 
         coder_prompt = driver._construct_coder_llm_prompt(
-            mock_task, mock_task['description'], mock_filepath, mock_existing_content
+            task=mock_task, step_description=mock_task['description'], filepath_to_use=mock_filepath,
+            # Add the new arguments
+            context_for_llm=mock_existing_content,
+            is_minimal_context=False # It's the full existing content
         )
 
         assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in coder_prompt
@@ -212,7 +223,10 @@ class TestWorkflowDriverPromptRefinement:
         driver._should_add_docstring_instruction.return_value = True # This is the key mock for this test
 
         coder_prompt = driver._construct_coder_llm_prompt(
-            mock_task, mock_task['description'], mock_filepath, mock_existing_content
+            task=mock_task, step_description=mock_task['description'], filepath_to_use=mock_filepath,
+            # Add the new arguments
+            context_for_llm=mock_existing_content,
+            is_minimal_context=False # It's the full existing content
         )
 
         # Assert the docstring instruction with example is present
@@ -248,7 +262,10 @@ class TestWorkflowDriverPromptRefinement:
         driver._should_add_docstring_instruction.return_value = False # Ensure docstring is off
 
         coder_prompt = driver._construct_coder_llm_prompt(
-            mock_task, mock_task['description'], mock_filepath, mock_existing_content
+            task=mock_task, step_description=mock_task['description'], filepath_to_use=mock_filepath,
+            # Add the new arguments
+            context_for_llm=mock_existing_content,
+            is_minimal_context=False # It's the full existing content
         )
 
         # Assert import-specific guidance is present
@@ -286,7 +303,10 @@ class TestWorkflowDriverPromptRefinement:
         driver._should_add_docstring_instruction.return_value = True
 
         coder_prompt = driver._construct_coder_llm_prompt(
-            mock_task, mock_task['description'], mock_filepath, mock_existing_content
+            task=mock_task, step_description=mock_task['description'], filepath_to_use=mock_filepath,
+            # Add the new arguments
+            context_for_llm=mock_existing_content,
+            is_minimal_context=False # It's the full existing content
         )
 
         # Assert all expected parts are present
@@ -320,7 +340,10 @@ class TestWorkflowDriverPromptRefinement:
         driver._should_add_docstring_instruction.return_value = False
 
         coder_prompt = driver._construct_coder_llm_prompt(
-            mock_task, mock_task['description'], mock_filepath, mock_existing_content
+            task=mock_task, step_description=mock_task['description'], filepath_to_use=mock_filepath,
+            # Add the new arguments
+            context_for_llm=mock_existing_content,
+            is_minimal_context=False # It's the full existing content
         )
 
         assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt
@@ -720,7 +743,11 @@ def test_retry_prompt_includes_validation_feedback(driver_for_retry_prompt_test,
                     )
                 
                 coder_prompt = driver._construct_coder_llm_prompt(
-                    driver._current_task, step, filepath_to_use, existing_content, 
+                    task=driver._current_task,
+                    step_description=step,
+                    filepath_to_use=filepath_to_use,
+                    context_for_llm=existing_content,
+                    is_minimal_context=False,
                     retry_feedback_content=retry_feedback_for_prompt
                 )
                 generated_snippet = driver._invoke_coder_llm(coder_prompt)

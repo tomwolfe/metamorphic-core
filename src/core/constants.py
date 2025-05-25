@@ -54,7 +54,13 @@ PYTHON_CREATION_KEYWORDS = [ # Task 1.8.Y: Keywords indicating creation of new P
     "generate method", "generate class", "add function to", "add method to", "add class to",
     "write a new function", "write a python function", "write a new python function",
     "create a new function", "create a python function", "create a new python function",
-    "define a new function", "define a python function", # Removed duplicate "define a new class"
+    "define a new function", "define a python function",
+    "define a new class", "define a python class",
+    "define a new global function", # Added for test coverage
+    "define new global function", # Additional pattern for variation (already present)
+    "define a global function",
+    "define a python function",
+    "define a new python function",
     "define a new python class", # Added keyword for test case
     "implement a new function", "implement a python function", "implement a new python function",
     "add a new method", "add a python method", "add a new python method",

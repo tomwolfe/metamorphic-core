@@ -36,6 +36,7 @@ from spacy.matcher import PhraseMatcher
 # Import CodeReviewAgent and EthicalGovernanceEngine for type hinting and mocking
 from src.core.agents.code_review_agent import CodeReviewAgent
 from src.core.ethics.governance import EthicalGovernanceEngine
+from src.core.automation.workflow_driver import classify_plan_step
 
 # Set up logging for tests
 # Ensure logging is configured only once
@@ -271,6 +272,80 @@ class TestPhase1_8Features:
         # FIX: Ensure the log message matches the actual log output format
         expected_log_message = f"Skipping placeholder write to main Python target {resolved_target_path} for conceptual step: '{plan_step}'."
         assert any(expected_log_message in record.message for record in caplog.records)
+    # --- Tests for _is_simple_addition_plan_step (Task 1.8.A) ---
+    @pytest.mark.parametrize("description, expected", [
+        ("Add import os to the file", True),
+        ("add a new function called calculate_total", True),
+        ("Implement method process_item in Processor", True), # Shorter
+        ("insert line: logger.info('Processing complete')", True),
+        ("append new_config_value to settings.py", True),
+        ("Define a new constant MAX_RETRIES = 3", True),
+        ("Add a type hint for the user_id parameter", True),
+        ("Generate docstring for the main function", True),
+        ("Add a comment explaining the complex logic", True),
+        ("Add logging for critical operations", True),
+        ("Add a new test case for user login", True),
+        ("Add __init__ method to the User class", True),
+        # Class creation cases, expected to be False
+        ("Create new class ComplexSystem for advanced calculations", False),
+        ("Add class NewComponent to the architecture", False),
+        ("Define class User", False),
+        ("Refactor the entire data processing module", False),
+        ("Design the new user interface components", False),
+        ("Review the latest pull request for feature X", False),
+        ("Analyze performance bottlenecks in the API", False),
+        ("Understand the requirements for the next phase", False),
+        ("Modify existing function to handle new edge cases", False),
+        ("Update the database schema", False), # Database schema changes are not simple code additions
+        ("Write a comprehensive design document", False),
+        ("Add a new complex system with multiple classes", False), # Shorter
+        ("", False),
+        ("    ", False),
+        ("Long desc, no simple add keywords, architectural review.", False), # Shorter
+    ])
+    def test_is_simple_addition_plan_step(self, test_driver_phase1_8, description, expected, caplog):
+        """Test the _is_simple_addition_plan_step method with various descriptions."""
+        caplog.set_level(logging.DEBUG) # Set log level to DEBUG to capture debug messages
+        driver = test_driver_phase1_8
+        assert driver._is_simple_addition_plan_step(description) == expected
+        if expected:
+            assert any(
+                record.message.startswith(f"Step '{description[:50]}...' identified by")
+                for record in caplog.records
+            )
+        else:
+            assert not any(record.message.startswith(f"Step '{description[:50]}...' identified by") and "keyword:" in record.message for record in caplog.records), \
+                f"Unexpected 'identified by' log for non-simple step '{description}'"
+            assert any(
+                (f"Step '{description[:50]}...' not identified as simple." in record.message) or
+                (f"Step '{description[:50]}...' involves class creation keyword" in record.message) or
+                (f"Step '{description[:50]}...' matches" in record.message and "and includes class and is not simple" in record.message)
+                for record in caplog.records
+            ), f"Expected specific log message for non-simple step '{description}', but found none matching criteria in {caplog.records}"
+
+    def test_is_simple_addition_plan_step_class_creation_keywords_are_not_simple(self, test_driver_phase1_8, caplog):
+        """
+        Test that steps involving class creation keywords are correctly identified as NOT simple.
+        """
+        caplog.set_level(logging.DEBUG) # Set log level to DEBUG to capture debug messages
+        driver = test_driver_phase1_8
+        class_creation_steps = [
+            "Create new class ComplexSystem for advanced calculations",
+            "Add class NewComponent to the architecture",
+            "Define class User",
+            "Implement class MyUtility",
+            "Generate class for data processing"
+        ]
+        for step_desc in class_creation_steps:
+            assert driver._is_simple_addition_plan_step(step_desc) is False, f"Step '{step_desc}' should NOT be simple."
+            assert any( # Check for any of the possible "not simple" log messages
+                (f"Step '{step_desc[:50]}...' involves class creation keyword" in record.message) or # From simple_addition_keywords loop
+                (f"Step '{step_desc[:50]}...' matches" in record.message and "and includes class and is not simple" in record.message) or # From general_addition_patterns loop
+                (f"Step '{step_desc[:50]}...' not identified as simple." in record.message) # From final fallback
+                for record in caplog.records
+            ), f"Expected specific log message for non-simple class creation step '{step_desc}', but found none matching criteria in {caplog.records}"
+            caplog.clear()
+
 class TestPreWriteValidation:
     @pytest.fixture
     def driver_pre_write(self, mocker, tmp_path):
@@ -312,11 +387,11 @@ class TestPreWriteValidation:
             # Use mocker to patch the instance method
             mock_resolve_target_file = mocker.patch.object(wd, '_resolve_target_file_for_step', return_value=resolved_target_path)
 
-            # Use mocker to patch instance methods
-            mock_read_file = mocker.patch.object(wd, '_read_file_for_context', return_value="")
-            mock_merge_snippet = mocker.patch.object(wd, '_merge_snippet', side_effect=lambda existing, snippet: existing + "\n" + snippet)
             # Patch _write_output_file here as it's called in the helper
             mock_write_output = mocker.patch.object(wd, '_write_output_file', return_value=True)
+
+            # Mock _read_file_for_context as it's called in the helper
+            mock_read_file = mocker.patch.object(wd, '_read_file_for_context', return_value="existing file content")
 
 
             # FIX: Reset mock after init calls it
@@ -328,9 +403,8 @@ class TestPreWriteValidation:
                 'mock_code_review_agent': mock_code_review_agent_instance,
                 'mock_ethical_governance_engine': mock_ethical_governance_engine_instance,
                 'mock_resolve_target_file': mock_resolve_target_file,
-                'mock_read_file': mock_read_file,
-                'mock_merge_snippet': mock_merge_snippet,
                 'mock_write_output': mock_write_output,
+                'mock_read_file': mock_read_file, # Add this to the returned dict
             }
 
 
@@ -338,7 +412,7 @@ class TestPreWriteValidation:
     # where pre-write validation occurs.
     # FIX: Add mock_ast_parse as an argument
     # FIX: Add mocks from fixture as arguments
-    def _simulate_step_execution_for_pre_write_validation(self, driver, generated_snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_merge_snippet, mock_write_output, mock_code_review_agent, mock_ethical_governance_engine, step_description="Step 1: Implement code in src/mock_file.py"):
+    def _simulate_step_execution_for_pre_write_validation(self, driver, generated_snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output, mock_code_review_agent, mock_ethical_governance_engine, step_description="Step 1: Implement code in src/mock_file.py", is_minimal_context=False):
         # In the real loop, filepath_to_use comes from _resolve_target_file_for_step
         # Since we mocked _resolve_target_file_for_step in the fixture, we can use its return value
         # Call the mocked _resolve_target_file_for_step to get the value it would return
@@ -349,6 +423,11 @@ class TestPreWriteValidation:
         if filepath_to_use is None:
              logger.error("Simulated _resolve_target_file_for_step returned None.")
              raise ValueError("Resolved file path is None.")
+        
+        # Mock _get_context_type_for_step and _extract_targeted_context if needed for full simulation
+        # For pre-write validation tests, we usually just pass the full content as context
+        mocker = MagicMock() # Create a local mocker for patching within this helper
+        mocker.patch.object(driver, '_get_context_type_for_step', return_value=None) # Not relevant for these tests
 
 
         logger.info(f"Performing pre-write validation for snippet targeting {filepath_to_use}...")
@@ -420,10 +499,9 @@ class TestPreWriteValidation:
         else:
             logger.info(f"Pre-write validation passed for snippet targeting {filepath_to_use}. Proceeding with merge/write.")
             # Simulate the successful write and post-write validation calls from the loop
-            # Call the actual mocked _write_output_file instance method
-            # FIX: Use the passed mock_write_output and mock_merge_snippet
-            existing_content = mock_read_file.return_value # Get content from mock read
-            merged_content = mock_merge_snippet(existing_content, generated_snippet)
+            # Call the actual _merge_snippet method (not mocked in this test)
+            existing_content = mock_read_file.return_value # Get content from mock read (set by test)
+            merged_content = driver._merge_snippet(existing_content, generated_snippet)
             
             # --- START: Pre-Merge Full File Syntax Check (Task 1.8.improve_snippet_handling sub-task 4) ---
             try:
@@ -465,8 +543,7 @@ class TestPreWriteValidation:
         mock_code_review_agent = driver_pre_write['mock_code_review_agent']
         mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
         mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
-        mock_read_file = driver_pre_write['mock_read_file']
-        mock_merge_snippet = driver_pre_write['mock_merge_snippet']
+        mock_read_file = driver_pre_write['mock_read_file'] # Unpack mock_read_file
         mock_write_output = driver_pre_write['mock_write_output']
 
 
@@ -483,8 +560,8 @@ class TestPreWriteValidation:
 
         # FIX: Pass mock_ast_parse and other mocks to the helper
         self._simulate_step_execution_for_pre_write_validation(
-            driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file,
-            mock_merge_snippet, mock_write_output, mock_code_review_agent, mock_ethical_governance_engine
+            driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, # Pass mock_read_file
+            mock_write_output, mock_code_review_agent, mock_ethical_governance_engine
         )
 
         # Get the resolved target path from the mocked _resolve_target_file_for_step (called inside helper)
@@ -494,13 +571,13 @@ class TestPreWriteValidation:
         log_messages = [record.message for record in caplog.records]
         assert any("Pre-write syntax check (AST parse) passed" in msg for msg in log_messages)
         assert any("Pre-write ethical validation passed" in msg for msg in log_messages)
-        assert any("Pre-write style/security validation passed" in msg for msg in log_messages)
+        assert any("Pre-write style/security validation passed for snippet." in msg for msg in log_messages)
         assert any("Pre-merge full file syntax check (AST parse) passed." in msg for msg in log_messages) # New assertion for pre-merge check
         assert any(f"Pre-write validation passed for snippet targeting {resolved_target_path}. Proceeding with merge/write." in msg for msg in log_messages)
         
         # Assert on the resolved path in the write call (patched in fixture)
-        # FIX: Assert with the actual string content, not the mock's return_value attribute
-        expected_merged_content = mock_merge_snippet("", snippet) # Simulate the merge in the test
+        # The helper uses mock_read_file.return_value as existing content for merge
+        expected_merged_content = driver._merge_snippet(mock_read_file.return_value, snippet)
         mock_write_output.assert_called_once_with(resolved_target_path, expected_merged_content, overwrite=True)
         # Assert on the resolved path in the post-write validation calls (mocks from fixture)
         # analyze_python is called twice (pre and post)
@@ -519,8 +596,7 @@ class TestPreWriteValidation:
         mock_code_review_agent = driver_pre_write['mock_code_review_agent']
         mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
         mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
-        mock_read_file = driver_pre_write['mock_read_file']
-        mock_merge_snippet = driver_pre_write['mock_merge_snippet']
+        mock_read_file = driver_pre_write['mock_read_file'] # Unpack mock_read_file
         mock_write_output = driver_pre_write['mock_write_output']
 
 
@@ -529,7 +605,7 @@ class TestPreWriteValidation:
         # The first call (on snippet) will raise SyntaxError.
         # The helper will then proceed to the second call (on merged content), which will also fail.
         mock_ast_parse.side_effect = [
-            SyntaxError("Mock syntax error", ('<string>', 1, 1, 'def invalid syntax')), # For snippet
+            SyntaxError("Mock syntax error", ('<string>', 1, 1, 'def invalid syntax')), # For snippet (first call)
             SyntaxError("Mock merged syntax error", ('<string>', 1, 1, 'def invalid syntax')) # For merged content
         ]
 
@@ -541,8 +617,8 @@ class TestPreWriteValidation:
         # Adjust the regex to match the specific error message when pre-merge full file syntax check fails
         with pytest.raises(ValueError, match=r"Pre-merge full file syntax validation failed: Pre-write syntax check failed: Mock syntax error.*Pre-merge full file syntax check failed: Mock merged syntax error"):
             self._simulate_step_execution_for_pre_write_validation(
-                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file,
-                mock_merge_snippet, mock_write_output, mock_code_review_agent, mock_ethical_governance_engine
+                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
+                mock_code_review_agent, mock_ethical_governance_engine
             )
 
         # _write_output_file is patched in the fixture, assert on the instance mock
@@ -576,8 +652,7 @@ class TestPreWriteValidation:
         mock_code_review_agent = driver_pre_write['mock_code_review_agent']
         mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
         mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
-        mock_read_file = driver_pre_write['mock_read_file']
-        mock_merge_snippet = driver_pre_write['mock_merge_snippet']
+        mock_read_file = driver_pre_write['mock_read_file'] # Unpack mock_read_file
         mock_write_output = driver_pre_write['mock_write_output']
 
 
@@ -591,10 +666,10 @@ class TestPreWriteValidation:
         resolved_target_path = mock_resolve_target_file.return_value # Get the value returned by the mock
 
         # FIX: Pass mock_ast_parse and other mocks to the helper
-        with pytest.raises(ValueError, match="Pre-write validation failed for step."):
+        with pytest.raises(ValueError, match="Pre-write validation failed for step."): # The error message is generic
             self._simulate_step_execution_for_pre_write_validation(
-                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file,
-                mock_merge_snippet, mock_write_output, mock_code_review_agent, mock_ethical_governance_engine
+                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
+                mock_code_review_agent, mock_ethical_governance_engine
             )
 
         # _write_output_file is patched in the fixture, assert on the instance mock
@@ -620,8 +695,7 @@ class TestPreWriteValidation:
         mock_code_review_agent = driver_pre_write['mock_code_review_agent']
         mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
         mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
-        mock_read_file = driver_pre_write['mock_read_file']
-        mock_merge_snippet = driver_pre_write['mock_merge_snippet']
+        mock_read_file = driver_pre_write['mock_read_file'] # Unpack mock_read_file
         mock_write_output = driver_pre_write['mock_write_output']
 
 
@@ -636,10 +710,10 @@ class TestPreWriteValidation:
         resolved_target_path = mock_resolve_target_file.return_value # Get the value returned by the mock
 
         # FIX: Pass mock_ast_parse and other mocks to the helper
-        with pytest.raises(ValueError, match="Pre-write validation failed for step."):
+        with pytest.raises(ValueError, match="Pre-write validation failed for step."): # The error message is generic
             self._simulate_step_execution_for_pre_write_validation(
-                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file,
-                mock_merge_snippet, mock_write_output, mock_code_review_agent, mock_ethical_governance_engine
+                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
+                mock_code_review_agent, mock_ethical_governance_engine
             )
 
         # _write_output_file is patched in the fixture, assert on the instance mock
@@ -664,8 +738,7 @@ class TestPreWriteValidation:
         mock_code_review_agent = driver_pre_write['mock_code_review_agent']
         mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
         mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
-        mock_read_file = driver_pre_write['mock_read_file']
-        mock_merge_snippet = driver_pre_write['mock_merge_snippet']
+        mock_read_file = driver_pre_write['mock_read_file'] # Unpack mock_read_file
         mock_write_output = driver_pre_write['mock_write_output']
 
         # Scenario: Snippet is fine, but merging it creates a syntax error in the full file.
@@ -673,7 +746,7 @@ class TestPreWriteValidation:
         snippet = "    def new_method():\n        pass" # Indented snippet
         existing_content = "import os\n\n# METAMORPHIC_INSERT_POINT\n\ndef existing_function():\n    pass" # Existing code, but the snippet's indentation is wrong for this context
 
-        # Configure mocks
+        # Set the content that _read_file_for_context will return
         mock_read_file.return_value = existing_content
         mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved'}
         mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': []}
@@ -689,7 +762,7 @@ class TestPreWriteValidation:
             else:
                 # The second call should be on the merged content, which will fail
                 # Add a check for robustness in the mock
-                expected_merged_prefix = "import os\n\n# METAMORPHIC_INSERT_POINT\n\ndef existing_function():\n    pass\n    def new_method():"
+                expected_merged_prefix = "import os\n\ndef new_method():\n    pass\n\ndef existing_function():\n    pass"
                 if not code_str.startswith(expected_merged_prefix):
                     raise AssertionError(f"Expected merged content for second AST parse call, got: {code_str[:100]}...")
                 raise SyntaxError("unexpected indent", ('<string>', 3, 5, "    def new_method():\n")) # Second call (on merged content) fails
@@ -700,10 +773,10 @@ class TestPreWriteValidation:
         resolved_target_path = mock_resolve_target_file.return_value
 
         # Call the helper function that simulates the loop's pre-write validation
-        with pytest.raises(ValueError, match="Pre-merge full file syntax validation failed:"):
+        with pytest.raises(ValueError, match="Pre-merge full file syntax validation failed:"): # The error message is specific
             self._simulate_step_execution_for_pre_write_validation(
-                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file,
-                mock_merge_snippet, mock_write_output, mock_code_review_agent, mock_ethical_governance_engine
+                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
+                mock_code_review_agent, mock_ethical_governance_engine
             )
 
         # Assertions
@@ -712,10 +785,12 @@ class TestPreWriteValidation:
 
         # Verify logs using caplog.records for robustness
         log_messages = [record.message for record in caplog.records]
-        assert any("Pre-write syntax check (AST parse) passed for snippet." in msg for msg in log_messages) # Snippet itself passed
+        # The snippet itself should pass the initial AST parse check
+        assert any("Pre-write syntax check (AST parse) passed for snippet." in msg for msg in log_messages)
         assert any("Pre-merge full file syntax validation failed for" in msg for msg in log_messages)
         # Construct the expected hypothetical merged content for the log assertion
-        hypothetical_merged_content = existing_content + "\n" + snippet # <--- CHANGE THIS LINE
+        # Manually calculate what the real _merge_snippet would produce
+        hypothetical_merged_content = "import os\n\ndef new_method():\n    pass\n\ndef existing_function():\n    pass"
         assert any(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---" in msg for msg in log_messages)
         # FIX: Update log assertion to match the specific log message for the pre-merge syntax failure
         assert any(f"Pre-merge full file syntax validation failed for {resolved_target_path}: unexpected indent" in msg for msg in log_messages)

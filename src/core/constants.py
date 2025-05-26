@@ -13,7 +13,11 @@ GENERAL_SNIPPET_GUIDELINES = (
     "1. Ensure all string literals are correctly terminated (e.g., matching quotes, proper escaping).\n"
     "2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a METAMORPHIC_INSERT_POINT is present.\n"
     "3. Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons.\n"
-    "4. If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity."
+    "4. If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity.\n"
+    "5. Adhere strictly to PEP 8 style guidelines. This includes, but is not limited to:\n"
+    "   - Line length: Keep lines under 80 characters, including docstrings and comments.\n"
+    "   - Comments: Inline comments should start with a # and a single space, and be preceded by at least two spaces.\n"
+    "   - Imports: If type hints (e.g., Dict, List, Any from `typing`) are used, ensure they are imported if not already present in the provided context. However, prefer to generate code that does not require new imports unless explicitly part of the task."
 )
 
 # CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS is a template string that needs to be formatted

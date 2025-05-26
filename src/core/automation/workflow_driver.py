@@ -182,12 +182,91 @@ class WorkflowDriver:
         self.llm_orchestrator = EnhancedLLMOrchestrator(
             kg=MagicMock(), # Mock KnowledgeGraph
             spec=MagicMock(), # Mock FormalSpecification
-            ethics_engine=self.ethical_governance_engine # Use the real or mocked engine instance
+            ethics_engine=self.ethical_governance_engine
         )
         self.code_review_agent = CodeReviewAgent()
-        # Ensure logger is available on self if used in methods (already done by class-level logger)
-        self.logger = logger # Add this if methods use self.logger
+        self.logger = logger
 
+    def _is_simple_addition_plan_step(self, plan_step_description: str) -> bool:
+        """
+        Determines if a plan step describes a simple, targeted addition to a file.
+
+        Simple additions are operations like adding imports, new standalone functions,
+        or specific lines, which typically require only minimal context from the
+        target file for the LLM to process efficiently. This heuristic helps
+        the WorkflowDriver decide when to attempt providing reduced context.
+
+        Args:
+            plan_step_description: The description of the plan step.
+
+        Returns:
+            True if the plan step is identified as a simple addition, False otherwise.
+        """
+        description_lower = plan_step_description.lower()
+
+        simple_addition_keywords: List[str] = [
+            "add import", "add new import", "insert import", "add an import",
+            "add method", "add a new method", "define method", "implement method",
+            "add function", "add a new function", "define function",
+            "implement function", "insert line", "append line", "add line",
+            "prepend line", "add constant", "add variable", "add attribute",
+            "add property", "add decorator", "add test", "add docstring",
+            "generate docstring", "update docstring", "add comment",
+            "add logging", "add print statement", "add return statement",
+            "add if statement", "add loop", "add try-except", "add enum",
+            "add dataclass", "add type hint", "update type hint",
+            "add __init__", "add __str__", "add __repr__", "add __eq__",
+            "add __hash__", "define constant", # Added for Task 1.8.A
+            "define new constant", # Added for more specific constant definition
+            "define a new constant", # Covers test case with 'a' between define and new
+            "insert into file", "append to file", "prepend to file",
+            "add entry to", "add item to list",
+            # Added for more robust simple addition detection (Task 1.8.A)
+            "append",
+            "add a type hint",
+            "add a comment",
+            "add a new test case",
+        ]
+        general_addition_patterns: List[str] = [
+            "add new", "insert new", "define new", "create new",
+            "append to", "prepend to",
+        ]
+
+        class_creation_specific_keywords: List[str] = [
+            "add class", "add a new class", "define class", "create class"
+        ]
+
+        for keyword in simple_addition_keywords:
+            if keyword in description_lower:
+                if keyword in class_creation_specific_keywords:
+                    msg = (f"Step '{plan_step_description[:50]}...' involves class creation keyword '{keyword}' and is not simple.")
+                    self.logger.debug(msg)
+                    continue
+                self.logger.debug(
+                    f"Step '{plan_step_description[:50]}...' identified by "
+                    f"keyword: '{keyword}'"
+                )
+                # This is the line that should have been hit for "Define a new constant MAX_RETRIES = 3"
+                return True
+
+        for pattern in general_addition_patterns:
+            if pattern in description_lower:
+                if "class" in description_lower and any(
+                    cls_kw in pattern for cls_kw in ["add", "new", "create", "define"]
+                ):
+                    msg = (f"Step '{plan_step_description[:50]}...' matches '{pattern}' and includes class; is not simple.")
+                    self.logger.debug(msg)
+                    continue
+                self.logger.debug(
+                    f"Step '{plan_step_description[:50]}...' identified by "
+                    f"pattern: '{pattern}'"
+                )
+                return True
+
+        self.logger.debug(
+            f"Step '{plan_step_description[:50]}...' not identified as simple."
+        )
+        return False
 
     def _clean_llm_snippet(self, snippet: Optional[str]) -> str:
         """
@@ -1289,8 +1368,6 @@ class WorkflowDriver:
                                 # Determine the target file for remediation. Prioritize task_target_file.
                                 # If task_target_file is multi-target or None, try to find the last file modified in the steps.
                                 filepath_for_remediation = None
-                                # Use the resolved path from the last step that involved code generation/writing
-                                last_file_step_path = None
                                 # Iterate through steps in reverse to find the last step that involved a file write
                                 for step_idx, plan_step_desc in reversed(list(enumerate(solution_plan))):
                                     prelim_flags_rem = self._classify_step_preliminary(plan_step_desc)
@@ -1298,13 +1375,11 @@ class WorkflowDriver:
                                     step_filepath_rem = self._resolve_target_file_for_step(plan_step_desc, self.task_target_file, prelim_flags_rem)
                                     # Check if the step was intended to write/generate code AND a file path was determined/resolved
                                     if (prelim_flags_rem.get('is_code_generation_step_prelim') or prelim_flags_rem.get('is_explicit_file_writing_step_prelim')) and step_filepath_rem:
-                                        last_file_step_path = step_filepath_rem
-                                        break
+                                        filepath_for_remediation = step_filepath_rem
+                                        logger.debug(f"Using file path from last file-modifying step for remediation: {filepath_for_remediation}")
+                                        break # Found the last file-modifying step, break the loop
 
-                                if last_file_step_path:
-                                    filepath_for_remediation = last_file_step_path
-                                    logger.debug(f"Using file path from last file-modifying step for remediation: {filepath_for_remediation}")
-                                elif self.task_target_file:
+                                if not filepath_for_remediation and self.task_target_file:
                                     # If no file-modifying step found, but task has a target, try the first task target
                                     targets = [f.strip() for f in self.task_target_file.split(',') if f.strip()]
                                     if targets:

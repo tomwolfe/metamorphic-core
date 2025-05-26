@@ -505,7 +505,6 @@ class TestWorkflowDriver:
         # FIX: Correct assertion string to match the code's prompt template
         # The prompt template uses "The primary file being modified is `{filepath_to_use}`.\n\n"
         # This assertion was moved and refined above to check the *planning* prompt.
-        # The original assertion was trying to check the planning prompt against the *coder* prompt.
         # assert f"The primary file being modified for this task is specified as `{mock_get_full_path('correct/file_from_task.py')}` in the task metadata. Focus your plan steps on actions related to this file.\n\n" in called_prompt        
         # Should NOT use the old heuristic based on name/description
         assert "The primary file being modified for this task is `src/core/automation/workflow_driver.py`." not in coder_prompt
@@ -671,22 +670,20 @@ class TestWorkflowDriver:
         error_log_count_at_1190 = sum( # Renamed variable for clarity
             1 for record in caplog.records
             if record.levelname == 'ERROR' and record.message.startswith(f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error") # Check log level and message
-            and 'workflow_driver.py' in record.pathname # Check file
-            and record.lineno == 1278 # Corrected line number from 1226 to 1208
+            and 'workflow_driver.py' in record.pathname # Check file path
             and record.message == f"Failed to write file {mock_get_full_path('error.txt')}: Generic write error"
         )
         assert error_log_count_at_1190 == MAX_STEP_RETRIES + 1
 
         # Assert the specific error log from line 1217 occurred MAX_STEP_RETRIES + 1 times
-        error_log_count_at_1225 = sum( # Renamed variable for clarity
+        error_log_count_at_1304 = sum( # Renamed variable for clarity
             1 for record in caplog.records
             if record.levelname == 'ERROR'
-            and 'workflow_driver.py' in record.pathname # Check file
-            and record.lineno == 1305
-            and record.message.startswith("Step execution failed (Attempt")
-            and record.message.endswith("Error: Generic write error")
+            and 'workflow_driver.py' in record.pathname # Check file path
+            and record.message.startswith("Step execution failed (Attempt") # Check log level and message
+            and record.message.endswith("Error: Exception: Generic write error")
         )
-        assert error_log_count_at_1225 == MAX_STEP_RETRIES + 1
+        assert error_log_count_at_1304 == MAX_STEP_RETRIES + 1
 
         # The loop should now complete normally and log this message in the second iteration
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text

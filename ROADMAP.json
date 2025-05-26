@@ -215,7 +215,7 @@
       "priority": "Critical",
       "task_name": "Test Import Context Optimization",
       "description": "Create and run an integration test to verify that the context optimization for 'add import' steps in WorkflowDriver is working. The test should: 1. Create a large dummy Python file. 2. Define a plan step to add a new import to this dummy file. 3. Execute this step using a mocked or real LLM. 4. Assert that the context provided to the CoderLLM for the import step was significantly truncated. 5. Assert that the number of summarization/chunk processing calls within EnhancedLLMOrchestrator (if any) is minimal (ideally zero beyond the main CoderLLM call for the snippet). 6. Assert that the import is correctly added to the dummy file. Place the test in tests/test_phase1_8_features.py.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_A_optimize_large_context"

@@ -928,7 +928,7 @@ class WorkflowDriver:
                         step_retries = 0
                         step_succeeded = False
                         step_failure_reason = None # Store reason for failure across retries
-                        retry_feedback_for_prompt = None # Initialize outside try block
+                        retry_feedback_for_llm_prompt = None # Initialize outside try block
 
                         while step_retries <= MAX_STEP_RETRIES:
                             try:
@@ -1036,7 +1036,7 @@ class WorkflowDriver:
                                     context_for_llm, is_minimal_context = self._extract_targeted_context(filepath_to_use, original_full_content, context_type, step)
                                     logger.debug(f"Context for LLM (is_minimal={is_minimal_context}, len={len(context_for_llm)} chars) for file {filepath_to_use}.")
                                     # Construct the Coder LLM prompt using the new helper method
-                                    coder_prompt = self._construct_coder_llm_prompt(self._current_task, step, filepath_to_use, context_for_llm, is_minimal_context, retry_feedback_for_prompt if step_retries > 0 else None)
+                                    coder_prompt = self._construct_coder_llm_prompt(self._current_task, step, filepath_to_use, context_for_llm, is_minimal_context, retry_feedback_for_llm_prompt if step_retries > 0 else None)
                                     logger.debug("Invoking Coder LLM with prompt (first 500 chars):\n%s", coder_prompt[:500]) # Log truncated prompt
                                     generated_snippet = self._invoke_coder_llm(coder_prompt)
 
@@ -1048,22 +1048,22 @@ class WorkflowDriver:
 
                                         # Perform pre-write validation on the generated snippet
                                         logger.info(f"Performing pre-write validation for snippet targeting {filepath_to_use}...")
-                                        validation_passed = True
+                                        validation_passed = True # Assume pass initially for this attempt
                                         validation_feedback = []
+                                        initial_snippet_syntax_error_details = None # Store details of initial snippet syntax error
                                         try:
                                             # Attempt to parse the snippet in isolation.
                                             # This helps catch fundamental syntax errors within the snippet itself
                                             # that are not related to its integration context (e.g., typos).
                                             ast.parse(cleaned_snippet)
                                             logger.info("Snippet AST parse check passed (isolated).")
-                                        except SyntaxError as se:
+                                        except SyntaxError as se_snippet:
                                             # If it's a SyntaxError (including IndentationError), it might be acceptable
                                             # if the snippet integrates correctly into the full file.
                                             # We will still proceed to the full file check, which is more definitive.
-                                            logger.warning(f"Snippet AST parse check (isolated) failed with SyntaxError: {se}. This might be acceptable if the snippet integrates correctly. Proceeding to full file check.")
-                                            # validation_passed remains True here, as the full file check is the ultimate arbiter for syntax.
+                                            initial_snippet_syntax_error_details = f"Initial snippet syntax check failed: {se_snippet.msg} on line {se_snippet.lineno} (offset {se_snippet.offset}). Offending line: '{se_snippet.text.strip() if se_snippet.text else 'N/A'}'"
+                                            logger.warning(f"Snippet AST parse check (isolated) failed with SyntaxError: {se_snippet}. This might be acceptable if the snippet integrates correctly. Proceeding to other checks.")
                                             logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Log the cleaned snippet
-                                            step_failure_reason = f"Pre-write syntax check failed: {se}" # Capture specific reason
 
                                             # --- START of manual addition for task_1_8_improve_snippet_handling sub-task 1 ---
                                             try:
@@ -1088,10 +1088,10 @@ class WorkflowDriver:
                                                         "original_snippet_repr": repr(generated_snippet),
                                                         "cleaned_snippet_repr": repr(cleaned_snippet),
                                                         "syntax_error_details": {
-                                                            "message": se.msg, # CHANGED: Use se.msg instead of str(se)
-                                                            "lineno": se.lineno,
-                                                            "offset": se.offset,
-                                                            "text": se.text
+                                                            "message": se_snippet.msg,
+                                                            "lineno": se_snippet.lineno,
+                                                            "offset": se_snippet.offset,
+                                                            "text": se_snippet.text
                                                         }
                                                     }
 
@@ -1099,7 +1099,7 @@ class WorkflowDriver:
                                                         json.dump(debug_data, f_err, indent=2)
                                                     self.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
                                                 else:
-                                                    self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet details.")
+                                                    self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet details (path was None).")
 
                                             except Exception as write_err:
                                                 self.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
@@ -1107,11 +1107,10 @@ class WorkflowDriver:
 
                                         except Exception as e: # Catches non-SyntaxError from ast.parse, or other unexpected issues
                                             validation_passed = False
-                                            validation_feedback.append(f"Error during pre-write syntax validation (AST parse): {e}")
-                                            logger.error(f"Error during pre-write syntax validation (AST parse): {e}", exc_info=True)
+                                            validation_feedback.append(f"Error during pre-write syntax validation (AST parse of snippet): {e}")
+                                            logger.error(f"Error during pre-write syntax validation (AST parse of snippet): {e}", exc_info=True)
                                             logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Log the cleaned snippet
-                                            step_failure_reason = f"Error during pre-write syntax validation: {e}" # Capture specific reason
-
+                                        
                                         if validation_passed and self.default_policy_config:
                                             # Ethical check on the snippet itself.
                                             # This check runs only if the snippet-level AST parse didn't throw a non-SyntaxError.
@@ -1126,16 +1125,12 @@ class WorkflowDriver:
                                                     validation_passed = False
                                                     validation_feedback.append(f"Pre-write ethical check failed: {ethical_results}")
                                                     logger.warning(f"Pre-write ethical validation failed for snippet: {ethical_results}")
-                                                    logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Log the cleaned snippet
-                                                    step_failure_reason = f"Pre-write ethical check failed: {ethical_results.get('message', 'Policy rejected snippet.')}" # Capture specific reason
                                                 else:
                                                     logger.info("Pre-write ethical validation passed for snippet.")
                                             except Exception as e:
                                                 validation_passed = False
                                                 validation_feedback.append(f"Error during pre-write ethical validation: {e}")
                                                 logger.error(f"Error during pre-write ethical validation: {e}", exc_info=True)
-                                                logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Log the cleaned snippet
-                                                step_failure_reason = f"Error during pre-write ethical validation: {e}" # Capture specific reason
                                         elif validation_passed:
                                             logger.warning("Skipping pre-write ethical validation: Default policy not loaded.")
 
@@ -1149,108 +1144,101 @@ class WorkflowDriver:
                                                     validation_passed = False
                                                     validation_feedback.append(f"Pre-write style/security check failed: Critical findings detected.")
                                                     logger.warning(f"Pre-write style/security validation failed for snippet. Critical findings: {critical_findings}")
-                                                    logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Log the cleaned snippet
-                                                    step_failure_reason = f"Pre-write style/security check failed: Critical findings detected." # Capture specific reason
                                                 else:
                                                     logger.info("Pre-write style/security validation passed for snippet.")
                                             except Exception as e:
                                                 validation_passed = False
                                                 validation_feedback.append(f"Error during pre-write style/security validation: {e}")
                                                 logger.error(f"Error during pre-write style/security validation: {e}", exc_info=True)
-                                                logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Log the cleaned snippet
-                                                step_failure_reason = f"Error during pre-write style/security validation: {e}" # Capture specific reason
 
-                                        # The definitive syntax check is the pre-merge full file check.
-                                        # If snippet-level ethical/style checks failed, validation_passed is False.
-                                        # If snippet-level AST parse had a SyntaxError, validation_passed is still True.
-                                        if validation_passed: # Snippet-level ethical/style checks passed (and no non-SyntaxError from AST parse)
-                                            logger.info(f"All pre-write validations passed for snippet targeting {filepath_to_use}. Proceeding to pre-merge full file syntax check.")
+                                        # Now, the definitive syntax check: pre-merge full file check
+                                        # This runs if previous checks (ethical, style, non-SyntaxError snippet parse) passed.
+                                        if validation_passed:
+                                            logger.info(f"Snippet-level ethical and style checks passed (or were skipped). Proceeding to pre-merge full file syntax check for {filepath_to_use}.")
 
                                             try:
                                                 # Create a hypothetical merged content
-                                                # Use the existing _merge_snippet logic for this hypothetical merge
                                                 hypothetical_merged_content = self._merge_snippet(original_full_content, cleaned_snippet)
                                                 ast.parse(hypothetical_merged_content)
                                                 logger.info("Pre-merge full file syntax check (AST parse) passed.")
-                                            except SyntaxError as se:
-                                                # This is a definitive syntax error, as the full file should always be parsable.
-                                                validation_passed = False
-                                                validation_feedback.append(f"Pre-merge full file syntax check failed: {se}")
-                                                logger.warning(f"Pre-merge full file syntax validation failed for {filepath_to_use}: {se}")
+                                                # If initial_snippet_syntax_error_details existed but full file parse passed,
+                                                # it means the merge context fixed the syntax. Log this.
+                                                if initial_snippet_syntax_error_details:
+                                                    logger.info(f"Initial snippet had a syntax issue ('{initial_snippet_syntax_error_details}'), but it integrated correctly into the full file and passed other pre-write checks.")
+                                            except SyntaxError as se_merge:
+                                                validation_passed = False # Definitive syntax failure
+                                                validation_feedback.append(f"Pre-merge full file syntax check failed: {se_merge.msg} on line {se_merge.lineno} (offset {se_merge.offset}). Offending line: '{se_merge.text.strip() if se_merge.text else 'N/A'}'")
+                                                logger.warning(f"Pre-merge full file syntax validation failed for {filepath_to_use}: {se_merge}")
                                                 logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
-                                                step_failure_reason = f"Pre-merge full file syntax check failed: {se}"
                                                 # Save debug info for merge failure too (already handled by existing logic)
-                                            except Exception as e:
-                                                # This is also a definitive syntax-related error, or other unexpected issue during full file parse.
+                                            except Exception as e_merge: # Other errors during merge/parse
                                                 validation_passed = False
-                                                validation_feedback.append(f"Error during pre-merge full file syntax validation: {e}")
-                                                logger.error(f"Error during pre-merge full file syntax validation: {e}", exc_info=True)
+                                                validation_feedback.append(f"Error during pre-merge full file syntax validation: {e_merge}")
+                                                logger.error(f"Error during pre-merge full file syntax validation: {e_merge}", exc_info=True)
                                                 logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
-                                                step_failure_reason = f"Error during pre-merge full file syntax validation: {e}"
+                                        
+                                        # If any check failed (ethical, style, or definitive full-file syntax)
+                                        if not validation_passed:
+                                            # If there was an initial snippet syntax error, ensure it's part of the feedback
+                                            if initial_snippet_syntax_error_details and not any("Initial snippet syntax check failed" in item for item in validation_feedback):
+                                                validation_feedback.insert(0, initial_snippet_syntax_error_details)
+                                            
+                                            error_message_for_retry = f"Pre-write validation failed for snippet targeting {filepath_to_use}. Feedback: {validation_feedback}"
+                                            logger.warning(error_message_for_retry)
+                                            # Store the detailed feedback for the Grade Report
+                                            self._current_task_results['pre_write_validation_feedback'] = validation_feedback
+                                            raise ValueError(f"Pre-write validation failed: {'. '.join(validation_feedback)}")
 
-                                            if not validation_passed:
-                                                raise ValueError(f"Pre-merge full file syntax validation failed: {'. '.join(validation_feedback)}")
-                                            # --- END: Pre-Merge Full File Syntax Check ---
+                                        # If all checks passed, proceed to write
+                                        logger.info(f"All pre-write validations passed for snippet targeting {filepath_to_use}. Proceeding with actual merge/write.")
+                                        # Merge the snippet into the existing content
+                                        merged_content = self._merge_snippet(original_full_content, cleaned_snippet)
+                                        logger.debug("Snippet merged.")
+                                        # Write the merged content to the file (filepath_to_use is already resolved)
+                                        logger.info(f"Attempting to write merged content to {filepath_to_use}.")
+                                        try:
+                                            self._write_output_file(filepath_to_use, merged_content, overwrite=True)
+                                            logger.info(f"Successfully wrote merged content to {filepath_to_use}.")
+                                            code_written_in_iteration = True # Mark that code was written
 
-                                        if validation_passed:
-                                            logger.info(f"All pre-write validations passed for snippet targeting {filepath_to_use}. Proceeding with actual merge/write.") # This log is now more accurate
-                                            # Merge the snippet into the existing content
-                                            merged_content = self._merge_snippet(original_full_content, cleaned_snippet)
-                                            logger.debug("Snippet merged.")
-                                            # Write the merged content to the file (filepath_to_use is already resolved)
-                                            logger.info(f"Attempting to write merged content to {filepath_to_use}.")
+                                            # Perform post-write validation on the entire file
                                             try:
-                                                self._write_output_file(filepath_to_use, merged_content, overwrite=True)
-                                                logger.info(f"Successfully wrote merged content to {filepath_to_use}.")
-                                                code_written_in_iteration = True # Mark that code was written
+                                                logger.info(f"Running code review and security scan for {filepath_to_use}...")
+                                                review_results = self.code_review_agent.analyze_python(merged_content)
+                                                self._current_task_results['code_review_results'] = review_results
+                                                logger.info(f"Code Review and Security Scan Results for {filepath_to_use}: {review_results}")
+                                            except Exception as review_e:
+                                                logger.error(f"Error running code review/security scan for {filepath_to_use}: {review_e}", exc_info=True)
+                                                self._current_task_results['code_review_results'] = {'status': 'error', 'message': str(review_e)}
+                                                # Decide if this post-write error should fail the step or just be logged.
+                                                # For now, it doesn't fail the step, but it might be desirable.
 
-                                                # Perform post-write validation on the entire file
+                                            if self.default_policy_config:
                                                 try:
-                                                    logger.info(f"Running code review and security scan for {filepath_to_use}...")
-                                                    review_results = self.code_review_agent.analyze_python(merged_content)
-                                                    self._current_task_results['code_review_results'] = review_results
-                                                    logger.info(f"Code Review and Security Scan Results for {filepath_to_use}: {review_results}")
-                                                except Exception as review_e:
-                                                    logger.error(f"Error running code review/security scan for {filepath_to_use}: {review_e}", exc_info=True)
-                                                    self._current_task_results['code_review_results'] = {'status': 'error', 'message': str(review_e)}
+                                                    logger.info(f"Running ethical analysis for {filepath_to_use}...")
+                                                    ethical_analysis_results = self.ethical_governance_engine.enforce_policy(merged_content, self.default_policy_config)
+                                                    self._current_task_results['ethical_analysis_results'] = ethical_analysis_results
+                                                    logger.info(f"Ethical Analysis Results for {filepath_to_use}: {ethical_analysis_results}")
+                                                except Exception as ethical_e:
+                                                    logger.error(f"Error running ethical analysis for {filepath_to_use}: {ethical_e}", exc_info=True)
+                                                    self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': str(ethical_e)}
                                                     # Decide if this post-write error should fail the step or just be logged.
-                                                    # For now, it doesn't fail the step, but it might be desirable.
+                                            else:
+                                                logger.warning("Default ethical policy not loaded. Skipping ethical analysis.")
+                                                self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded.'}
 
-                                                if self.default_policy_config:
-                                                    try:
-                                                        logger.info(f"Running ethical analysis for {filepath_to_use}...")
-                                                        ethical_analysis_results = self.ethical_governance_engine.enforce_policy(merged_content, self.default_policy_config)
-                                                        self._current_task_results['ethical_analysis_results'] = ethical_analysis_results
-                                                        logger.info(f"Ethical Analysis Results for {filepath_to_use}: {ethical_analysis_results}")
-                                                    except Exception as ethical_e:
-                                                        logger.error(f"Error running ethical analysis for {filepath_to_use}: {ethical_e}", exc_info=True)
-                                                        self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': str(ethical_e)}
-                                                        # Decide if this post-write error should fail the step or just be logged.
-                                                else:
-                                                    logger.warning("Default ethical policy not loaded. Skipping ethical analysis.")
-                                                    self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded.'}
+                                            step_succeeded = True # Mark step as successful after writing and post-checks (if post-checks aren't blocking)
 
-                                                step_succeeded = True # Mark step as successful after writing and post-checks (if post-checks aren't blocking)
-
-                                            except FileExistsError:
-                                                # This should not happen with overwrite=True, but handle defensively
-                                                error_msg = f"Unexpected FileExistsError when writing merged content to {filepath_to_use} with overwrite=True."
-                                                logger.error(error_msg)
-                                                step_failure_reason = error_msg
-                                                raise FileExistsError(f"Unexpected FileExistsError during write: {filepath_to_use}") # Trigger retry/failure
-                                            except Exception as e:
-                                                error_msg = f"Failed to write merged content to {filepath_to_use}: {e}"
-                                                logger.error(error_msg, exc_info=True)
-                                                step_failure_reason = error_msg
-                                                raise e # Re-raise to trigger retry/failure
-                                        else:
-                                            # Pre-write validation failed, raise exception to trigger step retries
-                                            error_message = f"Pre-write validation failed for snippet targeting {filepath_to_use}. Skipping write/merge. Feedback: {validation_feedback}"
-                                            logger.warning(error_message)
-                                            # step_failure_reason is already set by the specific check that failed earlier.
-                                            # Instead of just raising Exception, maybe raise a specific validation error?
-                                            # This allows the retry logic to potentially use the validation_feedback.
-                                            raise ValueError(f"Pre-write validation failed: {'. '.join(validation_feedback)}") # Trigger retry/failure
+                                        except FileExistsError:
+                                            # This should not happen with overwrite=True, but handle defensively
+                                            error_msg = f"Unexpected FileExistsError when writing merged content to {filepath_to_use} with overwrite=True."
+                                            logger.error(error_msg)
+                                            raise FileExistsError(error_msg) # Trigger retry/failure
+                                        except Exception as e:
+                                            error_msg = f"Failed to write merged content to {filepath_to_use}: {e}"
+                                            logger.error(error_msg, exc_info=True)
+                                            step_failure_reason = error_msg
+                                            raise e # Re-raise to trigger retry/failure
                                     else:
                                         # LLM returned empty or None snippet, raise exception to trigger step retries
                                         error_message = f"Coder LLM returned empty or None snippet for step {step_index + 1}. Skipping file write."
@@ -1300,27 +1288,36 @@ class WorkflowDriver:
                                 break # Exit retry loop for this step
 
                             except Exception as e:
-                                # This catches exceptions from test execution, LLM invocation,
-                                # pre-write validation failure (if raised), merge failure, write failure, etc.
-                                logger.error(f"Step execution failed (Attempt {step_retries + 1}/{MAX_STEP_RETRIES + 1}): {step}. Error: {e}", exc_info=True)
-                                # Ensure step_failure_reason is set if it wasn't by a specific exception
-                                if step_failure_reason is None:
-                                    step_failure_reason = f"An unexpected error occurred: {e}"
+                                # Capture the specific error message for the next retry's prompt and for logging
+                                if isinstance(e, SyntaxError):
+                                    offending_line_text = e.text.strip() if e.text else "N/A"
+                                    current_attempt_error_message = f"SyntaxError: {e.msg} on line {e.lineno} (offset {e.offset}). Offending line: '{offending_line_text}'"
+                                elif isinstance(e, ValueError) and "Pre-write validation failed" in str(e):
+                                    current_attempt_error_message = str(e) # Already detailed
+                                elif isinstance(e, FileExistsError): # Catch specific errors from write
+                                    current_attempt_error_message = f"FileExistsError: {str(e)}"
+                                elif isinstance(e, IOError): # Catch specific errors from write
+                                    current_attempt_error_message = f"IOError: {str(e)}"
+                                else:
+                                    current_attempt_error_message = f"{type(e).__name__}: {str(e)}"
 
+                                logger.error(f"Step execution failed (Attempt {step_retries + 1}/{MAX_STEP_RETRIES + 1}): {step}. Error: {current_attempt_error_message}", exc_info=True)
                                 self._current_task_results['step_errors'].append({
                                     'step_index': step_index + 1,
                                     'step_description': step,
                                     'error_type': type(e).__name__,
-                                    'error_message': str(e),
+                                    'error_message': str(e), # Log the raw str(e) for detailed record
                                     'timestamp': datetime.utcnow().isoformat(),
                                     'attempt': step_retries + 1,
-                                    'reason': step_failure_reason # Store the specific reason
+                                    'reason': current_attempt_error_message # Store the processed error message
                                 })
                                 step_retries += 1
                                 if step_retries <= MAX_STEP_RETRIES:
                                     logger.warning(f"Step {step_index + 1} failed. Attempting retry {step_retries}/{MAX_STEP_RETRIES}...")
+                                    retry_feedback_for_llm_prompt = current_attempt_error_message # Set for the next iteration
                                 else:
                                     # Log message format matches the assertion in the test
+                                    step_failure_reason = current_attempt_error_message # Set final failure reason
                                     logger.error(f"Step {step_index + 1}/{len(solution_plan)} failed after {MAX_STEP_RETRIES} retries. Last error: {step_failure_reason}")
                                     task_failed_step = True # Mark task as failed due to step failure
                                     break # Exit retry loop for this step, move to next step (or end task)
@@ -1675,7 +1672,8 @@ Task Description:
         # Add retry feedback section if provided
         retry_feedback_section = ""
         if retry_feedback_content:
-            retry_feedback_section = retry_feedback_content
+            retry_feedback_section = f"--- PREVIOUS ATTEMPT FEEDBACK ---\n{retry_feedback_content}\n--- END PREVIOUS ATTEMPT FEEDBACK ---\n\n"
+            retry_feedback_section += "Please review the feedback carefully and provide a corrected and improved code snippet.\n\n"
 
         # --- NEW: Construct target file context section ---
         target_file_prompt_section = ""

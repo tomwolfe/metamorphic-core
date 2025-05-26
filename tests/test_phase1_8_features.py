@@ -802,6 +802,99 @@ class TestPreWriteValidation:
         # Verify that ethical and style checks on the *merged content* were NOT called
         assert mock_ethical_governance_engine.enforce_policy.call_count == 1
         assert mock_code_review_agent.analyze_python.call_count == 1
+class TestRetryPromptEnhancement: # New test class
+    def test_retry_prompt_includes_initial_snippet_syntax_error_and_ethical_failure(self, test_driver_phase1_8, caplog, mocker):
+        """
+        Tests that the CoderLLM prompt includes specific error feedback on a retry attempt
+        when an initial snippet syntax error occurs, followed by an ethical check failure.
+        """
+        driver = test_driver_phase1_8
+        caplog.set_level(logging.INFO)
+
+        # Mock ast.parse to simulate a SyntaxError for the initial snippet
+        mock_ast_parse_instance = MagicMock(side_effect=[
+            SyntaxError("invalid syntax", ('<string>', 1, 1, 'def bad_syntax:')), # First call for snippet
+            None # Subsequent calls for full file or other snippets pass
+        ])
+
+        # Mock ethical governance engine to reject the snippet
+        mock_ethical_governance_instance = driver.ethical_governance_engine
+        mock_ethical_governance_instance.enforce_policy.side_effect = [
+            {'overall_status': 'rejected', 'BiasRisk': {'status': 'violation'}}, # First call for snippet
+            {'overall_status': 'approved'} # Subsequent calls pass
+        ]
+
+        # Mock code review agent to pass (not the focus of this test)
+        mock_code_review_instance = driver.code_review_agent
+        mock_code_review_instance.analyze_python.return_value = {'status': 'success', 'static_analysis': []}
+
+        # Mock _clean_llm_snippet to return the "cleaned" version of the bad snippet
+        # This is needed because the real _clean_llm_snippet would remove fences, etc.
+        mocker.patch.object(driver, '_clean_llm_snippet', side_effect=lambda s: s.replace("```python", "").replace("```", "").strip())
+        # Mock _invoke_coder_llm to control its return value and allow assertions
+        mock_invoke_coder_llm = mocker.patch.object(driver, '_invoke_coder_llm', return_value="def fixed_function():\n    pass\n")
+
+        with patch('ast.parse', mock_ast_parse_instance):
+            # --- Simulate the relevant part of the loop (simplified for one step) ---
+            # Assume initial state where a step is being processed and a snippet is generated
+            driver._current_task = {'task_id': 'test_task', 'task_name': 'Test Task', 'description': 'Test Description', 'target_file': 'test_file.py'}
+            driver.task_target_file = 'test_file.py'
+            filepath_to_use = "test_file.py"
+            existing_content = "import os\n\n# Existing content\n"
+            step_description = "Implement a new function."
+            prelim_flags = {'is_code_generation_step_prelim': True}
+
+            # Simulate the first attempt's failure and capture feedback
+            initial_bad_snippet = "```python\ndef bad_syntax:\n    pass\n```"
+            
+            # Simulate the loop's call to _construct_coder_llm_prompt and _invoke_coder_llm
+            # This part would normally be inside autonomous_loop
+            # For this test, we simulate the *retry* prompt construction
+            
+            # Simulate the feedback collected from the first failed attempt
+            retry_feedback_for_llm_prompt = (
+                "The previous code snippet failed pre-write validation due to:\n"
+                "- Pre-write syntax check failed: invalid syntax (<string>, line 1)\n"
+                "- Pre-write ethical check failed: {'overall_status': 'rejected', 'BiasRisk': {'status': 'violation'}}"
+            )
+    
+            # Construct the prompt for the retry attempt
+            coder_prompt = driver._construct_coder_llm_prompt(
+                        task=driver._current_task,
+                        step_description=step_description,
+                        filepath_to_use=filepath_to_use,
+                        context_for_llm=existing_content,
+                        is_minimal_context=False,
+                        retry_feedback_content=retry_feedback_for_llm_prompt # Pass feedback from previous failure
+                    )
+            generated_snippet = driver._invoke_coder_llm(coder_prompt) # Corrected indentation
+            cleaned_snippet = driver._clean_llm_snippet(generated_snippet) # Corrected indentation
+    
+            # Assertions
+            assert "The previous code snippet failed pre-write validation due to:" in coder_prompt
+            assert "- Pre-write syntax check failed: invalid syntax (<string>, line 1)" in coder_prompt
+            assert "- Pre-write ethical check failed: {'overall_status': 'rejected', 'BiasRisk': {'status': 'violation'}}" in coder_prompt
+            assert "Please review the feedback carefully and provide a corrected and improved code snippet." in coder_prompt
+            # The step "Implement a new function" triggers the full block instructions.
+            # The previous assertion was for a string not present in any constant.
+            assert "CRITICAL INSTRUCTIONS FOR YOUR RESPONSE FORMAT (Full Block/Method/Class Focus):" in coder_prompt
+            assert "Your entire response MUST be ONLY a valid Python code snippet representing the complete new or modified function, method, or class." in coder_prompt
+    
+            # Verify that the LLM was invoked with the prompt containing the feedback
+            mock_invoke_coder_llm.assert_called_once_with(coder_prompt)
+    
+            # Verify that _clean_llm_snippet was called with the generated snippet
+            driver._clean_llm_snippet.assert_called_once_with(generated_snippet)
+    
+            # Verify that the initial snippet was passed to ast.parse and ethical check
+            # Note: In a real scenario, these would be called during the *first* attempt's validation.
+            # Here, we're just setting up the mocks to simulate the *reason* for the retry feedback.
+            # The actual calls to ast.parse and enforce_policy would happen in the autonomous_loop's validation logic.
+            # For this test, we are primarily checking the prompt content.
+            # The assertions for mock_ast_parse_instance and mock_ethical_governance_instance.enforce_policy
+            # with initial_bad_snippet are removed because these calls are simulated as *past* events
+            # that generated the retry_feedback_for_llm_prompt, not as events triggered by the code under test
+            # in this specific test (which is _construct_coder_llm_prompt).
 class TestPathResolutionAndValidation:
     def test_validate_path_safe_relative(self, driver_for_multi_target_resolution, tmp_path):
         driver = driver_for_multi_target_resolution

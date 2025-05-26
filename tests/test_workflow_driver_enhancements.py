@@ -357,6 +357,40 @@ class TestWorkflowDriverPromptRefinement:
         assert idx_targeted_mod != -1, "Targeted modification instructions not found."
         # Assert the relative order, as this is a semantic part of the prompt structure
         assert idx_critical < idx_targeted_mod, "Critical instructions should appear before targeted modification instructions."
+    
+    # Start of new test case
+    def test_coder_prompt_includes_enhanced_python_guidelines(self, driver_enhancements):
+        """
+        Verify that the enhanced Python-specific guidelines (imports, logging, f-strings)
+        are included in the CoderLLM prompt.
+        """
+        driver = driver_enhancements
+        mock_task = {
+            'task_id': 'py_guideline_task',
+            'task_name': 'Python Guideline Test',
+            'description': 'A task involving Python code generation.',
+            'target_file': 'src/some_module.py'
+        }
+        mock_filepath = 'src/some_module.py'
+        mock_existing_content = 'def existing_func():\n    pass'
+
+        # Configure mocks for a typical Python code modification step
+        driver._is_add_imports_step.return_value = False
+        driver._should_add_docstring_instruction.return_value = False # Not creating a new structure for this test
+
+        coder_prompt = driver._construct_coder_llm_prompt(
+            task=mock_task,
+            step_description="Modify existing_func to add logging.",
+            filepath_to_use=mock_filepath,
+            context_for_llm=mock_existing_content,
+            is_minimal_context=False
+        )
+
+        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
+        assert "Imports: If standard Python modules like `re`, `ast`" in coder_prompt
+        assert "Logging: If logging is required within a class method, use `self.logger.debug(...)`" in coder_prompt
+        assert "F-strings: Ensure all f-strings are correctly formatted" in coder_prompt
+        assert "Line length: Keep lines under 80 characters (preferably 79)" in coder_prompt
 
 
 class TestWorkflowDriverMergeStrategy:

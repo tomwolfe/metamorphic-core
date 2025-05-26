@@ -15,9 +15,11 @@ GENERAL_SNIPPET_GUIDELINES = (
     "3. Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons.\n"
     "4. If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity.\n"
     "5. Adhere strictly to PEP 8 style guidelines. This includes, but is not limited to:\n"
-    "   - Line length: Keep lines under 80 characters, including docstrings and comments.\n"
+    "   - Line length: Keep lines under 80 characters (preferably 79), including docstrings and comments.\n"
     "   - Comments: Inline comments should start with a # and a single space, and be preceded by at least two spaces.\n"
-    "   - Imports: If type hints (e.g., Dict, List, Any from `typing`) are used, ensure they are imported if not already present in the provided context. However, prefer to generate code that does not require new imports unless explicitly part of the task."
+    "   - Imports: If standard Python modules like `re`, `ast`, `json`, `collections`, `datetime`, etc., are used, ensure they are imported at the beginning of the snippet (e.g., `import re`). For type hints (e.g., `List`, `Dict` from `typing`), ensure `from typing import List, Dict` is included if used. Prefer to generate code that does not require new *third-party* library imports unless explicitly part of the task or already present in the provided context.\n"
+    "6. Logging: If logging is required within a class method, use `self.logger.debug(...)`, `self.logger.info(...)`, etc., assuming `self.logger` is available. For standalone functions or scripts, ensure `logger` is properly initialized (e.g., `import logging; logger = logging.getLogger(__name__)`) if not provided in context.\n"
+    "7. F-strings: Ensure all f-strings are correctly formatted with placeholders if variables are intended (e.g., `f'Value is {my_variable}'`). If an f-string is meant to be literal (e.g., in a regex pattern that uses curlies), ensure it does not contain unmatched curly braces that would cause a `SyntaxError` during f-string parsing, or use a raw string `r''` if appropriate."
 )
 
 # CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS is a template string that needs to be formatted
@@ -53,7 +55,7 @@ PYTHON_CREATION_KEYWORDS = [ # Task 1.8.Y: Keywords indicating creation of new P
     "implement function", "add method", "create class", "define function",
     "write function", "write method", "write class",
     "implement a function", "add a method", "create a class", "define a function",
-    "write a function", "write a method", "write a class",
+    "write a function", "write a method", "a class",
     "new function", "new method", "new class", "generate function",
     "generate method", "generate class", "add function to", "add method to", "add class to",
     "write a new function", "write a python function", "write a new python function",

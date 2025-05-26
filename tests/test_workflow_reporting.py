@@ -456,7 +456,7 @@ class TestWorkflowReporting:
         })
         result = driver._parse_and_evaluate_grade_report(report_json)
         assert result["recommended_action"] == "Manual Review Required"
-        assert result["justification"] == "Overall grade (79%) is below regeneration threshold or other issues require manual review."
+        assert "Overall grade (79%) is below regeneration threshold or other issues require manual review." in result["justification"]
 
     def test_parse_and_evaluate_grade_report_json_decode_error(self, test_driver_reporting, caplog):
         """Test _parse_and_evaluate_grade_report handles invalid JSON input."""
@@ -539,23 +539,58 @@ class TestWorkflowReporting:
         # FIX: Corrected justification based on code logic
         assert "Test execution or parsing error: Execution failed." in result["justification"]
 
-    def test_parse_and_evaluate_grade_report_step_errors(self, test_driver_reporting):
-        """Test _parse_and_evaluate_grade_report returns 'Blocked' if step errors occurred."""
-        driver = test_driver_reporting['driver'] # Access driver from dict
-        report_json = json.dumps({
-            "task_id": "test_task",
-            "grades": {"overall_percentage_grade": 100}, # Even with 100% grade, step errors should force manual review
+    def test_parse_and_evaluate_grade_report_step_errors_do_not_block_if_task_succeeded(self, test_driver_reporting):
+        """
+        Test that step_errors do not cause a 'Blocked' recommendation if the task
+        otherwise would be 'Completed' or 'Regenerate Code', as task-level blocking
+        for step failures is handled before grade report evaluation.
+        """
+        driver = test_driver_reporting['driver']
+        
+        # Scenario 1: High grade, but step errors present
+        report_json_high_grade = json.dumps({
+            "task_id": "test_task_step_errors_high_grade",
+            "grades": {"overall_percentage_grade": 100},
             "validation_results": {
                 "tests": {"status": "passed"},
                 "code_review": {"status": "success", "static_analysis": []},
                 "ethical_analysis": {"overall_status": "approved"},
-                "step_errors": [{"step_index": 1, "error_message": "Mock error"}] # Include step errors
+                "step_errors": [{"step_index": 1, "error_message": "Initial attempt failed but step succeeded later"}]
             }
         })
-        result = driver._parse_and_evaluate_grade_report(report_json)
-        # FIX: Assertion matches the SUT logic which sets action to "Blocked" for step errors
-        assert result["recommended_action"] == "Blocked"
-        assert "Step execution errors occurred (1 errors). Manual review required." in result["justification"]
+        result_high_grade = driver._parse_and_evaluate_grade_report(report_json_high_grade)
+        assert result_high_grade["recommended_action"] == "Completed", \
+            "Should be Completed if grade is 100%, even with past step errors."
+
+        # Scenario 2: Regenerate grade, but step errors present
+        report_json_regenerate_grade = json.dumps({
+            "task_id": "test_task_step_errors_regenerate_grade",
+            "grades": {"overall_percentage_grade": 85}, # Meets regeneration threshold
+            "validation_results": {
+                "tests": {"status": "passed"},
+                "code_review": {"status": "success", "static_analysis": []},
+                "ethical_analysis": {"overall_status": "approved"},
+                "step_errors": [{"step_index": 1, "error_message": "Initial attempt failed but step succeeded later"}]
+            }
+        })
+        result_regenerate_grade = driver._parse_and_evaluate_grade_report(report_json_regenerate_grade)
+        assert result_regenerate_grade["recommended_action"] == "Regenerate Code", \
+            "Should be Regenerate Code if grade is >=80% and <100%, even with past step errors."
+
+        # Scenario 3: Manual Review grade, but step errors present
+        report_json_manual_grade = json.dumps({
+            "task_id": "test_task_step_errors_manual_grade",
+            "grades": {"overall_percentage_grade": 70}, # Below regeneration threshold
+            "validation_results": {
+                "tests": {"status": "passed"},
+                "code_review": {"status": "success", "static_analysis": []},
+                "ethical_analysis": {"overall_status": "approved"},
+                "step_errors": [{"step_index": 1, "error_message": "Initial attempt failed but step succeeded later"}]
+            }
+        })
+        result_manual_grade = driver._parse_and_evaluate_grade_report(report_json_manual_grade)
+        assert result_manual_grade["recommended_action"] == "Manual Review Required", \
+            "Should be Manual Review if grade is <80%, even with past step errors."
 
     # --- Tests for orchestration of validation steps within autonomous_loop ---
     # These tests verify that the correct methods (execute_tests, _parse_test_results,

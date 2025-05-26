@@ -387,7 +387,7 @@ class TestWorkflowDriverPromptRefinement:
         )
 
         assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
-        assert "Imports: If standard Python modules like `re`, `ast`" in coder_prompt
+        assert "Imports: If standard Python modules (e.g., `re`, `ast`, `json`" in coder_prompt # Updated assertion to match new constant content
         assert "Logging: If logging is required within a class method, use `self.logger.debug(...)`" in coder_prompt
         assert "F-strings: Ensure all f-strings are correctly formatted" in coder_prompt
         assert "Line length: Keep lines under 80 characters (preferably 79)" in coder_prompt

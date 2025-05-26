@@ -2312,15 +2312,8 @@ Task Description:
         logger.info(f"Grade Report Metrics: Overall Grade={overall_percentage_grade}%, Test Status={test_results.get('status')}, Ethical Status={ethical_analysis_results.get('overall_status')}, Code Review Status={code_review_results.get('status')}, Step Errors={len(step_errors)}")
 
         recommended_action = "Manual Review Required"
-        justification = "Default action based on unhandled scenario."
-
-        # Prioritize Step Errors
-        if step_errors:
-            recommended_action = "Blocked" # Step errors block progress
-            justification = f"Step execution errors occurred ({len(step_errors)} errors). Manual review required."
-            logger.warning(f"Step execution errors detected. Recommended Action: {recommended_action}")
-            return {"recommended_action": recommended_action, "justification": justification}
-
+        justification = "Default action for unhandled scenarios." # Step errors are handled by the main loop.
+    
         # Prioritize Critical Failures (Ethical Rejection, High Security)
         if ethical_analysis_results.get('overall_status') == 'rejected':
             recommended_action = "Blocked"

@@ -21,7 +21,8 @@ from src.cli.write_file import write_file
 from src.core.constants import (
     CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS,
     END_OF_CODE_MARKER, GENERAL_SNIPPET_GUIDELINES, DOCSTRING_INSTRUCTION_PYTHON,
-    PYTHON_CREATION_KEYWORDS, CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS,
+    PYTHON_CREATION_KEYWORDS, GENERAL_PYTHON_DOCSTRING_REMINDER, # Added GENERAL_PYTHON_DOCSTRING_REMINDER
+    CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS,
     MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, MAX_STEP_RETRIES
 )
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
@@ -1666,9 +1667,12 @@ Task Description:
         # Add docstring instruction conditionally
         docstring_prompt_addition = ""
         if self._should_add_docstring_instruction(step_description, filepath_to_use):
-            # Include the example directly in the docstring prompt addition
             docstring_prompt_addition = "\n" + DOCSTRING_INSTRUCTION_PYTHON + " # (e.g., 'IMPORTANT: For any new Python functions... you MUST include a comprehensive PEP 257 compliant docstring.')\n\n"
-
+        elif filepath_to_use and filepath_to_use.lower().endswith(".py"):
+            # If it's a Python file but not a clear "creation" step, add a general reminder.
+            # This applies to Python source files (.py), not compiled files (.pyc) or other non-source files.
+            docstring_prompt_addition = "\n" + GENERAL_PYTHON_DOCSTRING_REMINDER + "\n\n"
+    
         # Add retry feedback section if provided
         retry_feedback_section = ""
         if retry_feedback_content:

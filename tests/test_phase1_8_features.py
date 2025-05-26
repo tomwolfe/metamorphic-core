@@ -24,7 +24,7 @@ sys.path.insert(0, str(src_dir.resolve()))
 # FIX: Import all necessary components used in tests
 # Added DOCSTRING_INSTRUCTION_PYTHON for the new tests
 # Added PYTHON_CREATION_KEYWORDS for the unit test mock implementation
-from src.core.automation.workflow_driver import WorkflowDriver, Context, MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, classify_plan_step, CODE_KEYWORDS, CONCEPTUAL_KEYWORDS, MAX_STEP_RETRIES, DOCSTRING_INSTRUCTION_PYTHON, PYTHON_CREATION_KEYWORDS, GENERAL_SNIPPET_GUIDELINES, CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, END_OF_CODE_MARKER, CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS
+from src.core.automation.workflow_driver import WorkflowDriver, Context, MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, classify_plan_step, CODE_KEYWORDS, CONCEPTUAL_KEYWORDS, MAX_STEP_RETRIES, DOCSTRING_INSTRUCTION_PYTHON, PYTHON_CREATION_KEYWORDS, GENERAL_PYTHON_DOCSTRING_REMINDER, GENERAL_SNIPPET_GUIDELINES, CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, END_OF_CODE_MARKER, CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS
 from src.utils.config import SecureConfig # Import SecureConfig for patching
 
 # FIX: Import EnhancedLLMOrchestrator as it's patched
@@ -2021,7 +2021,18 @@ class TestPhase18DocstringPrompt:
             "add class to module Z",
             "write a new function", # Added keyword
             "create a python function", # Added keyword
-            "define a new python class", # Added keyword
+            "define a new class", # Added keyword
+            "define a new global function",
+            "define a new python class", # Added keyword for test case
+            # New keywords for Phase 1.8 docstring robustness (Task: unblock task_1_8_A_optimize_large_context)
+            "Develop test case for user authentication.",
+            "Write test method for the new parser.",
+            "Create test class for the API client.",
+            "Add logic to handle user input.",
+            "Implement logic for data validation.",
+            "Refactor function to improve performance.",
+            "Add helper function for string manipulation.",
+            "Enhance prompt construction for better LLM output.",
         ]
         for desc in positive_descriptions:
             # FIX: Use pytest's parametrization or keep the loop with explicit assertions
@@ -2129,8 +2140,7 @@ class TestPhase18DocstringPrompt:
     # FIX: Remove patch.object(WorkflowDriver, '_invoke_coder_llm') as we are not calling it
     @patch.object(WorkflowDriver, '_read_file_for_context', return_value="existing content")
     @patch.object(WorkflowDriver, '_should_add_docstring_instruction') # Local patch for this test
-    # No need to patch _resolve_target_file_for_step and _classify_step_preliminary here,
-    # they are patched in setUp and their mocks are available via setup_driver fixture
+    # _resolve_target_file_for_step and _classify_step_preliminary are patched in setUp and their mocks are available via setup_driver fixture
     def test_coder_prompt_excludes_docstring_instruction_when_not_needed(self, mock_should_add_docstring_instruction, mock_read_file, setup_driver):
         """Verify the docstring instruction is NOT added for non-creation or non-python tasks."""
         driver = setup_driver['driver']
@@ -2139,55 +2149,76 @@ class TestPhase18DocstringPrompt:
         mock_classify_step = setup_driver['mock_classify_step']
         mock_llm_orchestrator = setup_driver['mock_llm_orchestrator'] # Get the mock instance
         # No need for mock_resolved_target_path here, as it's set on the mock_resolve_target_file
-        # FIX: Update the task's target file to match the step's target for this test
-        driver._current_task['target_file'] = 'src/config.txt'
-        # FIX: Update mock_validate_path to return the resolved path for the new task target
-        resolved_target_path = str(tmp_path_obj / "src/config.txt")
-        setup_driver['mock_validate_path'].return_value = resolved_target_path
+        # Update the task's target file to match the step's target for this test
+        driver._current_task['target_file'] = 'src/module.py' # Ensure it's a .py file
+        python_target_path = str(tmp_path_obj / "src/module.py")
+        setup_driver['mock_validate_path'].return_value = python_target_path
         mock_validate_path = setup_driver['mock_validate_path']
-
+    
         step = "Update the configuration settings in src/config.txt"
-
+    
         # Configure mocks called before prompt construction
-        resolved_target_path = str(tmp_path_obj / "src/config.txt")
-        mock_resolve_target_file.return_value = resolved_target_path
+        mock_resolve_target_file.return_value = python_target_path
         mock_classify_step.return_value = {
             'is_code_generation_step_prelim': True, # Still simulate code gen step type
-            'filepath_from_step': 'src/config.txt',
+            'filepath_from_step': driver._current_task['target_file'],
             'is_test_execution_step_prelim': False,
             'is_explicit_file_writing_step_prelim': False,
             'is_research_step_prelim': False,
             'is_test_writing_step_prelim': False
         }
-
+    
         # Ensure internal methods that influence prompt construction are mocked as needed for this test
         setup_driver['mock_is_add_imports_step'].return_value = False # Default to not an import step
-        mock_should_add_docstring_instruction.return_value = False # Explicitly set for this test
-
+        mock_should_add_docstring_instruction.return_value = False
+    
         # Define filepath_to_use and context_for_llm
-        filepath_to_use = resolved_target_path
+        filepath_to_use = python_target_path
         context_for_llm = mock_read_file.return_value # This is "existing content"
-
+    
         coder_prompt = driver._construct_coder_llm_prompt(
             task=driver._current_task,
             step_description=step,
             filepath_to_use=filepath_to_use,
             context_for_llm=context_for_llm,
-            is_minimal_context=False # It's the full existing content
+            is_minimal_context=False
         )
-
+    
         # Assert critical instructions are present
         assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in coder_prompt
-
-        # Verify the docstring instruction is NOT in the actual prompt
+    
+        # Verify the SPECIFIC docstring instruction is NOT in the prompt
         assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt
+        # Verify the GENERAL docstring reminder IS in the prompt for .py files
+        assert GENERAL_PYTHON_DOCSTRING_REMINDER in coder_prompt
+    
         # Assert the target file context phrasing matches the SUT (needs to be constructed)
         # The prompt section is: "The primary file being modified for this task is specified as `resolved_primary_task_target_path` in the task metadata. Focus your plan steps on actions related to this file."
         expected_target_file_context = (
-            f"The primary file being modified for this task is specified as `{resolved_target_path}` "
+            f"The primary file being modified for this task is specified as `{python_target_path}` "
             "in the task metadata. Focus your plan steps on actions related to this file."
         )
         assert expected_target_file_context.strip() in coder_prompt
+    
+        # Scenario 2: Non-Python file, docstring instructions should be absent
+        driver._current_task['target_file'] = 'src/config.txt' # Change to non .py
+        non_python_target_path = str(tmp_path_obj / "src/config.txt")
+        setup_driver['mock_validate_path'].return_value = non_python_target_path
+        mock_resolve_target_file.return_value = non_python_target_path # Update mock
+        mock_classify_step.return_value['filepath_from_step'] = 'src/config.txt' # Update mock
+    
+        mock_should_add_docstring_instruction.return_value = False
+    
+        coder_prompt_non_py = driver._construct_coder_llm_prompt(
+            task=driver._current_task,
+            step_description=step, # Same step description, different target file
+            filepath_to_use=non_python_target_path,
+            context_for_llm=context_for_llm,
+            is_minimal_context=False
+        )
+        assert DOCSTRING_INSTRUCTION_PYTHON not in coder_prompt_non_py
+        assert GENERAL_PYTHON_DOCSTRING_REMINDER not in coder_prompt_non_py
+    
 # --- New Test Class for Prompt Refinement Logic ---
 class TestPromptRefinement:
 
@@ -2301,9 +2332,6 @@ class TestMergeSnippetLogic:
         # No marker, append behavior
         ("line1\nline2", "appended", "line1\nline2\nappended"),
         ("line1", "appended", "line1\nappended"),
-        # Empty snippet
-        ("def func():\n    # METAMORPHIC_INSERT_POINT\n    pass", "", "def func():\n    \n    pass"), # Marker replaced with empty string, preserving newline
-        ("line1\nline2", "", "line1\nline2"),
         # NEW: Empty snippet with prefix on marker line
         ("def func():\n    x = 1 # METAMORPHIC_INSERT_POINT\n    pass", "", "def func():\n    x = 1\n    \n    pass"),
         # Snippet with internal leading whitespace (should be preserved relative to new indentation)

@@ -74,8 +74,23 @@ PYTHON_CREATION_KEYWORDS = [ # Task 1.8.Y: Keywords indicating creation of new P
     "define a new class", "define a python class",
     "implement a new class", "implement a python class", "implement a new python class",
     # These were already in constants, but ensure they are covered
-    "add function", "add method", "add class"
+    "add function", "add method", "add class", "test case", # Added for docstring robustness
+    # Added for Phase 1.8 docstring robustness (Task: unblock task_1_8_A_optimize_large_context)
+    "develop test case", "write test method", "create test class", # For test generation
+    "add logic", "implement logic", "define logic", # For adding significant blocks
+    "refactor function", "refactor method", # For substantial rewrites that might need new/updated docstrings
+    "add helper function", "implement helper function", "define helper method", # For new helpers
+    "enhance prompt construction", "modify prompt construction", # For tasks involving prompt logic changes
 ]
+
+
+# General reminder for docstrings in Python files
+GENERAL_PYTHON_DOCSTRING_REMINDER = (
+    "REMINDER: If new Python functions, methods, or classes are created, or if existing ones "
+    "are significantly modified to implement this step, ensure they include (or have updated) "
+    "comprehensive PEP 257 compliant docstrings. Use Google-style format (Args:, Returns:, Example: sections). "
+    "This is important for code maintainability and to pass automated checks."
+)
 
 # New critical output instructions specifically for full Python blocks (functions, methods, classes)
 CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS = (

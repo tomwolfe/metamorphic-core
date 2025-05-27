@@ -493,7 +493,7 @@ class WorkflowDriver:
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef) and node.name == target_class_name:
                         # Buffer: 1 line before class def, 1 line after (Qwen's suggestion adapted)
-                        start_idx = max(0, node.lineno - 4) # Increase buffer to include more lines before class
+                        start_idx = max(0, node.lineno - 5) # Increase buffer to include more lines before class
                         class_end_lineno = node.end_lineno if hasattr(node, 'end_lineno') and node.end_lineno is not None else node.lineno
                         end_idx = min(len(lines), class_end_lineno + 1) # Convert to 0-indexed slice end and add buffer
                         logger.debug(f"Extracting class context for '{target_class_name}' in {file_path}: lines {start_idx+1} to {end_idx}.")
@@ -1064,7 +1064,7 @@ class WorkflowDriver:
                                             # We will still proceed to the full file check, which is more definitive.
                                             initial_snippet_syntax_error_details = f"Initial snippet syntax check failed: {se_snippet.msg} on line {se_snippet.lineno} (offset {se_snippet.offset}). Offending line: '{se_snippet.text.strip() if se_snippet.text else 'N/A'}'"
                                             logger.warning(f"Snippet AST parse check (isolated) failed with SyntaxError: {se_snippet}. This might be acceptable if the snippet integrates correctly. Proceeding to other checks.")
-                                            logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Log the cleaned snippet
+                                            logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---")
 
                                             # --- START of manual addition for task_1_8_improve_snippet_handling sub-task 1 ---
                                             try:
@@ -2799,3 +2799,134 @@ Your response should be the complete, corrected code content that addresses the 
         except Exception as e:
             logger.error(f"Error during test failure remediation: {e}", exc_info=True)
             return False
+
+    def _extract_top_n_lines(self, file_content: str, n: int) -> str:
+        """
+        Extracts the top N lines from the given file content.
+
+        Args:
+            file_content: The full content of the file as a string.
+            n: The number of lines to extract from the top.
+
+        Returns:
+            A string containing the top N lines, or the full content if N is larger
+            than the total lines. Returns an empty string if n is 0 or content is empty.
+        
+        Example:
+            content = "line1\\nline2\\nline3"
+            _extract_top_n_lines(content, 2)  # Returns "line1\\nline2"
+        """
+        if not file_content or n <= 0:
+            return ""
+        lines = file_content.splitlines()
+        return "\n".join(lines[:n])
+
+    def _extract_import_block(self, file_content: str) -> str:
+        """
+        Extracts the import block from the given Python file content.
+        The import block includes all import statements (single and multiline),
+        module/file-level docstrings, shebangs, and any comments or blank lines
+        interspersed at the beginning of the file, up to the first line of
+        executable code (e.g., function definition, class definition, variable
+        assignment not part of an import).
+
+        Args:
+            file_content: The full content of the Python file as a string.
+
+        Returns:
+            A string containing the import block. Returns an empty string if no
+            relevant lines are found at the beginning or if the file content is empty.
+        
+        Example:
+            content = "#!/usr/bin/env python\\n\\"\"\"Module doc.\"\"\"\\nimport os\\n\\n# comment\\nfrom sys import path\\ndef my_func(): pass"
+            _extract_import_block(content) 
+            # Returns: "#!/usr/bin/env python\\n\\"\"\"Module doc.\"\"\"\\nimport os\\n\\n# comment\\nfrom sys import path"
+        """
+        if not file_content:
+            return ""
+
+        lines = file_content.splitlines()
+        import_block_lines = []
+        in_multiline_import = False
+
+        for line_number, line_text in enumerate(lines):
+            stripped_line = line_text.strip()
+
+            if in_multiline_import:
+                import_block_lines.append(line_text)
+                if ")" in stripped_line: # Simplistic check for end of multiline import
+                    in_multiline_import = False
+                continue
+
+            if not stripped_line: # Blank line
+                import_block_lines.append(line_text)
+                continue
+            
+            if stripped_line.startswith("#"): # Comment
+                import_block_lines.append(line_text)
+                continue
+
+            if stripped_line.startswith("\"\"\"") or stripped_line.startswith("'''"): # Docstring
+                import_block_lines.append(line_text)
+                # Handle multi-line docstrings - simplistic: continue until closing triple quotes
+                if not (stripped_line.endswith("\"\"\"") or stripped_line.endswith("'''")) or len(stripped_line) < 6 :
+                    for next_line_idx in range(line_number + 1, len(lines)):
+                        import_block_lines.append(lines[next_line_idx])
+                        if (lines[next_line_idx].strip().endswith("\"\"\"") or lines[next_line_idx].strip().endswith("'''")):
+                            break
+                continue
+
+            if stripped_line.startswith("import ") or stripped_line.startswith("from "):
+                import_block_lines.append(line_text)
+                if "(" in stripped_line and ")" not in stripped_line:
+                    in_multiline_import = True
+                continue
+            
+            # If we reach here, it's the first non-import, non-comment, non-blank, non-docstring line
+            break 
+
+        return "\n".join(import_block_lines)
+
+    def _extract_class_method_context(self, file_content: str, class_name: str, method_name: Optional[str]) -> str:
+        """
+        Extracts the context for a specific class. If method_name is provided and found,
+        extracts only that method's definition. Otherwise, extracts the entire class.
+        Uses AST parsing. Returns empty string on syntax error or if not found.
+
+        Args:
+            file_content: The full content of the Python file as a string.
+            class_name: The name of the class to find.
+            method_name: The name of the method. If None, extracts the class.
+                         If specified and found, extracts only the method.
+                         If specified but not found, extracts the class.
+
+        Returns:
+            String of the class/method context, or empty string.
+        
+        Example:
+            content = "class A:\\n  def m1(self): pass\\n  def m2(self): pass"
+            _extract_class_method_context(content, "A", "m1") # Returns "  def m1(self): pass"
+            _extract_class_method_context(content, "A", None) # Returns "class A:\\n  def m1(self): pass\\n  def m2(self): pass"
+        """
+        try:
+            tree = ast.parse(file_content)
+            lines = file_content.splitlines()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef) and node.name == class_name:
+                    if method_name:
+                        for child_node in node.body:
+                            if isinstance(child_node, ast.FunctionDef) and child_node.name == method_name:
+                                # Extract just the method lines
+                                start = child_node.lineno -1
+                                end = child_node.end_lineno if hasattr(child_node, 'end_lineno') and child_node.end_lineno is not None else start + (len(ast.unparse(child_node).splitlines()) if hasattr(ast, 'unparse') else 1)
+                                return "\n".join(lines[start:end])
+                        logger.warning(f"Method '{method_name}' not found in class '{class_name}'. Returning full class context.")
+                    # Fallback to returning full class if method_name is None or method not found
+                    class_start = node.lineno - 1
+                    class_end = node.end_lineno if hasattr(node, 'end_lineno') and node.end_lineno is not None else class_start + (len(ast.unparse(node).splitlines()) if hasattr(ast, 'unparse') else 1)
+                    return "\n".join(lines[class_start:class_end])
+            logger.warning(f"Class '{class_name}' not found in the file.")
+            return ""
+        except SyntaxError as e:
+            logger.error(f"Syntax error parsing file content for context extraction: {e}")
+            return ""

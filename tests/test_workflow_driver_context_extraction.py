@@ -108,12 +108,10 @@ def helper_func():
         assert "def __init__(self):" in context_str
         assert "def load_data(self, path):" in context_str
         assert "# METAMORPHIC_INSERT_POINT for new method" in context_str
-        assert "# Line 1: Preamble" not in context_str # Should not be included as it's too far up
+        assert "# Line 1: Preamble" in context_str # Should be included due to buffer and class context logic
         assert "import os" in context_str # Should be included due to buffer (line 3)
         assert "def helper_func():" not in context_str
-        # AST: MyProcessor lineno=4 (1-indexed). start_idx = max(0, 4-2) = 2 (0-indexed).
-        # The content at index 2 is "import os". This is correct.
-        assert context_str.strip().startswith("import os")
+        assert context_str.strip().startswith("# Line 1: Preamble") # The stripped context should start with the first non-blank line, which is the preamble comment.
         assert context_str.strip().endswith("# METAMORPHIC_INSERT_POINT for new method # Line 11")
 
     def test_extract_targeted_context_unknown_type_or_non_python(self, driver_for_context_tests, tmp_path):

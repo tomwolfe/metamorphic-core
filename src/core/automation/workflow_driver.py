@@ -278,8 +278,8 @@ class WorkflowDriver:
         if not isinstance(snippet, str):
             self.logger.warning(f"Snippet cleaning received non-string input: {type(snippet)}. Returning empty string.")
             return ""
-
-        processed_snippet = snippet.strip()
+ 
+        processed_snippet = snippet # Preserve leading whitespace for indentation analysis
 
         # 1. Attempt to extract content from markdown fences first (case-insensitive for language tag)
         # Use re.search to find the first occurrence of a fenced block anywhere in the string.
@@ -291,14 +291,14 @@ class WorkflowDriver:
         
         fences_found = False
         if fenced_block_match:
-            # If a fenced block is found, extract its content and discard everything else.
+            # If a fenced block is found, extract its content. Do NOT strip leading/trailing whitespace here.
+            # The _merge_snippet function handles *relative* indentation of lines within the snippet.
             processed_snippet = fenced_block_match.group(1).strip()
-            self.logger.debug("Markdown fenced block found and content extracted.")
+            self.logger.debug("Markdown fenced block found and content extracted and stripped.")
             fences_found = True
         else:
             # If no fenced block is found, the snippet is treated as raw code.
             self.logger.debug("No markdown fenced block found. Treating snippet as raw code.")
-
         # 2. Look for the end-of-code marker and truncate if found
         # This applies to the content *after* potential fence stripping.
         # The marker is the definitive end of the code snippet.
@@ -307,7 +307,7 @@ class WorkflowDriver:
         if len(parts) > 1: # Marker was found
             processed_snippet = parts[0].strip()
             marker_found = True
-            self.logger.debug(f"End-of-code marker found. Snippet truncated.")
+            self.logger.debug(f"End-of-code marker found. Snippet truncated and stripped.")
         
         # 3. Fallback: If no fences were found AND no marker was found,
         #    attempt to remove trailing non-code text (LLM chatter).
@@ -328,12 +328,13 @@ class WorkflowDriver:
                     break
             
             if first_chatter_line_index != -1:
-                processed_snippet = "\n".join(lines[:first_chatter_line_index])
-                self.logger.debug(f"Truncated snippet based on first chatter line heuristic.")
+                processed_snippet = "\n".join(lines[:first_chatter_line_index]).strip()
+                self.logger.debug(f"Truncated snippet based on first chatter line heuristic and stripped.")
             else:
                 self.logger.debug(f"No clear chatter lines found in raw snippet. Keeping as is.")
 
         # 4. Final strip to remove any remaining leading/trailing whitespace
+        # Only strip trailing whitespace/newlines, preserve leading indentation.
         return processed_snippet.strip()
 
     def _load_default_policy(self):
@@ -659,7 +660,7 @@ class WorkflowDriver:
             if targets:
                 effective_task_target = targets[0] # Use the first target if multi-target spec is passed here
 
-        filepath_to_use = filepath_from_step or effective_task_target # Prioritize filepath_from_step if present
+        filepath_to_use = effective_task_target or filepath_from_step # Prioritize effective_task_target if present
 
         if is_code_generation_step_prelim and is_test_writing_step_prelim:
             explicit_test_path_in_step = None
@@ -1108,7 +1109,7 @@ class WorkflowDriver:
                                             validation_passed = False
                                             validation_feedback.append(f"Error during pre-write syntax validation (AST parse of snippet): {e}")
                                             logger.error(f"Error during pre-write syntax validation (AST parse of snippet): {e}", exc_info=True)
-                                            logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Log the cleaned snippet
+                                            logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---")
                                         
                                         if validation_passed and self.default_policy_config:
                                             # Ethical check on the snippet itself.

@@ -335,7 +335,7 @@ class WorkflowDriver:
 
         # 4. Final strip to remove any remaining leading/trailing whitespace
         # Only strip trailing whitespace/newlines, preserve leading indentation.
-        return processed_snippet.rstrip() # Changed to rstrip()
+        return processed_snippet.strip() # Changed to strip()
 
     def _load_default_policy(self):
         # Use context.get_full_path to resolve the policy path safely

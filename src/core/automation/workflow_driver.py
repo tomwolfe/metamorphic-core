@@ -659,7 +659,7 @@ class WorkflowDriver:
             if targets:
                 effective_task_target = targets[0] # Use the first target if multi-target spec is passed here
 
-        filepath_to_use = effective_task_target
+        filepath_to_use = filepath_from_step or effective_task_target # Prioritize filepath_from_step if present
 
         if is_code_generation_step_prelim and is_test_writing_step_prelim:
             explicit_test_path_in_step = None
@@ -672,19 +672,23 @@ class WorkflowDriver:
 
             if effective_task_target and effective_task_target.endswith('.py') and \
             ("test_" in effective_task_target.lower() or "tests/" in effective_task_target.lower()):
+                # If task target is already a test file, use it directly
                 filepath_to_use = effective_task_target
                 logger.info(f"Test writing step: Using task_target_file as it appears to be a test file '{filepath_to_use}'.")
             elif explicit_test_path_in_step:
+                # If an explicit test path is mentioned in the step, use that
                 filepath_to_use = explicit_test_path_in_step
                 logger.info(f"Test writing step: Using explicit test path from step '{filepath_to_use}'.")
             elif effective_task_target and effective_task_target.endswith('.py') and \
                 not ("test_" in effective_task_target.lower() or "tests/" in effective_task_target.lower()):
+                # If task target is a .py file but not a test file, derive a test path
                 p = Path(effective_task_target)
                 derived_test_path = Path("tests") / f"test_{p.name}"
                 filepath_to_use = str(derived_test_path)
                 logger.info(f"Test writing step: Derived test file path '{filepath_to_use}' from task target '{effective_task_target}'.")
             elif filepath_from_step and filepath_from_step.endswith('.py') and \
                 not ("test_" in filepath_from_step.lower() or "tests/" in filepath_from_step.lower()):
+                # If filepath_from_step is a .py file but not a test file, derive a test path
                 p = Path(filepath_from_step)
                 derived_test_path = Path("tests") / f"test_{p.name}"
                 filepath_to_use = str(derived_test_path)
@@ -693,15 +697,9 @@ class WorkflowDriver:
                 current_path_is_test_file = filepath_to_use and filepath_to_use.endswith('.py') and \
                                             ("test_" in filepath_to_use.lower() or "tests/" in filepath_to_use.lower())
                 if not current_path_is_test_file:
-                    logger.warning(f"Test writing step, but could not determine a clear test file path. Current filepath_to_use: '{filepath_to_use}'. Review step and task metadata.")
-        elif filepath_to_use is None and (is_explicit_file_writing_step_prelim or is_code_generation_step_prelim) and filepath_from_step:
-            filepath_to_use = filepath_from_step
-
-        if filepath_to_use is None and (is_explicit_file_writing_step_prelim or is_code_generation_step_prelim):
-            filepath_from_step_match_fallback = re.search(r'(\S+\.(?:py|md|json|txt|yml|yaml))', step_description, re.IGNORECASE)
-            filepath_to_use = filepath_from_step_match_fallback.group(1) if filepath_from_step_match_fallback else None
-            if filepath_to_use:
-                logger.info(f"Using fallback filepath '{filepath_to_use}' extracted from step description.")
+                    logger.warning(f"Test writing step, but could not determine a clear test file path. Current filepath_to_use: '{filepath_to_use}'. Review step and task metadata. Defaulting to tests/test_derived.py if no other option.")
+                    # Fallback to a generic derived test file if no other specific test file can be determined
+                    filepath_to_use = str(Path("tests") / "test_derived.py") # Provide a generic fallback
 
         return filepath_to_use # Return the relative path
 
@@ -1508,13 +1506,30 @@ class WorkflowDriver:
         research_keywords_check_prelim = ["research and identify", "research", "analyze", "investigate", "understand"]
         code_element_keywords_check_prelim = ["import", "constant", "variable", "function", "class", "method", "definition", "parameter", "return"]
         file_writing_keywords_check_prelim = ["write", "write file", "create", "create file", "update", "update file", "modify", "modify file", "save to file", "output file", "generate file", "write output to"]
-        test_execution_keywords_check_prelim = ["run tests", "execute tests", "verify tests", "pytest", "test suite"]
-        test_writing_keywords_prelim = ["write unit test", "write unit tests", "update unit test", "create test", "add test"]
+        test_execution_keywords_check_prelim = ["run tests", "execute tests", "verify tests", "pytest", "test suite", "run test cases"] # Added "run test cases"
+        
+        # Enhanced test writing keywords for PhraseMatcher
+        test_writing_keywords_for_matcher = [
+            "write unit test", "write unit tests", "update unit test", "create test", "add test", "add tests", 
+            "add a test", "add a new test",
+            "develop test cases", "create specific unit tests", "create integration tests",
+            "unit or integration tests", "write test cases", "develop and execute targeted test cases",
+            "create unit or integration tests", "implement test cases", "create specific unit or integration tests"
+        ]
+
+        # Use PhraseMatcher for test writing keywords if nlp is available
+        if nlp is not None:
+            doc = nlp(step_description.lower())
+            test_writing_matcher = PhraseMatcher(nlp.vocab)
+            test_writing_patterns = [nlp(text.lower()) for text in test_writing_keywords_for_matcher]
+            test_writing_matcher.add("TEST_WRITING_PATTERNS", None, *test_writing_patterns)
+            is_test_writing_step_prelim = len(test_writing_matcher(doc)) > 0
+        else: # Fallback for when nlp is not loaded
+            is_test_writing_step_prelim = bool(any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in test_writing_keywords_for_matcher))
+
         is_test_execution_step_prelim = bool(any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in test_execution_keywords_check_prelim))
         is_explicit_file_writing_step_prelim = bool(any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in file_writing_keywords_check_prelim))
         is_research_step_prelim = bool(any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in research_keywords_check_prelim))
-        is_test_writing_step_prelim = bool(any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in test_writing_keywords_prelim) or \
-                                    (filepath_from_step and ("test_" in filepath_from_step.lower() or "tests/" in filepath_from_step.lower())))
         is_code_generation_step_prelim = bool(not is_research_step_prelim and \
                                         any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_verbs_prelim) and \
                                         (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords_check_prelim) or \

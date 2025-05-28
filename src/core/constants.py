@@ -11,15 +11,22 @@ MAX_STEP_RETRIES = 2  # Allows 2 retries per step (3 attempts total)
 # Coder LLM Prompt Guidelines
 GENERAL_SNIPPET_GUIDELINES = (
     "1. Ensure all string literals are correctly terminated (e.g., matching quotes, proper escaping).\n"
-    "2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a METAMORPHIC_INSERT_POINT is present.\n"
+    "2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a METAMORPHIC_INSERT_POINT is present. Use 4 spaces per indentation level.\n" # Enhanced indentation
     "3. Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons.\n"
     "4. If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity.\n"
-    "5. Adhere strictly to PEP 8 style guidelines. This includes, but is not limited to:\n"
-    "   - Line length: Keep lines under 80 characters (preferably 79), including docstrings and comments. Break long lines appropriately using Python's line continuation characters (e.g., backslash or within parentheses/brackets/braces).\n" # Enhanced line length guidance
-    "   - Comments: Inline comments should start with a # and a single space, and be preceded by at least two spaces.\n"
-    "   - Imports: If standard Python modules (e.g., `re`, `ast`, `json`, `collections`, `datetime`, `typing.List`, `typing.Dict`) or project-specific constants/modules (e.g., from `src.core.constants`, `src.core.llm_orchestration`) are used, ensure they are imported correctly at the beginning of the snippet (e.g., `import re`, `from typing import List, Dict`, `from src.core.constants import MY_CONSTANT`). Prefer to generate code that does not require new *third-party* library imports unless explicitly part of the task or already present in the provided context.\n" # Enhanced import guidance
+    "5. **CRITICAL PEP 8 ADHERENCE:** All generated Python code snippets MUST strictly adhere to PEP 8 style guidelines. This is mandatory for code acceptance.\n"
+    "   - **Line Length:** Strictly keep lines under 80 characters (preferably 79). Use Python's line continuation methods (e.g., within parentheses, brackets, braces, or using a backslash `\\`) for long statements.\n"
+    "   - **Comment Spacing:** Inline comments MUST start with `#` and a single space, and be preceded by at least two spaces (e.g., `x = 1  # This is a comment`). Block comments should also follow this pattern for each line.\n"
+    "   - **Indentation:** Use 4 spaces per indentation level. Ensure consistent and correct indentation within your snippet.\n"
+    "   - **Imports (IMPORTANT - READ CAREFULLY FOR SNIPPETS):\n"
+    "     - If the task is to add or modify import statements at the top of a file, output *only* the `import` or `from ... import ...` lines.\n"
+    "     - If generating a new method or function snippet for an existing Python file:\n"
+    "       - For standard library modules (e.g., `os`, `sys`, `re`, `json`, `datetime`, `pathlib.Path`, `typing.Optional`, `typing.List`, `ast`) that are commonly imported at the file level, **assume these are already imported in the target file.** Do NOT include these `import` statements within your generated method/function snippet. Your snippet should be *only* the method/function definition.\n"
+    "       - **EXCEPTION FOR VALIDATION:** If your new method/function snippet uses types/modules like `Path`, `Optional`, `List`, `Dict`, `Any`, `Tuple`, `Union` from `pathlib` or `typing`, or modules like `ast`, `re`, `json`, `datetime`, YOU MUST INCLUDE the necessary `from X import Y` statements (e.g., `from pathlib import Path`, `from typing import Optional, List`, `import ast`) AT THE TOP OF YOUR SNIPPET. This is required for your snippet to pass isolated pre-write validation checks. These snippet-local imports might be removed later if they are redundant with existing imports in the full file.\n"
+    "       - If your snippet *requires* a new third-party library, you MAY include the import at the start of your snippet.\n"
+    "     - For any other type of snippet (e.g., a standalone script, or if unsure), ensure all necessary imports are at the beginning of your snippet.\n"
     "6. Logging: If logging is required within a class method, use `self.logger.debug(...)`, `self.logger.info(...)`, etc., assuming `self.logger` is available. For standalone functions or scripts, ensure `logger` is properly initialized (e.g., `import logging; logger = logging.getLogger(__name__)`) if not provided in context.\n"
-    "7. F-strings: Ensure all f-strings are correctly formatted with placeholders if variables are intended (e.g., `f'Value is {my_variable}'`). If an f-string is meant to be literal (e.g., in a regex pattern that uses curlies), ensure it does not contain unmatched curly braces that would cause a `SyntaxError` during f-string parsing, or use a raw string `r''` if appropriate."
+    "7. F-strings: Ensure all f-strings are correctly formatted with placeholders if variables are intended (e.g., `f'Value is {{my_variable}}'`). If an f-string is meant to be literal (e.g., in a regex pattern that uses curlies), ensure it does not contain unmatched curly braces that would cause a `SyntaxError` during f-string parsing, or use a raw string `r''` if appropriate."
 )
 
 # CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS is a template string that needs to be formatted
@@ -50,7 +57,7 @@ CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS = (
 # Python Code Creation Keywords (for docstring instruction)
 DOCSTRING_INSTRUCTION_PYTHON = (
     "IMPORTANT: For any new Python functions, methods, or classes, you MUST include a comprehensive PEP 257 compliant docstring. Use Google-style format (Args:, Returns:, Example: sections). This is required to pass automated ethical and style checks."
-)
+) # Removed trailing space
 PYTHON_CREATION_KEYWORDS = [ # Task 1.8.Y: Keywords indicating creation of new Python code structures
     "implement function", "add method", "create class", "define function",
     "write function", "write method", "write class",

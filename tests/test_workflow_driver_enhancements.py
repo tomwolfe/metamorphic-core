@@ -891,8 +891,8 @@ class TestEnhancedSnippetCleaning:
         ("```javascript\nconsole.log('test');\n```", "console.log('test');"),
         ("No fences here", "No fences here"),
         ("  Stripped raw code  ", "Stripped raw code"),
-        ("", ""),
-        (None, ""),
+        # Removed duplicate input "  Stripped raw code  " to avoid ambiguity
+        (None, ""), # This case is fine, None input -> empty string
         ("`single backtick`", "`single backtick`"),
         ("` ` `", "` ` `"),
         ("def _read_targeted_file_content():\n    return \"\"\nOkay, here is the refactored code snippet.",

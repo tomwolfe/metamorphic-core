@@ -293,7 +293,7 @@ class WorkflowDriver:
         if fenced_block_match:
             # If a fenced block is found, extract its content. Do NOT strip leading/trailing whitespace here.
             # The _merge_snippet function handles *relative* indentation of lines within the snippet.
-            processed_snippet = fenced_block_match.group(1).strip()
+            processed_snippet = fenced_block_match.group(1) # Removed .strip() to preserve leading indentation
             self.logger.debug("Markdown fenced block found and content extracted and stripped.")
             fences_found = True
         else:
@@ -305,7 +305,7 @@ class WorkflowDriver:
         marker_found = False
         parts = re.split(re.escape(END_OF_CODE_MARKER), processed_snippet, 1)
         if len(parts) > 1: # Marker was found
-            processed_snippet = parts[0].strip()
+            processed_snippet = parts[0].rstrip()
             marker_found = True
             self.logger.debug(f"End-of-code marker found. Snippet truncated and stripped.")
         
@@ -328,14 +328,14 @@ class WorkflowDriver:
                     break
             
             if first_chatter_line_index != -1:
-                processed_snippet = "\n".join(lines[:first_chatter_line_index]).strip()
+                processed_snippet = "\n".join(lines[:first_chatter_line_index]).rstrip() # Changed to rstrip()
                 self.logger.debug(f"Truncated snippet based on first chatter line heuristic and stripped.")
             else:
                 self.logger.debug(f"No clear chatter lines found in raw snippet. Keeping as is.")
 
         # 4. Final strip to remove any remaining leading/trailing whitespace
         # Only strip trailing whitespace/newlines, preserve leading indentation.
-        return processed_snippet.strip()
+        return processed_snippet.rstrip() # Changed to rstrip()
 
     def _load_default_policy(self):
         # Use context.get_full_path to resolve the policy path safely

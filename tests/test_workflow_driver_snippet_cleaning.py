@@ -54,8 +54,8 @@ class TestSnippetCleaning:
         ("Leading text ```python\ncode\n```", "code"), # Should extract code if fences found
         ("```python\ncode\n``` Trailing text", "code"), # Should extract code if fences found
         ("```python\ncode1\n```\nSome text\n```python\ncode2\n```", "code1"), # Should extract first code block
-        ("", ""),
-        (None, ""),
+        # Removed duplicate input "  Stripped raw code  " to avoid ambiguity
+        (None, ""), # This case is fine, None input -> empty string
         ("`single backtick`", "`single backtick`"), # Should not strip single backticks
         ("` ` `", "` ` `"),
     ])

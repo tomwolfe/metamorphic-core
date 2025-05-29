@@ -17,7 +17,7 @@ generated_tests/
 docs/
 tests/
 scripts/
-requirements/dev.txt
+# REMOVED: requirements/dev.txt  <-- This line was the problem!
 dev_run.py
 pytest.ini
 setup.py

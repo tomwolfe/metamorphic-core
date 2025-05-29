@@ -539,7 +539,7 @@ class TestWorkflowRemediation:
         mock_remediation.assert_not_called() # Remediation should NOT be called
         # FIX: Use caplog.records to assert the log message presence and match the actual log format
         # Match the log message format exactly, including the period after "retries"
-        assert any("Step 2/2 failed after 2 retries." in record.message for record in caplog.records)
+        assert any("Step 1/2 failed after 2 retries." in record.message for record in caplog.records)
         assert "Task T1 marked as 'Blocked'." in caplog.text
         # Check that _update_task_status_in_roadmap was called to set status to Blocked
         # This requires _safe_write_roadmap_json to be called with the updated roadmap

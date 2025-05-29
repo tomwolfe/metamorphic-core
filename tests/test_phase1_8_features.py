@@ -174,6 +174,51 @@ def driver_for_multi_target_resolution(tmp_path, mocker):
         yield driver
 
 class TestPhase1_8Features:
+    def test_classify_step_preliminary_uses_task_target_file(self, driver_enhancements):
+        """
+        Test _classify_step_preliminary correctly identifies a code generation step
+        when the step description implies code modification and task_target_file is a .py file,
+        even if the step description itself doesn't contain a filename.
+        """
+        driver = driver_enhancements 
+        
+        step_desc_modify_method = "Modify the main autonomous_loop method to integrate new logic."
+        task_target_py_file = "src/core/automation/workflow_driver.py"
+        
+        prelim_flags = driver._classify_step_preliminary(step_desc_modify_method, task_target_py_file)
+        
+        assert prelim_flags["is_code_generation_step_prelim"] is True, \
+            f"Step '{step_desc_modify_method}' with target '{task_target_py_file}' should be code gen."
+
+        step_desc_conceptual_with_target = "Analyze the WorkflowDriver.autonomous_loop for optimization points."
+        prelim_flags_conceptual = driver._classify_step_preliminary(step_desc_conceptual_with_target, task_target_py_file)
+        
+        assert prelim_flags_conceptual["is_code_generation_step_prelim"] is False, \
+            f"Step '{step_desc_conceptual_with_target}' should NOT be code gen despite .py target."
+        assert prelim_flags_conceptual["is_research_step_prelim"] is True
+
+    def test_classify_step_preliminary_filepath_in_step_overrides_task_target(self, driver_enhancements):
+        """
+        Test _classify_step_preliminary uses filepath_from_step if present,
+        even if task_target_file is different or not a .py file.
+        """
+        driver = driver_enhancements
+        step_desc_specific_file = "Implement new_helper in utils/helpers.py."
+        task_target_other_file = "src/main_module.py" 
+        
+        prelim_flags = driver._classify_step_preliminary(step_desc_specific_file, task_target_other_file)
+        
+        assert prelim_flags["is_code_generation_step_prelim"] is True
+        assert prelim_flags["filepath_from_step"] == "utils/helpers.py"
+
+        step_desc_md_file = "Update the documentation in README.md."
+        task_target_py_file = "src/core/automation/workflow_driver.py"
+        prelim_flags_md = driver._classify_step_preliminary(step_desc_md_file, task_target_py_file)
+
+        assert prelim_flags_md["is_code_generation_step_prelim"] is False 
+        assert prelim_flags_md["is_explicit_file_writing_step_prelim"] is True
+        assert prelim_flags_md["filepath_from_step"] == "README.md"
+
     def test_research_step_classification(self, driver_enhancements):
         driver = driver_enhancements
         step1 = "Research and identify keywords for src/core/automation/workflow_driver.py"

@@ -24,6 +24,7 @@ from src.core.chunking.dynamic_chunker import CodeChunk # Correct import for Cod
 import time
 import threading
 import logging # Import logging module
+import re # Add this import
 
 # <--- END ADD ---
 def test_math_prompt_formatting():
@@ -113,14 +114,19 @@ def test_hf_generation(mock_get):
     # Patch InferenceClient where it's imported/used in llm_orchestration.py
     with patch('src.core.llm_orchestration.InferenceClient') as MockInferenceClient:
         mock_hf_instance = MockInferenceClient.return_value
-        mock_hf_instance.text_generation.return_value = "Test response" # Mock on the instance
+        # Mock the chat.completions.create method and its return structure
+        mock_completion = MagicMock()
+        mock_completion.choices = [MagicMock(message=MagicMock(content="Test response"))]
+        mock_hf_instance.chat.completions.create.return_value = mock_completion
 
         orchestrator = LLMOrchestrator()
         with patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit:
             response = orchestrator.generate("test")
             assert response == "Test response"
             mock_rate_limit.assert_called_once()
-            mock_hf_instance.text_generation.assert_called_once_with("test", max_new_tokens=2048, temperature=0.6, top_p=0.95, repetition_penalty=1.2, do_sample=True, seed=42, stop_sequences=["</s>"], return_full_text=False)
+            # Assert that chat.completions.create was called with the correct parameters
+            mock_hf_instance.chat.completions.create.assert_called_once_with(
+                model=orchestrator.hf_model_name, messages=[{"role": "user", "content": "test"}], temperature=0.6, top_p=0.95, max_tokens=32768)
 
 
 @patch('google.genai.Client')
@@ -276,7 +282,10 @@ def test_hf_client_used_when_primary_is_gemini(mock_secure_get):
     # Patch InferenceClient at the point of use in our code
     with patch('src.core.llm_orchestration.InferenceClient') as MockInferenceClient:
         mock_hf_instance = MockInferenceClient.return_value
-        mock_hf_instance.text_generation.return_value = "HF Model Response"
+        # Mock the chat.completions.create method and its return structure
+        mock_completion = MagicMock()
+        mock_completion.choices = [MagicMock(message=MagicMock(content="HF Model Response"))]
+        mock_hf_instance.chat.completions.create.return_value = mock_completion
 
         orchestrator = LLMOrchestrator()
         assert orchestrator.config.provider == LLMProvider.GEMINI
@@ -290,7 +299,9 @@ def test_hf_client_used_when_primary_is_gemini(mock_secure_get):
             response = orchestrator._call_llm_api("prompt for hf", model=orchestrator.config.hugging_face_model)
 
             assert response == "HF Model Response"
-            mock_hf_instance.text_generation.assert_called_once_with("prompt for hf", max_new_tokens=2048, temperature=0.6, top_p=0.95, repetition_penalty=1.2, do_sample=True, seed=42, stop_sequences=["</s>"], return_full_text=False)
+            # Assert that chat.completions.create was called with the correct parameters
+            mock_hf_instance.chat.completions.create.assert_called_once_with(
+                model=orchestrator.hf_model_name, messages=[{"role": "user", "content": "prompt for hf"}], temperature=0.6, top_p=0.95, max_tokens=32768)
 # --- NEW TESTS FOR GEMINI RATE LIMITING ---
 @patch('src.utils.config.SecureConfig.get')
 def test_gemini_rate_limiting_applied(mock_secure_get, caplog):
@@ -512,3 +523,103 @@ def test_tenacity_integration_success_after_retry(mock_secure_get, caplog):
         # Therefore, caplog.text should be empty of these specific error messages.
         # assert "Attempt 1 failed: Attempt 1 failed" in caplog.text # <-- REMOVED THIS LINE
         # assert "Attempt 2 failed: Attempt 2 failed" in caplog.text # <-- REMOVED THIS LINE
+
+@patch('src.utils.config.SecureConfig.get')
+def test_hf_generate_with_qwen3_chat_completions_and_thinking(mock_secure_get, caplog):
+    """
+    Tests _hf_generate with chat completions API, Qwen3 model,
+    and parsing of <think> tags.
+    """
+    caplog.set_level(logging.DEBUG)
+    hf_model_name = "Qwen/Qwen3-235B-A22B"
+    mock_secure_get.side_effect = lambda key, default=None: {
+        "LLM_PROVIDER": "huggingface", 
+        "HUGGING_FACE_API_KEY": "fake_hf_key",
+        "HUGGING_FACE_MODEL": hf_model_name,
+        "LLM_MAX_RETRIES": "1"
+    }.get(key, default)
+
+    with patch('src.core.llm_orchestration.InferenceClient') as MockInferenceClient:
+        mock_hf_client_instance = MockInferenceClient.return_value
+        
+        qwen_response_with_think = "<think>This is the thinking process.</think>This is the actual answer."
+        mock_completion = MagicMock()
+        mock_completion.choices = [MagicMock(message=MagicMock(content=qwen_response_with_think))]
+        mock_hf_client_instance.chat.completions.create.return_value = mock_completion
+
+        orchestrator = LLMOrchestrator()
+        
+        assert orchestrator.hf_client == mock_hf_client_instance
+        assert orchestrator.hf_model_name == hf_model_name
+
+        prompt = "Test prompt for Qwen3"
+        # Directly testing _hf_generate, so _apply_gemini_rate_limit is not in its direct call path.
+        with patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit:
+            actual_content = orchestrator._hf_generate(prompt) 
+
+        mock_hf_client_instance.chat.completions.create.assert_called_once_with(
+            model=hf_model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.6,
+            top_p=0.95,
+            max_tokens=32768
+        )
+        
+        assert actual_content == "This is the actual answer."
+        assert "HF Thinking Content (Qwen3): This is the thinking process." in caplog.text
+        assert not mock_rate_limit.called # Corrected assertion
+
+@patch('src.utils.config.SecureConfig.get')
+def test_hf_generate_with_qwen3_chat_completions_no_thinking_tag(mock_secure_get, caplog):
+    """
+    Tests _hf_generate with chat completions API when Qwen3 output has no <think> tag.
+    """
+    caplog.set_level(logging.DEBUG)
+    hf_model_name = "Qwen/Qwen3-235B-A22B"
+    mock_secure_get.side_effect = lambda key, default=None: {
+        "LLM_PROVIDER": "huggingface",
+        "HUGGING_FACE_API_KEY": "fake_hf_key",
+        "HUGGING_FACE_MODEL": hf_model_name,
+        "LLM_MAX_RETRIES": "1"
+    }.get(key, default)
+
+    with patch('src.core.llm_orchestration.InferenceClient') as MockInferenceClient:
+        mock_hf_client_instance = MockInferenceClient.return_value
+        
+        qwen_response_no_think = "This is the actual answer without thinking."
+        mock_completion = MagicMock()
+        mock_completion.choices = [MagicMock(message=MagicMock(content=qwen_response_no_think))]
+        mock_hf_client_instance.chat.completions.create.return_value = mock_completion
+
+        orchestrator = LLMOrchestrator()
+        
+        with patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit:
+            actual_content = orchestrator._hf_generate("Test prompt")
+
+        assert actual_content == "This is the actual answer without thinking."
+        assert "HF Thinking Content (Qwen3):" not in caplog.text
+        assert not mock_rate_limit.called # Corrected assertion
+
+@patch('src.utils.config.SecureConfig.get')
+def test_hf_generate_qwen3_malformed_think_tag(mock_secure_get, caplog):
+    """Tests _hf_generate with a malformed <think> tag (missing closing tag)."""
+    caplog.set_level(logging.WARNING)
+    hf_model_name = "Qwen/Qwen3-235B-A22B"
+    mock_secure_get.side_effect = lambda key, default=None: {
+        "LLM_PROVIDER": "huggingface", "HUGGING_FACE_API_KEY": "fake_hf_key",
+        "HUGGING_FACE_MODEL": hf_model_name, "LLM_MAX_RETRIES": "1"
+    }.get(key, default)
+
+    with patch('src.core.llm_orchestration.InferenceClient') as MockInferenceClient:
+        mock_hf_instance = MockInferenceClient.return_value
+        malformed_response = "<think>This is thinking but no close tag. This is the content."
+        mock_completion = MagicMock(choices=[MagicMock(message=MagicMock(content=malformed_response))])
+        mock_hf_instance.chat.completions.create.return_value = mock_completion
+        
+        orchestrator = LLMOrchestrator()
+        with patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit:
+            content = orchestrator._hf_generate("Test prompt")
+        
+        assert content == malformed_response # Should return the full response
+        assert "Detected '<think>' tag without a closing '</think>' tag. Treating full response as content." in caplog.text
+        assert not mock_rate_limit.called

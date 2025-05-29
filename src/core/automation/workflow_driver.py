@@ -934,7 +934,7 @@ class WorkflowDriver:
                         while step_retries <= MAX_STEP_RETRIES:
                             try:
                                 logger.info(f"Executing step {step_index + 1}/{len(solution_plan)} (Attempt {step_retries + 1}/{MAX_STEP_RETRIES + 1}): {step}")
-                                prelim_flags = self._classify_step_preliminary(step)
+                                prelim_flags = self._classify_step_preliminary(step, self.task_target_file)
 
                                 # --- Step 2: Determine the actual filepath to use for the operation ---
                                 # filepath_to_use is now the resolved absolute path or None
@@ -1368,7 +1368,7 @@ class WorkflowDriver:
                                 filepath_for_remediation = None
                                 # Iterate through steps in reverse to find the last step that involved a file write
                                 for step_idx, plan_step_desc in reversed(list(enumerate(solution_plan))):
-                                    prelim_flags_rem = self._classify_step_preliminary(plan_step_desc)
+                                    prelim_flags_rem = self._classify_step_preliminary(plan_step_desc, self.task_target_file)
                                     # Use _resolve_target_file_for_step to get the resolved path for the step
                                     step_filepath_rem = self._resolve_target_file_for_step(plan_step_desc, self.task_target_file, prelim_flags_rem)
                                     # Check if the step was intended to write/generate code AND a file path was determined/resolved
@@ -1500,7 +1500,7 @@ class WorkflowDriver:
             logger.info('Autonomous loop iteration finished.')
         logger.info('Autonomous loop terminated.')
 
-    def _classify_step_preliminary(self, step_description: str) -> dict:
+    def _classify_step_preliminary(self, step_description: str, task_target_file_spec: Optional[str] = None) -> dict:
         step_lower = step_description.lower()
         filepath_from_step_match = re.search(r'(\S+\.(?:py|md|json|txt|yml|yaml))', step_description, re.IGNORECASE)
         filepath_from_step = filepath_from_step_match.group(1) if filepath_from_step_match else None
@@ -1509,7 +1509,14 @@ class WorkflowDriver:
         code_element_keywords_check_prelim = ["import", "constant", "variable", "function", "class", "method", "definition", "parameter", "return"]
         file_writing_keywords_check_prelim = ["write", "write file", "create", "create file", "update", "update file", "modify", "modify file", "save to file", "output file", "generate file", "write output to"]
         test_execution_keywords_check_prelim = ["run tests", "execute tests", "verify tests", "pytest", "test suite", "run test cases"] # Added "run test cases"
-        
+
+        # Consider task_target_file if filepath_from_step is None for classification
+        effective_filepath_for_classification = filepath_from_step
+        if not effective_filepath_for_classification and task_target_file_spec:
+            targets = [f.strip() for f in task_target_file_spec.split(',') if f.strip()]
+            if targets:
+                effective_filepath_for_classification = targets[0] # Use the first target for classification
+
         # Enhanced test writing keywords for PhraseMatcher
         test_writing_keywords_for_matcher = [
             "write unit test", "write unit tests", "update unit test", "create test", "add test", "add tests", 
@@ -1535,7 +1542,7 @@ class WorkflowDriver:
         is_code_generation_step_prelim = bool(not is_research_step_prelim and \
                                         any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_verbs_prelim) and \
                                         (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords_check_prelim) or \
-                                        (filepath_from_step and filepath_from_step.endswith('.py'))))
+                                        (effective_filepath_for_classification and effective_filepath_for_classification.endswith('.py'))))
         return {
             "is_test_execution_step_prelim": is_test_execution_step_prelim,
             "is_explicit_file_writing_step_prelim": is_explicit_file_writing_step_prelim,

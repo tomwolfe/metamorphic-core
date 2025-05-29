@@ -241,7 +241,7 @@ class TestTokenAllocator(unittest.TestCase):
 
 
     @patch('src.core.optimization.adaptive_token_allocator.Optimize')
-    def test_allocate_single_model_provider_gemini_only(self, MockOptimize, caplog): # Added caplog
+    def test_allocate_single_model_provider_gemini_only(self, caplog, MockOptimize): # Changed order
         """Test TokenAllocator.allocate when only Gemini is available and logs warning."""
         caplog.set_level(logging.WARNING) # Capture warnings
         mock_solver_instance = MockOptimize.return_value

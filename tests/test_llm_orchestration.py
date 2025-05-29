@@ -14,7 +14,7 @@ from src.core.llm_orchestration import (
     extract_boxed_answer,
     EnhancedLLMOrchestrator
 )
-from src.utils.config import ConfigError
+from src.utils.config import ConfigError, SecureConfig # Ensure SecureConfig is imported for direct access in tests
 import google.genai
 
 from src.core.verification.specification import FormalSpecification # Correct import for FormalSpecification
@@ -25,6 +25,7 @@ import time
 import threading
 import logging # Import logging module
 import re # Add this import
+from tenacity import RetryError, stop_after_attempt, wait_fixed # New import for tenacity tests
 
 # <--- END ADD ---
 def test_math_prompt_formatting():
@@ -431,7 +432,6 @@ def test_gemini_rate_limiting_thread_safety(mock_secure_get):
 # --- NEW TEST FOR TENACITY INTEGRATION ---
 # This test verifies that tenacity's retry mechanism is correctly applied to _call_llm_api
 # and that _generate_with_retry handles the RetryError correctly.
-from tenacity import RetryError, stop_after_attempt, wait_fixed
 
 @patch('src.utils.config.SecureConfig.get')
 def test_tenacity_integration_retries_and_raises_runtime_error(mock_secure_get, caplog):
@@ -623,3 +623,132 @@ def test_hf_generate_qwen3_malformed_think_tag(mock_secure_get, caplog):
         assert content == malformed_response # Should return the full response
         assert "Detected '<think>' tag without a closing '</think>' tag. Treating full response as content." in caplog.text
         assert not mock_rate_limit.called
+
+# Add these tests to tests/test_llm_orchestration.py
+
+@patch('src.utils.config.SecureConfig.load') # Mock load to prevent actual env loading during this specific get test
+@patch('os.getenv')
+def test_secure_config_get_typed_defaults(mock_os_getenv, mock_secure_config_load):
+    """Test SecureConfig.get with typed defaults and parsing."""
+    # Ensure _parsed_config is initialized for the test
+    SecureConfig._parsed_config = {}
+    SecureConfig._config_loaded_and_validated = True # Pretend load has run
+
+    # Test boolean
+    mock_os_getenv.return_value = "false"
+    assert SecureConfig.get("TEST_BOOL", True) is False
+    mock_os_getenv.return_value = "1"
+    assert SecureConfig.get("TEST_BOOL", False) is True
+    mock_os_getenv.return_value = "yes"
+    assert SecureConfig.get("TEST_BOOL", False) is True
+    mock_os_getenv.return_value = "no"
+    assert SecureConfig.get("TEST_BOOL", True) is False
+    mock_os_getenv.return_value = "invalid"
+    assert SecureConfig.get("TEST_BOOL", True) is True # Defaults
+    mock_os_getenv.return_value = None # Not in env
+    assert SecureConfig.get("TEST_BOOL_NOT_IN_ENV", True) is True # Returns default
+
+    # Test integer
+    mock_os_getenv.return_value = "123"
+    assert SecureConfig.get("TEST_INT", 0) == 123
+    mock_os_getenv.return_value = "not_an_int"
+    assert SecureConfig.get("TEST_INT", 42) == 42 # Defaults
+    mock_os_getenv.return_value = None
+    assert SecureConfig.get("TEST_INT_NOT_IN_ENV", 7) == 7 # Returns default
+
+    # Test string (default behavior)
+    mock_os_getenv.return_value = "test_string"
+    assert SecureConfig.get("TEST_STRING", "default_str") == "test_string"
+    mock_os_getenv.return_value = None
+    assert SecureConfig.get("TEST_STRING_NOT_IN_ENV", "default_str") == "default_str"
+
+    # Test raising ConfigError if not in env and no default
+    mock_os_getenv.return_value = None
+    with pytest.raises(ConfigError, match="Configuration variable 'MUST_EXIST' not found."):
+        SecureConfig.get("MUST_EXIST")
+        
+@patch('src.utils.config.SecureConfig.load') # Mock load
+@patch('os.getenv')
+def test_secure_config_get_pre_parsed(mock_os_getenv, mock_secure_config_load):
+    """Test SecureConfig.get retrieves pre-parsed values correctly."""
+    SecureConfig._parsed_config = {
+        "ENABLE_HUGGING_FACE": False,
+        "LLM_MAX_RETRIES": 5
+    }
+    SecureConfig._config_loaded_and_validated = True
+
+    assert SecureConfig.get("ENABLE_HUGGING_FACE", True) is False
+    assert SecureConfig.get("LLM_MAX_RETRIES", 3) == 5
+    mock_os_getenv.assert_not_called() # Should not call os.getenv for these
+
+@patch('src.utils.config.SecureConfig.get')
+def test_llm_orchestrator_hf_disabled_configuration(mock_secure_get):
+    # This test from the original response remains valid.
+    mock_secure_get.side_effect = lambda var_name, default=None: {
+        'LLM_PROVIDER': 'gemini',
+        'GEMINI_API_KEY': 'test_gemini_key',
+        'HUGGING_FACE_API_KEY': 'test_hf_key',
+        'HUGGING_FACE_MODEL': 'Qwen/Qwen3-235B-A22B',
+        'ENABLE_HUGGING_FACE': False, # Explicitly disable HF
+        'LLM_MAX_RETRIES': 3, # Add these as they are now loaded by LLMConfig
+        'LLM_TIMEOUT': 30
+    }.get(var_name, default)
+    
+    orchestrator = LLMOrchestrator()
+    
+    assert orchestrator.config.enable_hugging_face is False
+    assert orchestrator.hf_client is None
+    assert orchestrator.hf_model_name is None
+    assert orchestrator.client is not None
+    assert orchestrator.config.provider == LLMProvider.GEMINI
+
+@patch('src.utils.config.SecureConfig.get')
+def test_enhanced_llm_orchestrator_get_model_costs_hf_disabled(mock_secure_get):
+    # This test from the original response remains valid.
+    mock_secure_get.side_effect = lambda var_name, default=None: {
+        'LLM_PROVIDER': 'gemini',
+        'GEMINI_API_KEY': 'test_gemini_key',
+        'HUGGING_FACE_API_KEY': 'test_hf_key',
+        'HUGGING_FACE_MODEL': 'Qwen/Qwen3-235B-A22B',
+        'ENABLE_HUGGING_FACE': False, # Disable HF
+        'LLM_MAX_RETRIES': 3,
+        'LLM_TIMEOUT': 30
+    }.get(var_name, default)
+
+    mock_kg = MagicMock()
+    mock_spec = MagicMock(spec=FormalSpecification)
+    mock_ethics_engine = MagicMock()
+
+    enhanced_orchestrator = EnhancedLLMOrchestrator(
+        kg=mock_kg, spec=mock_spec, ethics_engine=mock_ethics_engine
+    )
+    
+    model_costs = enhanced_orchestrator._get_model_costs()
+    
+    assert "gemini" in model_costs
+    assert "Qwen/Qwen3-235B-A22B" not in model_costs
+    assert enhanced_orchestrator.config.hugging_face_model not in model_costs
+    assert len(model_costs) == 1
+
+@patch('src.utils.config.SecureConfig.get')
+def test_hf_generate_raises_error_if_hf_disabled_and_called(mock_secure_get):
+    # This test from the original response remains valid and important.
+    hf_model_name = "Qwen/Qwen3-235B-A22B"
+    mock_secure_get.side_effect = lambda var_name, default=None: {
+        "LLM_PROVIDER": "gemini",
+        "GEMINI_API_KEY": "fake_gemini_key",
+        "HUGGING_FACE_API_KEY": "fake_hf_key",
+        "HUGGING_FACE_MODEL": hf_model_name,
+        "ENABLE_HUGGING_FACE": False, # HF is disabled
+        'LLM_MAX_RETRIES': 3,
+        'LLM_TIMEOUT': 30
+    }.get(var_name, default)
+
+    orchestrator = LLMOrchestrator()
+    assert orchestrator.hf_client is None
+
+    # _hf_generate is called by _call_llm_api if model is HF
+    # Test that calling _call_llm_api with an HF model string when HF is disabled
+    # correctly leads to the RuntimeError from _hf_generate.
+    with pytest.raises(RuntimeError, match="Hugging Face client not initialized"):
+        orchestrator._call_llm_api("test prompt", model=hf_model_name)

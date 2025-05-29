@@ -8,6 +8,7 @@ from src.core.chunking.recursive_summarizer import RecursiveSummarizer # Import 
 from unittest.mock import MagicMock, patch
 from src.core.verification import FormalSpecification, FormalVerificationError # Import FormalVerificationError
 import pytest
+import logging # Ensure logging is imported
 
 # Import Z3 components needed for the new test and existing tests
 # FIX: Import 'unsat' from z3
@@ -237,6 +238,47 @@ class TestTokenAllocator(unittest.TestCase):
         # total_cost_approx = 0.015 + 250 = 250.015
         # We can't directly assert this float value from the Z3 expression easily without solving.
         # The test primarily ensures the method runs and produces a Z3 expression.
+
+
+    @patch('src.core.optimization.adaptive_token_allocator.Optimize')
+    def test_allocate_single_model_provider_gemini_only(self, MockOptimize, caplog): # Added caplog
+        """Test TokenAllocator.allocate when only Gemini is available and logs warning."""
+        caplog.set_level(logging.WARNING) # Capture warnings
+        mock_solver_instance = MockOptimize.return_value
+        mock_solver_instance.check.return_value = sat
+
+        mock_z3_model_ref = MagicMock(spec=ModelRef)
+        def mock_eval_gemini_only(z3_var):
+            var_name_str = str(z3_var)
+            if 'tokens_0' in var_name_str: return IntVal(1500)
+            if 'model_0' in var_name_str: return IntVal(0)
+            if 'tokens_1' in var_name_str: return IntVal(1800)
+            if 'model_1' in var_name_str: return IntVal(0)
+            return IntVal(0) 
+        mock_z3_model_ref.eval.side_effect = mock_eval_gemini_only
+        mock_solver_instance.model.return_value = mock_z3_model_ref
+        
+        allocator = TokenAllocator(total_budget=5000)
+        chunks = [
+            CodeChunk(content="chunk content 1", estimated_tokens=500),
+            CodeChunk(content="chunk content 2", estimated_tokens=600)
+        ]
+        model_costs_gemini_only = {
+            'gemini': {'effective_length': 500000, 'cost_per_token': 0.000001}
+        }
+
+        with patch.object(allocator, '_model_cost', return_value=Real('mock_cost_term')):
+            allocation = allocator.allocate(chunks, model_costs_gemini_only)
+
+            assert isinstance(allocation, dict)
+            assert len(allocation) == len(chunks)
+            for i in range(len(chunks)):
+                assert allocation[i][1] == 'gemini'
+                assert allocation[i][0] >= 1000 
+
+            mock_solver_instance.minimize.assert_called_once()
+            assert "TokenAllocator: Only one model provider (gemini) is available" in caplog.text
+            assert "Model diversity constraints in EthicalAllocationPolicy will be naturally bypassed." in caplog.text
 
 
     class TestRecursiveSummarizer(unittest.TestCase):

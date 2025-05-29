@@ -65,6 +65,13 @@ class TokenAllocator:
             for name, details in model_costs.items()
         ]
         allocations = {i: Int(f'tokens_{i}') for i in range(len(chunks))}
+
+        # Add warning if only one model is available for allocation
+        if len(models) == 1:
+            logger.warning(
+                "TokenAllocator: Only one model provider ({}) is available for allocation after configuration. ".format(models[0]['name']) +
+                "Model diversity constraints in EthicalAllocationPolicy will be naturally bypassed."
+            )
         model_vars = {i: Int(f'model_{i}') for i in range(len(chunks))}
 
         logger.info(f"TokenAllocator: Starting allocation for {len(chunks)} chunks with total_budget: {self.total_budget}")

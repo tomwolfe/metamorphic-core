@@ -47,6 +47,7 @@ class LLMConfig(BaseModel):
     timeout: int = 30
     # Updated default Hugging Face model to Qwen/Qwen3-235B-A22B
     hugging_face_model: str = SecureConfig.get("HUGGING_FACE_MODEL", "Qwen/Qwen3-235B-A22B")
+    enable_hugging_face: bool = True # Default to True, will be overridden by SecureConfig
 
 class LLMOrchestrator:
     def __init__(self):
@@ -63,14 +64,15 @@ class LLMOrchestrator:
 
     def _load_config(self) -> LLMConfig:
         try:
-            SecureConfig.load()
+            SecureConfig.load() # Ensures all configs including API keys are validated/loaded
             return LLMConfig(
                 provider=LLMProvider(SecureConfig.get("LLM_PROVIDER", "gemini")),
                 gemini_api_key=SecureConfig.get("GEMINI_API_KEY"),
                 hf_api_key=SecureConfig.get("HUGGING_FACE_API_KEY"),
                 hugging_face_model=SecureConfig.get("HUGGING_FACE_MODEL", "Qwen/Qwen3-235B-A22B"),
-                max_retries=int(SecureConfig.get("LLM_MAX_RETRIES", 3)),
-                timeout=int(SecureConfig.get("LLM_TIMEOUT", 30)),
+                max_retries=SecureConfig.get("LLM_MAX_RETRIES", 3), # Will be int due to default
+                timeout=SecureConfig.get("LLM_TIMEOUT", 30),       # Will be int due to default
+                enable_hugging_face=SecureConfig.get("ENABLE_HUGGING_FACE", True) # Will be bool
             )
         except (ValidationError, ConfigError, ValueError) as e:
             logger.error(f"Error loading LLM configuration: {str(e)}")
@@ -99,19 +101,25 @@ class LLMOrchestrator:
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config.provider}")
 
-        # Additionally, always try to configure a separate hf_client if keys are available
-        # This allows using HF models even if the primary provider is Gemini.
-        if self.config.hf_api_key and self.config.hugging_face_model:
-            try:
-                self.hf_client = InferenceClient(
-                    provider="hf-inference", # Explicit provider for dedicated client
-                    token=self.config.hf_api_key,
-                    model=self.config.hugging_face_model
-                )
-                self.hf_model_name = self.config.hugging_face_model
-                logger.info(f"Dedicated Hugging Face client configured for model: {self.config.hugging_face_model}")
-            except Exception as e:
-                logger.warning(f"Failed to initialize dedicated Hugging Face client: {e}. HF models may not be available if primary provider is not HF.")
+        # Conditionally configure a separate hf_client
+        if self.config.enable_hugging_face:
+            if self.config.hf_api_key and self.config.hugging_face_model:
+                try:
+                    self.hf_client = InferenceClient(
+                        provider="hf-inference",
+                        token=self.config.hf_api_key,
+                        model=self.config.hugging_face_model
+                    )
+                    self.hf_model_name = self.config.hugging_face_model # Store the actual model name used
+                    logger.info(f"Dedicated Hugging Face client configured for model: {self.hf_model_name}")
+                except Exception as e:
+                    logger.warning(f"Failed to initialize dedicated Hugging Face client: {e}. HF models may not be available.")
+            else:
+                logger.warning("Hugging Face API key or model name not configured. Dedicated HF client not initialized.")
+        else:
+            logger.info("Hugging Face client is disabled by configuration (ENABLE_HUGGING_FACE=false).")
+            self.hf_client = None
+            self.hf_model_name = None
 
     def _apply_gemini_rate_limit(self):
         """Ensures calls to Gemini API do not exceed the rate limit."""
@@ -323,11 +331,12 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         return self.summarizer.synthesize(summaries)
 
     def _get_model_costs(self):
-        hf_model_key = self.config.hugging_face_model if self.config.hugging_face_model else "huggingface"
-        return {
-            "gemini": {"effective_length": 500000, "cost_per_token": 0.000001},
-            hf_model_key: {"effective_length": 4096, "cost_per_token": 0.000002},
+        costs = {
+            "gemini": {"effective_length": 500000, "cost_per_token": 0.000001}
         }
+        if self.hf_model_name: # This is set only if HF is enabled and client initialized
+            costs[self.hf_model_name] = {"effective_length": 4096, "cost_per_token": 0.000002}
+        return costs
 
     def _process_chunk(self, chunk: CodeChunk, allocation: tuple) -> str:
         tokens, model = allocation

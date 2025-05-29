@@ -6,7 +6,17 @@ on:
   push:
     branches:
       - main  # Or whatever branch you want the updates to be pushed to
+    paths:
+      - 'Dockerfile'
+      - 'requirements/**'
+      - 'src/**'
+      - '.github/workflows/ci.yml' # Include workflow file itself to trigger on changes to it
   pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'requirements/**'
+      - 'src/**'
+      - '.github/workflows/ci.yml'
 
 permissions:
   contents: write
@@ -81,6 +91,24 @@ jobs:
           key: pip-${{ runner.os }}-${{ hashFiles('requirements/**') }}
           restore-keys: pip-${{ runner.os }}-
 
+      # New: Cache apt packages
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-${{ hashFiles('requirements/**') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      # New: Cache spaCy model
+      - name: Cache spaCy model
+        uses: actions/cache@v4
+        with:
+          path: ~/.spacy
+          key: ${{ runner.os }}-spacy-${{ hashFiles('requirements/**') }}
+          restore-keys: |
+            ${{ runner.os }}-spacy-
+
       - name: Install dependencies & Coq/Z3 via apt-get
         run: |
           python -m pip install --upgrade pip
@@ -89,7 +117,7 @@ jobs:
           pip install pytest pytest-cov
           pip install bandit # Ensure bandit is installed before spacy download if it's a transitive dep
           pip install -e .  # Install the package in development mode
-          python -m spacy download en_core_web_sm # Download spaCy model
+          python -m spacy download en_core_web_sm --quiet # Download spaCy model quietly
 
           # Install Coq and Z3 via apt-get
           sudo apt-get update

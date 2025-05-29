@@ -1,42 +1,56 @@
-# Use a single stage for simplicity and standard system-wide installs
-FROM python:3.11-slim
+# Use a multi-stage build for smaller final image size
+
+# --- Stage 1: Builder ---
+# This stage installs all build-time dependencies and Python packages
+FROM python:3.11-slim as builder
 
 WORKDIR /app
-ENV PYTHONPATH=/app:/app/src
 
-# System dependencies needed for some Python packages (like build-essential) and runtime
-# build-essential is needed for some packages to compile native extensions
+# Install system dependencies needed for building Python packages (e.g., psycopg2, numpy)
+# and for cloning repos (git)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    netcat-openbsd \
     build-essential \
-    # Add git as it might be needed by some pip packages or spaCy downloads
     git \
+    # Add any other build-time only dependencies here
     && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies system-wide (removed --user)
+# Copy and install Python dependencies
 # Ensure pip is upgraded before installing requirements
 COPY requirements/base.txt requirements/dev.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r base.txt -r dev.txt
 
-# Download and install spaCy model system-wide
+# Download and install spaCy model
 # This command installs the model data and links it into the system site-packages
 # This step MUST come AFTER spacy is installed via pip
 RUN python -m spacy download en_core_web_sm
 
-# Clean up build dependencies if they are not needed at runtime to reduce image size
-# build-essential and git are often only needed during pip install/spacy download
-RUN apt-get purge -y build-essential git && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
-# Application code
+# --- Stage 2: Runtime ---
+# This stage contains only the necessary runtime dependencies and application code
+FROM python:3.11-slim
+
+WORKDIR /app
+ENV PYTHONPATH=/app:/app/src
+
+# Install only runtime system dependencies
+# curl and netcat-openbsd are needed for health checks and network operations
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    netcat-openbsd \
+    # Add any other runtime only dependencies here
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed Python packages from the builder stage
+# This copies the entire site-packages directory, including spaCy models
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+
+# Copy application code
+# Ensure .dockerignore is configured to exclude unnecessary files
 COPY . .
 
 # The default PATH environment variable in this base image already includes
 # /usr/local/bin and /usr/local/sbin, where executables from system-wide
-# pip installs are placed. The /root/.local/bin path is no longer relevant
-# as we are not using --user installs.
-# Remove the original line: ENV PATH="/root/.local/bin:${PATH}"
+# pip installs are placed.
 
 # Command to run the application is specified in docker-compose.yml
-# CMD ["python", "src/api/server.py"] # Not needed here as docker-compose overrides it

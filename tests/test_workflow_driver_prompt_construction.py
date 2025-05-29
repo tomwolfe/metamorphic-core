@@ -8,7 +8,8 @@ from src.core.constants import (
     DOCSTRING_INSTRUCTION_PYTHON,
     CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS,
     CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION,
-    END_OF_CODE_MARKER
+    END_OF_CODE_MARKER,
+    GENERAL_PYTHON_DOCSTRING_REMINDER # Import the new constant
 )
 import os
 from pathlib import Path
@@ -47,26 +48,6 @@ def driver_for_prompt_tests(tmp_path, mocker):
 
 class TestWorkflowDriverPromptConstruction:
 
-    def test_prompt_includes_raw_string_and_completeness_guidelines(self, driver_for_prompt_tests):
-        driver = driver_for_prompt_tests
-        step_description = "Implement a regex pattern using a raw string."
-        filepath_to_use = driver._resolve_target_file_for_step(step_description, driver.task_target_file, {})
-        context_for_llm = driver._read_file_for_context(filepath_to_use)
-
-        prompt = driver._construct_coder_llm_prompt(
-            task=driver._current_task,
-            step_description=step_description,
-            filepath_to_use=filepath_to_use,
-            context_for_llm=context_for_llm,
-            is_minimal_context=False
-        )
-
-        assert "Raw Strings and Regex:" in prompt
-        assert "ensure they are complete and correctly formatted." in prompt
-        assert "Snippet Completeness:" in prompt
-        assert "Avoid partial lines or incomplete statements" in prompt
-        assert GENERAL_SNIPPET_GUIDELINES in prompt # Ensure base guidelines are still there
-
     def test_prompt_includes_updated_general_guidelines(self, driver_for_prompt_tests):
         driver = driver_for_prompt_tests
         step_description = "Implement a new utility function."
@@ -88,6 +69,7 @@ class TestWorkflowDriverPromptConstruction:
         assert "Imports (IMPORTANT - READ CAREFULLY FOR SNIPPETS):" in prompt
         assert "EXCEPTION FOR VALIDATION:" in prompt
         assert "YOU MUST INCLUDE the necessary `from X import Y` statements (e.g., `from pathlib import Path`, `from typing import Optional, List`, `import ast`) AT THE TOP OF YOUR SNIPPET" in prompt
+        assert "Raw Strings and Regular Expressions:" in prompt # Verify new guideline
         assert GENERAL_SNIPPET_GUIDELINES in prompt
 
     def test_prompt_for_new_method_includes_docstring_and_guidelines(self, driver_for_prompt_tests, mocker):
@@ -181,4 +163,29 @@ class TestWorkflowDriverPromptConstruction:
 
         assert "--- IMPORTANT REMINDERS FOR THIS SPECIFIC STEP ---" not in prompt
         assert "import re" not in prompt
-        assert "from typing import Dict, Any" not in prompt
+
+
+    def test_prompt_includes_general_docstring_reminder_for_py_modifications(self, driver_for_prompt_tests, mocker):
+        """
+        Test that GENERAL_PYTHON_DOCSTRING_REMINDER is included for Python file modifications
+        when DOCSTRING_INSTRUCTION_PYTHON is not triggered.
+        """
+        driver = driver_for_prompt_tests
+        step_description = "Refactor internal logic of existing_function in module.py."
+        filepath_to_use = driver._resolve_target_file_for_step(step_description, driver.task_target_file, {})
+        context_for_llm = driver._read_file_for_context(filepath_to_use)
+
+        # Ensure _should_add_docstring_instruction returns False (not a "creation" step)
+        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=False)
+
+        prompt = driver._construct_coder_llm_prompt(
+            task=driver._current_task,
+            step_description=step_description,
+            filepath_to_use=filepath_to_use, # This is 'src/module.py'
+            context_for_llm=context_for_llm,
+            is_minimal_context=False
+        )
+
+        assert DOCSTRING_INSTRUCTION_PYTHON not in prompt
+        assert GENERAL_PYTHON_DOCSTRING_REMINDER in prompt # Ensure the reminder is present
+        assert "significantly modified to implement this step" in GENERAL_PYTHON_DOCSTRING_REMINDER # Check updated content

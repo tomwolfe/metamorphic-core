@@ -28,13 +28,12 @@ GENERAL_SNIPPET_GUIDELINES = (
     "   - **Imports (IMPORTANT - READ CAREFULLY FOR SNIPPETS):\n"
     "     - If the task is to add or modify import statements at the top of a file, output *only* the `import` or `from ... import ...` lines.\n"
     "     - If generating a new method or function snippet for an existing Python file:\n"
-    "       - For standard library modules (e.g., `os`, `sys`, `re`, `json`, `datetime`, `pathlib`, `typing`, `ast`) that are commonly imported at the file level, **assume these are already imported in the target file.** Do NOT include these `import` statements within your generated method/function snippet. Your snippet should be *only* the method/function definition.\n" # Clarified typing and pathlib
+    "       - For standard library modules (e.g., `os`, `sys`, `re`, `json`, `datetime`, `pathlib`, `typing`, `ast`) that are commonly imported at the file level, **assume these are already imported in the target file.** Do NOT include these `import` statements within your generated method/function snippet unless explicitly creating a self-contained, validatable snippet. Your snippet should primarily be the method/function definition.\n" # Minor clarification
     "       - **EXCEPTION FOR VALIDATION:** If your new method/function snippet uses types/modules like `Path`, `Optional`, `List`, `Dict`, `Any`, `Tuple`, `Union` from `pathlib` or `typing`, or modules like `ast`, `re`, `json`, `datetime`, YOU MUST INCLUDE the necessary `from X import Y` statements (e.g., `from pathlib import Path`, `from typing import Optional, List`, `import ast`) AT THE TOP OF YOUR SNIPPET. This is required for your snippet to pass isolated pre-write validation checks. These snippet-local imports might be removed later if they are redundant with existing imports in the full file.\n"
     "       - If your snippet *requires* a new third-party library, you MAY include the import at the start of your snippet.\n"
     "     - For any other type of snippet (e.g., a standalone script, or if unsure), ensure all necessary imports are at the beginning of your snippet.\n"
     "6. Logging: If logging is required within a class method, use `self.logger.debug(...)`, `self.logger.info(...)`, etc., assuming `self.logger` is available. For standalone functions or scripts, ensure `logger` is properly initialized (e.g., `import logging; logger = logging.getLogger(__name__)`) if not provided in context.\n"
-    "7. F-strings: Ensure all f-strings are correctly formatted with placeholders if variables are intended (e.g., `f'Value is {{my_variable}}'`). If an f-string is meant to be literal (e.g., in a regex pattern that uses curlies), ensure it does not contain unmatched curly braces that would cause a `SyntaxError` during f-string parsing, or use a raw string `r''` if appropriate.\n"
-    "8. Raw Strings and Regex: When generating raw strings (e.g., `r'...'` or `r\"...\"`) for regular expressions or other purposes, ensure they are complete and correctly formatted. Pay special attention to escaping within raw strings if necessary (though usually not needed for backslashes). Ensure the string is properly terminated (e.g., `r\"^\\s*pattern\\\"\"` not `r\"^\\s*pattern`).\n"
+    "8. **Raw Strings and Regular Expressions:** If you need to include a raw string (e.g., for a regular expression), ensure it is correctly formatted and terminated (e.g., `my_regex = r'pattern'` or `r'''multi-line raw string'''`). Avoid outputting incomplete raw string literals like `r\"...` on their own, especially as the last line of code before the end-of-code marker.\n"
     "9. Snippet Completeness: Ensure the generated snippet is a fully complete and syntactically valid block of code that can be inserted. Avoid partial lines or incomplete statements, especially at the end of the snippet. Double-check for unterminated strings or comments."
 )
 
@@ -42,7 +41,7 @@ GENERAL_SNIPPET_GUIDELINES = (
 # with END_OF_CODE_MARKER when used.
 CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS = (
     "CRITICAL INSTRUCTIONS FOR YOUR RESPONSE FORMAT:\n"
-    "1. Your entire response MUST be ONLY a valid Python code snippet.\n"
+    "1. Your entire response MUST be ONLY a valid Python code snippet representing the complete new or modified function, method, or class.\n"
     "2. Do NOT include any explanations, introductory text, apologies, or markdown formatting like ```python or ```.\n"
     "3. The Python code snippet you generate will be directly parsed and inserted into an existing Python file.\n"
     "4. Your Python code snippet MUST end with the exact marker line, on its own line, with no preceding or trailing characters on that line: `{{END_OF_CODE_MARKER}}` (e.g., `# {{METAMORPHIC_END_OF_CODE_SNIPPET}}`)\n"  # New point 4

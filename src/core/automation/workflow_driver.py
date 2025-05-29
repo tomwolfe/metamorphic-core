@@ -26,7 +26,7 @@ from src.core.constants import (
     MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, MAX_STEP_RETRIES
 )
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
-
+from src.core.constants import CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION # Import new constant
 logger = logging.getLogger(__name__) # Corrected logger name
 MAX_IMPORT_CONTEXT_LINES = 200
 
@@ -205,12 +205,13 @@ class WorkflowDriver:
         """
         description_lower = plan_step_description.lower()
 
+
         simple_addition_keywords: List[str] = [
-            "add import", "add new import", "insert import", "add an import",
-            "add method", "add a new method", "define method", "implement method",
-            "add function", "add a new function", "define function",
-            "implement function", "insert line", "append line", "add line",
-            "prepend line", "add constant", "add variable", "add attribute",
+            "add import", "add new import", "insert import",  "add an import",
+            "add method",  "add a new method",  "define method", "implement method",
+            "add function",  "add a new function",  "define function",
+            "implement function",  "insert line",  "append line", "add line",
+            "prepend line",  "add constant", "add variable", "add attribute",
             "add property", "add decorator", "add test", "add docstring",
             "generate docstring", "update docstring", "add comment",
             "add logging", "add print statement", "add return statement",
@@ -223,11 +224,11 @@ class WorkflowDriver:
             "insert into file", "append to file", "prepend to file",
             "add entry to", "add item to list",
             # Added for more robust simple addition detection (Task 1.8.A)
-            "append",
-            "add a type hint",
-            "add a comment",
+            "append", 
+            "add a type hint", 
+            "add a comment", 
             "add a new test case",
-        ]
+            ]
         general_addition_patterns: List[str] = [
             "add new", "insert new", "define new", "create new",
             "append to", "prepend to",

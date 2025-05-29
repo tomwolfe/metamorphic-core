@@ -198,3 +198,8 @@ def helper_func():
         assert driver._should_add_docstring_instruction("Implement new function foo", "test.py") is True
         # Verify no error is logged about PYTHON_CREATION_KEYWORDS not being defined
         # (This would require checking caplog if the logger was configured to error level for this)
+
+
+class TestPhase1_8Features:
+    def test_research_step_classification(self, driver_for_context_tests):
+        driver = driver_for_context_tests

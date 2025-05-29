@@ -8,6 +8,13 @@ END_OF_CODE_MARKER = "# METAMORPHIC_END_OF_CODE_SNIPPET"
 # Workflow Driver Constants
 MAX_STEP_RETRIES = 2  # Allows 2 retries per step (3 attempts total)
 
+# New constant for minimal context instruction (Task 1.8.A)
+CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION = (
+    "You have been provided with a **targeted, minimal section** of the source file relevant to the current step. "
+    "Your task is to implement the required changes within this context. "
+    "Do NOT output the entire file content. Only provide the new or changed lines."
+)
+
 # Coder LLM Prompt Guidelines
 GENERAL_SNIPPET_GUIDELINES = (
     "1. Ensure all string literals are correctly terminated (e.g., matching quotes, proper escaping).\n"

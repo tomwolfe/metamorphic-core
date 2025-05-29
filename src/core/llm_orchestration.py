@@ -49,6 +49,8 @@ class LLMOrchestrator:
     def __init__(self): # FIX: Correct method name from init to __init__
         self.client = None
         self.active_provider = None
+        self.hf_client = None # Add dedicated Hugging Face client
+        self.hf_model_name = None # Store the configured HF model name
         self.config = self._load_config()
         self._configure_providers()
         # --- ADD RATE LIMITING ATTRIBUTES ---
@@ -85,6 +87,7 @@ class LLMOrchestrator:
             # Set model and api_key attributes on the instance
             self.client.model = "gemini-2.5-flash-preview-05-20" # CHANGED THIS LINE
             self.client.api_key = self.config.gemini_api_key # Redundant but harmless if already set by Client()
+            logger.info(f"Primary LLM_PROVIDER is Gemini. Main client configured for model: {self.client.model}")
         elif self.config.provider == LLMProvider.HUGGING_FACE:
             if not self.config.hf_api_key:
                 raise RuntimeError("HUGGING_FACE_API_KEY is required for Hugging Face provider")
@@ -92,8 +95,20 @@ class LLMOrchestrator:
                 token=self.config.hf_api_key,
                 model=self.config.hugging_face_model,
             )
+            self.hf_model_name = self.config.hugging_face_model # Store configured HF model name
+            logger.info(f"Primary LLM_PROVIDER is Hugging Face. Main client configured for model: {self.config.hugging_face_model}")
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config.provider}")
+
+        # Additionally, always try to configure a separate hf_client if keys are available
+        # This allows using HF models even if the primary provider is Gemini.
+        if self.config.hf_api_key and self.config.hugging_face_model:
+            try:
+                self.hf_client = InferenceClient(token=self.config.hf_api_key, model=self.config.hugging_face_model)
+                self.hf_model_name = self.config.hugging_face_model # Ensure hf_model_name is set
+                logger.info(f"Dedicated Hugging Face client configured for model: {self.config.hugging_face_model}")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dedicated Hugging Face client: {e}. HF models may not be available if primary provider is not HF.")
 
     # --- ADD NEW METHOD FOR GEMINI RATE LIMITING ---
     def _apply_gemini_rate_limit(self):
@@ -116,10 +131,14 @@ class LLMOrchestrator:
     def generate(self, prompt: str) -> str:
         return self._generate_with_retry(prompt)
 
-    def _generate_with_retry(self, prompt: str) -> str:
+    def _generate_with_retry(self, prompt: str, model: Optional[str] = None) -> str:
         """
         Generates content from the LLM with rate limiting and robust retries.
         """
+        # If model is not explicitly provided, use the configured primary provider
+        if model is None:
+            model = self.config.provider.value
+
         try:
             # Create a retry mechanism dynamically using instance config
             # stop_after_attempt(self.config.max_retries + 1) means:
@@ -132,7 +151,7 @@ class LLMOrchestrator:
 
             # Call the _call_llm_api method via the tenacity Retrying object.
             # _apply_gemini_rate_limit is now called inside _call_llm_api before each attempt.
-            return retrying(self._call_llm_api, prompt, self.config.provider.value)
+            return retrying(self._call_llm_api, prompt, model)
 
         except RetryError as e:
             # This exception is raised by tenacity if all attempts fail.
@@ -196,9 +215,12 @@ class LLMOrchestrator:
 
     def _hf_generate(self, prompt: str) -> str:
         # This method should only contain the direct API call logic
+        if not self.hf_client:
+            logger.error("Hugging Face client not initialized. Cannot generate with Hugging Face model.")
+            raise RuntimeError("Hugging Face client not initialized. Check HUGGING_FACE_API_KEY and HUGGING_FACE_MODEL settings.")
         try:
-            # Use the client instance configured with the model
-            return self.client.text_generation(
+            # Use the dedicated hf_client instance
+            return self.hf_client.text_generation(
                 prompt,
                 max_new_tokens=2048,
                 temperature=0.6,
@@ -210,8 +232,10 @@ class LLMOrchestrator:
                 return_full_text=False
             )
         except Exception as e:
-            logging.error(f"Hugging Face error: {str(e)}") # This one was already using logging directly
-            raise RuntimeError(f"Hugging Face error: {str(e)}")
+            # Use self.hf_model_name if available, otherwise fallback
+            hf_model_name_for_log = self.hf_model_name or "Unknown HF Model"
+            logger.error(f"Hugging Face error (model: {hf_model_name_for_log}): {str(e)}", exc_info=True)
+            raise RuntimeError(f"Hugging Face error (model: {hf_model_name_for_log}): {str(e)}") from e
 
     def _count_tokens(self, text: str) -> int:
         # Simple token count for demonstration; replace with a proper tokenizer if needed
@@ -250,7 +274,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
                     model = self.config.provider.value
                     # Call the generate method from the base class (which includes retry and rate limit)
                     # The base generate calls _generate_with_retry, which calls _call_llm_api
-                    code = super().generate(prompt)
+                    code = super()._generate_with_retry(prompt, model=model) # Explicitly pass model
 
             verification_result = self.spec.verify_predictions(code)
             if not verification_result.get("verified", False):

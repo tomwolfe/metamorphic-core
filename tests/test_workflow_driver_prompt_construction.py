@@ -4,8 +4,10 @@ from unittest.mock import MagicMock, patch
 from src.core.automation.workflow_driver import WorkflowDriver, Context
 from src.core.constants import (
     GENERAL_SNIPPET_GUIDELINES,
+
     DOCSTRING_INSTRUCTION_PYTHON,
     CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS,
+    CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION,
     END_OF_CODE_MARKER
 )
 import os

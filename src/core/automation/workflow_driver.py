@@ -1604,7 +1604,6 @@ class WorkflowDriver:
             if targets:
                 resolved_primary_task_target_path = self._validate_path(targets[0])
                 if resolved_primary_task_target_path:
-                    # Construct the prompt section using the phrasing from the test assertion
                     target_file_prompt_section = (
                         f"The primary file being modified for this task is specified as `{resolved_primary_task_target_path}` "
                         "in the task metadata. Focus your plan steps on actions related to this file.\n\n"
@@ -1691,7 +1690,7 @@ Task Description:
         # Add docstring instruction conditionally
         docstring_prompt_addition = ""
         if self._should_add_docstring_instruction(step_description, filepath_to_use):
-            docstring_prompt_addition = "\n" + DOCSTRING_INSTRUCTION_PYTHON + " # (e.g., 'IMPORTANT: For any new Python functions... you MUST include a comprehensive PEP 257 compliant docstring.')\n\n"
+            docstring_prompt_addition = "\n" + DOCSTRING_INSTRUCTION_PYTHON + "\n\n"
         elif filepath_to_use and filepath_to_use.lower().endswith(".py"):
             # If it's a Python file but not a clear "creation" step, add a general reminder.
             # This applies to Python source files (.py), not compiled files (.pyc) or other non-source files.
@@ -1702,6 +1701,23 @@ Task Description:
         if retry_feedback_content:
             retry_feedback_section = f"--- PREVIOUS ATTEMPT FEEDBACK ---\n{retry_feedback_content}\n--- END PREVIOUS ATTEMPT FEEDBACK ---\n\n"
             retry_feedback_section += "Please review the feedback carefully and provide a corrected and improved code snippet.\n\n"
+
+        # --- Add dynamic reminders based on step content ---
+        step_lower = step_description.lower()
+        dynamic_reminders_list = []
+        if "regex" in step_lower or "regular expression" in step_lower:
+            dynamic_reminders_list.append(
+                "This step appears to involve regular expressions. If using the 're' module, ensure 'import re' is included at the top of your Python snippet."
+            )
+        # Check for common typing keywords
+        typing_keywords = ["dict", "any", "list", "optional", "tuple", "union", "callable", "typevar", "type hint", "type annotation"]
+        if any(keyword in step_lower for keyword in typing_keywords):
+            dynamic_reminders_list.append(
+                "This step may involve Python type hints (e.g., Dict, Any, List, Optional, Union, Callable). If so, ensure necessary imports from 'typing' (e.g., 'from typing import Dict, Any, List, Optional, Union, Callable') are included at the top of your Python snippet."
+            )
+        dynamic_reminders_section = ""
+        if dynamic_reminders_list:
+            dynamic_reminders_section = "--- IMPORTANT REMINDERS FOR THIS SPECIFIC STEP ---\n" + "\n".join(dynamic_reminders_list) + "\n--------------------------------------------------\n\n"
 
         # --- NEW: Construct target file context section ---
         target_file_prompt_section = ""
@@ -1733,6 +1749,7 @@ Task Description:
             f"Overall Task: \"{task.get('task_name', 'Unknown Task')}\"\n",
             f"Task Description: {task.get('description', 'No description provided.')}\n",
             "\n", # Newline after task description
+            dynamic_reminders_section, # Add dynamic reminders here
             retry_feedback_section, # Add retry feedback here
             "Specific Plan Step:\n",
             f"{step_description}\n",

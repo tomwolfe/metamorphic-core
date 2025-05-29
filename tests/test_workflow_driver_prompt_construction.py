@@ -114,3 +114,51 @@ class TestWorkflowDriverPromptConstruction:
         assert "Provide *only* the new import lines that need to be added." in prompt
         assert GENERAL_SNIPPET_GUIDELINES in prompt # General guidelines should still be present
         assert DOCSTRING_INSTRUCTION_PYTHON not in prompt # Specific docstring instruction should not be there
+
+    def test_prompt_includes_dynamic_import_reminders_for_regex_and_typing(self, driver_for_prompt_tests, mocker):
+        """
+        Test that dynamic reminders for 're' and 'typing' imports are added
+        when step description implies their use.
+        """
+        driver = driver_for_prompt_tests
+        step_description_regex_typing = "Define a function that uses regular expression matching and returns a dictionary with type hints like Dict[str, Any], Optional[Union[str, Callable]]."
+        filepath_to_use = driver._resolve_target_file_for_step(step_description_regex_typing, driver.task_target_file, {})
+        context_for_llm = driver._read_file_for_context(filepath_to_use)
+
+        # Ensure docstring instruction is also potentially triggered to test interplay
+        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True)
+
+        prompt = driver._construct_coder_llm_prompt(
+            task=driver._current_task,
+            step_description=step_description_regex_typing,
+            filepath_to_use=filepath_to_use,
+            context_for_llm=context_for_llm,
+            is_minimal_context=False
+        )
+
+        assert "--- IMPORTANT REMINDERS FOR THIS SPECIFIC STEP ---" in prompt
+        assert "ensure 'import re' is included at the top of your Python snippet." in prompt
+        assert "ensure necessary imports from 'typing' (e.g., 'from typing import Dict, Any, List, Optional, Union, Callable') are included" in prompt
+        assert DOCSTRING_INSTRUCTION_PYTHON in prompt # Check other instructions are still present
+        assert GENERAL_SNIPPET_GUIDELINES in prompt
+
+    def test_prompt_no_dynamic_reminders_if_keywords_absent(self, driver_for_prompt_tests):
+        """
+        Test that dynamic reminders are NOT added if keywords are absent.
+        """
+        driver = driver_for_prompt_tests
+        step_description_no_keywords = "Implement a simple calculation."
+        filepath_to_use = driver._resolve_target_file_for_step(step_description_no_keywords, driver.task_target_file, {})
+        context_for_llm = driver._read_file_for_context(filepath_to_use)
+
+        prompt = driver._construct_coder_llm_prompt(
+            task=driver._current_task,
+            step_description=step_description_no_keywords,
+            filepath_to_use=filepath_to_use,
+            context_for_llm=context_for_llm,
+            is_minimal_context=False
+        )
+
+        assert "--- IMPORTANT REMINDERS FOR THIS SPECIFIC STEP ---" not in prompt
+        assert "import re" not in prompt
+        assert "from typing import Dict, Any" not in prompt

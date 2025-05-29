@@ -64,13 +64,13 @@ class EthicalGovernanceEngine:
         self._load_schema()
 
     def _load_schema(self):
-        if self._schema is None:
+        if not hasattr(self, '_schema') or self._schema is None: # Ensure _schema is checked for existence first
             try:
                 schema_filename = 'ethical_policy_schema.json'; current_dir = os.path.dirname(os.path.abspath(__file__)); schema_path = os.path.abspath(os.path.join(current_dir, '..', '..', '..', schema_filename))
                 if not os.path.exists(schema_path): schema_path = os.path.abspath(os.path.join(current_dir, '..', '..', schema_filename))
                 if not os.path.exists(schema_path): schema_path = os.path.abspath(os.path.join(current_dir, '..', '..', '..', '..', schema_filename))
                 if not os.path.exists(schema_path): raise FileNotFoundError(f"Schema '{schema_filename}' not found near {current_dir}")
-                with open(schema_path, 'r') as f: self._schema = json.load(f)
+                with open(schema_path, 'r', encoding='utf-8') as f: self._schema = json.load(f) # Keep encoding fix
                 logger.debug("Schema loaded successfully.")
             except Exception as e: logger.error(f"CRITICAL: Schema loading failed: {e}", exc_info=True); raise
         return self._schema
@@ -78,7 +78,7 @@ class EthicalGovernanceEngine:
     def load_policy_from_json(self, filepath: str) -> Dict:
         if not os.path.exists(filepath): raise FileNotFoundError(f"Policy file not found: {filepath}")
         try:
-            with open(filepath, 'r') as f: policy = json.load(f)
+            with open(filepath, 'r', encoding='utf-8') as f: policy = json.load(f) # Keep encoding fix
         except json.JSONDecodeError as e: raise json.JSONDecodeError(f"Invalid JSON in {filepath}: {e.msg}", e.doc, e.pos) from e
         try: validate(instance=policy, schema=self._load_schema())
         except SchemaError as e: raise SchemaError(f"Invalid schema: {e}") from e
@@ -86,22 +86,18 @@ class EthicalGovernanceEngine:
         except Exception as e: raise Exception(f"Unexpected validation error: {e}") from e
         return policy
 
-    def _check_transparency(self, code: str, is_snippet: bool = False) -> bool:
+    def _check_transparency(self, code: str, is_snippet: bool = False) -> tuple[bool, str]:
         """
         Checks for docstrings in the provided code.
-        If `is_snippet` is True, it skips the module-level docstring requirement
-        but still enforces docstrings for functions and classes defined within the snippet.
-        If `is_snippet` is False, it requires a module-level docstring for non-empty code
-        and docstrings for all functions and classes.
-        Empty code is always considered non-transparent (critical safety property).
-        Returns True if compliant, False otherwise.
+        Returns a tuple (is_compliant: bool, detail_key: str) indicating compliance status and a specific reason.
+        `detail_key` can be 'compliant', 'empty_code', 'syntax_error', 'missing_docstrings'.
         """
         logger.debug(f"--- Running transparency check (is_snippet={is_snippet}) ---")
         processed_code = code # Initialize with original code
 
         if not code.strip():
             logger.debug("Violation: Code is empty. Returning False.")
-            return False # Empty code is always considered non-transparent.
+            return False, "empty_code"
 
         if is_snippet:
             try:
@@ -125,7 +121,8 @@ class EthicalGovernanceEngine:
                  logger.debug("Violation: Missing module docstring. Returning False.")
                  # Only fail for missing module docstring if it's not a snippet
                  if not is_snippet:
-                    return False
+                    logger.debug("Violation: Missing module docstring for full code. Returning False.")
+                    return False, "missing_docstrings"
                  else:
                     # Snippets typically don't have module-level docstrings, so this is not a violation.
                     logger.debug("Snippet has no module-level docstring (as expected for snippets).")
@@ -141,37 +138,41 @@ class EthicalGovernanceEngine:
                     logger.debug(f"Checking node: {node_name}, Type: {type(node).__name__}, Docstring found: {bool(func_class_docstring)}")
                     if not func_class_docstring:
                         logger.debug(f"Violation: Missing docstring for {node_name}. Setting violation flag.")
-                        violation_found = True
-                        # Don't break early, log all missing ones if needed for detailed reporting later
+                        # For snippets, any missing docstring in a def/class is a violation.
+                        # For full code, we'll check this after the loop.
+                        if is_snippet:
+                            return False, "missing_docstrings"
+                        else: # For full code, just flag it for now
+                            violation_found = True
 
             if has_definitions and violation_found: # Only fail if definitions exist and some are missing docstrings
                  logger.debug("Violation found in function/class docstrings. Returning False.")
-                 return False
+                 return False, "missing_docstrings"
             elif not has_definitions and is_snippet and not module_docstring:
                 # If it's a snippet, has no definitions, and no module docstring,
                 # it's likely a simple expression or import block. Consider it transparent.
                 logger.debug("Snippet has no definitions and no module docstring. Considered transparent.")
-                return True
+                return True, "compliant"
             elif not has_definitions and not is_snippet and not module_docstring:
                 # If it's full code, has no definitions, but also no module docstring, it's a violation.
                 logger.debug("Full code has no definitions and no module docstring. Violation. Returning False.")
-                return False
+                return False, "missing_docstrings"
 
 
             logger.debug("No docstring violations found. Returning True.")
-            return True
+            return True, "compliant"
 
         except SyntaxError as se:
             # If parsing fails (even after dedent), it's not transparent as we can't analyze it.
-            logger.warning(f"Syntax error during transparency check: {se}. Code (first 100 chars): '{processed_code[:100]}'. Returning False.")
-            return False
+            logger.warning(f"Syntax error during transparency check: {se}. Code (first 100 chars): '{code[:100]}'. Returning False.")
+            return False, "syntax_error"
         except Exception as e:
-            logger.error(f"ERROR during AST parsing for transparency: {e}. Code (first 100 chars): '{processed_code[:100]}'. Returning False.", exc_info=True)
-            return False
+            logger.error(f"ERROR during AST parsing for transparency: {e}. Code (first 100 chars): '{code[:100]}'. Returning False.", exc_info=True)
+            return False, "syntax_error" # Treat other parsing errors like syntax errors for transparency
 
     def enforce_policy(self, code: str, policy_config: Dict, is_snippet: bool = False) -> Dict:
         constraints_config = policy_config.get("constraints", {})
-        enforcement_results = {"policy_name": policy_config.get("policy_name", "Unknown"), "description": policy_config.get("description", ""), "overall_status": "approved"}
+        enforcement_results = {"policy_name": policy_config.get("policy_name", "Unnamed Policy"), "description": policy_config.get("description", ""), "overall_status": "compliant"}
         any_violation = False
 
         # BiasRisk
@@ -180,8 +181,18 @@ class EthicalGovernanceEngine:
         if bias_status == "violation": any_violation = True; logger.debug("any_violation set by BiasRisk")
 
         # TransparencyScore
-        transparency_config = constraints_config.get("TransparencyScore", {}); is_transparent = self._check_transparency(code, is_snippet); transparency_status = "compliant" if is_transparent else "violation"
-        enforcement_results["TransparencyScore"] = {"status": transparency_status, "threshold": transparency_config.get("threshold"), "enforcement_level": transparency_config.get("enforcement_level"), "details": "Docstrings compliant." if is_transparent else "Missing required docstring(s)."}
+        transparency_config = constraints_config.get("TransparencyScore", {})
+        is_transparent, transparency_detail_key = self._check_transparency(code, is_snippet)
+        transparency_status = "compliant" if is_transparent else "violation"
+        
+        transparency_details_msg = "Docstrings compliant."
+        if transparency_detail_key == "syntax_error":
+            transparency_details_msg = "Syntax error prevented full transparency check."
+        elif transparency_detail_key == "missing_docstrings":
+            transparency_details_msg = "Missing required docstring(s)."
+        elif transparency_detail_key == "empty_code":
+            transparency_details_msg = "Code is empty, which is considered non-transparent."
+        enforcement_results["TransparencyScore"] = {"status": transparency_status, "threshold": transparency_config.get("threshold"), "enforcement_level": transparency_config.get("enforcement_level"), "details": transparency_details_msg}
         if transparency_status == "violation": any_violation = True; logger.debug("any_violation set by Transparency")
 
         # SafetyBoundary

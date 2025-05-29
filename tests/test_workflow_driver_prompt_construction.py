@@ -47,6 +47,26 @@ def driver_for_prompt_tests(tmp_path, mocker):
 
 class TestWorkflowDriverPromptConstruction:
 
+    def test_prompt_includes_raw_string_and_completeness_guidelines(self, driver_for_prompt_tests):
+        driver = driver_for_prompt_tests
+        step_description = "Implement a regex pattern using a raw string."
+        filepath_to_use = driver._resolve_target_file_for_step(step_description, driver.task_target_file, {})
+        context_for_llm = driver._read_file_for_context(filepath_to_use)
+
+        prompt = driver._construct_coder_llm_prompt(
+            task=driver._current_task,
+            step_description=step_description,
+            filepath_to_use=filepath_to_use,
+            context_for_llm=context_for_llm,
+            is_minimal_context=False
+        )
+
+        assert "Raw Strings and Regex:" in prompt
+        assert "ensure they are complete and correctly formatted." in prompt
+        assert "Snippet Completeness:" in prompt
+        assert "Avoid partial lines or incomplete statements" in prompt
+        assert GENERAL_SNIPPET_GUIDELINES in prompt # Ensure base guidelines are still there
+
     def test_prompt_includes_updated_general_guidelines(self, driver_for_prompt_tests):
         driver = driver_for_prompt_tests
         step_description = "Implement a new utility function."

@@ -44,6 +44,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy installed Python packages from the builder stage
 # This copies the entire site-packages directory, including spaCy models
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+# NEW LINE: Copy executables from the builder stage
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
 # Ensure .dockerignore is configured to exclude unnecessary files

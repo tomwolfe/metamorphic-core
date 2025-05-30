@@ -204,7 +204,7 @@
       "priority": "Critical",
       "task_name": "EPIC: Optimize Large Context Handling for Code Generation Steps",
       "description": "OVERARCHING GOAL: Refine `WorkflowDriver.autonomous_loop` and related components to significantly reduce redundant LLM calls when processing large context files for code generation steps, by providing minimal context for simple additions and prompting for only changed lines. This epic is achieved via sub-tasks task_1_8_A_1_helper_is_simple_addition through task_1_8_A_6_review_summarizer_and_test_e2e.",
-      "status": "Not Started",
+      "status": "In Progress",
       "target_file": "src/core/automation/workflow_driver.py, src/core/llm_orchestration.py, src/core/chunking/recursive_summarizer.py",
       "depends_on": [
         "task_1_8_Y_ensure_docstrings_in_codegen"

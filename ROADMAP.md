@@ -115,7 +115,7 @@
 *   **Task ID**: task_1_8_A_1_helper_is_simple_addition
     *   **Priority**: Critical
     *   **Task Name**: Implement Helper `_is_simple_addition_plan_step`
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_Y_ensure_docstrings_in_codegen']
 
 *   **Task ID**: task_1_8_A_2_helper_get_context_type
@@ -231,4 +231,10 @@
     *   **Task Name**: Add Comprehensive Tests for Phase 1.8 Features
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_1', 'task_1_8_2_retry', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_6', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
+
+*   **Task ID**: task_1_8_C_1_analyze_A1_failure_and_improve_codegen
+    *   **Priority**: High
+    *   **Task Name**: Analyze task_1_8_A_1 Failures & Improve CodeGen
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_6_review_summarizer_and_test_e2e']
 

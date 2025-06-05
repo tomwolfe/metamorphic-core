@@ -212,7 +212,7 @@
     *   **Priority**: High
     *   **Task Name**: Implement Prompt Self-Correction Mechanism
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_3', 'task_1_8_5', 'task_1_8_6']
+    *   **Depends On**: ['task_1_8_3', 'task_1_8_6']
 
 *   **Task ID**: task_1_8_11
     *   **Priority**: High

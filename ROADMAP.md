@@ -106,17 +106,53 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_improve_snippet_handling']
 
-*   **Task ID**: task_1_8_A_optimize_large_context
+*   **Task ID**: task_1_8_A_optimize_large_context_epic
     *   **Priority**: Critical
-    *   **Task Name**: Optimize Large Context Handling for Code Generation Steps
+    *   **Task Name**: EPIC: Optimize Large Context Handling for Code Generation Steps
+    *   **Status**: In Progress
+    *   **Depends On**: ['task_1_8_Y_ensure_docstrings_in_codegen']
+
+*   **Task ID**: task_1_8_A_1_helper_is_simple_addition
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Helper `_is_simple_addition_plan_step`
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_Y_ensure_docstrings_in_codegen']
+
+*   **Task ID**: task_1_8_A_2_helper_get_context_type
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Helper `_get_context_type_for_step`
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_1_helper_is_simple_addition']
+
+*   **Task ID**: task_1_8_A_3_helper_extract_targeted_context
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Helper `_extract_targeted_context`
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_2_helper_get_context_type']
+
+*   **Task ID**: task_1_8_A_4_integrate_minimal_context_logic
+    *   **Priority**: Critical
+    *   **Task Name**: Integrate Minimal Context Logic into WorkflowDriver Loop
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_3_helper_extract_targeted_context']
+
+*   **Task ID**: task_1_8_A_5_refine_coder_prompt_for_minimal_output
+    *   **Priority**: Critical
+    *   **Task Name**: Refine CoderLLM Prompt for Minimal Output on Simple Additions
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_4_integrate_minimal_context_logic']
+
+*   **Task ID**: task_1_8_A_6_review_summarizer_and_test_e2e
+    *   **Priority**: Critical
+    *   **Task Name**: Review Summarizer Logic and Test End-to-End Context Optimization
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_5_refine_coder_prompt_for_minimal_output']
 
 *   **Task ID**: task_1_8_A_test_import_optimization
     *   **Priority**: Critical
     *   **Task Name**: Test Import Context Optimization
     *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_optimize_large_context']
+    *   **Depends On**: ['task_1_8_A_6_review_summarizer_and_test_e2e']
 
 *   **Task ID**: task_1_8_B_enhance_retry_prompts
     *   **Priority**: High

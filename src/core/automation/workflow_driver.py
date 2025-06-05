@@ -1667,6 +1667,18 @@ Task Description:
                     )
         # --- END NEW SECTION ---
 
+        # Add the new focus instruction if is_generating_full_block
+        # is_generating_full_block is True if _should_add_docstring_instruction is True for this step.
+        focus_instruction_content = ""
+        if is_generating_full_block:
+            focus_instruction_content = (
+                "\n\n!!! CRITICAL FOCUS FOR THIS STEP !!!\n"
+                "Your *sole* objective is to fulfill the 'Specific Plan Step' provided below. "
+                "Do NOT attempt to implement logic from the 'Overall Task Description' at this stage. "
+                "Focus *exclusively* on the 'Specific Plan Step' and output only the requested code structure.\n"
+            )
+
+
         # Construct the full prompt
         # Reconstructing the prompt using concatenation to avoid potential f-string multi-line issues
         coder_prompt_parts = [
@@ -1685,7 +1697,8 @@ Task Description:
             "\n", # Newline after task description
             dynamic_reminders_section, # Add dynamic reminders here
             retry_feedback_section, # Add retry feedback here
-            "Specific Plan Step:\n",
+            focus_instruction_content, # <<< ADDED FOCUS INSTRUCTION HERE
+            "\nSpecific Plan Step:\n", # Added newline for better separation
             f"{step_description}\n",
             "\n",
             f"PROVIDED CONTEXT FROM `{filepath_to_use}` (this might be the full file or a targeted section):\n",

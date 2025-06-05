@@ -193,3 +193,39 @@ class TestWorkflowDriverPromptConstruction:
         assert DOCSTRING_INSTRUCTION_PYTHON not in prompt
         assert GENERAL_PYTHON_DOCSTRING_REMINDER in prompt # Ensure the reminder is present
         assert "significantly modified to implement this step" in GENERAL_PYTHON_DOCSTRING_REMINDER # Check updated content
+
+    def test_prompt_includes_critical_focus_instruction_when_generating_full_block(self, driver_for_prompt_tests, mocker):
+        """
+        Test that the '!!! CRITICAL FOCUS FOR THIS STEP !!!' instruction is added
+        immediately before 'Specific Plan Step:' when is_generating_full_block is true.
+        """
+        driver = driver_for_prompt_tests
+        step_description = "Implement new method process_complex_data in DataHandler class"
+        filepath_to_use = driver._resolve_target_file_for_step(step_description, driver.task_target_file, {})
+        context_for_llm = driver._read_file_for_context(filepath_to_use)
+
+        # Mock _should_add_docstring_instruction to return True, which sets is_generating_full_block = True
+        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True)
+
+        prompt = driver._construct_coder_llm_prompt(
+            task=driver._current_task,
+            step_description=step_description,
+            filepath_to_use=filepath_to_use,
+            context_for_llm=context_for_llm,
+            is_minimal_context=False # Does not affect this specific instruction's presence
+        )
+
+        expected_focus_instruction = (
+            "\n\n!!! CRITICAL FOCUS FOR THIS STEP !!!\n"
+            "Your *sole* objective is to fulfill the 'Specific Plan Step' provided below. "
+            "Do NOT attempt to implement logic from the 'Overall Task Description' at this stage. "
+            "Focus *exclusively* on the 'Specific Plan Step' and output only the requested code structure.\n"
+        )
+        assert expected_focus_instruction in prompt
+        # Verify placement: focus instruction should appear directly before "\nSpecific Plan Step:"
+        assert f"{expected_focus_instruction}\nSpecific Plan Step:\n" in prompt
+        # Ensure other key parts are still present (corrected assertions)
+        assert "Overall Task:" in prompt  # Corrected assertion
+        assert "Task Description:" in prompt # Corrected assertion
+        assert DOCSTRING_INSTRUCTION_PYTHON in prompt # Because _should_add_docstring_instruction is True
+        assert GENERAL_SNIPPET_GUIDELINES in prompt

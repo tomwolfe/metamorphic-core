@@ -1,7 +1,8 @@
 # tests/test_workflow_driver_context_extraction.py
 import pytest
 from unittest.mock import patch, MagicMock
-from src.core.automation.workflow_driver import WorkflowDriver, Context, MAX_IMPORT_CONTEXT_LINES, CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION, CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, END_OF_CODE_MARKER, PYTHON_CREATION_KEYWORDS
+from src.core.automation.workflow_driver import WorkflowDriver, Context
+from src.core.constants import MAX_IMPORT_CONTEXT_LINES, CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION, CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, END_OF_CODE_MARKER, PYTHON_CREATION_KEYWORDS
 from pathlib import Path
 import ast
 import logging # Added for caplog

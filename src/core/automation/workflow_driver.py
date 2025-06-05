@@ -23,19 +23,11 @@ from src.core.constants import (
     END_OF_CODE_MARKER, GENERAL_SNIPPET_GUIDELINES, DOCSTRING_INSTRUCTION_PYTHON,
     PYTHON_CREATION_KEYWORDS, GENERAL_PYTHON_DOCSTRING_REMINDER, # Added GENERAL_PYTHON_DOCSTRING_REMINDER
     CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS,
-    MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, MAX_STEP_RETRIES
+    MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, MAX_STEP_RETRIES, MAX_IMPORT_CONTEXT_LINES
 )
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
 from src.core.constants import CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION # Import new constant
 logger = logging.getLogger(__name__) # Corrected logger name
-MAX_IMPORT_CONTEXT_LINES = 200
-
-# New constant for minimal context instruction (Task 1.8.A)
-CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION = (
-    "You have been provided with a **targeted, minimal section** of the source file relevant to the current step. "
-    "Your task is to implement the required changes within this context. "
-    "Do NOT output the entire file content. Only provide the new or changed lines."
-)
 
 nlp = None
 try:
@@ -69,14 +61,6 @@ CONCEPTUAL_KEYWORDS = [
 "brainstorm ideas", "research and identify",
 "project plan", "design proposal"
 ]
-
-# Define the standard docstring instruction prompt addition (Task 1.8.Y)
-DOCSTRING_INSTRUCTION_PYTHON = (
-"IMPORTANT: For any new Python functions, methods, or classes, "
-"you MUST include a comprehensive PEP 257 compliant docstring. "
-"Use Google-style format (Args:, Returns:, Example: sections). "
-"This is required to pass automated ethical and style checks."
-)
 
 def classify_plan_step(step_description: str) -> str:
     """

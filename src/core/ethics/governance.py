@@ -131,16 +131,23 @@ class EthicalGovernanceEngine:
             violation_found = False
             has_definitions = False # Initialize flag for presence of definitions
             for node in ast.walk(tree):
-                if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                if isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.AsyncFunctionDef)): # Added AsyncFunctionDef to check
                     has_definitions = True # Set flag if any function/class definition is found
                     node_name = getattr(node, 'name', 'unknown_node')
                     func_class_docstring = ast.get_docstring(node)
                     logger.debug(f"Checking node: {node_name}, Type: {type(node).__name__}, Docstring found: {bool(func_class_docstring)}")
                     if not func_class_docstring:
-                        logger.debug(f"Violation: Missing docstring for {node_name}. Setting violation flag.")
-                        # For snippets, any missing docstring in a def/class is a violation.
-                        # For full code, we'll check this after the loop.
-                        if is_snippet:
+                        # If it's a snippet and a placeholder function/method, don't fail yet.
+                        is_placeholder = False
+                        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and len(node.body) == 1 and isinstance(node.body[0], ast.Pass): # Consider AsyncFunctionDef too
+                            is_placeholder = True
+                        
+                        if is_snippet and is_placeholder:
+                            logger.debug(f"Snippet placeholder {type(node).__name__} '{node_name}' without docstring. Allowing for now.")
+                            # Continue to check other nodes, but don't mark this specific one as a violation *yet*.
+                            # The overall check for `violation_found` will determine the outcome.
+                        elif is_snippet: # Non-placeholder in snippet missing docstring
+                            logger.debug(f"Violation: Snippet {type(node).__name__} '{node_name}' missing docstring. Returning False.")
                             return False, "missing_docstrings"
                         else: # For full code, just flag it for now
                             violation_found = True

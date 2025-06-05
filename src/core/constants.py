@@ -3,6 +3,7 @@
 # File Handling Constants
 MAX_READ_FILE_SIZE = 1024 * 1024  # 1 MB
 METAMORPHIC_INSERT_POINT = "# METAMORPHIC_INSERT_POINT"
+MAX_IMPORT_CONTEXT_LINES = 10 # Number of lines to provide as context when adding imports and no existing imports are found
 END_OF_CODE_MARKER = "# METAMORPHIC_END_OF_CODE_SNIPPET"
 
 # Workflow Driver Constants
@@ -64,7 +65,8 @@ CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS = (
 
 # Python Code Creation Keywords (for docstring instruction)
 DOCSTRING_INSTRUCTION_PYTHON = (
-    "IMPORTANT: For any new Python functions, methods, or classes, you MUST include a comprehensive PEP 257 compliant docstring. Use Google-style format (Args:, Returns:, Example: sections). This is required to pass automated ethical and style checks."
+    "IMPORTANT: For new Python functions, methods, or classes, if you are generating the *full implementation* (including the body), you MUST include a comprehensive PEP 257 compliant docstring. Use Google-style format (Args:, Returns:, Example: sections). This is required to pass automated ethical and style checks.\n"
+    "If only defining a signature or placeholder (e.g., `def foo(): pass`), a docstring is not required for *that specific step* but must be added in a subsequent step."
 ) # Removed trailing space
 PYTHON_CREATION_KEYWORDS = [ # Task 1.8.Y: Keywords indicating creation of new Python code structures
     "implement function", "add method", "create class", "define function",

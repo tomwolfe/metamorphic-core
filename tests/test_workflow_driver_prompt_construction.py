@@ -77,9 +77,9 @@ class TestWorkflowDriverPromptConstruction:
         step_description = "Add new method process_data to class Processor"
         filepath_to_use = driver._resolve_target_file_for_step(step_description, driver.task_target_file, {})
         context_for_llm = driver._read_file_for_context(filepath_to_use)
-
-        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True)
-
+    
+        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True) # Ensure this returns True for the test
+    
         prompt = driver._construct_coder_llm_prompt(
             task=driver._current_task,
             step_description=step_description,
@@ -88,7 +88,9 @@ class TestWorkflowDriverPromptConstruction:
             is_minimal_context=False
         )
 
-        assert DOCSTRING_INSTRUCTION_PYTHON in prompt
+        # Assert the exact first line of the docstring instruction to ensure it's included
+        assert "IMPORTANT: For new Python functions, methods, or classes, if you are generating the *full implementation* (including the body)," in prompt
+        assert "If only defining a signature or placeholder (e.g., `def foo(): pass`), a docstring is not required for *that specific step* but must be added in a subsequent step." in prompt
         assert GENERAL_SNIPPET_GUIDELINES in prompt
         assert "CRITICAL PEP 8 ADHERENCE:" in prompt
         assert "EXCEPTION FOR VALIDATION:" in prompt
@@ -126,10 +128,10 @@ class TestWorkflowDriverPromptConstruction:
         step_description_regex_typing = "Define a function that uses regular expression matching and returns a dictionary with type hints like Dict[str, Any], Optional[Union[str, Callable]]."
         filepath_to_use = driver._resolve_target_file_for_step(step_description_regex_typing, driver.task_target_file, {})
         context_for_llm = driver._read_file_for_context(filepath_to_use)
-
+    
         # Ensure docstring instruction is also potentially triggered to test interplay
-        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True)
-
+        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True) # Ensure this returns True for the test
+    
         prompt = driver._construct_coder_llm_prompt(
             task=driver._current_task,
             step_description=step_description_regex_typing,
@@ -141,7 +143,9 @@ class TestWorkflowDriverPromptConstruction:
         assert "--- IMPORTANT REMINDERS FOR THIS SPECIFIC STEP ---" in prompt
         assert "ensure 'import re' is included at the top of your Python snippet." in prompt
         assert "ensure necessary imports from 'typing' (e.g., 'from typing import Dict, Any, List, Optional, Union, Callable') are included" in prompt
-        assert DOCSTRING_INSTRUCTION_PYTHON in prompt # Check other instructions are still present
+        # Assert the exact first line of the docstring instruction to ensure it's included
+        assert "IMPORTANT: For new Python functions, methods, or classes, if you are generating the *full implementation* (including the body)," in prompt
+        assert "If only defining a signature or placeholder (e.g., `def foo(): pass`), a docstring is not required for *that specific step* but must be added in a subsequent step." in prompt
         assert GENERAL_SNIPPET_GUIDELINES in prompt
 
     def test_prompt_no_dynamic_reminders_if_keywords_absent(self, driver_for_prompt_tests):

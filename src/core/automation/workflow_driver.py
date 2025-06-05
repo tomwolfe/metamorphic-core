@@ -3,6 +3,7 @@ import os
 import json
 import logging
 import re # Added for _is_simple_addition_plan_step
+import html # ADD THIS IMPORT
 from typing import List, Dict, Any, Optional, Tuple, Union
 from datetime import datetime
 from pathlib import Path
@@ -2911,6 +2912,10 @@ Your response should be the complete, corrected code content that addresses the 
         # Patterns that indicate complex changes, refactoring, or new class creation
         complex_patterns = [
             r"create new class\b",
+            r"add class\b", # Added to catch "Add class NewComponent"
+            r"define class\b", # Added to catch "Define class User"
+            r"implement class\b", # Added to catch "Implement class MyUtility"
+            r"generate class\b", # Added to catch "Generate class for data processing"
             r"refactor\b",
             r"restructure\b",
             r"modify existing logic\b",
@@ -2933,6 +2938,12 @@ Your response should be the complete, corrected code content that addresses the 
             r"add (?:new )?method .* in (?:existing )?class\b",
             r"define (?:new )?method .* in (?:existing )?class\b",
             r"implement (?:new )?method .* in (?:existing )?class\b",
+            r"add (?:new )?function\b", # For new functions
+            r"implement function\b",   # For new functions
+            r"define (?:new )?function\b", # For new functions
+            r"add logging\b", # New: for logging operations
+            r"add (?:new )?test case\b", # New: for test cases
+            r"add __init__ method\b", # New: for __init__ method
             r"add constant\b", r"define (?:a )?(?:new )?constant\b",
             r"append line\b", r"insert line\b", r"add line\b", r"prepend line\b",
             r"add (?:a )?docstring to\b", r"generate docstring for\b",

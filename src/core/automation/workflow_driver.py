@@ -2916,6 +2916,7 @@ Your response should be the complete, corrected code content that addresses the 
             r"define class\b", # Added to catch "Define class User"
             r"implement class\b", # Added to catch "Implement class MyUtility"
             r"generate class\b", # Added to catch "Generate class for data processing"
+            r"add .*?global function\b", # Added to classify new global functions as complex
             r"refactor\b",
             r"restructure\b",
             r"modify existing logic\b",
@@ -2933,23 +2934,20 @@ Your response should be the complete, corrected code content that addresses the 
 
         # Patterns that indicate simple, targeted code additions
         simple_addition_patterns = [
-            r"add import\b", r"add new import\b", r"insert import\b",
-            r"add (?:new )?method .* to (?:existing )?class\b",
-            r"add (?:new )?method .* in (?:existing )?class\b",
-            r"define (?:new )?method .* in (?:existing )?class\b",
-            r"implement (?:new )?method .* in (?:existing )?class\b",
-            r"add (?:new )?function\b", # For new functions
-            r"implement function\b",   # For new functions
-            r"define (?:new )?function\b", # For new functions
-            r"add logging\b", # New: for logging operations
-            r"add (?:new )?test case\b", # New: for test cases
-            r"add __init__ method\b", # New: for __init__ method
-            r"add constant\b", r"define (?:a )?(?:new )?constant\b",
+            r"add import\b", r"add new import\b", r"insert import\b", r"include import\b",
+            r"add .*?method\b", r"implement .*?method\b", r"define .*?method\b",
+            r"add .*?function\b",
+            r"implement .*?function\b",
+            r"define .*?function\b",
+            r"add logging\b", # Re-added \b
+            r"add .*?test case\b", # Re-added \b
+            r"add __init__ method\b", # Re-added \b
+            r"add constant\b", r"define .*?constant\b", # Re-added \b
             r"append line\b", r"insert line\b", r"add line\b", r"prepend line\b",
             r"add (?:a )?docstring to\b", r"generate docstring for\b",
-            r"add (?:a )?comment to\b", r"add type hint for\b",
+            r"add (?:a )?comment\b", r"add (?:a )?type hint\b",
             # Added to cover more general "add content" scenarios
-            r"append\b", r"insert\b", r"prepend\b"
+            r"append\b", r"insert\b", r"prepend\b", # Keep these with \b as they are generic actions
         ]
 
         for pattern in simple_addition_patterns:

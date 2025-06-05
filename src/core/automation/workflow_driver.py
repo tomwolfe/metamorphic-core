@@ -929,8 +929,32 @@ class WorkflowDriver:
                                 elif prelim_flags['is_code_generation_step_prelim'] and filepath_to_use and filepath_to_use.endswith('.py'):
                                     # This step involves generating Python code and writing it to a .py file
                                     logger.info(f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.") # Log resolved path
-                                    # Read existing content for context (filepath_to_use is already resolved)
                                     original_full_content = self._read_file_for_context(filepath_to_use)
+                                    
+                                    step_description_for_coder = step # Original step description
+                                    # Check for "Define Method Signature" pattern to refine prompt
+                                    # This pattern specifically looks for steps that provide the python signature
+                                    # Flexible pattern: tolerates varied phrasing and missing/extra colons in the *input step description*
+                                    define_sig_pattern = r"Define Method Signature[^\n]*?(?:python\s*)?(def\s+\w+\([^)]*\)(?:\s*->\s*[\w\.\[\], ]+)?)\s*:?"
+                                    define_sig_match = re.match(define_sig_pattern, step, re.IGNORECASE)
+                                    if define_sig_match:
+                                        extracted_signature_line = define_sig_match.group(1).strip()
+                                        # Ensure it's a valid start of a Python function definition
+                                        if extracted_signature_line.startswith("def "):
+                                            # Enforce trailing colon if missing for the actual code generation
+                                            if not extracted_signature_line.endswith(':'):
+                                                extracted_signature_line += ':'
+                                            method_definition_with_pass = f"{extracted_signature_line}\n    pass"
+                                            step_description_for_coder = (
+                                                f"Insert the following Python method definition into the class. "
+                                                f"Ensure it is correctly indented and includes a `pass` statement as its body. "
+                                                f"Output ONLY the complete method definition (signature and 'pass' body).\n"
+                                                f"Method to insert:\n```python\n{method_definition_with_pass}\n```"
+                                            )
+                                            self.logger.info("Refined step description for CoderLLM (Define Method Signature)")
+                                        else:
+                                            self.logger.warning(f"Could not reliably extract Python 'def' from 'Define Method Signature' step: {step}. Using original step description for CoderLLM.")
+
                                     if original_full_content is None: # Handle read errors
                                         step_failure_reason = f"Failed to read current content of {filepath_to_use} for code generation."
                                         logger.error(step_failure_reason)
@@ -940,7 +964,14 @@ class WorkflowDriver:
                                     context_for_llm, is_minimal_context = self._extract_targeted_context(filepath_to_use, original_full_content, context_type, step)
                                     logger.debug(f"Context for LLM (is_minimal={is_minimal_context}, len={len(context_for_llm)} chars) for file {filepath_to_use}.")
                                     # Construct the Coder LLM prompt using the new helper method
-                                    coder_prompt = self._construct_coder_llm_prompt(self._current_task, step, filepath_to_use, context_for_llm, is_minimal_context, retry_feedback_for_llm_prompt if step_retries > 0 else None)
+                                    coder_prompt = self._construct_coder_llm_prompt(
+                                        self._current_task,
+                                        step_description_for_coder,  # Use the potentially refined step description
+                                        filepath_to_use,
+                                        context_for_llm,
+                                        is_minimal_context,
+                                        retry_feedback_for_llm_prompt if step_retries > 0 else None
+                                    )
                                     logger.debug("Invoking Coder LLM with prompt (first 500 chars):\n%s", coder_prompt[:500]) # Log truncated prompt
                                     generated_snippet = self._invoke_coder_llm(coder_prompt)
 

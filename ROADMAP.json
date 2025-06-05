@@ -217,7 +217,9 @@
       "description": "In `src/core/automation/workflow_driver.py`, implement a new helper method `_is_simple_addition_plan_step(self, plan_step_description: str) -> bool`. This method should analyze the `plan_step_description` string and return `True` if the description indicates a simple, targeted code addition (e.g., adding imports, adding a new method to an *existing* class, adding a constant, appending a line). It should return `False` for complex modifications, refactoring, or new class creation. Ensure comprehensive docstrings and unit tests for this helper in `tests/test_phase1_8_features.py`.",
       "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
-      "depends_on": ["task_1_8_Y_ensure_docstrings_in_codegen"]
+      "depends_on": [
+        "task_1_8_Y_ensure_docstrings_in_codegen"
+      ]
     },
     {
       "task_id": "task_1_8_A_2_helper_get_context_type",
@@ -226,7 +228,9 @@
       "description": "In `src/core/automation/workflow_driver.py`, implement `_get_context_type_for_step(self, step_description: str) -> Optional[str]`. This method should analyze the `step_description` and return a string like 'add_import', 'add_method_to_class', 'add_global_function', or None if the type is unclear or complex. Use regex or simple NLP. Ensure comprehensive docstrings and unit tests in `tests/test_phase1_8_features.py`.",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
-      "depends_on": ["task_1_8_A_1_helper_is_simple_addition"]
+      "depends_on": [
+        "task_1_8_A_1_helper_is_simple_addition"
+      ]
     },
     {
       "task_id": "task_1_8_A_3_helper_extract_targeted_context",
@@ -235,7 +239,9 @@
       "description": "In `src/core/automation/workflow_driver.py`, implement `_extract_targeted_context(self, file_path: str, file_content: str, context_type: Optional[str], step_description: str) -> Tuple[str, bool]`. Based on `context_type` (from task_1_8_A_2), this method should extract the minimal relevant section from `file_content`. For 'add_import', return the import block or top N lines. For 'add_method_to_class', use AST to find the class and return its definition, including existing methods and a few surrounding lines, as context for adding a new method. Return (full_content, False) if context_type is None or extraction fails. Ensure comprehensive docstrings and unit tests in `tests/test_phase1_8_features.py`.",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
-      "depends_on": ["task_1_8_A_2_helper_get_context_type"]
+      "depends_on": [
+        "task_1_8_A_2_helper_get_context_type"
+      ]
     },
     {
       "task_id": "task_1_8_A_4_integrate_minimal_context_logic",
@@ -244,7 +250,9 @@
       "description": "Modify `WorkflowDriver.autonomous_loop` in `src/core/automation/workflow_driver.py`. If `_is_simple_addition_plan_step` returns True for the current step: 1. Call `_get_context_type_for_step`. 2. Call `_extract_targeted_context` using the determined type. 3. Pass the extracted context and `is_minimal_context=True` to `_construct_coder_llm_prompt`. If `_is_simple_addition_plan_step` is False, pass full context and `is_minimal_context=False`. Update unit tests.",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
-      "depends_on": ["task_1_8_A_3_helper_extract_targeted_context"]
+      "depends_on": [
+        "task_1_8_A_3_helper_extract_targeted_context"
+      ]
     },
     {
       "task_id": "task_1_8_A_5_refine_coder_prompt_for_minimal_output",
@@ -253,7 +261,9 @@
       "description": "Modify `WorkflowDriver._construct_coder_llm_prompt` in `src/core/automation/workflow_driver.py`. When `is_minimal_context` is True, add specific instructions to the CoderLLM prompt to output *only* the new/changed lines, not the entire file or section. Reference the `CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION` and `CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS` constants. Ensure this is clearly distinct from prompts for full file generation. Update unit tests.",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
-      "depends_on": ["task_1_8_A_4_integrate_minimal_context_logic"]
+      "depends_on": [
+        "task_1_8_A_4_integrate_minimal_context_logic"
+      ]
     },
     {
       "task_id": "task_1_8_A_6_review_summarizer_and_test_e2e",
@@ -262,7 +272,9 @@
       "description": "1. Review `RecursiveSummarizer.summarize_code_recursively` and `EnhancedLLMOrchestrator._handle_large_context` to ensure they are not triggered unnecessarily for simple additions now that minimal context is provided by `WorkflowDriver`. 2. Perform end-to-end integration testing (manual or new automated test) to confirm that for simple additions to large files, `_handle_large_context` is bypassed and LLM calls are minimized. This validates the success of the preceding sub-tasks.",
       "status": "Not Started",
       "target_file": "src/core/chunking/recursive_summarizer.py, src/core/llm_orchestration.py, tests/test_phase1_8_features.py",
-      "depends_on": ["task_1_8_A_5_refine_coder_prompt_for_minimal_output"]
+      "depends_on": [
+        "task_1_8_A_5_refine_coder_prompt_for_minimal_output"
+      ]
     },
     {
       "task_id": "task_1_8_A_test_import_optimization",
@@ -385,7 +397,6 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_3",
-        "task_1_8_5",
         "task_1_8_6"
       ]
     },

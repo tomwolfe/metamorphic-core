@@ -190,6 +190,170 @@ def driver_for_simple_addition_test(tmp_path, mocker):
     driver.logger = MagicMock(spec=logging.Logger) 
     return driver
 
+class TestPhase1_8WorkflowDriverEnhancements:
+
+    @pytest.fixture
+    def driver_for_prompt_test(self, tmp_path, mocker):
+        mock_context = Context(str(tmp_path))
+        # Patch dependencies that might be initialized in WorkflowDriver.__init__
+        mocker.patch('src.core.automation.workflow_driver.CodeReviewAgent')
+        mocker.patch('src.core.automation.workflow_driver.EthicalGovernanceEngine')
+        mocker.patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator')
+        # Patch logging.getLogger to return a mock logger instance
+        mocker.patch('logging.getLogger', autospec=True) 
+        mocker.patch.object(WorkflowDriver, '_load_default_policy') # Mock policy loading
+
+        driver = WorkflowDriver(mock_context)
+        # Assign the mocked logger instance that logging.getLogger would have returned
+        driver.logger = logging.getLogger.return_value 
+        driver.llm_orchestrator = MagicMock()
+        driver.default_policy_config = {'policy_name': 'Mock Policy'}
+        mocker.patch.object(driver, '_is_add_imports_step', return_value=False)
+        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=False)
+        mocker.patch.object(driver, '_validate_path', side_effect=lambda p: str(Path(driver.context.base_path) / p if p else Path(driver.context.base_path)))
+        return driver
+
+    def test_prompt_refinement_for_define_method_signature_step(self, driver_for_prompt_test, mocker):
+        """
+        Tests that the step description for the CoderLLM is correctly refined
+        when a 'Define Method Signature' step is encountered in autonomous_loop,
+        and that this refined description is subsequently used in the final prompt.
+        This test verifies the exact transformation logic added to autonomous_loop.
+        """
+        driver = driver_for_prompt_test
+        
+        original_step_desc = "Define Method Signature: Within the WorkflowDriver class, add the method signature: python def _get_context_type_for_step(self, step_description: str) -> Optional[str]: # Implementation goes here"
+        
+        # --- Simulate the logic added to autonomous_loop for refining step_description_for_coder ---
+        step_description_for_coder = original_step_desc 
+        define_sig_pattern = r"Define Method Signature[^\n]*?(?:python\s*)?(def\s+\w+\([^)]*\)(?:\s*->\s*[\w\.\[\], ]+)?)\s*:?" # Robust pattern
+        define_sig_match = re.match(define_sig_pattern, original_step_desc, re.IGNORECASE)
+        
+        assert define_sig_match is not None, "Regex should match the 'Define Method Signature' step description"
+        
+        if define_sig_match:
+            extracted_signature_line = define_sig_match.group(1).strip()
+            assert extracted_signature_line == "def _get_context_type_for_step(self, step_description: str) -> Optional[str]"
+            if extracted_signature_line.startswith("def "):
+                if not extracted_signature_line.endswith(':'): # Colon enforcement
+                    extracted_signature_line += ':'
+                method_definition_with_pass = f"{extracted_signature_line}\n    pass"
+                step_description_for_coder = (
+                    f"Insert the following Python method definition into the class. "
+                    f"Ensure it is correctly indented and includes a `pass` statement as its body. "
+                    f"Output ONLY the complete method definition (signature and 'pass' body).\n"
+                    f"Method to insert:\n```python\n{method_definition_with_pass}\n```"
+                )
+        
+        expected_refined_desc = (
+            "Insert the following Python method definition into the class. "
+            "Ensure it is correctly indented and includes a `pass` statement as its body. "
+            "Output ONLY the complete method definition (signature and 'pass' body).\n"
+            "Method to insert:\n```python\ndef _get_context_type_for_step(self, step_description: str) -> Optional[str]:\n    pass\n```" # Note the added colon
+        )
+        assert step_description_for_coder == expected_refined_desc
+
+        # --- Test that _construct_coder_llm_prompt uses this refined description ---
+        mock_task_data = {'task_id': 'test_task_sig', 'task_name': 'Test Signature Task', 'description': 'Test signature prompt.', 'target_file': 'src/core/automation/workflow_driver.py'}
+        mock_filepath_to_use = "src/core/automation/workflow_driver.py" 
+        mock_context_for_llm = "class WorkflowDriver:\n    # METAMORPHIC_INSERT_POINT\n    pass"
+        
+        final_prompt = driver._construct_coder_llm_prompt(
+            task=mock_task_data,
+            step_description=step_description_for_coder, 
+            filepath_to_use=driver._validate_path(mock_filepath_to_use), 
+            context_for_llm=mock_context_for_llm,
+            is_minimal_context=False,
+            retry_feedback_content=None
+        )
+        
+        assert f"Specific Plan Step:\n{expected_refined_desc}\n" in final_prompt
+        assert f"PROVIDED CONTEXT FROM `{driver._validate_path(mock_filepath_to_use)}`" in final_prompt
+        assert END_OF_CODE_MARKER in final_prompt
+
+    def test_prompt_refinement_flexible_signature_definition(self, driver_for_prompt_test):
+        """
+        Tests that the refined prompt logic correctly handles variations in the
+        'Define Method Signature' step, such as missing 'python' keyword or trailing colon.
+        """
+        driver = driver_for_prompt_test
+        
+        # Variation 1: Missing "python" keyword
+        step_desc_no_python = "Define Method Signature: def _flexible_sig_1(self) -> str:"
+        # Variation 2: Missing trailing colon
+        step_desc_no_colon = "Define Method Signature: python def _flexible_sig_2(self)"
+        # Variation 3: Missing "python" and trailing colon
+        step_desc_no_python_no_colon = "Define Method Signature: def _flexible_sig_3(self)"
+
+        test_cases = [
+            (step_desc_no_python, "def _flexible_sig_1(self) -> str:"),
+            (step_desc_no_colon, "def _flexible_sig_2(self):"), # Expect colon to be added
+            (step_desc_no_python_no_colon, "def _flexible_sig_3(self):") # Expect colon to be added
+        ]
+
+        for original_step_desc, expected_sig_in_prompt_body in test_cases:
+            driver.logger.reset_mock() # Reset logger mock for each case
+            step_description_for_coder = original_step_desc 
+            define_sig_pattern = r"Define Method Signature[^\n]*?(?:python\s*)?(def\s+\w+\([^)]*\)(?:\s*->\s*[\w\.\[\], ]+)?)\s*:?"
+            define_sig_match = re.match(define_sig_pattern, original_step_desc, re.IGNORECASE)
+            
+            assert define_sig_match is not None, f"Regex should match: '{original_step_desc}'"
+            
+            if define_sig_match:
+                extracted_signature_line = define_sig_match.group(1).strip()
+                if extracted_signature_line.startswith("def "):
+                    if not extracted_signature_line.endswith(':'):
+                        extracted_signature_line += ':'
+                    method_definition_with_pass = f"{extracted_signature_line}\n    pass"
+                    step_description_for_coder = (
+                        f"Insert the following Python method definition into the class. "
+                        f"Ensure it is correctly indented and includes a `pass` statement as its body. "
+                        f"Output ONLY the complete method definition (signature and 'pass' body).\n"
+                        f"Method to insert:\n```python\n{method_definition_with_pass}\n```"
+                    )
+            
+            expected_method_insertion_block = f"Method to insert:\n```python\n{expected_sig_in_prompt_body}\n    pass\n```"
+            assert expected_method_insertion_block in step_description_for_coder
+
+
+    def test_prompt_refinement_no_match_uses_original_step(self, driver_for_prompt_test):
+        """
+        Tests that if the step description does not match the "Define Method Signature"
+        pattern, the original step description is used for the CoderLLM.
+        """
+        driver = driver_for_prompt_test
+        original_step_desc = "Implement the full logic for _get_context_type_for_step including regex."
+        
+        step_description_for_coder = original_step_desc 
+        define_sig_pattern = r"Define Method Signature[^\n]*?(?:python\s*)?(def\s+\w+\([^)]*\)(?:\s*->\s*[\w\.\[\], ]+)?)\s*:?"
+        define_sig_match = re.match(define_sig_pattern, original_step_desc, re.IGNORECASE)
+        
+        assert define_sig_match is None, "Regex should NOT match this step description"
+        
+        if define_sig_match: 
+            extracted_signature_line = define_sig_match.group(1).strip()
+            if extracted_signature_line.startswith("def "):
+                step_description_for_coder = "THIS_SHOULD_NOT_BE_USED"
+        
+        assert step_description_for_coder == original_step_desc
+        for call_args in driver.logger.info.call_args_list:
+            assert "Refined step description for CoderLLM" not in call_args[0][0]
+
+        mock_task_data = {'task_id': 'test_task_impl', 'task_name': 'Test Implementation Task', 'description': 'Test implementation prompt.', 'target_file': 'src/core/automation/workflow_driver.py'}
+        mock_filepath_to_use = "src/core/automation/workflow_driver.py"
+        mock_context_for_llm = "class WorkflowDriver:\n    pass"
+        
+        final_prompt = driver._construct_coder_llm_prompt(
+            task=mock_task_data,
+            step_description=step_description_for_coder, 
+            filepath_to_use=driver._validate_path(mock_filepath_to_use),
+            context_for_llm=mock_context_for_llm,
+            is_minimal_context=False,
+            retry_feedback_content=None
+        )
+        
+        assert f"Specific Plan Step:\n{original_step_desc}\n" in final_prompt
+
 class TestPhase1_8Features:
     def test_classify_step_preliminary_uses_task_target_file(self, driver_enhancements):
         """

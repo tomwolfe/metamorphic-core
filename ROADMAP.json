@@ -215,7 +215,7 @@
       "priority": "Critical",
       "task_name": "Implement Helper `_is_simple_addition_plan_step`",
       "description": "In `src/core/automation/workflow_driver.py`, implement a new helper method `_is_simple_addition_plan_step(self, plan_step_description: str) -> bool`. This method should analyze the `plan_step_description` string and return `True` if the description indicates a simple, targeted code addition (e.g., adding imports, adding a new method to an *existing* class, adding a constant, appending a line). It should return `False` for complex modifications, refactoring, or new class creation. Ensure comprehensive docstrings and unit tests for this helper in `tests/test_phase1_8_features.py`.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
       "depends_on": ["task_1_8_Y_ensure_docstrings_in_codegen"]
     },
@@ -432,6 +432,17 @@
         "task_1_8_10",
         "task_1_8_11",
         "task_1_8_12"
+      ]
+    },
+    {
+      "task_id": "task_1_8_C_1_analyze_A1_failure_and_improve_codegen",
+      "priority": "High",
+      "task_name": "Analyze task_1_8_A_1 Failures & Improve CodeGen",
+      "description": "Analyze the failures encountered during the initial autonomous attempt of task_1_8_A_1 (_is_simple_addition_plan_step). Specifically, investigate why the CoderLLM failed to: 1. Correctly include `import re`. 2. Adhere to style guidelines (E302, E501). 3. Consistently include docstrings for new methods. 4. Avoided outputting spurious code that was appended to files. Implement improvements to CoderLLM prompting, snippet cleaning, or pre-write validation to prevent such issues in the future. This task focuses on the AI improving its own code generation process based on past failures.",
+      "status": "Not Started",
+      "target_file": "src/core/llm_orchestration.py",
+      "depends_on": [
+        "task_1_8_A_6_review_summarizer_and_test_e2e"
       ]
     }
   ],

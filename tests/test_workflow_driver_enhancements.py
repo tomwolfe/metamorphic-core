@@ -285,16 +285,15 @@ class TestPhase1_8Features:
         assert driver._is_simple_addition_plan_step(description) == expected
         if expected:
             assert any(
-                record.message.startswith(f"Step '{description[:50]}...' identified by")
+                "Simple addition pattern" in record.message and description[:50] in record.message
                 for record in caplog.records
             )
         else:
             assert not any(record.message.startswith(f"Step '{description[:50]}...' identified by") and "keyword:" in record.message for record in caplog.records), \
                 f"Unexpected 'identified by' log for non-simple step '{description}'"
             assert any(
-                (f"Step '{description[:50]}...' not identified as simple." in record.message) or
-                (f"Step '{description[:50]}...' involves class creation keyword" in record.message) or
-                (f"Step '{description[:50]}...' matches" in record.message and "and includes class and is not simple" in record.message)
+                (f"No specific simple addition or complex pattern matched for step: '{description}'." in record.message) or
+                ("Complex pattern" in record.message and description[:50] in record.message and "Not a simple addition" in record.message)
                 for record in caplog.records
             ), f"Expected specific log message for non-simple step '{description}', but found none matching criteria in {caplog.records}"
 

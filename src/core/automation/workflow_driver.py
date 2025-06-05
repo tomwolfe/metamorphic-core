@@ -1,10 +1,11 @@
 # src/core/automation/workflow_driver.py
-import logging
-import html
 import os
 import json
+import logging
+import re # Added for _is_simple_addition_plan_step
+from typing import List, Dict, Any, Optional, Tuple, Union
+from datetime import datetime
 from pathlib import Path
-import re
 from unittest.mock import MagicMock # Keep MagicMock for the mock KG/Spec/Ethics in init
 import subprocess
 from src.core.agents.code_review_agent import CodeReviewAgent # type: ignore
@@ -15,7 +16,6 @@ import builtins
 import spacy
 from spacy.matcher import PhraseMatcher
 import ast
-from typing import List, Dict, Optional, Tuple, Any, Union # Ensure Optional is imported
 
 from src.cli.write_file import write_file
 from src.core.constants import (
@@ -172,88 +172,6 @@ class WorkflowDriver:
         self.code_review_agent = CodeReviewAgent()
         self.logger = logger
 
-    def _is_simple_addition_plan_step(self, plan_step_description: str) -> bool:
-        """
-        Determines if a plan step describes a simple, targeted addition to a file.
-
-        Simple additions are operations like adding imports, new standalone functions,
-        or specific lines, which typically require only minimal context from the
-        target file for the LLM to process efficiently. This heuristic helps
-        the WorkflowDriver decide when to attempt providing reduced context.
-
-        Args:
-            plan_step_description: The description of the plan step.
-
-        Returns:
-            True if the plan step is identified as a simple addition, False otherwise.
-        """
-        description_lower = plan_step_description.lower()
-
-
-        simple_addition_keywords: List[str] = [
-            "add import", "add new import", "insert import",  "add an import",
-            "add method",  "add a new method",  "define method", "implement method",
-            "add function",  "add a new function",  "define function",
-            "implement function",  "insert line",  "append line", "add line",
-            "prepend line",  "add constant", "add variable", "add attribute",
-            "add property", "add decorator", "add test", "add docstring",
-            "generate docstring", "update docstring", "add comment",
-            "add logging", "add print statement", "add return statement",
-            "add if statement", "add loop", "add try-except", "add enum",
-            "add dataclass", "add type hint", "update type hint",
-            "add __init__", "add __str__", "add __repr__", "add __eq__",
-            "add __hash__", "define constant", # Added for Task 1.8.A
-            "define new constant", # Added for more specific constant definition
-            "define a new constant", # Covers test case with 'a' between define and new
-            "insert into file", "append to file", "prepend to file",
-            "add entry to", "add item to list",
-            # Added for more robust simple addition detection (Task 1.8.A)
-            "append", 
-            "add a type hint", 
-            "add a comment", 
-            "add a new test case",
-            ]
-        general_addition_patterns: List[str] = [
-            "add new", "insert new", "define new", "create new",
-            "append to", "prepend to",
-        ]
-
-        class_creation_specific_keywords: List[str] = [
-            "add class", "add a new class", "define class", "create class"
-        ]
-
-        for keyword in simple_addition_keywords:
-            if keyword in description_lower:
-                if keyword in class_creation_specific_keywords:
-                    msg = (f"Step '{plan_step_description[:50]}...' involves class creation keyword '{keyword}' and is not simple.")
-                    self.logger.debug(msg)
-                    continue
-                self.logger.debug(
-                    f"Step '{plan_step_description[:50]}...' identified by "
-                    f"keyword: '{keyword}'"
-                )
-                # This is the line that should have been hit for "Define a new constant MAX_RETRIES = 3"
-                return True
-
-        for pattern in general_addition_patterns:
-            if pattern in description_lower:
-                if "class" in description_lower and any(
-                    cls_kw in pattern for cls_kw in ["add", "new", "create", "define"]
-                ):
-                    msg = (f"Step '{plan_step_description[:50]}...' matches '{pattern}' and includes class; is not simple.")
-                    self.logger.debug(msg)
-                    continue
-                self.logger.debug(
-                    f"Step '{plan_step_description[:50]}...' identified by "
-                    f"pattern: '{pattern}'"
-                )
-                return True
-
-        self.logger.debug(
-            f"Step '{plan_step_description[:50]}...' not identified as simple."
-        )
-        return False
-
     def _clean_llm_snippet(self, snippet: Optional[str]) -> str:
         """
         Cleans a snippet generated by an LLM by robustly removing common markdown fences,
@@ -320,7 +238,7 @@ class WorkflowDriver:
 
         # 4. Final strip to remove any remaining leading/trailing whitespace
         # Only strip trailing whitespace/newlines, preserve leading indentation.
-        return processed_snippet.strip() # Changed to strip()
+        return processed_snippet.strip()
 
     def _load_default_policy(self):
         # Use context.get_full_path to resolve the policy path safely
@@ -2955,3 +2873,78 @@ Your response should be the complete, corrected code content that addresses the 
         except SyntaxError as e:
             logger.error(f"Syntax error parsing file content for context extraction: {e}")
             return ""
+
+    def _is_simple_addition_plan_step(self, plan_step_description: str) -> bool:
+        """
+        Analyzes a plan step description to determine if it represents a simple,
+        targeted code addition.
+
+        Simple additions include operations like adding imports, adding a new method
+        to an *existing* class, adding a constant, or appending/inserting a line.
+        It returns False for complex modifications, refactoring, or new class creation.
+
+        Args:
+            plan_step_description: The description of the plan step.
+
+        Returns:
+            True if the plan step is identified as a simple addition, False otherwise.
+
+        Examples:
+            >>> # Assuming 'driver' is an instance of WorkflowDriver
+            >>> driver._is_simple_addition_plan_step("Add import os to the file.")
+            True
+            >>> driver._is_simple_addition_plan_step("Add new method get_user_data to existing class UserProfile.")
+            True
+            >>> driver._is_simple_addition_plan_step("Define a new constant MAX_USERS = 100.")
+            True
+            >>> driver._is_simple_addition_plan_step("Append a log message to the main function.")
+            True
+            >>> driver._is_simple_addition_plan_step("Create new class OrderManager.")
+            False
+            >>> driver._is_simple_addition_plan_step("Refactor the payment processing logic.")
+            False
+            >>> driver._is_simple_addition_plan_step("Modify the existing user authentication flow extensively.")
+            False
+        """
+        description_lower = plan_step_description.lower()
+
+        # Patterns that indicate complex changes, refactoring, or new class creation
+        complex_patterns = [
+            r"create new class\b",
+            r"refactor\b",
+            r"restructure\b",
+            r"modify existing logic\b",
+            r"update existing method signature\b",
+            r"rewrite\b",
+            r"design new module\b",
+            r"implement new system\b",
+            r"overhaul\b"
+        ]
+
+        for pattern in complex_patterns:
+            if re.search(pattern, description_lower):
+                self.logger.debug(f"Complex pattern '{pattern}' found in step: '{plan_step_description}'. Not a simple addition.")
+                return False
+
+        # Patterns that indicate simple, targeted code additions
+        simple_addition_patterns = [
+            r"add import\b", r"add new import\b", r"insert import\b",
+            r"add (?:new )?method .* to (?:existing )?class\b",
+            r"add (?:new )?method .* in (?:existing )?class\b",
+            r"define (?:new )?method .* in (?:existing )?class\b",
+            r"implement (?:new )?method .* in (?:existing )?class\b",
+            r"add constant\b", r"define (?:a )?(?:new )?constant\b",
+            r"append line\b", r"insert line\b", r"add line\b", r"prepend line\b",
+            r"add (?:a )?docstring to\b", r"generate docstring for\b",
+            r"add (?:a )?comment to\b", r"add type hint for\b",
+            # Added to cover more general "add content" scenarios
+            r"append\b", r"insert\b", r"prepend\b"
+        ]
+
+        for pattern in simple_addition_patterns:
+            if re.search(pattern, description_lower):
+                self.logger.debug(f"Simple addition pattern '{pattern}' found in step: '{plan_step_description}'.")
+                return True
+        
+        self.logger.debug(f"No specific simple addition or complex pattern matched for step: '{plan_step_description}'. Assuming not a simple addition.")
+        return False

@@ -173,6 +173,23 @@ def driver_for_multi_target_resolution(tmp_path, mocker):
 
         yield driver
 
+# Fixture for WorkflowDriver instance
+@pytest.fixture
+def driver_for_simple_addition_test(tmp_path, mocker):
+    mock_context = Context(str(tmp_path))
+    
+    # Patch dependencies that might be initialized in WorkflowDriver.__init__
+    mocker.patch('src.core.automation.workflow_driver.CodeReviewAgent')
+    mocker.patch('src.core.automation.workflow_driver.EthicalGovernanceEngine')
+    mocker.patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator')
+    mocker.patch.object(WorkflowDriver, '_load_default_policy') # Mock policy loading
+
+    driver = WorkflowDriver(mock_context)
+    driver.llm_orchestrator = MagicMock() 
+    # Ensure the logger attribute exists and is a mock for testing logger calls
+    driver.logger = MagicMock(spec=logging.Logger) 
+    return driver
+
 class TestPhase1_8Features:
     def test_classify_step_preliminary_uses_task_target_file(self, driver_enhancements):
         """
@@ -290,81 +307,82 @@ class TestPhase1_8Features:
         mock_write_output.assert_not_called()
         expected_log_message = f"Skipping placeholder write to main Python target {resolved_target_path} for conceptual step: '{plan_step}'."
         assert any(expected_log_message in record.message for record in caplog.records)
-    # --- Tests for _is_simple_addition_plan_step (Task 1.8.A) ---
-    @pytest.mark.parametrize("description, expected", [
-        ("Add import os to the file", True),
-        ("add a new function called calculate_total", True),
-        ("Implement method process_item in Processor", True),
-        ("insert line: logger.info('Processing complete')", True),
-        ("append new_config_value to settings.py", True),
-        ("Define a new constant MAX_RETRIES = 3", True),
-        ("Add a type hint for the user_id parameter", True),
-        ("Generate docstring for the main function", True),
-        ("Add a comment explaining the complex logic", True),
-        ("Add logging for critical operations", True),
-        ("Add a new test case for user login", True),
-        ("Add __init__ method to the User class", True),
-        # Class creation cases, expected to be False
-        ("Create new class ComplexSystem for advanced calculations", False),
-        ("Add class NewComponent to the architecture", False),
-        ("Define class User", False),
-        ("Implement class MyUtility", False),
-        ("Generate class for data processing", False),
-        ("Refactor the entire data processing module", False),
-        ("Design the new user interface components", False),
-        ("Review the latest pull request for feature X", False),
-        ("Analyze performance bottlenecks in the API", False),
-        ("Understand the requirements for the next phase", False),
-        ("Modify existing function to handle new edge cases", False),
-        ("Update the database schema", False),
-        ("Write a comprehensive design document", False),
-        ("Add a new complex system with multiple classes", False),
-        ("", False),
-        ("    ", False),
-        ("Long desc, no simple add keywords, architectural review.", False),
-    ])
-    def test_is_simple_addition_plan_step(self, driver_enhancements, description, expected, caplog):
-        """Test the _is_simple_addition_plan_step method with various descriptions."""
-        caplog.set_level(logging.DEBUG)
-        driver = driver_enhancements
-        assert driver._is_simple_addition_plan_step(description) == expected
-        if expected:
-            assert any(
-                record.message.startswith(f"Step '{description[:50]}...' identified by")
-                for record in caplog.records
-            )
-        else:
-            assert not any(record.message.startswith(f"Step '{description[:50]}...' identified by") and "keyword:" in record.message for record in caplog.records), \
-                f"Unexpected 'identified by' log for non-simple step '{description}'"
-            assert any(
-                (f"Step '{description[:50]}...' not identified as simple." in record.message) or
-                (f"Step '{description[:50]}...' involves class creation keyword" in record.message) or
-                (f"Step '{description[:50]}...' matches" in record.message and "and includes class and is not simple" in record.message)
-                for record in caplog.records
-            ), f"Expected specific log message for non-simple step '{description}', but found none matching criteria in {caplog.records}"
 
-    def test_is_simple_addition_plan_step_class_creation_keywords_are_not_simple(self, driver_enhancements, caplog):
-        """
-        Test that steps involving class creation keywords are correctly identified as NOT simple.
-        """
-        caplog.set_level(logging.DEBUG)
-        driver = driver_enhancements
-        class_creation_steps = [
-            "Create new class ComplexSystem for advanced calculations",
-            "Add class NewComponent to the architecture",
-            "Define class User",
-            "Implement class MyUtility",
-            "Generate class for data processing"
-        ]
-        for step_desc in class_creation_steps:
-            assert driver._is_simple_addition_plan_step(step_desc) is False, f"Step '{step_desc}' should NOT be simple."
-            assert any(
-                (f"Step '{step_desc[:50]}...' involves class creation keyword" in record.message) or
-                (f"Step '{step_desc[:50]}...' matches" in record.message and "and includes class and is not simple" in record.message) or
-                (f"Step '{step_desc[:50]}...' not identified as simple." in record.message)
-                for record in caplog.records
-            ), f"Expected specific log message for non-simple class creation step '{step_desc}', but found none matching criteria in {caplog.records}"
-            caplog.clear()
+class TestIsSimpleAdditionPlanStep:
+    @pytest.mark.parametrize("description, expected", [
+        # Simple Additions (True)
+        ("Add import os to the file.", True),
+        ("Add new import for pathlib module.", True),
+        ("Insert import typing.List at the top.", True),
+        ("Add new method get_user_data to existing class UserProfile.", True),
+        ("Add method calculate_sum to class Calculator.", True),
+        ("Define new method process_event in class EventHandler.", True),
+        ("Implement method render_template in class ViewRenderer.", True),
+        ("Define a new constant MAX_USERS = 100.", True),
+        ("Add constant API_TIMEOUT with value 30.", True),
+        ("Append a log message to the main function.", True),
+        ("Insert a print statement for debugging.", True),
+        ("Add line to increment counter.", True),
+        ("Prepend copyright header to file.", True),
+        ("Add a docstring to the process_data function.", True),
+        ("Generate docstring for the User class.", True),
+        ("Add a comment to explain the algorithm.", True),
+        ("Add type hint for the 'name' parameter.", True),
+
+        # Complex Modifications / Refactoring / New Class (False)
+        ("Create new class OrderManager.", False),
+        ("Create a new class called ShoppingCart.", False),
+        ("Refactor the payment processing logic.", False),
+        ("Restructure the entire user authentication module.", False),
+        ("Modify existing logic in the data validation function.", False),
+        ("Update existing method signature for process_order.", False),
+        ("Rewrite the file parsing utility.", False),
+        ("Design new module for reporting.", False),
+        ("Implement new system for notifications.", False),
+        ("Overhaul the caching mechanism.", False),
+        ("Add a new global function `calculate_statistics` (might need more context).", False),
+        ("Implement the core algorithm for pathfinding.", False),
+        ("Modify the user interface to include a new button.", False),
+        ("Update dependencies in requirements.txt.", False),
+        ("Write unit tests for the User model.", False),
+        ("Fix bug in the login sequence.", False),
+        
+        # Ambiguous or Edge Cases (False by default)
+        ("Update the file.", False),
+        ("Process the data.", False),
+        ("Handle user input.", False),
+        ("", False),
+        ("   ", False),
+    ])
+    def test_various_descriptions(self, driver_for_simple_addition_test, description, expected):
+        assert driver_for_simple_addition_test._is_simple_addition_plan_step(description) == expected
+
+    def test_logging_for_decisions(self, driver_for_simple_addition_test):
+        driver = driver_for_simple_addition_test # Use the fixture
+        
+        # Test simple addition
+        driver.logger.reset_mock()
+        description_simple = "Add import re."
+        driver._is_simple_addition_plan_step(description_simple)
+        driver.logger.debug.assert_any_call(
+            f"Simple addition pattern 'add import\\b' found in step: '{description_simple}'."
+        )
+        
+        # Test complex modification
+        driver.logger.reset_mock()
+        description_complex = "Refactor the entire system."
+        driver._is_simple_addition_plan_step(description_complex)
+        driver.logger.debug.assert_any_call(
+            f"Complex pattern 'refactor\\b' found in step: '{description_complex}'. Not a simple addition."
+        )
+        
+        # Test ambiguous case (default false)
+        driver.logger.reset_mock()
+        description_vague = "Do something vague."
+        driver._is_simple_addition_plan_step(description_vague)
+        driver.logger.debug.assert_any_call(
+            f"No specific simple addition or complex pattern matched for step: '{description_vague}'. Assuming not a simple addition."
+        )
 
 class TestPreWriteValidation:
     @pytest.fixture

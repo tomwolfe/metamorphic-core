@@ -322,38 +322,28 @@ class WorkflowDriver:
 
     def _get_context_type_for_step(self, step_description: str) -> Optional[str]:
         """
-        Analyzes the step description to determine the type of context needed for a simple code addition.
-
-        This method uses regular expressions to classify the step into predefined categories.
-        This classification helps in extracting a minimal, relevant context from a large file,
-        optimizing the prompt for the Coder LLM.
-
-        Args:
-            step_description: The text description of the plan step.
-
-        Returns:
-            A string representing the context type ('add_import', 'add_method_to_class',
-            'add_global_function') or None if the step is not a simple, classifiable addition.
+        Identifies the type of context needed based on the step description.
+        Returns: "add_import", "add_method_to_class", "add_global_function", or None.
         """
         step_lower = step_description.lower()
+        
+        # 1. Add Import: Look for explicit import-related phrases
+        if re.search(r'\b(?:add|insert|implement|include|new)\b.*?\b(?:import|module|library|imports)\b', step_lower):
+            return "add_import"
+        
+        # 2. Add Global Function: Look for phrases indicating adding a new global function (not part of a class)
+        # This pattern is more specific than the general "add function" part of the method-to-class pattern,
+        # so it should be checked first to avoid misclassification.
+        if re.search(r'\b(?:add|implement|define|new)\s+(?:a\s+)?global\s+function\b', step_lower):
+            return "add_global_function"
 
-        # 1. Check for 'add_import'
-        # Matches "add import", "new import", "implement import", "insert import", and their plural forms.
-        if re.search(r'\b(add|new|implement|insert)\s+.*?imports?\b', step_lower):
-            return 'add_import'
+        # 3. Add Method to Class: Look for phrases indicating adding a method to a *specific* class
+        # This regex is more robust for "method ... to class X".
+        if re.search(r'\b(?:add|implement|define|new)\b.*?\b(?:method|function)\b.*?\b(?:to|in)\s+.*?\bclass\b', step_lower):
+            return "add_method_to_class"
 
-        # 2. Check for 'add_method_to_class' (more specific, so check first)
-        # This looks for "add/new/implement/define" AND "method" AND "to/in" AND "class"
-        if re.search(r'\b(?:add|new|implement|define)\b', step_lower) and \
-           re.search(r'\bmethod\b', step_lower) and \
-           re.search(r'\b(?:to|in)\b', step_lower) and \
-           re.search(r'\bclass\b', step_lower):
-            return 'add_method_to_class'
-
-        # 3. Check for 'add_global_function' (less specific, so check after class method)
-        # This catches "add/new/implement/define" followed by "function" or "method" (if not already classified as a class method)
-        if re.search(r'\b(?:add|new|implement|define)\b.*?\bglobal\s+(?:function|method)\b', step_lower):
-            return 'add_global_function'
+        # 4. Fallback for ambiguous or complex steps: If none of the specific patterns match, return None.
+        logger.debug(f"Could not determine specific context type for step: '{step_description}'. Defaulting to full context.")
         return None
 
     def _extract_targeted_context(self, file_path: str, file_content: str, context_type: Optional[str], step_description: str) -> Tuple[str, bool]:
@@ -1023,7 +1013,7 @@ class WorkflowDriver:
                                                         "task_id": current_task_id_str,
                                                         "step_description": locals().get('step', 'Unknown Step'), # Use 'step' from loop
                                                         "original_snippet_repr": repr(generated_snippet),
-                                                        "cleaned_snippet_repr": repr(cleaned_snippet),
+                                                        "cleaned_snippet_repr": repr(cleaned_snippet), # Use cleaned_snippet here
                                                         "syntax_error_details": {
                                                             "message": se_snippet.msg,
                                                             "lineno": se_snippet.lineno,
@@ -1046,7 +1036,7 @@ class WorkflowDriver:
                                             validation_passed = False
                                             validation_feedback.append(f"Error during pre-write syntax validation (AST parse of snippet): {e}")
                                             logger.error(f"Error during pre-write syntax validation (AST parse of snippet): {e}", exc_info=True)
-                                            logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---")
+                                            logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Use cleaned_snippet here
                                         
                                         if validation_passed and self.default_policy_config:
                                             # Ethical check on the snippet itself.
@@ -1054,7 +1044,7 @@ class WorkflowDriver:
                                             try:
                                                 # Call ethical analysis on the snippet
                                                 ethical_results = self.ethical_governance_engine.enforce_policy(
-                                                    cleaned_snippet, 
+                                                    cleaned_snippet, # Use cleaned_snippet here
                                                     self.default_policy_config,
                                                     is_snippet=True # MODIFIED: Pass is_snippet=True
                                                 )
@@ -1107,7 +1097,6 @@ class WorkflowDriver:
                                                 validation_feedback.append(f"Pre-merge full file syntax check failed: {se_merge.msg} on line {se_merge.lineno} (offset {se_merge.offset}). Offending line: '{se_merge.text.strip() if se_merge.text else 'N/A'}'")
                                                 logger.warning(f"Pre-merge full file syntax validation failed for {filepath_to_use}: {se_merge}")
                                                 logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
-                                                # Save debug info for merge failure too (already handled by existing logic)
                                             except Exception as e_merge: # Other errors during merge/parse
                                                 validation_passed = False
                                                 validation_feedback.append(f"Error during pre-merge full file syntax validation: {e_merge}")
@@ -1812,7 +1801,7 @@ Task Description:
             return tasks
         try:
             # Use builtins.open explicitly
-            with builtins.open(full_roadmap_path, 'r') as f:
+            with builtins.open(full_roadmap_path, 'r', encoding='utf-8') as f: # ADDED encoding='utf-8'
                 roadmap_data = json.load(f)
         except json.JSONDecodeError:
             logger.error(f"Invalid JSON in roadmap file: {full_roadmap_path}")
@@ -2732,7 +2721,7 @@ Your response should be the complete, corrected code content that addresses the 
 
 
             if not corrected_code or corrected_code.strip() == current_file_content.strip():
-                logger.warning("LLM did not provide corrected code or code was unchanged for test failure remediation.")
+                logger.warning("LLM did not provide corrected code or code was unchanged.")
                 return False
 
             logger.info("LLM provided corrected code for test failure. Applying and re-validating...")
@@ -2962,7 +2951,7 @@ Your response should be the complete, corrected code content that addresses the 
             r"define class\b", # Added to catch "Define class User"
             r"implement class\b", # Added to catch "Implement class MyUtility"
             r"generate class\b", # Added to catch "Generate class for data processing"
-            
+            r"add .*?global function\b", # Added to classify new global functions as complex
             r"refactor\b",
             r"restructure\b",
             r"modify existing logic\b",
@@ -2970,18 +2959,7 @@ Your response should be the complete, corrected code content that addresses the 
             r"rewrite\b",
             r"design new module\b",
             r"implement new system\b",
-            r"overhaul\b",
-            # Added patterns to explicitly classify more complex/non-simple cases as False
-            r"add (?:a new )?global function\b", # Added for test coverage
-            r"implement the core algorithm\b", # For "Implement the core algorithm for pathfinding."
-            r"modify the user interface\b", # For "Modify the user interface to include a new button."
-            r"update dependencies\b", # For "Update dependencies in requirements.txt."
-            r"write unit tests\b", # For "Write unit tests for the User model."
-            r"fix bug\b", # For "Fix bug in the login sequence."
-            r"update the file\b", # For "Update the file."
-            r"process the data\b", # For "Process the data."
-            r"handle user input\b", # For "Handle user input."
-            r"^\s*$", # For "" and "   " (empty or whitespace only strings)
+            r"overhaul\b"
         ]
 
         for pattern in complex_patterns:
@@ -2992,8 +2970,8 @@ Your response should be the complete, corrected code content that addresses the 
         # Patterns that indicate simple, targeted code additions
         simple_addition_patterns = [
             r"add import\b", r"add new import\b", r"insert import\b", r"include import\b",
-            r"add .*?function\b", r"implement .*?function\b", r"define .*?function\b", # Added for new functions
-            r"add .*?method\b", r"implement .*?method\b", r"define .*?method\b", # These are fine for methods within classes
+            r"add .*?method\b", r"implement .*?method\b", r"define .*?method\b", # These are for methods within classes, which are simple additions
+            r"add .*?function\b", r"implement .*?function\b", r"define .*?function\b", # Added for new functions (not global)
             r"add logging\b", # Re-added \b
             r"add .*?test case\b", # Re-added \b
             r"add __init__ method\b", # Re-added \b
@@ -3008,8 +2986,6 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern in simple_addition_patterns:
             if re.search(pattern, description_lower):
                 self.logger.debug(f"Simple addition pattern '{pattern}' found in step: '{plan_step_description}'.")
-                return True
-
-        # If neither complex nor simple patterns matched, assume it's not a simple addition.
-        self.logger.debug(f"No specific simple addition or complex pattern matched for step: '{plan_step_description}'. Assuming not a simple addition.")
-        return False
+                return True        
+        self.logger.debug(f"No specific simple addition or complex pattern matched for step: '{plan_step_description}'. Assuming not a simple addition.")        
+        return False # Default to False if neither complex nor simple patterns match

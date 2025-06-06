@@ -564,7 +564,7 @@ class WorkflowDriver:
             for match in all_paths_in_step_matches:
                 path_candidate = match.group(1)
                 if "test_" in path_candidate.lower() or "tests/" in path_candidate.lower():
-                    explicit_test_path_in_step = path_candidate
+                    explicit_test_path_in_test = path_candidate
                     break
 
             if effective_task_target and effective_task_target.endswith('.py') and \
@@ -2989,3 +2989,18 @@ Your response should be the complete, corrected code content that addresses the 
                 return True        
         self.logger.debug(f"No specific simple addition or complex pattern matched for step: '{plan_step_description}'. Assuming not a simple addition.")        
         return False # Default to False if neither complex nor simple patterns match
+
+    def _extract_targeted_context(self, file_path: str, file_content: str, context_type: Optional[str], step_description: str) -> Tuple[str, bool]:
+        """
+        Extracts minimal context from `file_content` based on `context_type`.
+        Returns full content + `False` if `context_type` is `None` or if the specific
+        extraction logic (not yet implemented) fails.
+
+        Args:
+            context_type: e.g., 'add_import', 'add_method_to_class'
+
+        Returns:
+            (extracted_str, is_minimal_context)
+        """
+        # TODO: Implement context extraction logic for different context_type values.
+        return file_content, False

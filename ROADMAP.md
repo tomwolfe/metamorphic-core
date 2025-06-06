@@ -121,20 +121,38 @@
 *   **Task ID**: task_1_8_A_2_helper_get_context_type
     *   **Priority**: Critical
     *   **Task Name**: Implement Helper `_get_context_type_for_step`
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_A_1_helper_is_simple_addition']
 
-*   **Task ID**: task_1_8_A_3_helper_extract_targeted_context
+*   **Task ID**: task_1_8_A_3a_helper_extract_context_skeleton
     *   **Priority**: Critical
-    *   **Task Name**: Implement Helper `_extract_targeted_context`
+    *   **Task Name**: Implement Skeleton for `_extract_targeted_context`
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_A_2_helper_get_context_type']
+
+*   **Task ID**: task_1_8_A_3b_helper_extract_context_imports
+    *   **Priority**: Critical
+    *   **Task Name**: Implement `add_import` Logic for `_extract_targeted_context`
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_3a_helper_extract_context_skeleton']
+
+*   **Task ID**: task_1_8_A_3c_helper_extract_context_class
+    *   **Priority**: Critical
+    *   **Task Name**: Implement `add_method_to_class` Logic for `_extract_targeted_context`
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_3b_helper_extract_context_imports']
+
+*   **Task ID**: task_1_8_A_3d_helper_extract_context_tests
+    *   **Priority**: High
+    *   **Task Name**: Add Unit Tests for `_extract_targeted_context`
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_3c_helper_extract_context_class']
 
 *   **Task ID**: task_1_8_A_4_integrate_minimal_context_logic
     *   **Priority**: Critical
     *   **Task Name**: Integrate Minimal Context Logic into WorkflowDriver Loop
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_3_helper_extract_targeted_context']
+    *   **Depends On**: ['task_1_8_A_3d_helper_extract_context_tests']
 
 *   **Task ID**: task_1_8_A_5_refine_coder_prompt_for_minimal_output
     *   **Priority**: Critical

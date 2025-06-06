@@ -548,6 +548,39 @@ class TestIsSimpleAdditionPlanStep:
             f"No specific simple addition or complex pattern matched for step: '{description_vague}'. Assuming not a simple addition."
         )
 
+class TestGetContextTypeForStep:
+    @pytest.mark.parametrize("description, expected", [
+        # Add Import
+        ("Add import os", 'add_import'),
+        ("add a new import for pathlib", 'add_import'),
+        ("Please implement an import for `sys` module.", 'add_import'),
+        ("insert import typing", 'add_import'),
+
+        # Add Method to Class
+        ("Add a new method `get_user` to the User class.", 'add_method_to_class'),
+        ("implement a method in the class Processor", 'add_method_to_class'),
+        ("New method for processing data to class DataHandler", 'add_method_to_class'),
+
+        # Add Global Function
+        ("Add a new global function `calculate_metrics`.", 'add_global_function'),
+        ("implement a global function for logging", 'add_global_function'),
+        ("New global function to parse user input", 'add_global_function'),
+
+        # Ambiguous / None cases
+        ("Refactor the user processing logic.", None),
+        ("Create a new class called UserProfile.", None),
+        ("Update the README.md file.", None),
+        ("Fix bug in the login sequence.", None),
+        ("Add a method `get_user`.", None), # Missing "to class"
+        ("Add a new function.", None), # Missing "global"
+        ("A purely conceptual step.", None),
+        ("", None),
+    ])
+    def test_get_context_type_for_step_various_descriptions(self, driver_for_simple_addition_test, description, expected):
+        """Test _get_context_type_for_step with various descriptions."""
+        driver = driver_for_simple_addition_test
+        assert driver._get_context_type_for_step(description) == expected
+
 class TestPreWriteValidation:
     @pytest.fixture
     def driver_pre_write(self, mocker, tmp_path):

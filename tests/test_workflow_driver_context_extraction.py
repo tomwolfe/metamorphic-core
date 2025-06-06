@@ -28,12 +28,12 @@ class TestWorkflowDriverContextExtraction:
         ("Implement new import for pathlib", "add_import"),
         ("Add method process_data to class DataProcessor", "add_method_to_class"),
         ("Add method process_data to class DataProcessor_new", "add_method_to_class"), # Test with underscore
-        ("Define function calculate_results in the main module", "add_global_function"),
-        ("Refactor the existing calculate_results function", None), # "Refactor" implies modification, not new creation, so full context
+        ("Define function calculate_results in the main module", None), # Changed to None, as "global" is not explicit
+        ("Refactor the existing calculate_results function", None),
         ("Create a new class UserProfile", None), # New class defaults to None (full context)
         ("Update the README.md file", None),
-        ("Implement a new function called `my_func`", "add_global_function"), # Now correctly matches
-        ("Define a new method for processing items", "add_global_function"), # Generic method, not to specific class
+        ("Implement a new function called `my_func`", None), # Ambiguous, should be None
+        ("Define a new method for processing items", None), # Ambiguous, should be None
         ("Add a new class MyNewClass", None), # Explicit new class
         ("Create class MyOtherClass", None),  # Explicit new class
         ("Generate class MyGeneratedClass", None), # Explicit new class

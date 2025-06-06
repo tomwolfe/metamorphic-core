@@ -226,7 +226,7 @@
       "priority": "Critical",
       "task_name": "Implement Helper `_get_context_type_for_step`",
       "description": "In `src/core/automation/workflow_driver.py`, implement `_get_context_type_for_step(self, step_description: str) -> Optional[str]`. This method should analyze the `step_description` and return a string like 'add_import', 'add_method_to_class', 'add_global_function', or None if the type is unclear or complex. Use regex or simple NLP. Ensure comprehensive docstrings and unit tests in `tests/test_phase1_8_features.py`.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_A_1_helper_is_simple_addition"
@@ -462,4 +462,4 @@
     "Update the `phase`, `phase_goal`, and `current_focus` fields to 'Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph'."
   ],
   "current_focus": "🎯 CURRENT FOCUS: Phase 1.8 - Hardened Autonomous Loop & Advanced Remediation 🛠️"
-}
+}\

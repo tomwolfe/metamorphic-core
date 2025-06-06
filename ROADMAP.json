@@ -233,14 +233,47 @@
       ]
     },
     {
-      "task_id": "task_1_8_A_3_helper_extract_targeted_context",
+      "task_id": "task_1_8_A_3a_helper_extract_context_skeleton",
       "priority": "Critical",
-      "task_name": "Implement Helper `_extract_targeted_context`",
-      "description": "In `src/core/automation/workflow_driver.py`, implement `_extract_targeted_context(self, file_path: str, file_content: str, context_type: Optional[str], step_description: str) -> Tuple[str, bool]`. Based on `context_type` (from task_1_8_A_2), this method should extract the minimal relevant section from `file_content`. For 'add_import', return the import block or top N lines. For 'add_method_to_class', use AST to find the class and return its definition, including existing methods and a few surrounding lines, as context for adding a new method. Return (full_content, False) if context_type is None or extraction fails. Ensure comprehensive docstrings and unit tests in `tests/test_phase1_8_features.py`.",
+      "task_name": "Implement Skeleton for `_extract_targeted_context`",
+      "description": "In `src/core/automation/workflow_driver.py`, implement the method signature for `_extract_targeted_context(self, file_path: str, file_content: str, context_type: Optional[str], step_description: str) -> Tuple[str, bool]`. Include a comprehensive docstring explaining its overall purpose, parameters, and return value. The initial implementation should contain only the fallback logic: if `context_type` is None or extraction fails for any reason, it should return `(file_content, False)`. This provides the basic structure for subsequent tasks.",
       "status": "Not Started",
-      "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
+      "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_A_2_helper_get_context_type"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_3b_helper_extract_context_imports",
+      "priority": "Critical",
+      "task_name": "Implement `add_import` Logic for `_extract_targeted_context`",
+      "description": "In `src/core/automation/workflow_driver.py`, enhance the `_extract_targeted_context` method. Add logic to handle the `context_type == 'add_import'`. Use AST parsing to find the start and end line numbers of the import block. Return the source code for this block, including a few lines of buffer before and after. If no imports exist, return the top N lines of the file (e.g., 20).",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_A_3a_helper_extract_context_skeleton"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_3c_helper_extract_context_class",
+      "priority": "Critical",
+      "task_name": "Implement `add_method_to_class` Logic for `_extract_targeted_context`",
+      "description": "In `src/core/automation/workflow_driver.py`, enhance the `_extract_targeted_context` method. Add logic to handle `context_type == 'add_method_to_class'`. Parse the `step_description` to find the target class name. Use AST to find the `ast.ClassDef` node for that class and return its complete source code, including a few lines of buffer. Handle `SyntaxError` during parsing by falling back to the full content.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_A_3b_helper_extract_context_imports"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_3d_helper_extract_context_tests",
+      "priority": "High",
+      "task_name": "Add Unit Tests for `_extract_targeted_context`",
+      "description": "In `tests/test_phase1_8_features.py`, add comprehensive unit tests for the `_extract_targeted_context` method in `WorkflowDriver`. Cover all `context_type` cases ('add_import', 'add_method_to_class'), the fallback case, and edge cases like syntax errors in the source file or a class not being found.",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_A_3c_helper_extract_context_class"
       ]
     },
     {
@@ -251,7 +284,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
       "depends_on": [
-        "task_1_8_A_3_helper_extract_targeted_context"
+        "task_1_8_A_3d_helper_extract_context_tests"
       ]
     },
     {

@@ -29,18 +29,9 @@ class TokenAllocator:
         if not models_list:
             return RealVal(0)
 
-        # --- MODIFIED QUADRATIC TERM COEFFICIENT ---
-        # Original divisor: 1000.0
-        # New, less punitive divisor:
-        # Further increase the quadratic divisor to make the penalty for more tokens much smaller,
-        # encouraging the solver to use more tokens if the budget allows.
-        # The previous value of 10,000,000 was still too punitive.
-        quadratic_divisor = 1000000000.0 # Drastically increase divisor
-
-        # Also, consider reducing the impact of the linear cost term,
-        # as it might also contribute to favoring minimal tokens if cost_per_token is not small enough.
-        # For now, focusing on the quadratic_divisor.
-        # --- END MODIFICATION ---
+        # The quadratic term penalizes higher token counts. By increasing the divisor,
+        # we make this penalty much less severe, encouraging the solver to allocate more tokens.
+        quadratic_divisor = 1000000000.0 # Drastically increased from previous values
 
         # Build the nested If expression for symbolic cost calculation
         # Start with the cost of the last model as the final 'else'

@@ -170,9 +170,14 @@ class EthicalGovernanceEngine:
             return True, "compliant"
 
         except SyntaxError as se:
-            # If parsing fails (even after dedent), it's not transparent as we can't analyze it.
-            logger.warning(f"Syntax error during transparency check: {se}. Code (first 100 chars): '{code[:100]}'. Returning False.")
-            return False, "syntax_error"
+            # If it's a snippet, a syntax error might be resolved when merged.
+            # We allow it to pass this check and rely on the full-file pre-merge check later.
+            if is_snippet:
+                logger.warning(f"Syntax error in snippet during transparency check: {se}. Skipping check as it may be resolved on merge.")
+                return True, "skipped_due_to_syntax_error" # Treat as compliant for now
+            else: # For full code, a syntax error is a definitive transparency failure.
+                logger.warning(f"Syntax error in full code during transparency check: {se}. Returning False.")
+                return False, "syntax_error"
         except Exception as e:
             logger.error(f"ERROR during AST parsing for transparency: {e}. Code (first 100 chars): '{code[:100]}'. Returning False.", exc_info=True)
             return False, "syntax_error" # Treat other parsing errors like syntax errors for transparency

@@ -5,6 +5,7 @@ import logging
 import re # Added for _is_simple_addition_plan_step
 import html # ADD THIS IMPORT
 from typing import List, Dict, Any, Optional, Tuple, Union
+import ast
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock # Keep MagicMock for the mock KG/Spec/Ethics in init
@@ -16,7 +17,6 @@ import uuid
 import builtins
 import spacy
 from spacy.matcher import PhraseMatcher
-import ast
 
 from src.cli.write_file import write_file
 from src.core.constants import (
@@ -351,54 +351,49 @@ class WorkflowDriver:
         Extracts a targeted (minimal) context from file_content based on context_type.
         Returns: (context_string, is_minimal_context_bool)
         """
-        if not context_type or not file_path.endswith(".py"):
-            return file_content, False # Return full content if not a known type or not Python
+        if not context_type or not file_path.lower().endswith(".py"):
+            self.logger.debug(f"Not a Python file or no context_type for {file_path}. Returning full content.")
+            return file_content, False
 
         lines = file_content.splitlines()
         tree = None
         try:
             tree = ast.parse(file_content)
         except SyntaxError:
-            logger.warning(f"SyntaxError parsing {file_path} for targeted context extraction. Falling back to full content.")
+            self.logger.warning(f"SyntaxError parsing {file_path} for targeted context extraction. Falling back to full content.")
             return file_content, False
 
         if context_type == "add_import":
-            # AST nodes for top-level imports (level=0 for direct imports in the current file)
-            import_nodes = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom)) and getattr(n, 'level', 0) == 0]
+            import_nodes = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]
             if import_nodes:
-                min_line = min(n.lineno for n in import_nodes) # 1-indexed
-                # Use end_lineno if available (for multi-line imports), otherwise lineno
-                max_line_node = max(import_nodes, key=lambda n: n.end_lineno if hasattr(n, 'end_lineno') and n.end_lineno is not None else n.lineno)
-                max_line = max_line_node.end_lineno if hasattr(max_line_node, 'end_lineno') and max_line_node.end_lineno is not None else max_line_node.lineno # 1-indexed
-                
-                # Buffer: 1 line before first import, 2 lines after last (to catch trailing comments/blank lines)
-                start_idx = max(0, min_line - 2) # Convert to 0-indexed and add buffer
-                end_idx = min(len(lines), max_line + 2)  # Convert to 0-indexed slice end and add buffer (Qwen's suggestion adapted)
-                logger.debug(f"Extracting import context for {file_path}: lines {start_idx+1} to {end_idx}.")
+                min_line = min(node.lineno for node in import_nodes)
+                max_line = max(getattr(node, 'end_lineno', node.lineno) for node in import_nodes)
+
+                # Buffer: 1 line before first import, 2 lines after last import block
+                start_idx = max(0, min_line - 2)
+                end_idx = min(len(lines), max_line + 2)
+
+                self.logger.debug(f"Extracting import context for {file_path}: lines {start_idx+1} to {end_idx}.")
                 return "\n".join(lines[start_idx:end_idx]), True
             else: # No existing imports, take top N lines as context for new imports
-                logger.debug(f"No existing imports in {file_path}. Providing top {MAX_IMPORT_CONTEXT_LINES} lines for new import context.")
+                self.logger.debug(f"No existing imports in {file_path}. Providing top {MAX_IMPORT_CONTEXT_LINES} lines for new import context.")
                 return "\n".join(lines[:MAX_IMPORT_CONTEXT_LINES]), True
 
         elif context_type == "add_method_to_class":
-            # Regex to find class name from step description (e.g., "add method X to class Y")
-            class_name_match = re.search(r"class\s+(\w+)(?!\w)", step_description, re.IGNORECASE)
-            # Updated regex to match more flexible patterns for class name extraction
-            class_name_match = re.search(r"(?:to|in)\s+(?:an\s+existing\s+class\s+called\s+|class\s+)?(\w+)(?!\w)", step_description, re.IGNORECASE)
+            class_name_match = re.search(r"(?:to|in|for)\s+class\s+`?(\w+)`?", step_description, re.IGNORECASE)
             if class_name_match:
                 target_class_name = class_name_match.group(1)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef) and node.name == target_class_name:
-                        # Buffer: 1 line before class def, 1 line after (Qwen's suggestion adapted)
-                        start_idx = max(0, node.lineno - 5) # Increase buffer to include more lines before class
-                        class_end_lineno = node.end_lineno if hasattr(node, 'end_lineno') and node.end_lineno is not None else node.lineno
-                        end_idx = min(len(lines), class_end_lineno + 1) # Convert to 0-indexed slice end and add buffer
-                        logger.debug(f"Extracting class context for '{target_class_name}' in {file_path}: lines {start_idx+1} to {end_idx}.")
+                        start_idx = max(0, node.lineno - 2)  # Convert 1-indexed to 0-indexed and subtract 1 lines
+                        end_idx = min(len(lines), getattr(node, 'end_lineno', node.lineno) + 3)  # Add 2 lines after
+
+                        self.logger.debug(f"Extracting class context for '{target_class_name}' in {file_path}: lines {start_idx+1} to {end_idx}.")
                         return "\n".join(lines[start_idx:end_idx]), True
-            logger.warning(f"Could not find class for 'add_method_to_class' in {file_path} from step: {step_description}. Falling back to full content.")
+            self.logger.warning(f"Could not find class for 'add_method_to_class' in {file_path} from step: {step_description}. Falling back to full content.")
 
         # Fallback for other types or if specific extraction fails
-        logger.debug(f"No specific context extraction rule for type '{context_type}' or extraction failed for {file_path}. Using full content.")
+        self.logger.debug(f"No specific context extraction rule for type '{context_type}' or extraction failed for {file_path}. Using full content.")
         return file_content, False
 
     def _determine_single_target_file(self, step_description: str, task_target_file_spec: Optional[str], prelim_flags: Dict) -> Optional[str]:
@@ -1058,7 +1053,7 @@ class WorkflowDriver:
                                                 validation_passed = False
                                                 validation_feedback.append(f"Error during pre-write ethical validation: {e}")
                                                 logger.error(f"Error during pre-write ethical validation: {e}", exc_info=True)
-                                        elif validation_passed:
+                                        elif validation_passed and not self.default_policy_config: # Only log if policy was expected but not loaded
                                             logger.warning("Skipping pre-write ethical validation: Default policy not loaded.")
 
                                         if validation_passed: # Only proceed with style/security if previous checks passed
@@ -2988,19 +2983,4 @@ Your response should be the complete, corrected code content that addresses the 
                 self.logger.debug(f"Simple addition pattern '{pattern}' found in step: '{plan_step_description}'.")
                 return True        
         self.logger.debug(f"No specific simple addition or complex pattern matched for step: '{plan_step_description}'. Assuming not a simple addition.")        
-        return False # Default to False if neither complex nor simple patterns match
-
-    def _extract_targeted_context(self, file_path: str, file_content: str, context_type: Optional[str], step_description: str) -> Tuple[str, bool]:
-        """
-        Extracts minimal context from `file_content` based on `context_type`.
-        Returns full content + `False` if `context_type` is `None` or if the specific
-        extraction logic (not yet implemented) fails.
-
-        Args:
-            context_type: e.g., 'add_import', 'add_method_to_class'
-
-        Returns:
-            (extracted_str, is_minimal_context)
-        """
-        # TODO: Implement context extraction logic for different context_type values.
-        return file_content, False
+        return False

@@ -248,7 +248,7 @@
       "priority": "Critical",
       "task_name": "Implement `add_import` Logic for `_extract_targeted_context`",
       "description": "In `src/core/automation/workflow_driver.py`, enhance the `_extract_targeted_context` method. Add logic to handle the `context_type == 'add_import'`. Use AST parsing to find the start and end line numbers of the import block. Return the source code for this block, including a few lines of buffer before and after. If no imports exist, return the top N lines of the file (e.g., 20).",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_A_3a_helper_extract_context_skeleton"
@@ -259,7 +259,7 @@
       "priority": "Critical",
       "task_name": "Implement `add_method_to_class` Logic for `_extract_targeted_context`",
       "description": "In `src/core/automation/workflow_driver.py`, enhance the `_extract_targeted_context` method. Add logic to handle `context_type == 'add_method_to_class'`. Parse the `step_description` to find the target class name. Use AST to find the `ast.ClassDef` node for that class and return its complete source code, including a few lines of buffer. Handle `SyntaxError` during parsing by falling back to the full content.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_A_3b_helper_extract_context_imports"
@@ -270,7 +270,7 @@
       "priority": "High",
       "task_name": "Add Unit Tests for `_extract_targeted_context`",
       "description": "In `tests/test_phase1_8_features.py`, add comprehensive unit tests for the `_extract_targeted_context` method in `WorkflowDriver`. Cover all `context_type` cases ('add_import', 'add_method_to_class'), the fallback case, and edge cases like syntax errors in the source file or a class not being found.",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_A_3c_helper_extract_context_class"

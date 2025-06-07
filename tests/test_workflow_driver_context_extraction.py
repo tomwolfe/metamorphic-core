@@ -50,27 +50,30 @@ class TestWorkflowDriverContextExtraction:
         driver = driver_for_context_tests
         file_content = "# Initial comment\nimport os\nimport sys\n\n# Comment between imports\nfrom pathlib import Path\n\n# Another comment\ndef func():\n    pass\n# Trailing comment"
         file_path = str(tmp_path / "test_module.py") # Create a dummy file path
-        
+    
+        # Expected context: lines 0-8 (inclusive of line 0, exclusive of line 8)
+        # Corresponds to: "# Initial comment\nimport os\nimport sys\n\n# Comment between imports\nfrom pathlib import Path\n\n# Another comment"
+        expected_context = "\n".join(file_content.splitlines()[0:8])
         context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import json")
     
-        assert is_minimal is False, "is_minimal should be False for fallback with unimplemented context_type"
-        assert context_str == file_content, "Context string should be the full file content for fallback"
+        assert is_minimal is True, "is_minimal should be True for successful targeted extraction"
+        assert context_str == expected_context, "Context string should be the extracted import block"
 
     def test_extract_targeted_context_add_import_no_existing_imports(self, driver_for_context_tests, tmp_path):
         driver = driver_for_context_tests
         # Simplified content to ensure AST parsing doesn't fail on large dummy data
         file_content = "# Initial comment\n" + "\n".join([f"# line {i}" for i in range(MAX_IMPORT_CONTEXT_LINES - 1)]) # Ensure it's exactly MAX_IMPORT_CONTEXT_LINES lines and valid Python
         file_path = str(tmp_path / "test_module.py") # Create a dummy file path
-
+        # When no imports, it should return MAX_IMPORT_CONTEXT_LINES lines, which is the full content here.
         context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import json")
     
-        assert is_minimal is False, "is_minimal should be False for fallback with unimplemented context_type"
-        assert context_str == file_content, "Context string should be the full file content for fallback"
+        assert is_minimal is True, "is_minimal should be True when providing top N lines for new imports"
+        assert context_str == file_content, "Context string should be the full file content when no existing imports and content is MAX_IMPORT_CONTEXT_LINES"
 
 
     def test_extract_targeted_context_add_method_to_class(self, driver_for_context_tests, tmp_path):
         driver = driver_for_context_tests
-        file_content = """
+        file_content = """\
 # Line 1: Preamble
 import os # Line 2
 
@@ -92,10 +95,13 @@ def helper_func():
         file_path = str(tmp_path / "processor.py")
         step_desc = "Add method process_item to class MyProcessor"
     
+        # Expected context: lines 3-13 (inclusive of line 3, exclusive of line 13)
+        # Corresponds to: class MyProcessor and its content, up to the last comment line of the class.
+        expected_context = "\n".join(file_content.splitlines()[3:13])
         context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_method_to_class", step_desc)
     
-        assert is_minimal is False, "is_minimal should be False for fallback with unimplemented context_type"
-        assert context_str == file_content, "Context string should be the full file content for fallback"
+        assert is_minimal is True, "is_minimal should be True for successful targeted extraction"
+        assert context_str == expected_context, "Context string should be the extracted class block"
 
     def test_extract_targeted_context_unknown_type_or_non_python(self, driver_for_context_tests, tmp_path):
         driver = driver_for_context_tests
@@ -119,10 +125,10 @@ def helper_func():
         with caplog.at_level(logging.WARNING):
             context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_method_to_class", "Add method to class NonExistent")
         
-        assert is_minimal is False, "is_minimal should be False for fallback with unimplemented context_type"
+        assert is_minimal is False, "is_minimal should be False for fallback due to syntax error"
         assert context_str == file_content, "Context string should be full content for fallback"
-        # The skeleton does not attempt AST parsing for specific context types yet, so no log is expected.
-        assert f"SyntaxError parsing {file_path} for targeted context extraction. Falling back to full content." not in caplog.text
+        # The code *does* attempt AST parsing and logs a warning on SyntaxError.
+        assert f"SyntaxError parsing {file_path} for targeted context extraction. Falling back to full content." in caplog.text
 
     def test_method_addition_gets_class_and_surrounding_context(self, driver_for_context_tests, tmp_path):
         driver = driver_for_context_tests
@@ -134,10 +140,13 @@ def helper_func():
         context_type = driver._get_context_type_for_step(step_desc) # Get type first
         assert context_type == "add_method_to_class"
     
+        # Expected context: lines 2-8 (inclusive of line 2, exclusive of line 8)
+        # Corresponds to: blank line, class DataProcessor and its content, up to the last line of the class.
+        expected_context = "\n".join(file_content.splitlines()[2:8])
         context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, context_type, step_desc)
     
-        assert is_minimal is False, "is_minimal should be False for fallback with unimplemented context_type"
-        assert context_str == file_content, "Context string should be the full file content for fallback"
+        assert is_minimal is True, "is_minimal should be True for successful targeted extraction"
+        assert context_str == expected_context, "Context string should be the extracted class block"
 
     # --- Tests for _construct_coder_llm_prompt with minimal context ---
     def test_construct_coder_llm_prompt_with_minimal_context(self, driver_for_context_tests):

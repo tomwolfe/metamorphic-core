@@ -113,6 +113,18 @@ class EthicalGovernanceEngine:
 
         try:
             tree = ast.parse(processed_code) # Parse the potentially dedented code
+
+            # If it's a snippet and has no function or class definitions at the top level,
+            # it's likely a simple expression, import, or block of code for insertion.
+            # In this case, we consider it transparent as its context is the surrounding code.
+            if is_snippet:
+                has_top_level_defs = any(isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.AsyncFunctionDef)) for node in tree.body)
+                if not has_top_level_defs:
+                    # This snippet is a simple block for insertion, not a new definition.
+                    # It derives transparency from its surrounding context.
+                    logger.debug("Snippet has no top-level function/class definitions. Bypassing docstring transparency check for simple insertion block.")
+                    return True, "compliant"
+
             # Module docstring check
             module_docstring = ast.get_docstring(tree)
             logger.debug(f"Module docstring found: {bool(module_docstring)}")

@@ -407,6 +407,18 @@ def my_regex_func():
         assert is_compliant_full is True
         assert detail_key_full == "compliant"
 
+    @pytest.mark.parametrize("snippet", [
+        "if x > 5:\n    y = 10\nelse:\n    y = 5",  # Control flow block
+        "results = [item * 2 for item in data]",   # List comprehension
+        "x = y + z",                               # Simple expression
+        "import os",                                # Import statement
+    ])
+    def test_check_transparency_non_definition_snippets_pass(self, engine, snippet):
+        """Test that snippets containing code blocks without top-level defs pass the transparency check."""
+        is_compliant, detail = engine._check_transparency(snippet, is_snippet=True)
+        assert is_compliant is True, f"Snippet failed transparency check: {snippet}"
+        assert detail == "compliant"
+
     # --- Existing _check_transparency tests (updated to unpack return value) ---
     def test_check_transparency_indented_snippet_with_docstring(self, engine):
         """Test that an indented snippet with a docstring passes transparency check."""

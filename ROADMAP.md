@@ -133,19 +133,19 @@
 *   **Task ID**: task_1_8_A_3b_helper_extract_context_imports
     *   **Priority**: Critical
     *   **Task Name**: Implement `add_import` Logic for `_extract_targeted_context`
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_A_3a_helper_extract_context_skeleton']
 
 *   **Task ID**: task_1_8_A_3c_helper_extract_context_class
     *   **Priority**: Critical
     *   **Task Name**: Implement `add_method_to_class` Logic for `_extract_targeted_context`
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_A_3b_helper_extract_context_imports']
 
 *   **Task ID**: task_1_8_A_3d_helper_extract_context_tests
     *   **Priority**: High
     *   **Task Name**: Add Unit Tests for `_extract_targeted_context`
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_A_3c_helper_extract_context_class']
 
 *   **Task ID**: task_1_8_A_4_integrate_minimal_context_logic

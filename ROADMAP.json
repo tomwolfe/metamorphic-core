@@ -281,22 +281,16 @@
       "priority": "Critical",
       "task_name": "Implement Minimal Context Logic in WorkflowDriver Loop",
       "description": "Modify `WorkflowDriver.autonomous_loop` in `src/core/automation/workflow_driver.py`. If `_is_simple_addition_plan_step` returns True for the current step: 1. Call `_get_context_type_for_step`. 2. Call `_extract_targeted_context` using the determined type. 3. Pass the extracted context and `is_minimal_context=True` to `_construct_coder_llm_prompt`. If `_is_simple_addition_plan_step` is False, pass full context and `is_minimal_context=False`. Do NOT add or modify tests in this step.",
-      "status": "Not Started",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_A_3d_helper_extract_context_tests"
-      ]
+      "status": "Completed",
+      "reason_completed": "Completed via manual intervention. The autonomous agent failed to integrate existing helper methods (`_is_simple_addition_plan_step`, etc.) into the `autonomous_loop`. The required conditional logic was added as a direct diff to unblock progress."
     },
     {
       "task_id": "task_1_8_A_4b_add_tests_for_minimal_context_logic",
       "priority": "Critical",
       "task_name": "Add Unit Tests for Minimal Context Logic",
       "description": "Update unit tests in `tests/test_phase1_8_features.py` for the `WorkflowDriver.autonomous_loop` to cover the conditional context logic implemented in the previous step. Add a test case where `_is_simple_addition_plan_step` is mocked to return True, asserting that `_get_context_type_for_step` and `_extract_targeted_context` are called, and `_construct_coder_llm_prompt` receives the targeted context with `is_minimal_context=True`. Add a test case where `_is_simple_addition_plan_step` is mocked to return False, asserting that `_construct_coder_llm_prompt` receives the full context with `is_minimal_context=False`.",
-      "status": "Not Started",
-      "target_file": "tests/test_phase1_8_features.py",
-      "depends_on": [
-        "task_1_8_A_4a_implement_minimal_context_logic"
-      ]
+      "status": "Completed",
+      "reason_completed": "Completed via manual intervention as part of the fix for task_1_8_A_4a. New unit tests were added to verify the conditional context logic."
     },
     {
       "task_id": "task_1_8_A_5_refine_coder_prompt_for_minimal_output",

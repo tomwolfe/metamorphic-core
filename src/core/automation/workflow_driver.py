@@ -977,9 +977,14 @@ class WorkflowDriver:
                                         logger.error(step_failure_reason)
                                         raise RuntimeError(step_failure_reason)
 
-                                    context_type = self._get_context_type_for_step(step)
-                                    context_for_llm, is_minimal_context = self._extract_targeted_context(filepath_to_use, original_full_content, context_type, step)
+                                    if self._is_simple_addition_plan_step(step):
+                                        context_type = self._get_context_type_for_step(step)
+                                        context_for_llm, is_minimal_context = self._extract_targeted_context(filepath_to_use, original_full_content, context_type, step)
+                                    else:
+                                        context_for_llm = original_full_content
+                                        is_minimal_context = False
                                     logger.debug(f"Context for LLM (is_minimal={is_minimal_context}, len={len(context_for_llm)} chars) for file {filepath_to_use}.")
+
                                     # Construct the Coder LLM prompt using the new helper method
                                     coder_prompt = self._construct_coder_llm_prompt(
                                         self._current_task,
@@ -2905,7 +2910,7 @@ Your response should be the complete, corrected code content that addresses the 
         Args:
             file_content: The full content of the Python file as a string.
             class_name: The name of the class to find.
-            method_name: The name of the method. If None, extracts the class.
+            method_name: The name of the method. If None, extracts only the class.
                          If specified and found, extracts only the method.
                          If specified but not found, extracts the class.
 

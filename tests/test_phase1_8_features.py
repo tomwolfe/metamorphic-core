@@ -2,14 +2,14 @@ import pytest
 import re
 import json
 from pathlib import Path
-import logging, builtins # Added builtins
+import logging, builtins
 import tempfile
 import os
 import json
-from datetime import datetime # Import datetime for TestReprLoggingForSyntaxErrors
-import ast # For simulating SyntaxError
+from datetime import datetime
+import ast
 from unittest.mock import patch, MagicMock
-from unittest.mock import patch, call, ANY # Added call, ANY for assert_has_calls
+from unittest.mock import patch, call, ANY
 
 # Import constants from the centralized constants file
 from src.core.constants import (
@@ -20,8 +20,8 @@ from src.core.constants import (
     GENERAL_SNIPPET_GUIDELINES,
     DOCSTRING_INSTRUCTION_PYTHON,
     PYTHON_CREATION_KEYWORDS,
-    CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, # Import new constant
-    MAX_IMPORT_CONTEXT_LINES, # Import MAX_IMPORT_CONTEXT_LINES
+    CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS,
+    MAX_IMPORT_CONTEXT_LINES,
     CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS,
     CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS
 )
@@ -38,7 +38,7 @@ from src.core.llm_orchestration import EnhancedLLMOrchestrator
 # Import CodeReviewAgent and EthicalGovernanceEngine for type hinting and mocking
 from src.core.agents.code_review_agent import CodeReviewAgent
 from src.core.ethics.governance import EthicalGovernanceEngine
-from src.core.automation.workflow_driver import classify_plan_step # Keep classify_plan_step if used in tests
+from src.core.automation.workflow_driver import classify_plan_step
 
 # Set up logging for tests
 if not logging.root.handlers:
@@ -783,7 +783,7 @@ class TestPreWriteValidation:
              logger.error("Simulated _resolve_target_file_for_step returned None.")
              raise ValueError("Resolved file path is None.")
         
-        mocker.patch.object(driver, '_get_context_type_for_step', return_value=None) # This line was already here
+        mocker.patch.object(driver, '_get_context_type_for_step', return_value=None)
         
         # Clean the snippet before passing to ast.parse, as the SUT does this
         _cleaned_snippet = driver._clean_llm_snippet(generated_snippet)
@@ -792,20 +792,15 @@ class TestPreWriteValidation:
         logger.info(f"Performing pre-write validation for snippet targeting {filepath_to_use}...")
         validation_passed = True
         validation_feedback = []
-        initial_snippet_syntax_error_details = None # Store details of initial snippet syntax error
+        initial_snippet_syntax_error_details = None
         try:
-            mock_ast_parse(_cleaned_snippet) # Use cleaned_snippet here
+            mock_ast_parse(_cleaned_snippet)
             logger.info("Pre-write syntax check (AST parse) passed (isolated).")
         except SyntaxError as se_snippet:
             initial_snippet_syntax_error_details = f"Initial snippet syntax check failed: {se_snippet.msg} on line {se_snippet.lineno} (offset {se_snippet.offset}). Offending line: '{se_snippet.text.strip() if se_snippet.text else 'N/A'}'"
             logger.warning(f"Snippet AST parse check (isolated) failed with SyntaxError: {se_snippet}. This might be acceptable if the snippet integrates correctly. Proceeding to other checks.")
             try:
                 debug_dir_name = ".debug/failed_snippets"
-                # In the SUT, this is `self.context.get_full_path`.
-                # In this helper, `driver` is the WorkflowDriver instance.
-                # The fixture `driver_for_cleaning` and `driver_pre_write` mock `context.get_full_path`.
-                # So this should work.
-                # No change needed here, just adding comments for clarity.
                 debug_dir_path_str = driver.context.get_full_path(debug_dir_name)
  
                 if debug_dir_path_str:
@@ -824,7 +819,7 @@ class TestPreWriteValidation:
                         "task_id": current_task_id_str,
                         "step_description": locals().get('step', 'Unknown Step'),
                         "original_snippet_repr": repr(generated_snippet),
-                        "cleaned_snippet_repr": repr(_cleaned_snippet), # Use cleaned_snippet here
+                        "cleaned_snippet_repr": repr(_cleaned_snippet),
                         "syntax_error_details": {
                             "message": se_snippet.msg,
                             "lineno": se_snippet.lineno,
@@ -833,8 +828,8 @@ class TestPreWriteValidation:
                         }
                     }
  
-                    with builtins.open(filepath, 'w', encoding='utf-8') as f_err: # This calls the mock in TestReprLoggingForSyntaxErrors, and real open in TestPreWriteValidation
-                        json.dump(debug_data, f_err, indent=2) # This will now call the module-level mock
+                    with builtins.open(filepath, 'w', encoding='utf-8') as f_err:
+                        json.dump(debug_data, f_err, indent=2)
                     driver.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
                 else:
                     driver.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet details (path was None).")
@@ -846,12 +841,12 @@ class TestPreWriteValidation:
             validation_passed = False
             validation_feedback.append(f"Error during pre-write syntax validation (AST parse of snippet): {e}")
             logger.error(f"Error during pre-write syntax validation (AST parse of snippet): {e}", exc_info=True)
-            logger.warning(f"Failed snippet (cleaned):\n---\n{_cleaned_snippet}\n---") # Use cleaned_snippet here
+            logger.warning(f"Failed snippet (cleaned):\n---\n{_cleaned_snippet}\n---")
          
         if validation_passed and driver.default_policy_config:
             try:
                 ethical_results = mock_ethical_governance_engine.enforce_policy(
-                    _cleaned_snippet, # Use cleaned_snippet here
+                    _cleaned_snippet,
                     driver.default_policy_config,
                     is_snippet=True
                 )
@@ -859,43 +854,41 @@ class TestPreWriteValidation:
                     validation_passed = False
                     validation_feedback.append(f"Pre-write ethical check failed: {ethical_results}")
                     logger.warning(f"Pre-write ethical validation failed for snippet: {ethical_results}")
-                    logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---") # Use cleaned_snippet here
+                    logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---")
                 else:
                     logger.info("Pre-write ethical validation passed for snippet.")
             except Exception as e:
                 validation_passed = False
                 validation_feedback.append(f"Error during pre-write ethical validation: {e}")
                 logger.error(f"Error during pre-write ethical validation: {e}", exc_info=True)
-                logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---") # Use cleaned_snippet here
+                logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---")
         elif validation_passed:
             logger.warning("Skipping pre-write ethical validation: Default policy not loaded.")
  
         if validation_passed:
             try:
-                style_review_results = mock_code_review_agent.analyze_python(_cleaned_snippet) # Use cleaned_snippet here
+                style_review_results = mock_code_review_agent.analyze_python(_cleaned_snippet)
                 critical_findings = [f for f in style_review_results.get('static_analysis', []) if f.get('severity') in ['error', 'security_high']]
                 if critical_findings:
                     validation_passed = False
                     validation_feedback.append(f"Pre-write style/security check failed: Critical findings detected.")
                     logger.warning(f"Pre-write style/security validation failed for snippet. Critical findings: {critical_findings}")
-                    logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---") # Use cleaned_snippet here
+                    logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---")
                 else:
                     logger.info("Pre-write style/security validation passed for snippet.")
             except Exception as e:
                 validation_passed = False
                 validation_feedback.append(f"Error during pre-write style/security validation: {e}")
                 logger.error(f"Error during pre-write style/security validation: {e}", exc_info=True)
-                logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---") # Use cleaned_snippet here
+                logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---")
  
         if validation_passed:
             logger.info(f"Snippet-level ethical and style checks passed (or were skipped). Proceeding to pre-merge full file syntax check for {filepath_to_use}.")
  
             try:
-                hypothetical_merged_content = driver._merge_snippet(mock_read_file.return_value, _cleaned_snippet) # Use cleaned_snippet here
+                hypothetical_merged_content = driver._merge_snippet(mock_read_file.return_value, _cleaned_snippet)
                 mock_ast_parse(hypothetical_merged_content)
                 logger.info("Pre-merge full file syntax check (AST parse) passed.")
-                # If initial_snippet_syntax_error_details existed but full file parse passed,
-                # it means the merge context fixed the syntax. Log this.
                 if initial_snippet_syntax_error_details:
                     logger.info(f"Initial snippet had a syntax issue ('{initial_snippet_syntax_error_details}'), but it integrated correctly into the full file and passed other pre-write checks.")
                 if "Initial snippet syntax check failed" in "".join(validation_feedback):
@@ -914,7 +907,7 @@ class TestPreWriteValidation:
         if not validation_passed:
             if initial_snippet_syntax_error_details:
                 validation_feedback.insert(0, initial_snippet_syntax_error_details)
-            logger.warning(f"Failed snippet (cleaned):\n---\n{_cleaned_snippet}\n---") # Use cleaned_snippet here
+            logger.warning(f"Failed snippet (cleaned):\n---\n{_cleaned_snippet}\n---")
             error_message_for_retry = f"Pre-write validation failed for snippet targeting {filepath_to_use}. Feedback: {validation_feedback}"
             logger.warning(error_message_for_retry)
             driver._current_task_results['pre_write_validation_feedback'] = validation_feedback
@@ -922,7 +915,7 @@ class TestPreWriteValidation:
  
         else:
             logger.info(f"All pre-write validations passed for snippet targeting {filepath_to_use}. Proceeding with actual merge/write.")
-            merged_content = driver._merge_snippet(mock_read_file.return_value, _cleaned_snippet) # Use cleaned_snippet here
+            merged_content = driver._merge_snippet(mock_read_file.return_value, _cleaned_snippet)
             logger.debug("Snippet merged.")
             logger.info(f"Attempting to write merged content to {filepath_to_use}.")
             try:
@@ -960,7 +953,7 @@ class TestPreWriteValidation:
     @patch('src.core.automation.workflow_driver.ast.parse')
     def test_pre_write_validation_all_pass(self, mock_ast_parse, driver_pre_write, caplog, mocker):
         caplog.set_level(logging.INFO)
-        driver = driver_pre_write['driver'] # Access driver from dict
+        driver = driver_pre_write['driver']
         mock_code_review_agent = driver_pre_write['mock_code_review_agent']
         mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
         mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
@@ -987,15 +980,15 @@ class TestPreWriteValidation:
         assert any("Pre-merge full file syntax check (AST parse) passed." in msg for msg in log_messages)
         assert any(f"All pre-write validations passed for snippet targeting {resolved_target_path}. Proceeding with actual merge/write." in msg for msg in log_messages)
          
-        expected_merged_content = driver._merge_snippet(mock_read_file.return_value, driver._clean_llm_snippet(snippet)) # Use cleaned snippet
+        expected_merged_content = driver._merge_snippet(mock_read_file.return_value, driver._clean_llm_snippet(snippet))
         mock_write_output.assert_called_once_with(resolved_target_path, expected_merged_content, overwrite=True)
-        mock_code_review_agent.analyze_python.assert_has_calls([call(driver._clean_llm_snippet(snippet)), call(expected_merged_content)]) # Use cleaned snippet
-        mock_ethical_governance_engine.enforce_policy.assert_has_calls([call(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True), call(expected_merged_content, driver.default_policy_config)]) # Use cleaned snippet
+        mock_code_review_agent.analyze_python.assert_has_calls([call(driver._clean_llm_snippet(snippet)), call(expected_merged_content)])
+        mock_ethical_governance_engine.enforce_policy.assert_has_calls([call(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True), call(expected_merged_content, driver.default_policy_config)])
  
         assert not driver._current_task_results['step_errors']
  
     @patch('src.core.automation.workflow_driver.ast.parse')
-    def test_pre_write_validation_syntax_fails(self, mock_ast_parse, driver_pre_write, caplog, mocker): # Added mocker
+    def test_pre_write_validation_syntax_fails(self, mock_ast_parse, driver_pre_write, caplog, mocker):
         caplog.set_level(logging.WARNING)
         driver = driver_pre_write['driver']
         mock_code_review_agent = driver_pre_write['mock_code_review_agent']
@@ -1006,9 +999,6 @@ class TestPreWriteValidation:
  
  
         snippet = "def invalid syntax"
-        # Use a callable side_effect to prevent StopIteration if ast.parse is called more than expected
-        # (e.g., if _extract_targeted_context were to be called, which it isn't in this helper,
-        # but this makes the mock more robust against unexpected calls).
         call_counter = 0
         def ast_parse_side_effect_func(code_str):
             nonlocal call_counter
@@ -1027,7 +1017,7 @@ class TestPreWriteValidation:
         with pytest.raises(ValueError, match=r"Pre-write validation failed: Initial snippet syntax check failed: Mock syntax error on line 1 \(offset 1\)\. Offending line: 'def invalid syntax'"):
             self._simulate_step_execution_for_pre_write_validation(
                 driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
-                mock_code_review_agent, mock_ethical_governance_engine, mocker # Pass mocker
+                mock_code_review_agent, mock_ethical_governance_engine, mocker
             )
  
         mock_write_output.assert_not_called()
@@ -1035,16 +1025,16 @@ class TestPreWriteValidation:
         assert any("Snippet AST parse check (isolated) failed with SyntaxError: Mock syntax error (<string>, line 1)" in msg for msg in log_messages)
         assert any(f"Pre-merge full file syntax validation failed for {resolved_target_path}: Mock merged syntax error (<string>, line 1)" in msg for msg in log_messages)
         assert not any(f"All pre-write validations passed for snippet targeting {resolved_target_path}. Proceeding with actual merge/write." in msg for msg in log_messages)
-        assert not any(f"Pre-write validation passed for snippet targeting {resolved_target_path}. Proceeding with merge/write." in msg for msg in log_messages) # This line was already correct
-        assert any(f"Failed snippet (cleaned):\n---\n{driver._clean_llm_snippet(snippet)}\n---" in msg for msg in log_messages) # Changed to (cleaned)
-        mock_code_review_agent.analyze_python.assert_called_once_with(driver._clean_llm_snippet(snippet)) # Use cleaned snippet
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True) # Use cleaned snippet
+        assert not any(f"Pre-write validation passed for snippet targeting {resolved_target_path}. Proceeding with merge/write." in msg for msg in log_messages)
+        assert any(f"Failed snippet (cleaned):\n---\n{driver._clean_llm_snippet(snippet)}\n---" in msg for msg in log_messages)
+        mock_code_review_agent.analyze_python.assert_called_once_with(driver._clean_llm_snippet(snippet))
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True)
         assert mock_code_review_agent.analyze_python.call_count == 1
         assert mock_ethical_governance_engine.enforce_policy.call_count == 1
  
  
     @patch('src.core.automation.workflow_driver.ast.parse')
-    def test_pre_write_validation_ethical_fails(self, mock_ast_parse, driver_pre_write, caplog, mocker): # Added mocker
+    def test_pre_write_validation_ethical_fails(self, mock_ast_parse, driver_pre_write, caplog, mocker):
         caplog.set_level(logging.WARNING)
         driver = driver_pre_write['driver']
         mock_code_review_agent = driver_pre_write['mock_code_review_agent']
@@ -1063,20 +1053,20 @@ class TestPreWriteValidation:
         with pytest.raises(ValueError, match=r"Pre-write validation failed: Pre-write ethical check failed:"):
             self._simulate_step_execution_for_pre_write_validation(
                 driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
-                mock_code_review_agent, mock_ethical_governance_engine, mocker # Pass mocker
+                mock_code_review_agent, mock_ethical_governance_engine, mocker
             )
  
         mock_write_output.assert_not_called()
         log_messages = [record.message for record in caplog.records]
-        assert any("Pre-write ethical validation failed for snippet" in msg for msg in log_messages) # This line was already correct
-        assert any(f"Failed snippet (cleaned):\n---\n{driver._clean_llm_snippet(snippet)}\n---" in msg for msg in log_messages) # Changed to (cleaned)
+        assert any("Pre-write ethical validation failed for snippet" in msg for msg in log_messages)
+        assert any(f"Failed snippet (cleaned):\n---\n{driver._clean_llm_snippet(snippet)}\n---" in msg for msg in log_messages)
         assert any(re.search(r"Pre-write ethical check failed: {'overall_status': 'rejected', 'BiasRisk': {'status': 'violation'}}", record.message) for record in caplog.records)
         mock_code_review_agent.analyze_python.assert_not_called()
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True) # Use cleaned snippet
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True)
  
  
     @patch('src.core.automation.workflow_driver.ast.parse')
-    def test_pre_write_validation_style_fails(self, mock_ast_parse, driver_pre_write, caplog, mocker): # Added mocker
+    def test_pre_write_validation_style_fails(self, mock_ast_parse, driver_pre_write, caplog, mocker):
         caplog.set_level(logging.WARNING)
         driver = driver_pre_write['driver']
         mock_code_review_agent = driver_pre_write['mock_code_review_agent']
@@ -1096,28 +1086,28 @@ class TestPreWriteValidation:
         with pytest.raises(ValueError, match=r"Pre-write validation failed: Pre-write style/security check failed:"):
             self._simulate_step_execution_for_pre_write_validation(
                 driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
-                mock_code_review_agent, mock_ethical_governance_engine, mocker # Pass mocker
+                mock_code_review_agent, mock_ethical_governance_engine, mocker
             )
  
         mock_write_output.assert_not_called()
         log_messages = [record.message for record in caplog.records]
         assert any("Pre-write style/security validation failed for snippet" in msg for msg in log_messages)
-        assert any(f"Failed snippet (cleaned):\n---\n{driver._clean_llm_snippet(snippet)}\n---" in msg for msg in log_messages) # Changed to (cleaned)
+        assert any(f"Failed snippet (cleaned):\n---\n{driver._clean_llm_snippet(snippet)}\n---" in msg for msg in log_messages)
         assert any(f"Pre-write validation failed for snippet targeting {resolved_target_path}. Feedback: ['Pre-write style/security check failed: Critical findings detected.']" in record.message for record in caplog.records)
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True) # Use cleaned snippet
-        mock_code_review_agent.analyze_python.assert_called_once_with(driver._clean_llm_snippet(snippet)) # Use cleaned snippet
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True)
+        mock_code_review_agent.analyze_python.assert_called_once_with(driver._clean_llm_snippet(snippet))
  
     @patch('src.core.automation.workflow_driver.ast.parse')
     def test_pre_write_validation_full_file_syntax_fails(self, mock_ast_parse, driver_pre_write, caplog, mocker):
         caplog.set_level(logging.INFO)
-        driver = driver_pre_write['driver'] # This line was already correct
+        driver = driver_pre_write['driver']
         mock_code_review_agent = driver_pre_write['mock_code_review_agent']
         mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
         mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
         mock_read_file = driver_pre_write['mock_read_file']
         mock_write_output = driver_pre_write['mock_write_output']
  
-        snippet = "    def new_method():\n        return 'unclosed_string" # Snippet that will cause syntax error when merged
+        snippet = "    def new_method():\n        return 'unclosed_string"
         existing_content = "import os\n\n# METAMORPHIC_INSERT_POINT\n\ndef existing_function():\n    pass"
  
         mock_read_file.return_value = existing_content
@@ -1132,7 +1122,7 @@ class TestPreWriteValidation:
                 expected_merged_prefix = "import os\n\ndef new_method():\n    return 'unclosed_string\n\ndef existing_function():\n    pass"
                 if not code_str.startswith(expected_merged_prefix):
                     raise AssertionError(f"Expected merged content for second AST parse call, got: {code_str[:100]}...")
-                raise SyntaxError("unterminated string literal", ('<string>', 4, 26, "    return 'unclosed_string\n")) # Adjusted error details
+                raise SyntaxError("unterminated string literal", ('<string>', 4, 26, "    return 'unclosed_string\n"))
         ast_parse_side_effect_func.call_count = 0
         mock_ast_parse.side_effect = ast_parse_side_effect_func
  
@@ -1141,7 +1131,7 @@ class TestPreWriteValidation:
         with pytest.raises(ValueError, match=r"Pre-write validation failed: Pre-merge full file syntax check failed:.*unterminated string literal.*"):
             self._simulate_step_execution_for_pre_write_validation(
                 driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
-                mock_code_review_agent, mock_ethical_governance_engine, mocker # Pass mocker
+                mock_code_review_agent, mock_ethical_governance_engine, mocker
             )
  
         mock_write_output.assert_not_called()
@@ -1153,8 +1143,8 @@ class TestPreWriteValidation:
         assert any(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---" in msg for msg in log_messages)
         assert any(f"Pre-merge full file syntax validation failed for {resolved_target_path}: unterminated string literal" in msg for msg in log_messages)
  
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True) # Use cleaned snippet
-        mock_code_review_agent.analyze_python.assert_called_once_with(driver._clean_llm_snippet(snippet)) # Use cleaned snippet
+        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True)
+        mock_code_review_agent.analyze_python.assert_called_once_with(driver._clean_llm_snippet(snippet))
  
         assert mock_ethical_governance_engine.enforce_policy.call_count == 1
         assert mock_code_review_agent.analyze_python.call_count == 1
@@ -1201,14 +1191,12 @@ class TestRetryPromptEnhancement:
             is_minimal_context=False
         )
  
-        # Assertions using the actual constant imported from SUT
         assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
-        # Assert on key phrases from the guidelines to ensure content integrity
         assert "Ensure all string literals are correctly terminated" in coder_prompt
         assert "Pay close attention to Python's indentation rules" in coder_prompt
         assert "Generate complete and runnable Python code snippets" in coder_prompt
         assert "If modifying existing code, ensure the snippet integrates seamlessly" in coder_prompt
-        assert coder_prompt.count(GENERAL_SNIPPET_GUIDELINES) == 1 # Ensure no duplication
+        assert coder_prompt.count(GENERAL_SNIPPET_GUIDELINES) == 1
  
     def test_coder_prompt_includes_general_guidelines_with_import(self, setup_driver, mocker):
         """Verify general guidelines are included and not duplicated for an import step."""
@@ -1217,10 +1205,8 @@ class TestRetryPromptEnhancement:
         filepath = driver._resolve_target_file_for_step(step_description, driver.task_target_file, {})
         context_content = driver._read_file_for_context(filepath)
  
-        # Mock _is_add_imports_step to return True for this test case
         mocker.patch.object(driver, '_is_add_imports_step', return_value=True)
  
-        # Call the SUT method directly, simulating an import step
         coder_prompt = driver._construct_coder_llm_prompt(
             task=driver._current_task,
             step_description=step_description,
@@ -1230,7 +1216,7 @@ class TestRetryPromptEnhancement:
         )
  
         assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
-        assert "You are adding import statements." in coder_prompt # Specific to import steps
+        assert "You are adding import statements." in coder_prompt
         assert coder_prompt.count(GENERAL_SNIPPET_GUIDELINES) == 1
 class TestMergeSnippetLogic:
     @pytest.fixture(autouse=True)
@@ -1302,7 +1288,7 @@ class TestEnhancedSnippetCleaning:
             driver = WorkflowDriver(mock_context)
             driver.llm_orchestrator = mocker.MagicMock()
             driver.logger = mocker.MagicMock()
-            driver.default_policy_config = {'policy_name': 'Mock Policy'} # Ensure it's set for tests
+            driver.default_policy_config = {'policy_name': 'Mock Policy'}
             return driver
  
     @pytest.mark.parametrize("input_snippet, expected_output", [
@@ -1317,8 +1303,8 @@ class TestEnhancedSnippetCleaning:
         ("```PYTHON\n# comment\npass\n```", "# comment\npass"),
         ("```javascript\nconsole.log('test');\n```", "console.log('test');"),
         ("No fences here", "No fences here"),
-        ("  Stripped raw code  ", "Stripped raw code"), # Leading space should be stripped for raw snippets
-        (None, ""), # This case is fine, None input -> empty string
+        ("  Stripped raw code  ", "Stripped raw code"),
+        (None, ""),
         ("`single backtick`", "`single backtick`"),
         ("` ` `", "` ` `"),
         ("def _read_targeted_file_content():\n    return \"\"\nOkay, here is the refactored code snippet.",
@@ -1330,145 +1316,88 @@ class TestEnhancedSnippetCleaning:
         assert driver_for_cleaning._clean_llm_snippet(input_snippet) == expected_output
  
 class TestReprLoggingForSyntaxErrors:
-    @patch('json.dump') # Mock json.dump to capture its arguments
-    @patch('builtins.open', new_callable=MagicMock) # Mock builtins.open for file writing
-    @patch('ast.parse') # Mock ast.parse to control its behavior
+    @patch('json.dump')
+    @patch('builtins.open', new_callable=MagicMock)
+    @patch('ast.parse')
     def test_repr_logging_on_syntax_error(self, mock_ast_parse, mock_builtin_open, mock_json_dump, driver_for_cleaning, tmp_path, mocker):
-        driver = driver_for_cleaning # Get driver from fixture
+        driver = driver_for_cleaning
         original_snippet = "```python\ndef func():\n  print('unterminated string)\n```"
-        # The _clean_llm_snippet will remove the fences
         cleaned_snippet_that_fails = "def func():\n  print('unterminated string)"
 
-        # Configure ast.parse to raise a SyntaxError
         syntax_error_instance = SyntaxError("unterminated string literal", ('<unknown>', 2, 9, "  print('unterminated string)\n"))
         mock_ast_parse.side_effect = syntax_error_instance
 
-        # Simulate the relevant part of the autonomous_loop
-        # We need to mock some context variables that would be present in the loop
         driver._current_task = {'task_id': 'test_task_syntax_error'}
-        # Simulate being in a step (locals().get('step_index', -1) + 1)
-        # This is tricky to mock directly. We can patch datetime to control filename.
         fixed_timestamp = "20230101_120000_000000"
         with patch('src.core.automation.workflow_driver.datetime') as mock_datetime:
             mock_datetime.now.return_value.strftime.return_value = fixed_timestamp
             mock_datetime.now.return_value.isoformat.return_value = "2023-01-01T12:00:00.000000"
 
-            # This is the block that contains the ast.parse and the repr logging
-            # We are testing the except SyntaxError block
             validation_feedback = []
             step_failure_reason = None
             step_description_for_log = "Test step description for syntax error"
-            _cleaned_snippet = "" # Initialize _cleaned_snippet
-            step_index_for_log = 0 # Simulating first step
+            _cleaned_snippet = ""
+            step_index_for_log = 0
 
             try:
-                # This call will trigger the mocked ast.parse and the except block
-                # We are directly testing the logic that would be inside the autonomous_loop's try-except
-                # The cleaning happens before this point in the actual loop
-                # For this test, assume cleaned_snippet is what's passed to ast.parse
-                # In the SUT, the logging uses `generated_snippet` for original and `cleaned_snippet` for cleaned.
-                # So, we need to ensure these are available.
-                
-                # Simulate the state within the loop for the logging part
-                # The actual SUT has:
-                # if generated_snippet:
-                #    cleaned_snippet = self._clean_llm_snippet(generated_snippet)
-                #    try:
-                #        ast.parse(cleaned_snippet)
-                #    except SyntaxError as se:
-                #        # logging logic uses generated_snippet and cleaned_snippet
-                
-                # To test the logging correctly, we need to simulate this structure
-                # or call a helper that encapsulates this.
-                # Or, we can assert the mock_open call.
+                _cleaned_snippet = driver._clean_llm_snippet(original_snippet)
+                mock_ast_parse(_cleaned_snippet)
+            except SyntaxError as se_in_block:
+                _validation_passed = False
+                validation_feedback.append(f"Pre-write syntax check failed: {se_in_block}")
+                driver.logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se_in_block}")
+                driver.logger.warning(f"Failed snippet (cleaned):\n---\n{_cleaned_snippet}\n---")
+                _step_failure_reason = f"Pre-write syntax check failed: {se_in_block}"
 
-                # Let's try to trigger the SUT's actual logging block by calling a small part of the loop logic
-                # This is a bit fragile as it depends on internal structure.
-                
-                # Simulate the pre-write validation block directly
-                _validation_passed = True
-                _validation_feedback = []
-                _step_failure_reason = None
-                
-                # This is the block from SUT we are testing
                 try:
-                    _cleaned_snippet = driver._clean_llm_snippet(original_snippet) # Ensure _cleaned_snippet is set
-                    mock_ast_parse(_cleaned_snippet) # This will raise the mocked SyntaxError
-                except SyntaxError as se_in_block:
-                    _validation_passed = False
-                    _validation_feedback.append(f"Pre-write syntax check failed: {se_in_block}")
-                    driver.logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se_in_block}")
-                    driver.logger.warning(f"Failed snippet (cleaned):\n---\n{_cleaned_snippet}\n---")
-                    _step_failure_reason = f"Pre-write syntax check failed: {se_in_block}"
+                    debug_dir_name = ".debug/failed_snippets"
+                    debug_dir_path_str = driver.context.get_full_path(debug_dir_name)
+                    if debug_dir_path_str:
+                        debug_dir = Path(debug_dir_path_str)
+                        debug_dir.mkdir(parents=True, exist_ok=True)
+                        _timestamp = fixed_timestamp
+                        _current_task_id_str = getattr(driver, '_current_task', {}).get('task_id', 'unknown_task')
+                        _sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', _current_task_id_str)
+                        _current_step_index_str = str(step_index_for_log + 1)
 
-                    # --- SUT's Logging Logic (that we are testing) ---
-                    try:
-                        debug_dir_name = ".debug/failed_snippets"
-                        debug_dir_path_str = driver.context.get_full_path(debug_dir_name)
-                        if debug_dir_path_str:
-                            debug_dir = Path(debug_dir_path_str)
-                            debug_dir.mkdir(parents=True, exist_ok=True)
-                            # Use the fixed_timestamp from the mock_datetime
-                            _timestamp = fixed_timestamp # Use the one from mock_datetime
-                            _current_task_id_str = getattr(driver, '_current_task', {}).get('task_id', 'unknown_task')
-                            _sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', _current_task_id_str)
-                            _current_step_index_str = str(step_index_for_log + 1)
+                        filename = f"failed_snippet_{_sanitized_task_id}_step{_current_step_index_str}_{_timestamp}.json"
+                        filepath = debug_dir / filename
 
-                            filename = f"failed_snippet_{_sanitized_task_id}_step{_current_step_index_str}_{_timestamp}.json"
-                            filepath = debug_dir / filename
-
-                            debug_data = {
-                                "timestamp": mock_datetime.now.return_value.isoformat.return_value, # Use mocked isoformat
-                                "task_id": _current_task_id_str,
-                                "step_description": step_description_for_log,
-                                "original_snippet_repr": repr(original_snippet),
-                                "cleaned_snippet_repr": repr(_cleaned_snippet),
-                                "syntax_error_details": {
-                                    "message": se_in_block.msg, # MODIFIED LINE: Use .msg attribute
-                                    "lineno": se_in_block.lineno,
-                                    "offset": se_in_block.offset,
-                                    "text": se_in_block.text
-                                }
+                        debug_data = {
+                            "timestamp": mock_datetime.now.return_value.isoformat.return_value,
+                            "task_id": _current_task_id_str,
+                            "step_description": step_description_for_log,
+                            "original_snippet_repr": repr(original_snippet),
+                            "cleaned_snippet_repr": repr(_cleaned_snippet),
+                            "syntax_error_details": {
+                                "message": se_in_block.msg,
+                                "lineno": se_in_block.lineno,
+                                "offset": se_in_block.offset,
+                                "text": se_in_block.text
                             }
-                            with builtins.open(filepath, 'w', encoding='utf-8') as f_err: # This calls the mock
-                                json.dump(debug_data, f_err, indent=2)
-                            driver.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
-                        else:
-                            driver.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
-                    except Exception as write_err:
-                        driver.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
-                    # --- End SUT's Logging Logic ---
-                    # Re-raise to simulate SUT behavior if needed for further assertions
-                    # raise ValueError(f"Pre-write validation failed: {'. '.join(_validation_feedback)}")
-                # End of simulated SUT block
+                        }
+                        with builtins.open(filepath, 'w', encoding='utf-8') as f_err:
+                            json.dump(debug_data, f_err, indent=2)
+                        driver.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
+                    else:
+                        driver.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
+                except Exception as write_err:
+                    driver.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
 
-            except ValueError: # Catch the re-raised error if the SUT does that
+            except ValueError:
                 pass
 
 
-        # Assertions
-        # Check that context.get_full_path was called for the debug directory
         driver.context.get_full_path.assert_called_once_with(".debug/failed_snippets")
 
-        # Check that builtins.open was called to write the debug file
         expected_debug_dir = tmp_path / ".debug/failed_snippets"
         expected_filename = f"failed_snippet_test_task_syntax_error_step{step_index_for_log + 1}_{fixed_timestamp}.json"
         expected_filepath = expected_debug_dir / expected_filename
         
         mock_builtin_open.assert_called_once_with(expected_filepath, 'w', encoding='utf-8')
 
-        # Check the content written to the file
-        # The first argument to the write call on the mock file object
-        # In the SUT, we use json.dump, so we need to mock the file object's write method
-        # and capture what json.dump would write.
-        # It's easier to capture the `debug_data` dict that was passed to `json.dump`.
-        # For this, we'd need to patch `json.dump`.
-
-        # Let's refine the assertion to check the *arguments* to json.dump
-        # This requires patching json.dump
-        # The mock_json_dump is already passed as an argument to the test function.
         mock_json_dump.assert_called_once()
-        written_data_obj = mock_json_dump.call_args[0][0] # First arg to json.dump
+        written_data_obj = mock_json_dump.call_args[0][0]
 
         assert written_data_obj["task_id"] == "test_task_syntax_error"
         assert written_data_obj["step_description"] == step_description_for_log
@@ -1478,8 +1407,6 @@ class TestReprLoggingForSyntaxErrors:
         assert written_data_obj["syntax_error_details"]["lineno"] == 2
         assert written_data_obj["syntax_error_details"]["offset"] == 9
         assert written_data_obj["syntax_error_details"]["text"] == "  print('unterminated string)\n"
-
-        # Check logger call
 
 
 @pytest.fixture
@@ -1499,7 +1426,7 @@ def driver_for_retry_prompt_test(tmp_path, mocker):
         mocker.patch.object(driver, '_resolve_target_file_for_step', return_value=str(tmp_path / "test_file.py"))
         mocker.patch.object(driver, '_write_output_file')
         mocker.patch.object(driver, '_merge_snippet', side_effect=lambda ex, sn: ex + "\n" + sn)
-        mocker.patch.object(driver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 90}})) # Mock to avoid actual report generation logic
+        mocker.patch.object(driver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 90}}))
         mocker.patch.object(driver, '_parse_and_evaluate_grade_report')
         mocker.patch.object(driver, '_update_task_status_in_roadmap')
         
@@ -1511,14 +1438,14 @@ def test_retry_prompt_includes_validation_feedback(driver_for_retry_prompt_test,
     driver = driver_for_retry_prompt_test
     
     driver._current_task = {
-        'task_id': 'retry_test_task', 'task_name': 'Retry Test Task', 
+        'task_id': 'retry_test_task', 'task_name': 'Prompt Refinement Test Task', 
         'description': 'A task to test retry prompt enhancement.', 'status': 'Not Started', 
         'priority': 'High', 'target_file': 'test_file.py'
     }
     driver.task_target_file = driver._current_task['target_file']
     solution_plan = ["Implement a function in test_file.py"]
 
-    original_syntax_error_msg = "Mock syntax error" # Changed to match the test's mock_ast_parse.side_effect
+    original_syntax_error_msg = "Mock syntax error"
     
     driver._invoke_coder_llm.side_effect = [
         "def bad_snippet_initial_attempt(): 'unterminated",
@@ -1532,7 +1459,6 @@ def test_retry_prompt_includes_validation_feedback(driver_for_retry_prompt_test,
     ]
 
     with patch('ast.parse', mock_ast_parse_instance):
-        # Ensure _should_add_docstring_instruction returns True for this step
         mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True)
         step_index = 0
         step = solution_plan[0]

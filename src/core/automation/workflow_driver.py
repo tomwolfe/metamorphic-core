@@ -197,12 +197,42 @@ class WorkflowDriver:
         if fenced_block_match:
             # If a fenced block is found, extract its content. Do NOT strip leading/trailing whitespace here.
             # The _merge_snippet function handles *relative* indentation of lines within the snippet.
-            processed_snippet = fenced_block_match.group(1) # Removed .strip() to preserve leading indentation
-            self.logger.debug("Markdown fenced block found and content extracted and stripped.")
+            processed_snippet = fenced_block_match.group(1)
+            self.logger.debug("Markdown fenced block found and content extracted.")
             fences_found = True
         else:
             # If no fenced block is found, the snippet is treated as raw code.
+            # Normalize its indentation: remove leading whitespace from the first non-empty line,
+            # and adjust all other lines relative to that.
+            lines = processed_snippet.splitlines()
+            normalized_lines = []
+            
+            # Find the indentation of the first non-empty line
+            first_non_empty_line_indent = 0
+            found_first_non_empty = False
+            for line in lines:
+                if line.strip():
+                    first_non_empty_line_indent = len(line) - len(line.lstrip())
+                    found_first_non_empty = True
+                    break
+            
+            if found_first_non_empty:
+                for line in lines:
+                    if line.strip(): # Non-empty line
+                        # Remove the initial_indent from all non-empty lines
+                        # Ensure we don't go out of bounds if line is shorter than initial_indent
+                        normalized_lines.append(line[min(first_non_empty_line_indent, len(line)):])
+                    else:
+                        # Preserve blank lines, but also remove the same initial_indent
+                        # This ensures blank lines maintain their relative position if they were indented
+                        normalized_lines.append(line[min(first_non_empty_line_indent, len(line)):])
+                processed_snippet = "\n".join(normalized_lines)
+                self.logger.debug(f"Normalized raw snippet indentation by {first_non_empty_line_indent} spaces.")
+            else:
+                # If all lines are empty, processed_snippet remains as is (empty or only newlines)
+                self.logger.debug("Raw snippet is empty or contains only blank lines. No indentation normalization needed.")
             self.logger.debug("No markdown fenced block found. Treating snippet as raw code.")
+
         # 2. Look for the end-of-code marker and truncate if found
         # This applies to the content *after* potential fence stripping.
         # The marker is the definitive end of the code snippet.
@@ -212,7 +242,7 @@ class WorkflowDriver:
             processed_snippet = parts[0].rstrip()
             marker_found = True
             self.logger.debug(f"End-of-code marker found. Snippet truncated and stripped.")
-        
+
         # 3. Fallback: If no fences were found AND no marker was found,
         #    attempt to remove trailing non-code text (LLM chatter).
         #    This is a heuristic to handle cases where the LLM doesn't adhere to output format.
@@ -230,16 +260,15 @@ class WorkflowDriver:
                     first_chatter_line_index = i
                     self.logger.debug(f"Identified first chatter line: '{line.strip()}' at index {i}. Truncating snippet.")
                     break
-            
+
             if first_chatter_line_index != -1:
                 processed_snippet = "\n".join(lines[:first_chatter_line_index]).rstrip() # Changed to rstrip()
                 self.logger.debug(f"Truncated snippet based on first chatter line heuristic and stripped.")
             else:
                 self.logger.debug(f"No clear chatter lines found in raw snippet. Keeping as is.")
 
-        # 4. Final strip to remove any remaining leading/trailing whitespace
-        # Only strip trailing whitespace/newlines, preserve leading indentation.
-        return processed_snippet.strip()
+        # 4. Final strip to remove any remaining trailing whitespace/newlines, preserve leading indentation.
+        return processed_snippet.rstrip()
 
     def _load_default_policy(self):
         # Use context.get_full_path to resolve the policy path safely
@@ -1032,7 +1061,7 @@ class WorkflowDriver:
                                             validation_passed = False
                                             validation_feedback.append(f"Error during pre-write syntax validation (AST parse of snippet): {e}")
                                             logger.error(f"Error during pre-write syntax validation (AST parse of snippet): {e}", exc_info=True)
-                                            logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---") # Use cleaned_snippet here
+                                            logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---")
                                         
                                         if validation_passed and self.default_policy_config:
                                             # Ethical check on the snippet itself.

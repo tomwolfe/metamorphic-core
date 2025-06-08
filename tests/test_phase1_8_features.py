@@ -783,10 +783,6 @@ class TestPreWriteValidation:
              logger.error("Simulated _resolve_target_file_for_step returned None.")
              raise ValueError("Resolved file path is None.")
         
-        # Patch builtins.open and json.dump for the internal file saving logic within this helper
-        # These lines were removed by the diff, so they should not be here.
-        # mock_open_for_helper = mocker.patch('builtins.open', mocker.mock_open())
-        # mock_json_dump_for_helper = mocker.patch('json.dump')
         mocker.patch.object(driver, '_get_context_type_for_step', return_value=None) # This line was already here
         
         # Clean the snippet before passing to ast.parse, as the SUT does this
@@ -1121,7 +1117,7 @@ class TestPreWriteValidation:
         mock_read_file = driver_pre_write['mock_read_file']
         mock_write_output = driver_pre_write['mock_write_output']
  
-        snippet = "    def new_method():\n        pass"
+        snippet = "    def new_method():\n        return 'unclosed_string" # Snippet that will cause syntax error when merged
         existing_content = "import os\n\n# METAMORPHIC_INSERT_POINT\n\ndef existing_function():\n    pass"
  
         mock_read_file.return_value = existing_content
@@ -1133,16 +1129,16 @@ class TestPreWriteValidation:
                 ast_parse_side_effect_func.call_count += 1
                 return None
             else:
-                expected_merged_prefix = "import os\n\ndef new_method():\n        pass\n\ndef existing_function():\n    pass"
+                expected_merged_prefix = "import os\n\ndef new_method():\n    return 'unclosed_string\n\ndef existing_function():\n    pass"
                 if not code_str.startswith(expected_merged_prefix):
                     raise AssertionError(f"Expected merged content for second AST parse call, got: {code_str[:100]}...")
-                raise SyntaxError("unexpected indent", ('<string>', 3, 5, "    def new_method():\n"))
+                raise SyntaxError("unterminated string literal", ('<string>', 4, 26, "    return 'unclosed_string\n")) # Adjusted error details
         ast_parse_side_effect_func.call_count = 0
         mock_ast_parse.side_effect = ast_parse_side_effect_func
  
         resolved_target_path = mock_resolve_target_file.return_value
  
-        with pytest.raises(ValueError, match=r"Pre-write validation failed: Pre-merge full file syntax check failed:"):
+        with pytest.raises(ValueError, match=r"Pre-write validation failed: Pre-merge full file syntax check failed:.*unterminated string literal.*"):
             self._simulate_step_execution_for_pre_write_validation(
                 driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
                 mock_code_review_agent, mock_ethical_governance_engine, mocker # Pass mocker
@@ -1153,9 +1149,9 @@ class TestPreWriteValidation:
         log_messages = [record.message for record in caplog.records]
         assert any("Pre-write syntax check (AST parse) passed (isolated)." in msg for msg in log_messages)
         assert any("Pre-merge full file syntax validation failed for" in msg for msg in log_messages)
-        hypothetical_merged_content = "import os\n\ndef new_method():\n        pass\n\ndef existing_function():\n    pass"
+        hypothetical_merged_content = "import os\n\ndef new_method():\n    return 'unclosed_string\n\ndef existing_function():\n    pass"
         assert any(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---" in msg for msg in log_messages)
-        assert any(f"Pre-merge full file syntax validation failed for {resolved_target_path}: unexpected indent" in msg for msg in log_messages)
+        assert any(f"Pre-merge full file syntax validation failed for {resolved_target_path}: unterminated string literal" in msg for msg in log_messages)
  
         mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True) # Use cleaned snippet
         mock_code_review_agent.analyze_python.assert_called_once_with(driver._clean_llm_snippet(snippet)) # Use cleaned snippet
@@ -1321,8 +1317,7 @@ class TestEnhancedSnippetCleaning:
         ("```PYTHON\n# comment\npass\n```", "# comment\npass"),
         ("```javascript\nconsole.log('test');\n```", "console.log('test');"),
         ("No fences here", "No fences here"),
-        ("  Stripped raw code  ", "Stripped raw code"),
-        # Removed duplicate input "  Stripped raw code  " to avoid ambiguity
+        ("  Stripped raw code  ", "Stripped raw code"), # Leading space should be stripped for raw snippets
         (None, ""), # This case is fine, None input -> empty string
         ("`single backtick`", "`single backtick`"),
         ("` ` `", "` ` `"),

@@ -163,8 +163,8 @@
 *   **Task ID**: task_1_8_A_5_refine_coder_prompt_for_minimal_output
     *   **Priority**: Critical
     *   **Task Name**: Refine CoderLLM Prompt for Minimal Output on Simple Additions
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_4b_add_tests_for_minimal_context_logic']
+    *   **Status**: Completed
+    *   **Depends On**: []
 
 *   **Task ID**: task_1_8_A_6_review_summarizer_and_test_e2e
     *   **Priority**: Critical
@@ -183,6 +183,12 @@
     *   **Task Name**: Enhance Retry Prompts with Specific Validation Feedback
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_A_test_import_optimization']
+
+*   **Task ID**: task_1_8_B_1_error_specific_feedback
+    *   **Priority**: High
+    *   **Task Name**: Implement Error-Specific Feedback for Retry Prompts
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_B_enhance_retry_prompts']
 
 *   **Task ID**: task_1_8_2_retry
     *   **Priority**: Critical

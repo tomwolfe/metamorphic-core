@@ -414,9 +414,9 @@ class WorkflowDriver:
         """
         determined_target_file_relative = None
         potential_task_targets = []
-
+        
         if task_target_file_spec and isinstance(task_target_file_spec, str):
-            potential_task_targets = [f.strip() for f in task_target_file_spec.split(',') if f.strip()]
+            potential_task_targets = self._parse_target_file_spec(task_target_file_spec)
 
         is_code_generation_step = prelim_flags.get('is_code_generation_step_prelim', False)
         is_test_writing_step = prelim_flags.get('is_test_writing_step_prelim', False)
@@ -425,23 +425,15 @@ class WorkflowDriver:
         should_apply_multi_target_logic = is_code_generation_step or is_test_writing_step or is_explicit_file_writing_step
 
         if len(potential_task_targets) > 1 and should_apply_multi_target_logic:
-            logger.debug(
-                f"Task has multiple target files: {potential_task_targets}. Applying multi-target selection "
-                f"for step: '{step_description}' (via _determine_single_target_file)"
-            )
             found_in_step_description = False
             step_desc_lower = step_description.lower()
 
             for file_candidate_relative in potential_task_targets:
                 normalized_candidate_path_str = Path(file_candidate_relative).as_posix().lower()
                 filename_candidate_lower = Path(file_candidate_relative).name.lower()
-
+                
                 if normalized_candidate_path_str in step_desc_lower:
                     determined_target_file_relative = file_candidate_relative
-                    logger.info(
-                        f"Step description explicitly mentions '{determined_target_file_relative}' "
-                        f"from task target list {potential_task_targets} (via _determine_single_target_file)."
-                    )
                     found_in_step_description = True
                     break
                 # Adjust regex lookbehind and lookahead to exclude '.' from forbidden characters
@@ -449,25 +441,28 @@ class WorkflowDriver:
                 # The original regex was correct, just ensuring it's used here.
                 elif re.search(r'(?<![a-zA-Z0-9_-])' + re.escape(filename_candidate_lower) + r'(?![a-zA-Z0-9_-])', step_desc_lower):
                     determined_target_file_relative = file_candidate_relative
-                    logger.info(
-                        f"Step description explicitly mentions filename '{filename_candidate_lower}' "
-                        f"(from '{determined_target_file_relative}') from task target list {potential_task_targets} (via _determine_single_target_file)."
-                    )
                     found_in_step_description = True
                     break
 
-            if not found_in_step_description:
-                determined_target_file_relative = potential_task_targets[0]
-                logger.warning(
+            if found_in_step_description:
+                return determined_target_file_relative  # Return only if an explicit match is found
+            else:
+                logger.debug(
                     f"Step description '{step_description}' does not explicitly mention any file "
-                    f"from the task's target list: {potential_task_targets}. "
-                    f"Defaulting to the first file: '{determined_target_file_relative}' (via _determine_single_target_file)."
+                    f"from the task's multi-target list: {potential_task_targets}. "
+                    f"Deferring decision to other logic. (via _determine_single_target_file)."
                 )
-            return determined_target_file_relative # This will be a string path
+                return None
 
         # If the above multi-target logic didn't apply (e.g., single target, no targets, or not relevant step type)
         # return None to indicate that _resolve_target_file_for_step should use its fallback.
         return None
+
+    def _parse_target_file_spec(self, task_target_file_spec: Optional[str]) -> List[str]:
+        """Parses a comma-separated string of file paths into a list of non-empty strings."""
+        if not task_target_file_spec or not isinstance(task_target_file_spec, str):
+            return []
+        return [f.strip() for f in task_target_file_spec.split(',') if f.strip()]
 
 
     def _resolve_target_file_for_step(self, current_step_description: str, task_target_file_spec: Optional[str], prelim_flags: Dict) -> Optional[str]:
@@ -544,16 +539,22 @@ class WorkflowDriver:
         is_code_generation_step_prelim = preliminary_flags.get('is_code_generation_step_prelim', False)
         is_test_writing_step_prelim = preliminary_flags.get('is_test_writing_step_prelim', False)
         is_explicit_file_writing_step_prelim = preliminary_flags.get('is_explicit_file_writing_step_prelim', False)
-
+        
+        potential_task_targets = self._parse_target_file_spec(task_target_file)
+        
         effective_task_target = None
-        if task_target_file and isinstance(task_target_file, str):
-            targets = [f.strip() for f in task_target_file.split(',') if f.strip()]
-            if targets:
-                effective_task_target = targets[0] # Use the first target if multi-target spec is passed here
+        if potential_task_targets:
+            effective_task_target = potential_task_targets[0] # Use the first target if multi-target spec is passed here
 
         filepath_to_use = effective_task_target or filepath_from_step # Prioritize effective_task_target if present
 
         if is_code_generation_step_prelim and is_test_writing_step_prelim:
+            # Prioritize finding an explicit test file in the task's target list
+            for target in potential_task_targets:
+                if "test_" in target.lower() or "tests/" in target.lower():
+                    logger.info(f"Test writing step: Using test file '{target}' from task's target list.")
+                    return target # Return immediately if a test file is found in the list
+            
             explicit_test_path_in_step = None
             all_paths_in_step_matches = re.finditer(r'(\S+\.(?:py|md|json|txt|yml|yaml))', step_description, re.IGNORECASE)
             for match in all_paths_in_step_matches:
@@ -575,14 +576,14 @@ class WorkflowDriver:
                 not ("test_" in effective_task_target.lower() or "tests/" in effective_task_target.lower()):
                 # If task target is a .py file but not a test file, derive a test path
                 p = Path(effective_task_target)
-                derived_test_path = Path("tests") / f"test_{p.name}"
+                derived_test_path = Path("tests") / f"{p.stem}_test{p.suffix}"
                 filepath_to_use = str(derived_test_path)
                 logger.info(f"Test writing step: Derived test file path '{filepath_to_use}' from task target '{effective_task_target}'.")
             elif filepath_from_step and filepath_from_step.endswith('.py') and \
                 not ("test_" in filepath_from_step.lower() or "tests/" in filepath_from_step.lower()):
                 # If filepath_from_step is a .py file but not a test file, derive a test path
                 p = Path(filepath_from_step)
-                derived_test_path = Path("tests") / f"test_{p.name}"
+                derived_test_path = Path("tests") / f"{p.stem}_test{p.suffix}"
                 filepath_to_use = str(derived_test_path)
                 logger.info(f"Test writing step: Derived test file path '{filepath_to_use}' from first path in step '{filepath_from_step}'.")
             else:

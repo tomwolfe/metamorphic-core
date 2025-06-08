@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from src.core.automation.workflow_driver import WorkflowDriver, Context
-from src.core.constants import MAX_IMPORT_CONTEXT_LINES, CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION, CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, END_OF_CODE_MARKER, PYTHON_CREATION_KEYWORDS
+from src.core.constants import MAX_IMPORT_CONTEXT_LINES, CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION, CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, END_OF_CODE_MARKER, PYTHON_CREATION_KEYWORDS, CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS
 from pathlib import Path
 import ast
 import logging # Added for caplog
@@ -158,11 +158,14 @@ def helper_func():
         # Mock _should_add_docstring_instruction to return False for this test
         with patch.object(driver, '_should_add_docstring_instruction', return_value=False):
             prompt = driver._construct_coder_llm_prompt(task, step, filepath, minimal_context_str, is_minimal_context=True)
-
+    
         assert CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION in prompt
         assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
-        assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in prompt
+        # When is_minimal_context is True, the prompt uses CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION
+        # and CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, not CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.
         assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
+        assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) not in prompt
+        assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) not in prompt
 
     def test_construct_coder_llm_prompt_with_full_context(self, driver_for_context_tests):
         driver = driver_for_context_tests

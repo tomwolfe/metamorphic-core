@@ -22,12 +22,11 @@ from src.cli.write_file import write_file
 from src.core.constants import (
     CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS,
     END_OF_CODE_MARKER, GENERAL_SNIPPET_GUIDELINES, DOCSTRING_INSTRUCTION_PYTHON,
-    PYTHON_CREATION_KEYWORDS, GENERAL_PYTHON_DOCSTRING_REMINDER,
+    PYTHON_CREATION_KEYWORDS, GENERAL_PYTHON_DOCSTRING_REMINDER, CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION,
     CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS,
     MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, MAX_STEP_RETRIES, MAX_IMPORT_CONTEXT_LINES
 )
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
-from src.core.constants import CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION # Import new constant
 logger = logging.getLogger(__name__) # Corrected logger name
 
 nlp = None
@@ -1611,17 +1610,16 @@ Task Description:
         """
         
         preamble = "You are an expert Python Coder LLM.\n"
-        if is_minimal_context:
-            preamble += (
-                CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION + "\n" # Use the new constant
-            )
-        
+        # Removed the if is_minimal_context block from preamble as per diff
+
         # Determine if this step is likely generating a full new block (function, method, class).
         # We reuse _should_add_docstring_instruction as it already identifies "new structure" generation.
         is_generating_full_block = self._should_add_docstring_instruction(step_description, filepath_to_use)
 
         # Define the output instructions based on whether a full block is being generated
-        if is_generating_full_block:
+        if is_minimal_context:
+            output_instructions = CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION
+        elif is_generating_full_block:
             output_instructions = CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(
                 END_OF_CODE_MARKER=END_OF_CODE_MARKER
             )
@@ -1711,8 +1709,10 @@ Task Description:
             preamble,
             output_instructions, # This dynamic based on is_generating_full_block
         ]
-        if targeted_mod_instructions_content: # Only add if NOT generating a full block
-            coder_prompt_parts.append(targeted_mod_instructions_content)
+        # Add targeted modification instructions for minimal and default cases, but not for full block generation.
+        if is_minimal_context or not is_generating_full_block:
+            coder_prompt_parts.append(CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS)
+
         coder_prompt_parts.extend([
             "\n", # Newline after output instructions
             target_file_prompt_section, # Added this line back

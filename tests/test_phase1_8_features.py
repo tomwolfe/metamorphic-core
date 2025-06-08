@@ -16,14 +16,14 @@ from src.core.constants import (
     MAX_READ_FILE_SIZE,
     METAMORPHIC_INSERT_POINT,
     END_OF_CODE_MARKER,
-    MAX_STEP_RETRIES,
+    MAX_STEP_RETRIES, CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION,
+    CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS,
+    CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS,
     GENERAL_SNIPPET_GUIDELINES,
     DOCSTRING_INSTRUCTION_PYTHON,
     PYTHON_CREATION_KEYWORDS,
-    CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS,
-    MAX_IMPORT_CONTEXT_LINES,
-    CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS,
-    CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS
+    CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS,
+    MAX_IMPORT_CONTEXT_LINES
 )
 
 # Import necessary components from workflow_driver
@@ -792,7 +792,7 @@ class TestPreWriteValidation:
         logger.info(f"Performing pre-write validation for snippet targeting {filepath_to_use}...")
         validation_passed = True
         validation_feedback = []
-        initial_snippet_syntax_error_details = None
+        initial_snippet_syntax_error_details = None # Store details of initial snippet syntax error
         try:
             mock_ast_parse(_cleaned_snippet)
             logger.info("Pre-write syntax check (AST parse) passed (isolated).")
@@ -854,14 +854,12 @@ class TestPreWriteValidation:
                     validation_passed = False
                     validation_feedback.append(f"Pre-write ethical check failed: {ethical_results}")
                     logger.warning(f"Pre-write ethical validation failed for snippet: {ethical_results}")
-                    logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---")
                 else:
                     logger.info("Pre-write ethical validation passed for snippet.")
             except Exception as e:
                 validation_passed = False
                 validation_feedback.append(f"Error during pre-write ethical validation: {e}")
                 logger.error(f"Error during pre-write ethical validation: {e}", exc_info=True)
-                logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---")
         elif validation_passed:
             logger.warning("Skipping pre-write ethical validation: Default policy not loaded.")
  
@@ -873,14 +871,12 @@ class TestPreWriteValidation:
                     validation_passed = False
                     validation_feedback.append(f"Pre-write style/security check failed: Critical findings detected.")
                     logger.warning(f"Pre-write style/security validation failed for snippet. Critical findings: {critical_findings}")
-                    logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---")
                 else:
                     logger.info("Pre-write style/security validation passed for snippet.")
             except Exception as e:
                 validation_passed = False
                 validation_feedback.append(f"Error during pre-write style/security validation: {e}")
                 logger.error(f"Error during pre-write style/security validation: {e}", exc_info=True)
-                logger.warning(f"Failed snippet:\n---\n{_cleaned_snippet}\n---")
  
         if validation_passed:
             logger.info(f"Snippet-level ethical and style checks passed (or were skipped). Proceeding to pre-merge full file syntax check for {filepath_to_use}.")
@@ -934,7 +930,7 @@ class TestPreWriteValidation:
                 if driver.default_policy_config:
                     try:
                         logger.info(f"Running ethical analysis for {filepath_to_use}...")
-                        ethical_analysis_results = mock_ethical_governance_engine.enforce_policy(merged_content, driver.default_policy_config)
+                        ethical_analysis_results = driver.ethical_governance_engine.enforce_policy(merged_content, driver.default_policy_config)
                         driver._current_task_results['ethical_analysis_results'] = ethical_analysis_results
                         logger.info(f"Ethical Analysis Results for {filepath_to_use}: {ethical_analysis_results}")
                     except Exception as ethical_e:
@@ -1352,6 +1348,7 @@ class TestReprLoggingForSyntaxErrors:
                 try:
                     debug_dir_name = ".debug/failed_snippets"
                     debug_dir_path_str = driver.context.get_full_path(debug_dir_name)
+ 
                     if debug_dir_path_str:
                         debug_dir = Path(debug_dir_path_str)
                         debug_dir.mkdir(parents=True, exist_ok=True)
@@ -1359,12 +1356,12 @@ class TestReprLoggingForSyntaxErrors:
                         _current_task_id_str = getattr(driver, '_current_task', {}).get('task_id', 'unknown_task')
                         _sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', _current_task_id_str)
                         _current_step_index_str = str(step_index_for_log + 1)
-
+ 
                         filename = f"failed_snippet_{_sanitized_task_id}_step{_current_step_index_str}_{_timestamp}.json"
                         filepath = debug_dir / filename
-
+ 
                         debug_data = {
-                            "timestamp": mock_datetime.now.return_value.isoformat.return_value,
+                            "timestamp": mock_datetime.now().return_value.isoformat.return_value,
                             "task_id": _current_task_id_str,
                             "step_description": step_description_for_log,
                             "original_snippet_repr": repr(original_snippet),
@@ -1519,3 +1516,58 @@ def test_retry_prompt_includes_validation_feedback(driver_for_retry_prompt_test,
     assert "Your entire response MUST be ONLY a valid Python code snippet representing the complete new or modified function, method, or class." in retry_prompt_text
     
     initial_prompt_call = driver._invoke_coder_llm.call_args_list[0]
+
+    def test_prompt_includes_minimal_context_instructions(self, driver_for_prompt_test):
+        """
+        Tests that when is_minimal_context is True, the prompt includes the specific
+        minimal context and targeted modification instructions.
+        """
+        driver = driver_for_prompt_test
+        task = {'task_name': 'Minimal Context Task', 'description': 'A test task.'}
+        step = "Add a new import statement"
+        filepath = "src/core/utils.py"
+        context = "import os"
+
+        prompt = driver._construct_coder_llm_prompt(task, step, filepath, context, is_minimal_context=True)
+
+        assert CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION in prompt
+        assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
+        # Ensure the other main instruction sets are NOT present
+        assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) not in prompt
+        assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) not in prompt
+
+    def test_prompt_includes_full_block_instructions(self, driver_for_prompt_test, mocker):
+        """
+        Tests that when generating a full block (and not minimal context), the prompt
+        includes full block instructions and NOT targeted modification instructions.
+        """
+        driver = driver_for_prompt_test
+        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True) # Force full block mode
+        task = {'task_name': 'Full Block Task', 'description': 'A test task.'}
+        step = "Implement a new function `my_func`"
+        filepath = "src/core/utils.py"
+        context = ""
+        
+        prompt = driver._construct_coder_llm_prompt(task, step, filepath, context, is_minimal_context=False)
+
+        assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in prompt
+        assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS not in prompt
+        assert CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION not in prompt
+
+    def test_prompt_includes_default_instructions(self, driver_for_prompt_test, mocker):
+        """
+        Tests the default case: not minimal context and not a full block generation.
+        """
+        driver = driver_for_prompt_test
+        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=False) # Ensure not full block mode
+        task = {'task_name': 'Default Task', 'description': 'A test task.'}
+        step = "Fix a typo in a variable name"
+        filepath = "src/core/utils.py"
+        context = "my_veriable = 1"
+
+        prompt = driver._construct_coder_llm_prompt(task, step, filepath, context, is_minimal_context=False)
+
+        assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in prompt
+        assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
+        assert CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION not in prompt
+        assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) not in prompt

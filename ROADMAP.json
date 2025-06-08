@@ -297,11 +297,8 @@
       "priority": "Critical",
       "task_name": "Refine CoderLLM Prompt for Minimal Output on Simple Additions",
       "description": "Modify `WorkflowDriver._construct_coder_llm_prompt` in `src/core/automation/workflow_driver.py`. When `is_minimal_context` is True, add specific instructions to the CoderLLM prompt to output *only* the new/changed lines, not the entire file or section. Reference the `CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION` and `CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS` constants. Ensure this is clearly distinct from prompts for full file generation. Update unit tests.",
-      "status": "Not Started",
-      "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
-      "depends_on": [
-        "task_1_8_A_4b_add_tests_for_minimal_context_logic"
-      ]
+      "status": "Completed",
+      "reason_completed": "Completed via expert intervention. The autonomous agent was stuck generating tests for this task due to a prompting issue (missing imports for constants). The fix has been applied directly."
     },
     {
       "task_id": "task_1_8_A_6_review_summarizer_and_test_e2e",
@@ -334,6 +331,17 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_A_test_import_optimization"
+      ]
+    },
+    {
+      "task_id": "task_1_8_B_1_error_specific_feedback",
+      "priority": "High",
+      "task_name": "Implement Error-Specific Feedback for Retry Prompts",
+      "description": "Enhance `WorkflowDriver.autonomous_loop` to parse pre-write validation output (e.g., `flake8` findings). If specific, actionable error codes like `F821` (undefined name) are detected, dynamically augment the Coder LLM's retry prompt with targeted advice (e.g., suggesting missing imports). This improves autonomous remediation for common coding errors.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_B_enhance_retry_prompts"
       ]
     },
     {

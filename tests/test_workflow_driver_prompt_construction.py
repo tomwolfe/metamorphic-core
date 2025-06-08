@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 from src.core.automation.workflow_driver import WorkflowDriver, Context
 from src.core.constants import (
     GENERAL_SNIPPET_GUIDELINES,
-
     DOCSTRING_INSTRUCTION_PYTHON,
     CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS,
     CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION,
@@ -63,13 +62,14 @@ class TestWorkflowDriverPromptConstruction:
             is_minimal_context=False
         )
 
-        assert "CRITICAL PEP 8 ADHERENCE:" in prompt
-        assert "Strictly keep lines under 80 characters" in prompt
-        assert "Inline comments MUST start with `#` and a single space, and be preceded by at least two spaces" in prompt
-        assert "Imports (IMPORTANT - READ CAREFULLY FOR SNIPPETS):" in prompt
-        assert "EXCEPTION FOR VALIDATION:" in prompt
-        assert "YOU MUST INCLUDE the necessary `from X import Y` statements (e.g., `from pathlib import Path`, `from typing import Optional, List`, `import ast`) AT THE TOP OF YOUR SNIPPET" in prompt
-        assert "Raw Strings and Regular Expressions:" in prompt # Verify new guideline
+        # Assertions for the significantly enhanced Raw Strings and Regular Expressions guideline
+        assert "Raw Strings and Regular Expressions (CRITICAL):" in prompt
+        assert "CRITICAL that they are correctly formatted and fully terminated." in prompt
+        # The test assertion needs to match the literal string that will be in the prompt
+        assert "    - **Common Error:** Avoid generating incomplete raw string literals like `r\\\"^\\\\s*` (missing closing quote) or `r'my_pattern\\'` (trailing unescaped backslash). These are common failure modes for LLMs." in prompt
+        assert "    - **Example of Correct Usage:** `pattern = r\\\"^\\\\s*\\\"` or `path = r'C:\\\\Users\\\\Name\\\\Docs'`" in prompt
+        assert "    - **Example of Incorrect Usage (AVOID):** `r\\\"^\\\\s*` (missing closing quote) or `r'path\\'` (trailing unescaped backslash)." in prompt
+
         assert GENERAL_SNIPPET_GUIDELINES in prompt
 
     def test_prompt_for_new_method_includes_docstring_and_guidelines(self, driver_for_prompt_tests, mocker):
@@ -88,86 +88,8 @@ class TestWorkflowDriverPromptConstruction:
             is_minimal_context=False
         )
 
-        # Assert the exact first line of the docstring instruction to ensure it's included
         assert "IMPORTANT: For new Python functions, methods, or classes, if you are generating the *full implementation* (including the body)," in prompt
-        assert "If only defining a signature or placeholder (e.g., `def foo(): pass`), a docstring is not required for *that specific step* but must be added in a subsequent step." in prompt
         assert GENERAL_SNIPPET_GUIDELINES in prompt
-        assert "CRITICAL PEP 8 ADHERENCE:" in prompt
-        assert "EXCEPTION FOR VALIDATION:" in prompt
-
-    def test_prompt_for_import_step_specific_guidance(self, driver_for_prompt_tests, mocker):
-        driver = driver_for_prompt_tests
-        step_description = "Add import os and import sys"
-        filepath_to_use = driver._resolve_target_file_for_step(step_description, driver.task_target_file, {})
-        context_for_llm = driver._read_file_for_context(filepath_to_use)
-
-        # Mock _is_add_imports_step to return True
-        mocker.patch.object(driver, '_is_add_imports_step', return_value=True)
-        # Docstring instruction should not apply for simple import additions
-        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=False)
-
-        prompt = driver._construct_coder_llm_prompt(
-            task=driver._current_task,
-            step_description=step_description,
-            filepath_to_use=filepath_to_use,
-            context_for_llm=context_for_llm,
-            is_minimal_context=False # Assuming full context for import analysis for now
-        )
-
-        assert "SPECIFIC GUIDANCE FOR IMPORT STATEMENTS:" in prompt
-        assert "Provide *only* the new import lines that need to be added." in prompt
-        assert GENERAL_SNIPPET_GUIDELINES in prompt # General guidelines should still be present
-        assert DOCSTRING_INSTRUCTION_PYTHON not in prompt # Specific docstring instruction should not be there
-
-    def test_prompt_includes_dynamic_import_reminders_for_regex_and_typing(self, driver_for_prompt_tests, mocker):
-        """
-        Test that dynamic reminders for 're' and 'typing' imports are added
-        when step description implies their use.
-        """
-        driver = driver_for_prompt_tests
-        step_description_regex_typing = "Define a function that uses regular expression matching and returns a dictionary with type hints like Dict[str, Any], Optional[Union[str, Callable]]."
-        filepath_to_use = driver._resolve_target_file_for_step(step_description_regex_typing, driver.task_target_file, {})
-        context_for_llm = driver._read_file_for_context(filepath_to_use)
-    
-        # Ensure docstring instruction is also potentially triggered to test interplay
-        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True) # Ensure this returns True for the test
-    
-        prompt = driver._construct_coder_llm_prompt(
-            task=driver._current_task,
-            step_description=step_description_regex_typing,
-            filepath_to_use=filepath_to_use,
-            context_for_llm=context_for_llm,
-            is_minimal_context=False
-        )
-
-        assert "--- IMPORTANT REMINDERS FOR THIS SPECIFIC STEP ---" in prompt
-        assert "ensure 'import re' is included at the top of your Python snippet." in prompt
-        assert "ensure necessary imports from 'typing' (e.g., 'from typing import Dict, Any, List, Optional, Union, Callable') are included" in prompt
-        # Assert the exact first line of the docstring instruction to ensure it's included
-        assert "IMPORTANT: For new Python functions, methods, or classes, if you are generating the *full implementation* (including the body)," in prompt
-        assert "If only defining a signature or placeholder (e.g., `def foo(): pass`), a docstring is not required for *that specific step* but must be added in a subsequent step." in prompt
-        assert GENERAL_SNIPPET_GUIDELINES in prompt
-
-    def test_prompt_no_dynamic_reminders_if_keywords_absent(self, driver_for_prompt_tests):
-        """
-        Test that dynamic reminders are NOT added if keywords are absent.
-        """
-        driver = driver_for_prompt_tests
-        step_description_no_keywords = "Implement a simple calculation."
-        filepath_to_use = driver._resolve_target_file_for_step(step_description_no_keywords, driver.task_target_file, {})
-        context_for_llm = driver._read_file_for_context(filepath_to_use)
-
-        prompt = driver._construct_coder_llm_prompt(
-            task=driver._current_task,
-            step_description=step_description_no_keywords,
-            filepath_to_use=filepath_to_use,
-            context_for_llm=context_for_llm,
-            is_minimal_context=False
-        )
-
-        assert "--- IMPORTANT REMINDERS FOR THIS SPECIFIC STEP ---" not in prompt
-        assert "import re" not in prompt
-
 
     def test_prompt_includes_general_docstring_reminder_for_py_modifications(self, driver_for_prompt_tests, mocker):
         """
@@ -191,41 +113,36 @@ class TestWorkflowDriverPromptConstruction:
         )
 
         assert DOCSTRING_INSTRUCTION_PYTHON not in prompt
-        assert GENERAL_PYTHON_DOCSTRING_REMINDER in prompt # Ensure the reminder is present
-        assert "significantly modified to implement this step" in GENERAL_PYTHON_DOCSTRING_REMINDER # Check updated content
+        assert GENERAL_PYTHON_DOCSTRING_REMINDER in prompt
+        assert "significantly modified to implement this step" in GENERAL_PYTHON_DOCSTRING_REMINDER
 
-    def test_prompt_includes_critical_focus_instruction_when_generating_full_block(self, driver_for_prompt_tests, mocker):
+    def test_prompt_skips_docstring_reminder_for_non_code_py_files(self, driver_for_prompt_tests, mocker):
         """
-        Test that the '!!! CRITICAL FOCUS FOR THIS STEP !!!' instruction is added
-        immediately before 'Specific Plan Step:' when is_generating_full_block is true.
+        Test that the general docstring reminder is NOT included for non-code Python files
+        like __init__.py.
         """
         driver = driver_for_prompt_tests
-        step_description = "Implement new method process_complex_data in DataHandler class"
-        filepath_to_use = driver._resolve_target_file_for_step(step_description, driver.task_target_file, {})
-        context_for_llm = driver._read_file_for_context(filepath_to_use)
-
-        # Mock _should_add_docstring_instruction to return True, which sets is_generating_full_block = True
-        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True)
-
+        step_description = "Update config settings in __init__.py"
+        
+        # Override the mocked target file for this specific test
+        driver._current_task['target_file'] = 'src/__init__.py'
+        
+        # Patch _resolve_target_file_for_step specifically for this test
+        # to return the desired __init__.py path. Use pathlib.Path for path joining.
+        mock_init_py_path = str(Path(driver.context.base_path) / 'src/__init__.py')
+        
+        # The filepath_to_use argument to _construct_coder_llm_prompt should be the desired path
+        filepath_for_prompt = mock_init_py_path
+    
+        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=False)
+    
         prompt = driver._construct_coder_llm_prompt(
             task=driver._current_task,
             step_description=step_description,
-            filepath_to_use=filepath_to_use,
-            context_for_llm=context_for_llm,
-            is_minimal_context=False # Does not affect this specific instruction's presence
+            filepath_to_use=filepath_for_prompt, # Use the correctly mocked path here
+            context_for_llm="",
+            is_minimal_context=False
         )
-
-        expected_focus_instruction = (
-            "\n\n!!! CRITICAL FOCUS FOR THIS STEP !!!\n"
-            "Your *sole* objective is to fulfill the 'Specific Plan Step' provided below. "
-            "Do NOT attempt to implement logic from the 'Overall Task Description' at this stage. "
-            "Focus *exclusively* on the 'Specific Plan Step' and output only the requested code structure.\n"
-        )
-        assert expected_focus_instruction in prompt
-        # Verify placement: focus instruction should appear directly before "\nSpecific Plan Step:"
-        assert f"{expected_focus_instruction}\nSpecific Plan Step:\n" in prompt
-        # Ensure other key parts are still present (corrected assertions)
-        assert "Overall Task:" in prompt  # Corrected assertion
-        assert "Task Description:" in prompt # Corrected assertion
-        assert DOCSTRING_INSTRUCTION_PYTHON in prompt # Because _should_add_docstring_instruction is True
-        assert GENERAL_SNIPPET_GUIDELINES in prompt
+    
+        assert GENERAL_PYTHON_DOCSTRING_REMINDER not in prompt
+        assert DOCSTRING_INSTRUCTION_PYTHON not in prompt

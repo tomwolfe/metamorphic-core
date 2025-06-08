@@ -22,7 +22,7 @@ from src.cli.write_file import write_file
 from src.core.constants import (
     CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS,
     END_OF_CODE_MARKER, GENERAL_SNIPPET_GUIDELINES, DOCSTRING_INSTRUCTION_PYTHON,
-    PYTHON_CREATION_KEYWORDS, GENERAL_PYTHON_DOCSTRING_REMINDER, # Added GENERAL_PYTHON_DOCSTRING_REMINDER
+    PYTHON_CREATION_KEYWORDS, GENERAL_PYTHON_DOCSTRING_REMINDER,
     CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS,
     MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, MAX_STEP_RETRIES, MAX_IMPORT_CONTEXT_LINES
 )
@@ -560,7 +560,7 @@ class WorkflowDriver:
             for match in all_paths_in_step_matches:
                 path_candidate = match.group(1)
                 if "test_" in path_candidate.lower() or "tests/" in path_candidate.lower():
-                    explicit_test_path_in_test = path_candidate
+                    explicit_test_path_in_step = path_candidate
                     break
 
             if effective_task_target and effective_task_target.endswith('.py') and \
@@ -1181,7 +1181,7 @@ class WorkflowDriver:
                                         # This might need refinement in future phases.
                                     except FileExistsError:
                                         logger.warning(f"File {filepath_to_use} already exists. Skipping write as overwrite={overwrite_mode}.")
-                                        # File exists and overwrite is False, this is an expected behavior, not a step failure
+                                        # File exists and overwrite is False, this is an an expected behavior, not a step failure
                                         # Continue to next step.
                                     except Exception as e:
                                         # Any other exception during write is a step failure
@@ -1613,9 +1613,14 @@ Task Description:
         if self._should_add_docstring_instruction(step_description, filepath_to_use):
             docstring_prompt_addition = "\n" + DOCSTRING_INSTRUCTION_PYTHON + "\n\n"
         elif filepath_to_use and filepath_to_use.lower().endswith(".py"):
-            # If it's a Python file but not a clear "creation" step, add a general reminder.
-            # This applies to Python source files (.py), not compiled files (.pyc) or other non-source files.
-            docstring_prompt_addition = "\n" + GENERAL_PYTHON_DOCSTRING_REMINDER + "\n\n"
+            # Skip non-code files (e.g., __init__.py, configs)
+            filename = os.path.basename(filepath_to_use)
+            non_code_files = {"__init__.py", "config.py", "settings.py"}
+
+            if filename not in non_code_files:
+                # If it's a Python file but not a clear "creation" step, add a general reminder.
+                # This applies to Python source files (.py), not compiled files (.pyc) or other non-source files.
+                docstring_prompt_addition = "\n" + GENERAL_PYTHON_DOCSTRING_REMINDER + "\n\n"
     
         # Add retry feedback section if provided
         retry_feedback_section = ""

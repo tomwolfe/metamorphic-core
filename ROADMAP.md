@@ -148,17 +148,23 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_A_3c_helper_extract_context_class']
 
-*   **Task ID**: task_1_8_A_4_integrate_minimal_context_logic
+*   **Task ID**: task_1_8_A_4a_implement_minimal_context_logic
     *   **Priority**: Critical
-    *   **Task Name**: Integrate Minimal Context Logic into WorkflowDriver Loop
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_3d_helper_extract_context_tests']
+    *   **Task Name**: Implement Minimal Context Logic in WorkflowDriver Loop
+    *   **Status**: Completed
+    *   **Depends On**: []
+
+*   **Task ID**: task_1_8_A_4b_add_tests_for_minimal_context_logic
+    *   **Priority**: Critical
+    *   **Task Name**: Add Unit Tests for Minimal Context Logic
+    *   **Status**: Completed
+    *   **Depends On**: []
 
 *   **Task ID**: task_1_8_A_5_refine_coder_prompt_for_minimal_output
     *   **Priority**: Critical
     *   **Task Name**: Refine CoderLLM Prompt for Minimal Output on Simple Additions
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_4_integrate_minimal_context_logic']
+    *   **Depends On**: ['task_1_8_A_4b_add_tests_for_minimal_context_logic']
 
 *   **Task ID**: task_1_8_A_6_review_summarizer_and_test_e2e
     *   **Priority**: Critical

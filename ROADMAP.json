@@ -189,13 +189,37 @@
       ]
     },
     {
-      "task_id": "task_1_8_A_1_helper_is_simple_addition",
+      "task_id": "task_1_8_A_1a_create_skeleton",
       "priority": "Critical",
-      "task_name": "Implement Helper to Identify Simple Additions",
-      "description": "In `WorkflowDriver`, create a new helper method `_is_simple_addition_plan_step(self, plan_step_description: str) -> bool`. This method will use regex to determine if a plan step describes a simple, targeted code addition (e.g., adding an import, a new method, a constant) versus a complex refactoring. This is the first step to bypass unnecessary full-file summarization.",
-      "status": "Not Started",
+      "task_name": "Create Skeleton for _is_simple_addition_plan_step Helper",
+      "description": "In `WorkflowDriver`, create the new helper method `_is_simple_addition_plan_step(self, plan_step_description: str) -> bool`. The implementation should only contain a `pass` statement. A comprehensive docstring explaining the method's purpose, arguments, and return value must be included. **Ensure the method signature and docstring adhere strictly to PEP8 line length (max 79 chars) and formatting guidelines.** This creates the necessary structure for the subsequent implementation task.",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": []
+      "depends_on": [
+        "task_1_8_improve_snippet_handling"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_1b_implement_logic",
+      "priority": "Critical",
+      "task_name": "Implement Logic for _is_simple_addition_plan_step",
+      "description": "In `WorkflowDriver`, implement the logic for the `_is_simple_addition_plan_step` method. Use the `re` module to check the `plan_step_description` against a list of regex patterns that identify simple additions (e.g., adding an import, a new method, a constant). Ensure `import re` is present at the top of the file. The method should return True if a pattern matches, and False otherwise. **After implementation, ensure the code passes all Flake8 style and security checks (especially E501 line length) and that `import re` is correctly placed.**",
+      "status": "Completed",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_A_1a_create_skeleton"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_1c_add_tests",
+      "priority": "High",
+      "task_name": "Add Unit Tests for _is_simple_addition_plan_step",
+      "description": "In a new test file `tests/test_phase1_8_features.py`, add comprehensive unit tests for the `WorkflowDriver._is_simple_addition_plan_step` method. Use `pytest.mark.parametrize` to cover various cases: simple additions that should return True, complex modifications that should return False, and edge cases like empty strings. **Ensure tests are self-contained and pass `pytest` and `flake8` checks.**",
+      "status": "Completed",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_A_1b_implement_logic"
+      ]
     },
     {
       "task_id": "task_1_8_A_optimize_large_context_epic",
@@ -441,7 +465,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_A_1_helper_is_simple_addition"
+        "task_1_8_A_1c_add_tests"
       ]
     },
     {

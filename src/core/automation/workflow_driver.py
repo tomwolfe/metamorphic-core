@@ -2995,18 +2995,14 @@ Your response should be the complete, corrected code content that addresses the 
         # Patterns that indicate complex changes, refactoring, or new class creation
         complex_patterns = [
             r"create (?:a )?(?:new )?class\b",
-            r"add (?:a )?class\b", # Added to catch "Add class NewComponent"
-            r"define (?:a )?class\b", # Added to catch "Define class User"
-            r"implement (?:a )?class\b", # Added to catch "Implement class MyUtility"
-            r"generate (?:a )?class\b", # Added to catch "Generate class for data processing"
-            r"add .*?global function\b", # Added to classify new global functions as complex
+            r"add (?:a )?class\b",
+            r"define (?:a )?(?:new )?class\b",
+            r"implement (?:a )?(?:new )?class\b",
+            r"generate (?:a )?(?:new )?class\b",
+            r"add .*?global function\b",
             r"refactor\b",
             r"restructure\b",
-            r"modify existing logic\b",
-            r"update existing method signature\b",
             r"rewrite\b",
-            r"design new module\b",
-            r"implement new system\b",
             r"overhaul\b"
         ]
 
@@ -3018,22 +3014,21 @@ Your response should be the complete, corrected code content that addresses the 
         # Patterns that indicate simple, targeted code additions
         simple_addition_patterns = [
             r"add import\b", r"add new import\b", r"insert import\b", r"include import\b",
-            r"add .*?method\b", r"implement .*?method\b", r"define .*?method\b", # These are for methods within classes, which are simple additions
-            r"add .*?function\b", r"implement .*?function\b", r"define .*?function\b", # Added for new functions (not global)
-            r"add logging\b", # Re-added \b
-            r"add .*?test case\b", # Re-added \b
-            r"add __init__ method\b", # Re-added \b
-            r"add constant\b", r"define .*?constant\b", # Re-added \b
-            r"append line\b", r"insert line\b", r"add line\b", r"prepend line\b",
+            r"add .*?method\b", r"implement .*?method\b", r"define .*?method\b",
+            r"add .*?function\b", r"implement .*?function\b", r"define .*?function\b",
+            r"add logging\b",
+            r"add (?:a )?line\b", r"insert (?:a )?line\b", # Added for simple line additions
+            r"add .*?test case\b",
+            r"add __init__ method\b",
+            r"add constant\b", r"define .*?constant\b",
+            r"append\b", r"insert\b", r"prepend\b",
             r"add (?:a )?docstring to\b", r"generate docstring for\b",
             r"add (?:a )?comment\b", r"add (?:a )?type hint\b",
-            # Added to cover more general "add content" scenarios
-            r"append\b", r"insert\b", r"prepend\b", # Keep these with \b as they are generic actions
         ]
 
         for pattern in simple_addition_patterns:
             if re.search(pattern, description_lower):
                 self.logger.debug(f"Simple addition pattern '{pattern}' found in step: '{plan_step_description}'.")
-                return True        
+                return True
         self.logger.debug(f"No specific simple addition or complex pattern matched for step: '{plan_step_description}'. Assuming not a simple addition.")
         return False

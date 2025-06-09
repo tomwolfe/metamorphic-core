@@ -2,21 +2,24 @@
 import os
 import json
 import logging
-import re # Added for _is_simple_addition_plan_step
-import html # ADD THIS IMPORT
+import re
+import html
 from typing import List, Dict, Any, Optional, Tuple, Union
 import ast
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock # Keep MagicMock for the mock KG/Spec/Ethics in init
+from unittest.mock import MagicMock
 import subprocess
-from src.core.agents.code_review_agent import CodeReviewAgent # type: ignore
-from src.core.ethics.governance import EthicalGovernanceEngine
-from datetime import datetime, timezone
-import uuid
 import builtins
 import spacy
 from spacy.matcher import PhraseMatcher
+
+# Re-add necessary imports that were inadvertently removed
+from src.core.agents.code_review_agent import CodeReviewAgent
+from src.core.ethics.governance import EthicalGovernanceEngine
+from datetime import datetime, timezone
+import uuid
+
 
 from src.cli.write_file import write_file
 from src.core.constants import (
@@ -27,13 +30,21 @@ from src.core.constants import (
     MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, MAX_STEP_RETRIES, MAX_IMPORT_CONTEXT_LINES
 )
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
-logger = logging.getLogger(__name__) # Corrected logger name
+logger = logging.getLogger(__name__)
 
-nlp = None
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    logger.error("SpaCy model 'en_core_web_sm' not found. Please install it by running: python -m spacy download en_core_web_sm")
+_nlp_model = None  # Module-level variable for lazy loading
+
+def _load_spacy_model():
+    """Lazy loads the SpaCy model and returns it, or returns False on failure."""
+    global _nlp_model
+    if _nlp_model is None:
+        try:
+            _nlp_model = spacy.load("en_core_web_sm")
+            logger.info("SpaCy model 'en_core_web_sm' loaded successfully for step classification.")
+        except OSError:
+            logger.warning("SpaCy model 'en_core_web_sm' not found. Please install with: `python -m spacy download en_core_web_sm`. Falling back to regex-based classification.")
+            _nlp_model = False  # Indicate that loading failed
+    return _nlp_model
 
 CODE_KEYWORDS = [
 "add", "import", "implement", "modify", "update", "refactor", "write", "fix", "debug", "handle", "change",
@@ -50,7 +61,7 @@ CODE_KEYWORDS = [
 ]
 
 CONCEPTUAL_KEYWORDS = [
-"understand", "design", "discuss", "review", "analyze", "research", "plan", "document", "evaluate", "gather",
+"understand", "design", "discuss", "review", "analyze", "research", "plan", "document", "evaluate", "gather", "handle",
 "propose", "coordinate", "get", "brainstorm", "investigate",
 "define", "scope",
 "report", "findings",
@@ -58,11 +69,23 @@ CONCEPTUAL_KEYWORDS = [
 "document decision", "analyze problem", "plan next step", "research options", "gather feedback", "propose solution",
 "evaluate alternatives", "define scope", "create plan", "coordinate with team", "get approval",
 "prepare presentation", "prepare a presentation", "write report",
-"brainstorm ideas", "research and identify",
+"brainstorm ideas", "research and identify", "test scenario", "scenario", "testbed", "context",
 "project plan", "design proposal"
 ]
 
-def classify_plan_step(step_description: str) -> str:
+def _classify_plan_step_regex_fallback(step_description_lower: str) -> str:
+    """Fallback classification using simple regex keyword counting."""
+    code_score = sum(1 for keyword in CODE_KEYWORDS if re.search(r'\b' + re.escape(keyword) + r'\b', step_description_lower))
+    conceptual_score = sum(1 for keyword in CONCEPTUAL_KEYWORDS if re.search(r'\b' + re.escape(keyword) + r'\b', step_description_lower))
+
+    if code_score > conceptual_score:
+        return 'code'
+    elif conceptual_score > code_score:
+        return 'conceptual'
+    else:
+        return 'uncertain'
+
+def classify_plan_step(step_description: str) -> str: # noqa: E501
     """
     Classifies a plan step description as 'code' or 'conceptual' based on enhanced keyword matching
     using NLP (SpaCy PhraseMatcher) or a regex-based fallback.
@@ -75,38 +98,28 @@ def classify_plan_step(step_description: str) -> str:
         or 'uncertain' if the classification is ambiguous or neither type of keyword is found.
     """
     step_description_lower = step_description.lower()
+    nlp_instance = _load_spacy_model()
 
-    if nlp is None:
-        code_score = 0
-        conceptual_score = 0
-        for keyword in CODE_KEYWORDS:
-            code_score += len(re.findall(r'\b' + re.escape(keyword.lower()) + r'\b', step_description_lower))
-        for keyword in CONCEPTUAL_KEYWORDS:
-            conceptual_score += len(re.findall(r'\b' + re.escape(keyword.lower()) + r'\b', step_description_lower))
-
-        if code_score > 0 and code_score >= conceptual_score:
-            return 'code'
-        elif conceptual_score > 0 and conceptual_score > code_score:
-            return 'conceptual'
-        else:
-            return 'uncertain'
-    else:
-        doc = nlp(step_description.lower())
-        code_matcher = PhraseMatcher(nlp.vocab)
-        conceptual_matcher = PhraseMatcher(nlp.vocab)
-        code_patterns = [nlp(text.lower()) for text in CODE_KEYWORDS]
-        conceptual_patterns = [nlp(text.lower()) for text in CONCEPTUAL_KEYWORDS]
+    if nlp_instance:
+        doc = nlp_instance(step_description_lower)
+        code_matcher = PhraseMatcher(nlp_instance.vocab)
+        conceptual_matcher = PhraseMatcher(nlp_instance.vocab)
+        code_patterns = [nlp_instance(text) for text in CODE_KEYWORDS]
+        conceptual_patterns = [nlp_instance(text) for text in CONCEPTUAL_KEYWORDS]
         code_matcher.add("CODE_PATTERNS", None, *code_patterns)
         conceptual_matcher.add("CONCEPTUAL_PATTERNS", None, *conceptual_patterns)
         code_score = len(code_matcher(doc))
         conceptual_score = len(conceptual_matcher(doc))
 
-        if code_score > 0 and code_score >= conceptual_score:
+        if code_score > conceptual_score:
             return 'code'
-        elif conceptual_score > 0 and conceptual_score > code_score:
+        elif conceptual_score > code_score:
             return 'conceptual'
         else:
             return 'uncertain'
+    else:
+        # Fallback to regex if SpaCy model couldn't be loaded
+        return _classify_plan_step_regex_fallback(step_description_lower)
 class Context:
     def get_full_path(self, relative_path):
         if self._resolved_base_path is None:
@@ -1481,10 +1494,11 @@ class WorkflowDriver:
         ]
 
         # Use PhraseMatcher for test writing keywords if nlp is available
-        if nlp is not None:
-            doc = nlp(step_description.lower())
-            test_writing_matcher = PhraseMatcher(nlp.vocab)
-            test_writing_patterns = [nlp(text.lower()) for text in test_writing_keywords_for_matcher]
+        nlp_instance = _load_spacy_model()
+        if nlp_instance:
+            doc = nlp_instance(step_description.lower())
+            test_writing_matcher = PhraseMatcher(nlp_instance.vocab)
+            test_writing_patterns = [nlp_instance(text.lower()) for text in test_writing_keywords_for_matcher]
             test_writing_matcher.add("TEST_WRITING_PATTERNS", None, *test_writing_patterns)
             is_test_writing_step_prelim = len(test_writing_matcher(doc)) > 0
         else: # Fallback for when nlp is not loaded
@@ -2216,7 +2230,7 @@ Task Description:
             percentage = 100 * (passed_tests / total_tests) if total_tests > 0 else 0 # 0% if 0 tests failed
             grades['test_success'] = {
                 "percentage": round(percentage),
-                "justification": f"Tests status: {test_status}, Passed: {passed_tests}/{total_tests}, Failed: {test_results.get('failed',0)}"
+                "justification": f"Tests status: {test_results.get('status')}, Passed: {passed_tests}/{total_tests}, Failed: {test_results.get('failed',0)}"
             }
         elif test_status == 'error':
             grades['test_success'] = {
@@ -2529,12 +2543,11 @@ Task Description:
 
             logger.debug("No specific remediation target identified from grade report for automated remediation.")
             return None
-
         except json.JSONDecodeError:
-            logger.error("Failed to parse grade report JSON for remediation target identification.")
+            logger.error("Failed to parse grade report JSON in _identify_remediation_target.")
             return None
         except Exception as e:
-            logger.error(f"Error identifying remediation target: {e}", exc_info=True)
+            logger.error(f"An unexpected error occurred in _identify_remediation_target: {e}", exc_info=True)
             return None
 
     def _attempt_code_style_remediation(self, grade_report_json: str, task: dict, step_desc: str, file_path: str, original_code: str) -> bool:
@@ -2981,11 +2994,11 @@ Your response should be the complete, corrected code content that addresses the 
 
         # Patterns that indicate complex changes, refactoring, or new class creation
         complex_patterns = [
-            r"create new class\b",
-            r"add class\b", # Added to catch "Add class NewComponent"
-            r"define class\b", # Added to catch "Define class User"
-            r"implement class\b", # Added to catch "Implement class MyUtility"
-            r"generate class\b", # Added to catch "Generate class for data processing"
+            r"create (?:a )?(?:new )?class\b",
+            r"add (?:a )?class\b", # Added to catch "Add class NewComponent"
+            r"define (?:a )?class\b", # Added to catch "Define class User"
+            r"implement (?:a )?class\b", # Added to catch "Implement class MyUtility"
+            r"generate (?:a )?class\b", # Added to catch "Generate class for data processing"
             r"add .*?global function\b", # Added to classify new global functions as complex
             r"refactor\b",
             r"restructure\b",
@@ -3022,5 +3035,5 @@ Your response should be the complete, corrected code content that addresses the 
             if re.search(pattern, description_lower):
                 self.logger.debug(f"Simple addition pattern '{pattern}' found in step: '{plan_step_description}'.")
                 return True        
-        self.logger.debug(f"No specific simple addition or complex pattern matched for step: '{plan_step_description}'. Assuming not a simple addition.")        
+        self.logger.debug(f"No specific simple addition or complex pattern matched for step: '{plan_step_description}'. Assuming not a simple addition.")
         return False

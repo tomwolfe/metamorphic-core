@@ -211,104 +211,36 @@
       ]
     },
     {
-      "task_id": "task_1_8_A_1_helper_is_simple_addition",
+      "task_id": "task_1_8_A_6a_manual_review",
       "priority": "Critical",
-      "task_name": "Implement Helper `_is_simple_addition_plan_step`",
-      "description": "In `src/core/automation/workflow_driver.py`, implement a new helper method `_is_simple_addition_plan_step(self, plan_step_description: str) -> bool`. This method should analyze the `plan_step_description` string and return `True` if the description indicates a simple, targeted code addition (e.g., adding imports, adding a new method to an *existing* class, adding a constant, appending a line). It should return `False` for complex modifications, refactoring, or new class creation. Ensure comprehensive docstrings and unit tests for this helper in `tests/test_phase1_8_features.py`.",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
-      "depends_on": [
-        "task_1_8_Y_ensure_docstrings_in_codegen"
-      ]
-    },
-    {
-      "task_id": "task_1_8_A_2_helper_get_context_type",
-      "priority": "Critical",
-      "task_name": "Implement Helper `_get_context_type_for_step`",
-      "description": "In `src/core/automation/workflow_driver.py`, implement `_get_context_type_for_step(self, step_description: str) -> Optional[str]`. This method should analyze the `step_description` and return a string like 'add_import', 'add_method_to_class', 'add_global_function', or None if the type is unclear or complex. Use regex or simple NLP. Ensure comprehensive docstrings and unit tests in `tests/test_phase1_8_features.py`.",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
-      "depends_on": [
-        "task_1_8_A_1_helper_is_simple_addition"
-      ]
-    },
-    {
-      "task_id": "task_1_8_A_3a_helper_extract_context_skeleton",
-      "priority": "Critical",
-      "task_name": "Implement Skeleton for `_extract_targeted_context`",
-      "description": "In `src/core/automation/workflow_driver.py`, implement the method signature for `_extract_targeted_context(self, file_path: str, file_content: str, context_type: Optional[str], step_description: str) -> Tuple[str, bool]`. Include a comprehensive docstring explaining its overall purpose, parameters, and return value. The initial implementation should contain only the fallback logic: if `context_type` is None or extraction fails for any reason, it should return `(file_content, False)`. This provides the basic structure for subsequent tasks.",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_A_2_helper_get_context_type"
-      ]
-    },
-    {
-      "task_id": "task_1_8_A_3b_helper_extract_context_imports",
-      "priority": "Critical",
-      "task_name": "Implement `add_import` Logic for `_extract_targeted_context`",
-      "description": "In `src/core/automation/workflow_driver.py`, enhance the `_extract_targeted_context` method. Add logic to handle the `context_type == 'add_import'`. Use AST parsing to find the start and end line numbers of the import block. Return the source code for this block, including a few lines of buffer before and after. If no imports exist, return the top N lines of the file (e.g., 20).",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_A_3a_helper_extract_context_skeleton"
-      ]
-    },
-    {
-      "task_id": "task_1_8_A_3c_helper_extract_context_class",
-      "priority": "Critical",
-      "task_name": "Implement `add_method_to_class` Logic for `_extract_targeted_context`",
-      "description": "In `src/core/automation/workflow_driver.py`, enhance the `_extract_targeted_context` method. Add logic to handle `context_type == 'add_method_to_class'`. Parse the `step_description` to find the target class name. Use AST to find the `ast.ClassDef` node for that class and return its complete source code, including a few lines of buffer. Handle `SyntaxError` during parsing by falling back to the full content.",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_A_3b_helper_extract_context_imports"
-      ]
-    },
-    {
-      "task_id": "task_1_8_A_3d_helper_extract_context_tests",
-      "priority": "High",
-      "task_name": "Add Unit Tests for `_extract_targeted_context`",
-      "description": "In `tests/test_phase1_8_features.py`, add comprehensive unit tests for the `_extract_targeted_context` method in `WorkflowDriver`. Cover all `context_type` cases ('add_import', 'add_method_to_class'), the fallback case, and edge cases like syntax errors in the source file or a class not being found.",
-      "status": "Completed",
-      "target_file": "tests/test_phase1_8_features.py",
-      "depends_on": [
-        "task_1_8_A_3c_helper_extract_context_class"
-      ]
-    },
-    {
-      "task_id": "task_1_8_A_4a_implement_minimal_context_logic",
-      "priority": "Critical",
-      "task_name": "Implement Minimal Context Logic in WorkflowDriver Loop",
-      "description": "Modify `WorkflowDriver.autonomous_loop` in `src/core/automation/workflow_driver.py`. If `_is_simple_addition_plan_step` returns True for the current step: 1. Call `_get_context_type_for_step`. 2. Call `_extract_targeted_context` using the determined type. 3. Pass the extracted context and `is_minimal_context=True` to `_construct_coder_llm_prompt`. If `_is_simple_addition_plan_step` is False, pass full context and `is_minimal_context=False`. Do NOT add or modify tests in this step.",
-      "status": "Completed",
-      "reason_completed": "Completed via manual intervention. The autonomous agent failed to integrate existing helper methods (`_is_simple_addition_plan_step`, etc.) into the `autonomous_loop`. The required conditional logic was added as a direct diff to unblock progress."
-    },
-    {
-      "task_id": "task_1_8_A_4b_add_tests_for_minimal_context_logic",
-      "priority": "Critical",
-      "task_name": "Add Unit Tests for Minimal Context Logic",
-      "description": "Update unit tests in `tests/test_phase1_8_features.py` for the `WorkflowDriver.autonomous_loop` to cover the conditional context logic implemented in the previous step. Add a test case where `_is_simple_addition_plan_step` is mocked to return True, asserting that `_get_context_type_for_step` and `_extract_targeted_context` are called, and `_construct_coder_llm_prompt` receives the targeted context with `is_minimal_context=True`. Add a test case where `_is_simple_addition_plan_step` is mocked to return False, asserting that `_construct_coder_llm_prompt` receives the full context with `is_minimal_context=False`.",
-      "status": "Completed",
-      "reason_completed": "Completed via manual intervention as part of the fix for task_1_8_A_4a. New unit tests were added to verify the conditional context logic."
-    },
-    {
-      "task_id": "task_1_8_A_5_refine_coder_prompt_for_minimal_output",
-      "priority": "Critical",
-      "task_name": "Refine CoderLLM Prompt for Minimal Output on Simple Additions",
-      "description": "Modify `WorkflowDriver._construct_coder_llm_prompt` in `src/core/automation/workflow_driver.py`. When `is_minimal_context` is True, add specific instructions to the CoderLLM prompt to output *only* the new/changed lines, not the entire file or section. Reference the `CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION` and `CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS` constants. Ensure this is clearly distinct from prompts for full file generation. Update unit tests.",
-      "status": "Completed",
-      "reason_completed": "Completed via expert intervention. The autonomous agent was stuck generating tests for this task due to a prompting issue (missing imports for constants). The fix has been applied directly."
-    },
-    {
-      "task_id": "task_1_8_A_6_review_summarizer_and_test_e2e",
-      "priority": "Critical",
-      "task_name": "Review Summarizer Logic and Test End-to-End Context Optimization",
-      "description": "1. Review `RecursiveSummarizer.summarize_code_recursively` and `EnhancedLLMOrchestrator._handle_large_context` to ensure they are not triggered unnecessarily for simple additions now that minimal context is provided by `WorkflowDriver`. 2. Perform end-to-end integration testing (manual or new automated test) to confirm that for simple additions to large files, `_handle_large_context` is bypassed and LLM calls are minimized. This validates the success of the preceding sub-tasks.",
+      "task_name": "Review Summarizer and Large Context Logic",
+      "description": "1. Manually review `RecursiveSummarizer.summarize_code_recursively` and `EnhancedLLMOrchestrator._handle_large_context` to ensure they are not triggered unnecessarily for simple additions, now that minimal context is provided by `WorkflowDriver`. This is a conceptual review; no code changes are expected.",
       "status": "Not Started",
-      "target_file": "src/core/chunking/recursive_summarizer.py, src/core/llm_orchestration.py, tests/test_phase1_8_features.py",
+      "target_file": "src/core/chunking/recursive_summarizer.py, src/core/llm_orchestration.py",
       "depends_on": [
         "task_1_8_A_5_refine_coder_prompt_for_minimal_output"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_6b_create_e2e_test_scaffold",
+      "priority": "Critical",
+      "task_name": "Create E2E Test Scaffold for Context Optimization",
+      "description": "In `tests/test_phase1_8_features.py`, create the scaffolding for an end-to-end integration test. This includes: 1. Creating a large dummy Python file programmatically within the test setup (e.g., >500 lines). 2. Defining a test function signature. 3. Mocking the LLM client to allow for call count assertions.",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_A_6a_manual_review"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_6c_implement_e2e_test_logic",
+      "priority": "Critical",
+      "task_name": "Implement E2E Test Logic for Context Optimization",
+      "description": "Flesh out the test created in the previous step. Add logic to simulate a simple code addition to the large dummy file. Trigger the workflow that processes this change. Assert that `EnhancedLLMOrchestrator._handle_large_context` is NOT called (e.g., via a mock/spy). Assert that the mocked LLM client was called a minimal number of times (e.g., 1-2 times for the core change, not for summarization).",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_A_6b_create_e2e_test_scaffold"
       ]
     },
     {
@@ -319,7 +251,7 @@
       "status": "Completed",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
-        "task_1_8_A_6_review_summarizer_and_test_e2e"
+        "task_1_8_A_6c_implement_e2e_test_logic"
       ]
     },
     {

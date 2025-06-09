@@ -248,7 +248,7 @@ class TestWorkflowRemediation:
         with caplog.at_level(logging.ERROR):
             result = driver._identify_remediation_target("invalid{json")
             assert result is None
-            assert "Failed to parse grade report JSON for remediation target identification." in caplog.text
+            assert "Failed to parse grade report JSON in _identify_remediation_target." in caplog.text
 
     def test_return_none_and_log_unexpected_exception_identify_target(self, driver, mocker, caplog):
         mocker.patch("json.loads", side_effect=Exception("Unexpected"))
@@ -256,7 +256,7 @@ class TestWorkflowRemediation:
         with caplog.at_level(logging.ERROR):
             result = driver._identify_remediation_target(grade_report)
             assert result is None
-            assert "Error identifying remediation target: Unexpected" in caplog.text
+            assert "An unexpected error occurred in _identify_remediation_target: Unexpected" in caplog.text
 
     def test_missing_keys_in_json_identify_target(self, driver, caplog):
         with caplog.at_level(logging.DEBUG):

@@ -100,11 +100,23 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_fix_rate_limit_enh_orchestrator']
 
-*   **Task ID**: task_1_8_improve_snippet_handling_tests
-    *   **Priority**: High
-    *   **Task Name**: Add Unit Tests for Snippet Handling Enhancements
+*   **Task ID**: task_1_8_A_1a_create_skeleton
+    *   **Priority**: Critical
+    *   **Task Name**: Create Skeleton for _is_simple_addition_plan_step Helper
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_improve_snippet_handling']
+
+*   **Task ID**: task_1_8_A_1b_implement_logic
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Logic for _is_simple_addition_plan_step
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_A_1a_create_skeleton']
+
+*   **Task ID**: task_1_8_A_1c_add_tests
+    *   **Priority**: High
+    *   **Task Name**: Add Unit Tests for _is_simple_addition_plan_step
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_A_1b_implement_logic']
 
 *   **Task ID**: task_1_8_A_optimize_large_context_epic
     *   **Priority**: Critical
@@ -146,7 +158,7 @@
     *   **Priority**: High
     *   **Task Name**: Implement Error-Specific Feedback for Retry Prompts
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_B_enhance_retry_prompts']
+    *   **Depends On**: ['task_1_8_B_enhance_retry_prompts', 'task_1_8_A_6_add_tests_for_context_optimization']
 
 *   **Task ID**: task_1_8_2_retry
     *   **Priority**: Critical
@@ -225,4 +237,34 @@
     *   **Task Name**: Analyze task_1_8_A_1 Failures & Improve CodeGen
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_A_6_review_summarizer_and_test_e2e']
+
+*   **Task ID**: task_1_8_A_2_helper_get_context_type
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Helper to Get Context Type
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_1c_add_tests']
+
+*   **Task ID**: task_1_8_A_3_helper_extract_targeted_context
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Helper to Extract Targeted Context
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_2_helper_get_context_type']
+
+*   **Task ID**: task_1_8_A_4_integrate_context_logic
+    *   **Priority**: Critical
+    *   **Task Name**: Integrate Context Extraction into Autonomous Loop
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_3_helper_extract_targeted_context']
+
+*   **Task ID**: task_1_8_A_5_refine_coder_prompt_for_minimal_output
+    *   **Priority**: Critical
+    *   **Task Name**: Refine Coder Prompt for Minimal Context
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_4_integrate_context_logic']
+
+*   **Task ID**: task_1_8_A_6_add_tests_for_context_optimization
+    *   **Priority**: High
+    *   **Task Name**: Add Tests for Context Optimization Logic
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_5_refine_coder_prompt_for_minimal_output']
 

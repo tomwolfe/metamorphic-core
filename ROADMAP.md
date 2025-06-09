@@ -112,71 +112,29 @@
     *   **Status**: In Progress
     *   **Depends On**: ['task_1_8_Y_ensure_docstrings_in_codegen']
 
-*   **Task ID**: task_1_8_A_1_helper_is_simple_addition
+*   **Task ID**: task_1_8_A_6a_manual_review
     *   **Priority**: Critical
-    *   **Task Name**: Implement Helper `_is_simple_addition_plan_step`
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_Y_ensure_docstrings_in_codegen']
-
-*   **Task ID**: task_1_8_A_2_helper_get_context_type
-    *   **Priority**: Critical
-    *   **Task Name**: Implement Helper `_get_context_type_for_step`
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_1_helper_is_simple_addition']
-
-*   **Task ID**: task_1_8_A_3a_helper_extract_context_skeleton
-    *   **Priority**: Critical
-    *   **Task Name**: Implement Skeleton for `_extract_targeted_context`
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_2_helper_get_context_type']
-
-*   **Task ID**: task_1_8_A_3b_helper_extract_context_imports
-    *   **Priority**: Critical
-    *   **Task Name**: Implement `add_import` Logic for `_extract_targeted_context`
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_3a_helper_extract_context_skeleton']
-
-*   **Task ID**: task_1_8_A_3c_helper_extract_context_class
-    *   **Priority**: Critical
-    *   **Task Name**: Implement `add_method_to_class` Logic for `_extract_targeted_context`
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_3b_helper_extract_context_imports']
-
-*   **Task ID**: task_1_8_A_3d_helper_extract_context_tests
-    *   **Priority**: High
-    *   **Task Name**: Add Unit Tests for `_extract_targeted_context`
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_3c_helper_extract_context_class']
-
-*   **Task ID**: task_1_8_A_4a_implement_minimal_context_logic
-    *   **Priority**: Critical
-    *   **Task Name**: Implement Minimal Context Logic in WorkflowDriver Loop
-    *   **Status**: Completed
-    *   **Depends On**: []
-
-*   **Task ID**: task_1_8_A_4b_add_tests_for_minimal_context_logic
-    *   **Priority**: Critical
-    *   **Task Name**: Add Unit Tests for Minimal Context Logic
-    *   **Status**: Completed
-    *   **Depends On**: []
-
-*   **Task ID**: task_1_8_A_5_refine_coder_prompt_for_minimal_output
-    *   **Priority**: Critical
-    *   **Task Name**: Refine CoderLLM Prompt for Minimal Output on Simple Additions
-    *   **Status**: Completed
-    *   **Depends On**: []
-
-*   **Task ID**: task_1_8_A_6_review_summarizer_and_test_e2e
-    *   **Priority**: Critical
-    *   **Task Name**: Review Summarizer Logic and Test End-to-End Context Optimization
+    *   **Task Name**: Review Summarizer and Large Context Logic
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_A_5_refine_coder_prompt_for_minimal_output']
+
+*   **Task ID**: task_1_8_A_6b_create_e2e_test_scaffold
+    *   **Priority**: Critical
+    *   **Task Name**: Create E2E Test Scaffold for Context Optimization
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_6a_manual_review']
+
+*   **Task ID**: task_1_8_A_6c_implement_e2e_test_logic
+    *   **Priority**: Critical
+    *   **Task Name**: Implement E2E Test Logic for Context Optimization
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_6b_create_e2e_test_scaffold']
 
 *   **Task ID**: task_1_8_A_test_import_optimization
     *   **Priority**: Critical
     *   **Task Name**: Test Import Context Optimization
     *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_6_review_summarizer_and_test_e2e']
+    *   **Depends On**: ['task_1_8_A_6c_implement_e2e_test_logic']
 
 *   **Task ID**: task_1_8_B_enhance_retry_prompts
     *   **Priority**: High

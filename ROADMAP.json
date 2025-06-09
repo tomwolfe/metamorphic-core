@@ -189,15 +189,13 @@
       ]
     },
     {
-      "task_id": "task_1_8_improve_snippet_handling_tests",
-      "priority": "High",
-      "task_name": "Add Unit Tests for Snippet Handling Enhancements",
-      "description": "Create comprehensive unit tests for the prompt refinement logic (after refactoring `WorkflowDriver` to expose prompt construction) and the improved `_merge_snippet` method in `src/core/automation/workflow_driver.py`. Tests should cover various scenarios including correct indentation application, handling of empty snippets, and ensuring all new prompt guidelines are present. Place these tests in `tests/test_workflow_driver_enhancements.py`.",
-      "status": "Completed",
-      "target_file": "tests/test_workflow_driver_enhancements.py",
-      "depends_on": [
-        "task_1_8_improve_snippet_handling"
-      ]
+      "task_id": "task_1_8_A_1_helper_is_simple_addition",
+      "priority": "Critical",
+      "task_name": "Implement Helper to Identify Simple Additions",
+      "description": "In `WorkflowDriver`, create a new helper method `_is_simple_addition_plan_step(self, plan_step_description: str) -> bool`. This method will use regex to determine if a plan step describes a simple, targeted code addition (e.g., adding an import, a new method, a constant) versus a complex refactoring. This is the first step to bypass unnecessary full-file summarization.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": []
     },
     {
       "task_id": "task_1_8_A_optimize_large_context_epic",
@@ -273,7 +271,8 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_B_enhance_retry_prompts"
+        "task_1_8_B_enhance_retry_prompts",
+        "task_1_8_A_6_add_tests_for_context_optimization"
       ]
     },
     {
@@ -432,6 +431,61 @@
       "target_file": "src/core/llm_orchestration.py",
       "depends_on": [
         "task_1_8_A_6_review_summarizer_and_test_e2e"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_2_helper_get_context_type",
+      "priority": "Critical",
+      "task_name": "Implement Helper to Get Context Type",
+      "description": "In `WorkflowDriver`, create a new helper method `_get_context_type_for_step(self, step_description: str) -> Optional[str]`. This method will analyze the step description to classify the type of addition (e.g., 'add_import', 'add_method_to_class') to guide context extraction.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_A_1_helper_is_simple_addition"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_3_helper_extract_targeted_context",
+      "priority": "Critical",
+      "task_name": "Implement Helper to Extract Targeted Context",
+      "description": "In `WorkflowDriver`, create a new helper method `_extract_targeted_context(self, file_path: str, file_content: str, context_type: Optional[str], step_description: str) -> Tuple[str, bool]`. This method will use AST parsing to extract only the relevant code block (e.g., the import block, a specific class body) from the full file content based on the context_type.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_A_2_helper_get_context_type"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_4_integrate_context_logic",
+      "priority": "Critical",
+      "task_name": "Integrate Context Extraction into Autonomous Loop",
+      "description": "Modify `WorkflowDriver.autonomous_loop` to use the new helper methods. If a step is identified as a simple addition, call the context extraction helpers to get minimal context and pass it to the Coder LLM, bypassing the `_handle_large_context` summarization flow.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_A_3_helper_extract_targeted_context"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_5_refine_coder_prompt_for_minimal_output",
+      "priority": "Critical",
+      "task_name": "Refine Coder Prompt for Minimal Context",
+      "description": "Modify `WorkflowDriver._construct_coder_llm_prompt` to include specific instructions for the Coder LLM when minimal context is provided. The prompt should explicitly state that the context is targeted and that the LLM should only output the new or changed lines, not the entire file.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_A_4_integrate_context_logic"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_6_add_tests_for_context_optimization",
+      "priority": "High",
+      "task_name": "Add Tests for Context Optimization Logic",
+      "description": "In `tests/test_phase1_8_features.py`, add comprehensive unit and integration tests for the new context optimization helpers (`_is_simple_addition_plan_step`, `_get_context_type_for_step`, `_extract_targeted_context`) and the updated prompt construction logic.",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_A_5_refine_coder_prompt_for_minimal_output"
       ]
     }
   ],

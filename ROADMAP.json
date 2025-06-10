@@ -78,7 +78,7 @@
       "depends_on": [
         "task_1_8_1_fix_syntax_and_add_tests"
       ],
-      "description": "Improve the Workflow Driver's logic to better identify plan steps requiring code modification (imports, constants, definitions, etc.) vs. conceptual steps. Use more sophisticated keyword matching or NLP."
+      "description": "Improve the Workflow Driver's logic to better identify plan steps requiring code modification (imports, constants, definitions, etc.) vs. conceptual steps."
     },
     {
       "task_id": "task_1_8_1b_increase_min_token_alloc",
@@ -233,14 +233,36 @@
       "description": "In a new test file `tests/test_phase1_8_features.py`, add comprehensive unit tests for the `WorkflowDriver._is_simple_addition_plan_step` method. Use `pytest.mark.parametrize` to cover various cases: simple additions that should return True, complex modifications that should return False, and edge cases like empty strings. **Ensure tests are self-contained and pass `pytest` and `flake8` checks.**"
     },
     {
-      "task_id": "task_1_8_A_2_helper_get_context_type",
+      "task_id": "task_1_8_A_2a_create_skeleton",
       "priority": "Critical",
-      "task_name": "Implement and Test `_get_context_type_for_step` Helper",
-      "description": "In `WorkflowDriver`, create and implement the helper method `_get_context_type_for_step(self, step_description: str) -> Optional[str]`. This method will analyze the step description to classify the type of addition (e.g., 'add_import', 'add_method_to_class', 'add_global_function') to guide context extraction. Also, add comprehensive unit tests for this new method in `tests/test_phase1_8_features.py` to verify its classification logic against various inputs, including positive cases, edge cases, and scenarios leading to a `None` return.",
-      "status": "Not Started",
-      "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
+      "task_name": "Create Skeleton for _get_context_type_for_step Helper",
+      "description": "In `WorkflowDriver`, create the new helper method `_get_context_type_for_step(self, step_description: str) -> Optional[str]`. The implementation should only contain a `pass` statement. A comprehensive docstring explaining the method's purpose, arguments, and return value must be included. Ensure the method signature and docstring adhere strictly to PEP8 line length and formatting guidelines. Ensure `from typing import Optional` is present.",
+      "status": "Completed",
+      "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_A_1c_add_tests"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_2b_implement_logic",
+      "priority": "Critical",
+      "task_name": "Implement Logic for _get_context_type_for_step",
+      "description": "In `WorkflowDriver`, implement the logic for the `_get_context_type_for_step` method. Use the `re` module to check the `step_description` against a list of regex patterns that identify context types (e.g., 'add_import', 'add_method_to_class'). The method should return the context type as a string if a pattern matches, and None otherwise.",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_A_2a_create_skeleton"
+      ]
+    },
+    {
+      "task_id": "task_1_8_A_2c_add_tests",
+      "priority": "High",
+      "task_name": "Add Unit Tests for _get_context_type_for_step",
+      "description": "In `tests/test_phase1_8_features.py`, add comprehensive unit tests for the `WorkflowDriver._get_context_type_for_step` method. Use `pytest.mark.parametrize` to cover various cases: positive matches for different context types, complex modifications that should return None, and edge cases like empty strings. Note: As this is a private method, tests may need to use `_WorkflowDriver__get_context_type_for_step` for access.",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_A_2b_implement_logic"
       ]
     },
     {

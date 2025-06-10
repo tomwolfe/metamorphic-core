@@ -334,7 +334,7 @@ class WorkflowDriver:
         Returns: (context_string, is_minimal_context_bool)
         """
         if not context_type or not file_path.lower().endswith(".py"):
-            self.logger.debug(f"Not a Python file or no context_type for {file_path}. Returning full content.")
+            self.logger.debug(f"Not a Python file or no context_type for {Path(file_path).name}. Returning full content.")
             return file_content, False
 
         lines = file_content.splitlines()
@@ -355,10 +355,10 @@ class WorkflowDriver:
                 start_idx = max(0, min_line - 2)
                 end_idx = min(len(lines), max_line + 2)
 
-                self.logger.debug(f"Extracting import context for {file_path}: lines {start_idx+1} to {end_idx}.")
+                self.logger.debug(f"Extracting import context for {Path(file_path).name}: lines {start_idx+1} to {end_idx}.")
                 return "\n".join(lines[start_idx:end_idx]), True
             else: # No existing imports, take top N lines as context for new imports
-                self.logger.debug(f"No existing imports in {file_path}. Providing top {MAX_IMPORT_CONTEXT_LINES} lines for new import context.")
+                self.logger.debug(f"No existing imports in {Path(file_path).name}. Providing top {MAX_IMPORT_CONTEXT_LINES} lines for new import context.")
                 return "\n".join(lines[:MAX_IMPORT_CONTEXT_LINES]), True
 
         elif context_type == "add_method_to_class":
@@ -370,12 +370,12 @@ class WorkflowDriver:
                         start_idx = max(0, node.lineno - 2)  # Convert 1-indexed to 0-indexed and subtract 1 lines
                         end_idx = min(len(lines), getattr(node, 'end_lineno', node.lineno) + 3)  # Add 2 lines after
 
-                        self.logger.debug(f"Extracting class context for '{target_class_name}' in {file_path}: lines {start_idx+1} to {end_idx}.")
+                        self.logger.debug(f"Extracting class context for '{target_class_name}' in {Path(file_path).name}: lines {start_idx+1} to {end_idx}.")
                         return "\n".join(lines[start_idx:end_idx]), True
-            self.logger.warning(f"Could not find class for 'add_method_to_class' in {file_path} from step: {step_description}. Falling back to full content.")
+            self.logger.warning(f"Could not find class for 'add_method_to_class' in {Path(file_path).name} from step: {step_description}. Falling back to full content.")
 
         # Fallback for other types or if specific extraction fails
-        self.logger.debug(f"No specific context extraction rule for type '{context_type}' or extraction failed for {file_path}. Using full content.")
+        self.logger.debug(f"No specific context extraction rule for type '{context_type}' or extraction failed for {Path(file_path).name}. Using full content.")
         return file_content, False
 
     def _determine_single_target_file(self, step_description: str, task_target_file_spec: Optional[str], prelim_flags: Dict) -> Optional[str]:
@@ -2993,16 +2993,36 @@ Your response should be the complete, corrected code content that addresses the 
         self.logger.debug(f"No specific simple addition or complex pattern matched for step: '{plan_step_description}'. Assuming not a simple addition.")
         return False
 
+
     def _get_context_type_for_step(self, step_description: str) -> Optional[str]:
         """
-        Analyzes the step description to classify the type of addition to guide context extraction.
+        Analyzes the step description to classify the type of addition to guide
+        context extraction.
 
         Args:
             step_description: The description of the plan step.
 
         Returns:
-            A string representing the context type (e.g., 'add_import', 'add_method_to_class',
-            'add_global_function') or None if no specific type is identified.
+            A string representing the context type (e.g., 'add_import',
+            'add_method_to_class', 'add_global_function') or None if no
+            specific type is identified.
+        """
+        # METAMORPHIC_INSERT_POINT
+        pass
+
+
+    def _get_context_type_for_step(self, step_description: str) -> Optional[str]:
+        """
+        Analyzes the step description to classify the type of addition to guide
+        context extraction.
+
+        Args:
+            step_description: The description of the plan step.
+
+        Returns:
+            A string representing the context type (e.g., 'add_import',
+            'add_method_to_class', 'add_global_function') or None if no
+            specific type is identified.
         """
         step_lower = step_description.lower()
 

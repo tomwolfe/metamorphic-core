@@ -956,6 +956,22 @@ class WorkflowDriver:
                                         cleaned_snippet = self._clean_llm_snippet(generated_snippet)
                                         self.logger.debug(f"Cleaned snippet (first 100 chars): {cleaned_snippet[:100]}...")
 
+                                        # --- START: Pre-Merge Full File Syntax Check (Promoted) ---
+                                        # This is a robust check ensuring the snippet integrates syntactically
+                                        # with the existing code. It's now performed *before* other validations.
+                                        try:
+                                            hypothetical_merged_content = self._merge_snippet(original_full_content, cleaned_snippet)
+                                            ast.parse(hypothetical_merged_content)
+                                            logger.info("Pre-merge full file syntax check (AST parse) passed.")
+                                        except SyntaxError as se_merge:
+                                            # This is a definitive syntax failure upon integration.
+                                            error_msg = f"Pre-merge full file syntax check failed: {se_merge.msg} on line {se_merge.lineno} (offset {se_merge.offset}). Offending line: '{se_merge.text.strip() if se_merge.text else 'N/A'}'"
+                                            logger.warning(f"Pre-merge full file syntax validation failed for {filepath_to_use}: {se_merge}")
+                                            # Preserve debugging context by logging the failed content
+                                            logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
+                                            raise ValueError(error_msg) from se_merge
+                                        # --- END: Pre-Merge Full File Syntax Check ---
+
                                         # Perform pre-write validation on the generated snippet
                                         logger.info(f"Performing pre-write validation for snippet targeting {filepath_to_use}...")
                                         validation_passed = True # Assume pass initially for this attempt
@@ -1060,31 +1076,6 @@ class WorkflowDriver:
                                                 validation_passed = False
                                                 validation_feedback.append(f"Error during pre-write style/security validation: {e}")
                                                 logger.error(f"Error during pre-write style/security validation: {e}", exc_info=True)
-
-                                        # Now, the definitive syntax check: pre-merge full file check
-                                        # This runs if previous checks (ethical, style, non-SyntaxError snippet parse) passed.
-                                        if validation_passed:
-                                            logger.info(f"Snippet-level ethical and style checks passed (or were skipped). Proceeding to pre-merge full file syntax check for {filepath_to_use}.")
-
-                                            try:
-                                                # Create a hypothetical merged content
-                                                hypothetical_merged_content = self._merge_snippet(original_full_content, cleaned_snippet)
-                                                ast.parse(hypothetical_merged_content)
-                                                logger.info("Pre-merge full file syntax check (AST parse) passed.")
-                                                # If initial_snippet_syntax_error_details existed but full file parse passed,
-                                                # it means the merge context fixed the syntax. Log this.
-                                                if initial_snippet_syntax_error_details:
-                                                    logger.info(f"Initial snippet had a syntax issue ('{initial_snippet_syntax_error_details}'), but it integrated correctly into the full file and passed other pre-write checks.")
-                                            except SyntaxError as se_merge:
-                                                validation_passed = False # Definitive syntax failure
-                                                validation_feedback.append(f"Pre-merge full file syntax check failed: {se_merge.msg} on line {se_merge.lineno} (offset {se_merge.offset}). Offending line: '{se_merge.text.strip() if se_merge.text else 'N/A'}'")
-                                                logger.warning(f"Pre-merge full file syntax validation failed for {filepath_to_use}: {se_merge}")
-                                                logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
-                                            except Exception as e_merge: # Other errors during merge/parse
-                                                validation_passed = False
-                                                validation_feedback.append(f"Error during pre-merge full file syntax validation: {e_merge}")
-                                                logger.error(f"Error during pre-merge full file syntax validation: {e_merge}", exc_info=True)
-                                                logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
                                         
                                         # If any check failed (ethical, style, or definitive full-file syntax)
                                         if not validation_passed:

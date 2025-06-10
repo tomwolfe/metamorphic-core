@@ -47,15 +47,15 @@ GENERAL_SNIPPET_GUIDELINES = (
 # with END_OF_CODE_MARKER when used.
 CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS = (
     "CRITICAL INSTRUCTIONS FOR YOUR RESPONSE FORMAT:\n"
-    "1. Your entire response MUST be ONLY a valid Python code snippet representing the complete new or modified function, method, or class.\n"
+    "1. Your entire response MUST be ONLY a valid Python code snippet.\n"
     "2. Do NOT include any explanations, introductory text, apologies, or markdown formatting like ```python or ```.\n"
     "3. The Python code snippet you generate will be directly parsed and inserted into an existing Python file.\n"
-    "4. Your Python code snippet MUST end with the exact marker line, on its own line, with no preceding or trailing characters on that line: `{{END_OF_CODE_MARKER}}` (e.g., `# {{METAMORPHIC_END_OF_CODE_SNIPPET}}`)\n"  # New point 4
-    "5. ALWAYS output *only* the minimal changed/new lines. Do NOT repeat unchanged lines from the existing file. Examples:\n"  # Old point 4, now point 5
+    "4. ALWAYS output *only* the minimal changed/new lines. Do NOT repeat unchanged lines from the existing file. Examples:\n"
     "   - To add an import: `import new_module`\n"
     "   - To add a new method to a class: `    def new_method(self):\n        \"\"\"New method docstring.\"\"\"\n        pass`\n"
     "   - To change a single line: `    return new_value`\n"
-    "6. If the plan step asks for an explanation or analysis, output only a Python comment explaining the error and the `{{METAMORPHIC_END_OF_CODE_SNIPPET}}` marker."  # Old point 5, now point 6
+    "5. If the plan step asks for an explanation or analysis, output only a Python comment explaining the error.\n"
+    "6. Your response MUST end with the exact marker on its own line: `{END_OF_CODE_MARKER}`"
 )
 
 # Instruction for CoderLLM on output format for targeted modifications

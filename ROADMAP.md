@@ -100,6 +100,12 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_fix_rate_limit_enh_orchestrator']
 
+*   **Task ID**: task_1_8_A_optimize_large_context_epic
+    *   **Priority**: Critical
+    *   **Task Name**: EPIC: Optimize Large Context Handling for Code Generation Steps
+    *   **Status**: In Progress
+    *   **Depends On**: ['task_1_8_Y_ensure_docstrings_in_codegen']
+
 *   **Task ID**: task_1_8_A_1a_create_skeleton
     *   **Priority**: Critical
     *   **Task Name**: Create Skeleton for _is_simple_addition_plan_step Helper
@@ -118,35 +124,11 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_A_1b_implement_logic']
 
-*   **Task ID**: task_1_8_A_optimize_large_context_epic
+*   **Task ID**: task_1_8_A_2_helper_get_context_type
     *   **Priority**: Critical
-    *   **Task Name**: EPIC: Optimize Large Context Handling for Code Generation Steps
-    *   **Status**: In Progress
-    *   **Depends On**: ['task_1_8_Y_ensure_docstrings_in_codegen']
-
-*   **Task ID**: task_1_8_A_6a_manual_review
-    *   **Priority**: Critical
-    *   **Task Name**: Review Summarizer and Large Context Logic
+    *   **Task Name**: Implement and Test `_get_context_type_for_step` Helper
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_5_refine_coder_prompt_for_minimal_output']
-
-*   **Task ID**: task_1_8_A_6b_create_e2e_test_scaffold
-    *   **Priority**: Critical
-    *   **Task Name**: Create E2E Test Scaffold for Context Optimization
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_6a_manual_review']
-
-*   **Task ID**: task_1_8_A_6c_implement_e2e_test_logic
-    *   **Priority**: Critical
-    *   **Task Name**: Implement E2E Test Logic for Context Optimization
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_6b_create_e2e_test_scaffold']
-
-*   **Task ID**: task_1_8_A_test_import_optimization
-    *   **Priority**: Critical
-    *   **Task Name**: Test Import Context Optimization
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_6c_implement_e2e_test_logic']
+    *   **Depends On**: ['task_1_8_A_1c_add_tests']
 
 *   **Task ID**: task_1_8_B_enhance_retry_prompts
     *   **Priority**: High
@@ -165,6 +147,12 @@
     *   **Task Name**: Implement Pre-Write Validation per Step (Retry)
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_B_enhance_retry_prompts']
+
+*   **Task ID**: task_1_8_C_1_analyze_A1_failure_and_improve_codegen
+    *   **Priority**: High
+    *   **Task Name**: Analyze task_1_8_A_1 Failures & Improve CodeGen
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_6_add_tests_for_context_optimization', 'task_1_8_A_test_import_optimization']
 
 *   **Task ID**: task_1_8_3
     *   **Priority**: Critical
@@ -231,40 +219,4 @@
     *   **Task Name**: Add Comprehensive Tests for Phase 1.8 Features
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_1', 'task_1_8_2_retry', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_6', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
-
-*   **Task ID**: task_1_8_C_1_analyze_A1_failure_and_improve_codegen
-    *   **Priority**: High
-    *   **Task Name**: Analyze task_1_8_A_1 Failures & Improve CodeGen
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_6_review_summarizer_and_test_e2e']
-
-*   **Task ID**: task_1_8_A_2_helper_get_context_type
-    *   **Priority**: Critical
-    *   **Task Name**: Implement Helper to Get Context Type
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_1c_add_tests']
-
-*   **Task ID**: task_1_8_A_3_helper_extract_targeted_context
-    *   **Priority**: Critical
-    *   **Task Name**: Implement Helper to Extract Targeted Context
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_2_helper_get_context_type']
-
-*   **Task ID**: task_1_8_A_4_integrate_context_logic
-    *   **Priority**: Critical
-    *   **Task Name**: Integrate Context Extraction into Autonomous Loop
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_3_helper_extract_targeted_context']
-
-*   **Task ID**: task_1_8_A_5_refine_coder_prompt_for_minimal_output
-    *   **Priority**: Critical
-    *   **Task Name**: Refine Coder Prompt for Minimal Context
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_4_integrate_context_logic']
-
-*   **Task ID**: task_1_8_A_6_add_tests_for_context_optimization
-    *   **Priority**: High
-    *   **Task Name**: Add Tests for Context Optimization Logic
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_5_refine_coder_prompt_for_minimal_output']
 

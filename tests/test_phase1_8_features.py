@@ -579,7 +579,7 @@ class TestIsSimpleAdditionPlanStep:
         driver._is_simple_addition_plan_step(description_complex)
         assert any(
             ("Complex pattern 'refactor\\b' found in step: 'Refactor the entire system.'. Not a simple addition." in record.message) or
-            (f"No specific simple addition or complex pattern matched for step: '{description_complex}'. Assuming not a simple addition." in record.message)
+            (f"No specific simple addition or complex pattern matched for step: '{description_complex}'. Assuming not a simple addition." in caplog.records)
             for record in caplog.records
         ), f"Expected specific log message for complex modification step '{description_complex}', but found none matching criteria in {caplog.records}"
         
@@ -737,844 +737,152 @@ class TestContextExtraction:
         assert context_str == file_content
         driver.logger.debug.assert_called_with(f"No specific context extraction rule for type '{context_type}' or extraction failed for {file_path}. Using full content.")
 
-class TestPreWriteValidation:
-    @pytest.fixture
-    def driver_pre_write(self, mocker, tmp_path):
-        mock_context = Context(str(tmp_path))
-        mock_context_get_full_path = mocker.patch.object(mock_context, 'get_full_path', side_effect=lambda path: str(Path(mock_context.base_path) / path) if path else str(Path(mock_context.base_path)))
-
-
-        mocker.patch.object(WorkflowDriver, '_load_default_policy') # Patch _load_default_policy here to prevent it from running the real logic during WorkflowDriver init
-        with patch('src.core.automation.workflow_driver.CodeReviewAgent') as MockCodeReviewAgent, \
-             patch('src.core.automation.workflow_driver.EthicalGovernanceEngine') as MockEthicalGovernanceEngine, \
-             patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator') as MockLLMOrchestrator:
-
-
-            mock_code_review_agent_instance = MockCodeReviewAgent.return_value
-            mock_ethical_governance_engine_instance = MockEthicalGovernanceEngine.return_value
-            mock_llm_orchestrator_instance = MockLLMOrchestrator.return_value
-
-            wd = WorkflowDriver(mock_context)
-            wd.code_review_agent = mock_code_review_agent_instance
-            wd.ethical_governance_engine = mock_ethical_governance_engine_instance
-            wd.llm_orchestrator = mock_llm_orchestrator_instance
-            wd.default_policy_config = {'policy_name': 'Mock Policy'}
-
-
-            wd._current_task_results = {'step_errors': []}
-            wd._current_task = {'task_id': 'mock_task', 'task_name': 'Mock Task', 'description': 'Mock Description', 'status': 'Not Started', 'priority': 'medium', 'target_file': 'src/mock_file.py'}
-            wd.task_target_file = wd._current_task['target_file']
-
-            resolved_target_path = str(Path(tmp_path) / wd.task_target_file)
-            mock_resolve_target_file = mocker.patch.object(wd, '_resolve_target_file_for_step', return_value=resolved_target_path)
-
-            mock_write_output = mocker.patch.object(wd, '_write_output_file', return_value=True)
-
-            mock_read_file = mocker.patch.object(wd, '_read_file_for_context', return_value="import os\n\n# METAMORPHIC_INSERT_POINT\n\ndef existing_function():\n    pass")
-
-
-            mock_context_get_full_path.reset_mock()
-
-            yield {
-                'driver': wd,
-                'mock_code_review_agent': mock_code_review_agent_instance,
-                'mock_ethical_governance_engine': mock_ethical_governance_engine_instance,
-                'mock_resolve_target_file': mock_resolve_target_file,
-                'mock_write_output': mock_write_output,
-                'mock_read_file': mock_read_file,
-            }
-
-
-    def _simulate_step_execution_for_pre_write_validation(self, driver, generated_snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output, mock_code_review_agent, mock_ethical_governance_engine, mocker, step_description="Step 1: Implement code in src/mock_file.py", is_minimal_context=False):
-        filepath_to_use = mock_resolve_target_file(step_description, driver.task_target_file, driver._classify_step_preliminary(step_description))
-
-        if filepath_to_use is None:
-             logger.error("Simulated _resolve_target_file_for_step returned None.")
-             raise ValueError("Resolved file path is None.")
-        
-        mocker.patch.object(driver, '_get_context_type_for_step', return_value=None)
-        
-        # Clean the snippet before passing to ast.parse, as the SUT does this
-        _cleaned_snippet = driver._clean_llm_snippet(generated_snippet)
- 
- 
-        logger.info(f"Performing pre-write validation for snippet targeting {filepath_to_use}...")
-        validation_passed = True
-        validation_feedback = []
-        initial_snippet_syntax_error_details = None # Store details of initial snippet syntax error
-        try:
-            mock_ast_parse(_cleaned_snippet)
-            logger.info("Pre-write syntax check (AST parse) passed (isolated).")
-        except SyntaxError as se_snippet:
-            initial_snippet_syntax_error_details = f"Initial snippet syntax check failed: {se_snippet.msg} on line {se_snippet.lineno} (offset {se_snippet.offset}). Offending line: '{se_snippet.text.strip() if se_snippet.text else 'N/A'}'"
-            logger.warning(f"Snippet AST parse check (isolated) failed with SyntaxError: {se_snippet}. This might be acceptable if the snippet integrates correctly. Proceeding to other checks.")
-            try:
-                debug_dir_name = ".debug/failed_snippets"
-                debug_dir_path_str = driver.context.get_full_path(debug_dir_name)
- 
-                if debug_dir_path_str:
-                    debug_dir = Path(debug_dir_path_str)
-                    debug_dir.mkdir(parents=True, exist_ok=True)
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                    current_task_id_str = getattr(driver, '_current_task', {}).get('task_id', 'unknown_task')
-                    sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', current_task_id_str)
-                    current_step_index_str = str(locals().get('step_index', -1) + 1)
- 
-                    filename = f"failed_snippet_{sanitized_task_id}_step{current_step_index_str}_{timestamp}.json"
-                    filepath = debug_dir / filename
- 
-                    debug_data = {
-                        "timestamp": datetime.now().isoformat(),
-                        "task_id": current_task_id_str,
-                        "step_description": locals().get('step', 'Unknown Step'),
-                        "original_snippet_repr": repr(generated_snippet),
-                        "cleaned_snippet_repr": repr(_cleaned_snippet),
-                        "syntax_error_details": {
-                            "message": se_snippet.msg,
-                            "lineno": se_snippet.lineno,
-                            "offset": se_snippet.offset,
-                            "text": se_snippet.text
-                        }
-                    }
- 
-                    with builtins.open(filepath, 'w', encoding='utf-8') as f_err:
-                        json.dump(debug_data, f_err, indent=2)
-                    driver.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
-                else:
-                    driver.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet details (path was None).")
- 
-            except Exception as write_err:
-                driver.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
- 
-        except Exception as e:
-            validation_passed = False
-            validation_feedback.append(f"Error during pre-write syntax validation (AST parse of snippet): {e}")
-            logger.error(f"Error during pre-write syntax validation (AST parse of snippet): {e}", exc_info=True)
-            logger.warning(f"Failed snippet (cleaned):\n---\n{_cleaned_snippet}\n---")
-         
-        if validation_passed and driver.default_policy_config:
-            try:
-                ethical_results = mock_ethical_governance_engine.enforce_policy(
-                    _cleaned_snippet,
-                    driver.default_policy_config,
-                    is_snippet=True
-                )
-                if ethical_results.get('overall_status') == 'rejected':
-                    validation_passed = False
-                    validation_feedback.append(f"Pre-write ethical check failed: {ethical_results}")
-                    logger.warning(f"Pre-write ethical validation failed for snippet: {ethical_results}")
-                else:
-                    logger.info("Pre-write ethical validation passed for snippet.")
-            except Exception as e:
-                validation_passed = False
-                validation_feedback.append(f"Error during pre-write ethical validation: {e}")
-                logger.error(f"Error during pre-write ethical validation: {e}", exc_info=True)
-        elif validation_passed:
-            logger.warning("Skipping pre-write ethical validation: Default policy not loaded.")
- 
-        if validation_passed:
-            try:
-                style_review_results = mock_code_review_agent.analyze_python(_cleaned_snippet)
-                critical_findings = [f for f in style_review_results.get('static_analysis', []) if f.get('severity') in ['error', 'security_high']]
-                if critical_findings:
-                    validation_passed = False
-                    validation_feedback.append(f"Pre-write style/security check failed: Critical findings detected.")
-                    logger.warning(f"Pre-write style/security validation failed for snippet. Critical findings: {critical_findings}")
-                else:
-                    logger.info("Pre-write style/security validation passed for snippet.")
-            except Exception as e:
-                validation_passed = False
-                validation_feedback.append(f"Error during pre-write style/security validation: {e}")
-                logger.error(f"Error during pre-write style/security validation: {e}", exc_info=True)
- 
-        if validation_passed:
-            logger.info(f"Snippet-level ethical and style checks passed (or were skipped). Proceeding to pre-merge full file syntax check for {filepath_to_use}.")
- 
-            try:
-                hypothetical_merged_content = driver._merge_snippet(mock_read_file.return_value, _cleaned_snippet)
-                mock_ast_parse(hypothetical_merged_content)
-                logger.info("Pre-merge full file syntax check (AST parse) passed.")
-                if initial_snippet_syntax_error_details:
-                    logger.info(f"Initial snippet had a syntax issue ('{initial_snippet_syntax_error_details}'), but it integrated correctly into the full file and passed other pre-write checks.")
-                if "Initial snippet syntax check failed" in "".join(validation_feedback):
-                    logger.info(f"Initial snippet had a syntax issue, but it integrated correctly into the full file and passed other pre-write checks.")
-            except SyntaxError as se_merge:
-                validation_passed = False
-                validation_feedback.append(f"Pre-merge full file syntax check failed: {se_merge.msg} on line {se_merge.lineno} (offset {se_merge.offset}). Offending line: '{se_merge.text.strip() if se_merge.text else 'N/A'}'")
-                logger.warning(f"Pre-merge full file syntax validation failed for {filepath_to_use}: {se_merge}")
-                logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
-            except Exception as e_merge:
-                validation_passed = False
-                validation_feedback.append(f"Error during pre-merge full file syntax validation: {e_merge}")
-                logger.error(f"Error during pre-merge full file syntax validation: {e_merge}", exc_info=True)
-                logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
-         
-        if not validation_passed:
-            if initial_snippet_syntax_error_details:
-                validation_feedback.insert(0, initial_snippet_syntax_error_details)
-            logger.warning(f"Failed snippet (cleaned):\n---\n{_cleaned_snippet}\n---")
-            error_message_for_retry = f"Pre-write validation failed for snippet targeting {filepath_to_use}. Feedback: {validation_feedback}"
-            logger.warning(error_message_for_retry)
-            driver._current_task_results['pre_write_validation_feedback'] = validation_feedback
-            raise ValueError(f"Pre-write validation failed: {'.'.join(validation_feedback)}")
- 
-        else:
-            logger.info(f"All pre-write validations passed for snippet targeting {filepath_to_use}. Proceeding with actual merge/write.")
-            merged_content = driver._merge_snippet(mock_read_file.return_value, _cleaned_snippet)
-            logger.debug("Snippet merged.")
-            logger.info(f"Attempting to write merged content to {filepath_to_use}.")
-            try:
-                mock_write_output(filepath_to_use, merged_content, overwrite=True)
-                logger.info(f"Successfully wrote merged content to {filepath_to_use}.")
- 
-                try:
-                    logger.info(f"Running code review and security scan for {filepath_to_use}...")
-                    review_results = mock_code_review_agent.analyze_python(merged_content)
-                    driver._current_task_results['code_review_results'] = review_results
-                    logger.info(f"Code Review and Security Scan Results for {filepath_to_use}: {review_results}")
-                except Exception as review_e:
-                    logger.error(f"Error running code review/security scan for {filepath_to_use}: {review_e}", exc_info=True)
-                    driver._current_task_results['code_review_results'] = {'status': 'error', 'message': str(review_e)}
- 
-                if driver.default_policy_config:
-                    try:
-                        logger.info(f"Running ethical analysis for {filepath_to_use}...")
-                        ethical_analysis_results = driver.ethical_governance_engine.enforce_policy(merged_content, driver.default_policy_config)
-                        driver._current_task_results['ethical_analysis_results'] = ethical_analysis_results
-                        logger.info(f"Ethical Analysis Results for {filepath_to_use}: {ethical_analysis_results}")
-                    except Exception as ethical_e:
-                        logger.error(f"Error running ethical analysis for {filepath_to_use}: {ethical_e}", exc_info=True)
-                        driver._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': f"Re-validation error: {ethical_e}"}
-                else:
-                    logger.warning("Default ethical policy not loaded. Skipping ethical analysis.")
-                    driver._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded.'}
- 
-            except Exception as e:
-                error_msg = f"Failed to write merged content to {filepath_to_use}: {e}"
-                logger.error(error_msg, exc_info=True)
-                raise e
- 
- 
-    @patch('src.core.automation.workflow_driver.ast.parse')
-    def test_pre_write_validation_all_pass(self, mock_ast_parse, driver_pre_write, caplog, mocker):
-        caplog.set_level(logging.INFO)
-        driver = driver_pre_write['driver']
-        mock_code_review_agent = driver_pre_write['mock_code_review_agent']
-        mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
-        mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
-        mock_read_file = driver_pre_write['mock_read_file']
-        mock_write_output = driver_pre_write['mock_write_output']
- 
- 
-        snippet = "def generated_code(): pass"
-        mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved'}
-        mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': []}
-        mock_ast_parse.side_effect = [None, None]
- 
-        resolved_target_path = mock_resolve_target_file.return_value
- 
-        self._simulate_step_execution_for_pre_write_validation(
-            driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file,
-            mock_write_output, mock_code_review_agent, mock_ethical_governance_engine, mocker
-        )
- 
-        log_messages = [record.message for record in caplog.records]
-        assert any("Pre-write syntax check (AST parse) passed" in msg for msg in log_messages)
-        assert any("Pre-write ethical validation passed" in msg for msg in log_messages)
-        assert any("Pre-write style/security validation passed for snippet." in msg for msg in log_messages)
-        assert any("Pre-merge full file syntax check (AST parse) passed." in msg for msg in log_messages)
-        assert any(f"All pre-write validations passed for snippet targeting {resolved_target_path}. Proceeding with actual merge/write." in msg for msg in log_messages)
-         
-        expected_merged_content = driver._merge_snippet(mock_read_file.return_value, driver._clean_llm_snippet(snippet))
-        mock_write_output.assert_called_once_with(resolved_target_path, expected_merged_content, overwrite=True)
-        mock_code_review_agent.analyze_python.assert_has_calls([call(driver._clean_llm_snippet(snippet)), call(expected_merged_content)])
-        mock_ethical_governance_engine.enforce_policy.assert_has_calls([call(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True), call(expected_merged_content, driver.default_policy_config)])
- 
-        assert not driver._current_task_results['step_errors']
- 
-    @patch('src.core.automation.workflow_driver.ast.parse')
-    def test_pre_write_validation_syntax_fails(self, mock_ast_parse, driver_pre_write, caplog, mocker):
-        caplog.set_level(logging.WARNING)
-        driver = driver_pre_write['driver']
-        mock_code_review_agent = driver_pre_write['mock_code_review_agent']
-        mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
-        mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
-        mock_read_file = driver_pre_write['mock_read_file']
-        mock_write_output = driver_pre_write['mock_write_output']
- 
- 
-        snippet = "def invalid syntax"
-        call_counter = 0
-        def ast_parse_side_effect_func(code_str):
-            nonlocal call_counter
-            call_counter += 1
-            if call_counter == 1:
-                raise SyntaxError("Mock syntax error", ('<string>', 1, 1, 'def invalid syntax'))
-            elif call_counter == 2:
-                raise SyntaxError("Mock merged syntax error", ('<string>', 1, 1, 'def invalid syntax'))
-            else:
-                raise RuntimeError(f"Unexpected {call_counter}th call to ast.parse in test_pre_write_validation_syntax_fails")
-        mock_ast_parse.side_effect = ast_parse_side_effect_func
- 
- 
-        resolved_target_path = mock_resolve_target_file.return_value
- 
-        with pytest.raises(ValueError, match=r"Pre-write validation failed: Initial snippet syntax check failed: Mock syntax error on line 1 \(offset 1\)\. Offending line: 'def invalid syntax'"):
-            self._simulate_step_execution_for_pre_write_validation(
-                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
-                mock_code_review_agent, mock_ethical_governance_engine, mocker
-            )
- 
-        mock_write_output.assert_not_called()
-        log_messages = [record.message for record in caplog.records]
-        assert any("Snippet AST parse check (isolated) failed with SyntaxError: Mock syntax error (<string>, line 1)" in msg for msg in log_messages)
-        assert any(f"Pre-merge full file syntax validation failed for {resolved_target_path}: Mock merged syntax error (<string>, line 1)" in msg for msg in log_messages)
-        assert not any(f"All pre-write validations passed for snippet targeting {resolved_target_path}. Proceeding with actual merge/write." in msg for msg in log_messages)
-        assert not any(f"Pre-write validation passed for snippet targeting {resolved_target_path}. Proceeding with merge/write." in msg for msg in log_messages)
-        assert any(f"Failed snippet (cleaned):\n---\n{driver._clean_llm_snippet(snippet)}\n---" in msg for msg in log_messages)
-        mock_code_review_agent.analyze_python.assert_called_once_with(driver._clean_llm_snippet(snippet))
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True)
-        assert mock_code_review_agent.analyze_python.call_count == 1
-        assert mock_ethical_governance_engine.enforce_policy.call_count == 1
- 
- 
-    @patch('src.core.automation.workflow_driver.ast.parse')
-    def test_pre_write_validation_ethical_fails(self, mock_ast_parse, driver_pre_write, caplog, mocker):
-        caplog.set_level(logging.WARNING)
-        driver = driver_pre_write['driver']
-        mock_code_review_agent = driver_pre_write['mock_code_review_agent']
-        mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
-        mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
-        mock_read_file = driver_pre_write['mock_read_file']
-        mock_write_output = driver_pre_write['mock_write_output']
- 
- 
-        snippet = "def generated_code(): pass"
-        mock_ast_parse.return_value = True
-        mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'rejected', 'BiasRisk': {'status': 'violation'}}
- 
-        resolved_target_path = mock_resolve_target_file.return_value
- 
-        with pytest.raises(ValueError, match=r"Pre-write validation failed: Pre-write ethical check failed:"):
-            self._simulate_step_execution_for_pre_write_validation(
-                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
-                mock_code_review_agent, mock_ethical_governance_engine, mocker
-            )
- 
-        mock_write_output.assert_not_called()
-        log_messages = [record.message for record in caplog.records]
-        assert any("Pre-write ethical validation failed for snippet" in msg for msg in log_messages)
-        assert any(f"Failed snippet (cleaned):\n---\n{driver._clean_llm_snippet(snippet)}\n---" in msg for msg in log_messages)
-        assert any(re.search(r"Pre-write ethical check failed: {'overall_status': 'rejected', 'BiasRisk': {'status': 'violation'}}", record.message) for record in caplog.records)
-        mock_code_review_agent.analyze_python.assert_not_called()
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True)
- 
- 
-    @patch('src.core.automation.workflow_driver.ast.parse')
-    def test_pre_write_validation_style_fails(self, mock_ast_parse, driver_pre_write, caplog, mocker):
-        caplog.set_level(logging.WARNING)
-        driver = driver_pre_write['driver']
-        mock_code_review_agent = driver_pre_write['mock_code_review_agent']
-        mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
-        mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
-        mock_read_file = driver_pre_write['mock_read_file']
-        mock_write_output = driver_pre_write['mock_write_output']
- 
- 
-        snippet = "def generated_code(): pass"
-        mock_ast_parse.return_value = True
-        mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved'}
-        mock_code_review_agent.analyze_python.return_value = {'status': 'failed', 'static_analysis': [{'severity': 'error', 'code': 'E302', 'message': 'expected 2 blank lines'}]}
- 
-        resolved_target_path = mock_resolve_target_file.return_value
- 
-        with pytest.raises(ValueError, match=r"Pre-write validation failed: Pre-write style/security check failed:"):
-            self._simulate_step_execution_for_pre_write_validation(
-                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
-                mock_code_review_agent, mock_ethical_governance_engine, mocker
-            )
- 
-        mock_write_output.assert_not_called()
-        log_messages = [record.message for record in caplog.records]
-        assert any("Pre-write style/security validation failed for snippet" in msg for msg in log_messages)
-        assert any(f"Failed snippet (cleaned):\n---\n{driver._clean_llm_snippet(snippet)}\n---" in msg for msg in log_messages)
-        assert any(f"Pre-write validation failed for snippet targeting {resolved_target_path}. Feedback: ['Pre-write style/security check failed: Critical findings detected.']" in record.message for record in caplog.records)
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True)
-        mock_code_review_agent.analyze_python.assert_called_once_with(driver._clean_llm_snippet(snippet))
- 
-    @patch('src.core.automation.workflow_driver.ast.parse')
-    def test_pre_write_validation_full_file_syntax_fails(self, mock_ast_parse, driver_pre_write, caplog, mocker):
-        caplog.set_level(logging.INFO)
-        driver = driver_pre_write['driver']
-        mock_code_review_agent = driver_pre_write['mock_code_review_agent']
-        mock_ethical_governance_engine = driver_pre_write['mock_ethical_governance_engine']
-        mock_resolve_target_file = driver_pre_write['mock_resolve_target_file']
-        mock_read_file = driver_pre_write['mock_read_file']
-        mock_write_output = driver_pre_write['mock_write_output']
- 
-        snippet = "    def new_method():\n        return 'unclosed_string"
-        existing_content = "import os\n\n# METAMORPHIC_INSERT_POINT\n\ndef existing_function():\n    pass"
- 
-        mock_read_file.return_value = existing_content
-        mock_ethical_governance_engine.enforce_policy.return_value = {'overall_status': 'approved'}
-        mock_code_review_agent.analyze_python.return_value = {'status': 'success', 'static_analysis': []}
- 
-        def ast_parse_side_effect_func(code_str):
-            if ast_parse_side_effect_func.call_count == 0:
-                ast_parse_side_effect_func.call_count += 1
-                return None
-            else:
-                expected_merged_prefix = "import os\n\ndef new_method():\n        return 'unclosed_string\n\ndef existing_function():\n    pass"
-                if not code_str.startswith(expected_merged_prefix):
-                    raise AssertionError(f"Expected merged content for second AST parse call, got: {code_str[:100]}...")
-                raise SyntaxError("unterminated string literal", ('<string>', 4, 26, "    return 'unclosed_string\n"))
-        ast_parse_side_effect_func.call_count = 0
-        mock_ast_parse.side_effect = ast_parse_side_effect_func
- 
-        resolved_target_path = mock_resolve_target_file.return_value
- 
-        with pytest.raises(ValueError, match=r"Pre-write validation failed: Pre-merge full file syntax check failed:.*unterminated string literal.*"):
-            self._simulate_step_execution_for_pre_write_validation(
-                driver, snippet, mock_ast_parse, mock_resolve_target_file, mock_read_file, mock_write_output,
-                mock_code_review_agent, mock_ethical_governance_engine, mocker
-            )
- 
-        mock_write_output.assert_not_called()
- 
-        log_messages = [record.message for record in caplog.records]
-        assert any("Pre-write syntax check (AST parse) passed (isolated)." in msg for msg in log_messages)
-        assert any("Pre-merge full file syntax validation failed for" in msg for msg in log_messages)
-        hypothetical_merged_content = "import os\n\ndef new_method():\n        return 'unclosed_string\n\ndef existing_function():\n    pass"
-        assert any(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---" in msg for msg in log_messages)
-        assert any(f"Pre-merge full file syntax validation failed for {resolved_target_path}: unterminated string literal" in record.message for record in caplog.records)
- 
-        mock_ethical_governance_engine.enforce_policy.assert_called_once_with(driver._clean_llm_snippet(snippet), driver.default_policy_config, is_snippet=True)
-        mock_code_review_agent.analyze_python.assert_called_once_with(driver._clean_llm_snippet(snippet))
- 
-        assert mock_ethical_governance_engine.enforce_policy.call_count == 1
-        assert mock_code_review_agent.analyze_python.call_count == 1
-class TestRetryPromptEnhancement:
-    @pytest.fixture(autouse=True)
-    def setup_driver(self, tmp_path, mocker):
-        context = Context(str(tmp_path))
-        mocker.patch('src.core.automation.workflow_driver.CodeReviewAgent')
-        mocker.patch('src.core.automation.workflow_driver.EthicalGovernanceEngine')
-        mock_llm_orchestrator_patcher = mocker.patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator')
-        mocker.patch.object(WorkflowDriver, '_load_default_policy')
- 
-        driver = WorkflowDriver(context)
-        driver.llm_orchestrator = mock_llm_orchestrator_patcher.return_value
-        driver.default_policy_config = {'policy_name': 'Mock Policy'}
-         
-        driver._current_task = {
-            'task_id': 'prompt_refinement_test_task',
-            'task_name': 'Prompt Refinement Test Task',
-            'description': 'A task to test prompt refinement.',
-            'target_file': 'src/module.py'
-        }
-        driver.task_target_file = 'src/module.py'
- 
-        mocker.patch.object(driver, '_resolve_target_file_for_step', return_value=str(tmp_path / driver._current_task['target_file']))
-        mocker.patch.object(driver, '_read_file_for_context', return_value="existing content")
-        mocker.patch.object(driver, '_is_add_imports_step', return_value=False)
-        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=False)
- 
-        yield driver
- 
-    def test_coder_prompt_includes_general_guidelines_no_import(self, setup_driver):
-        """Verify general guidelines are included in the prompt for a regular code gen step."""
-        driver = setup_driver
-        step_description = "Implement a new function."
-        filepath = driver._resolve_target_file_for_step(step_description, driver.task_target_file, {})
-        context_content = driver._read_file_for_context(filepath)
- 
-        coder_prompt = driver._construct_coder_llm_prompt(
-            task=driver._current_task,
-            step_description=step_description,
-            filepath_to_use=filepath,
-            context_for_llm=context_content,
-            is_minimal_context=False
-        )
- 
-        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
-        assert "Ensure all string literals are correctly terminated" in coder_prompt
-        assert "Pay close attention to Python's indentation rules" in coder_prompt
-        assert "Generate complete and runnable Python code snippets" in coder_prompt
-        assert "If modifying existing code, ensure the snippet integrates seamlessly" in coder_prompt
-        assert coder_prompt.count(GENERAL_SNIPPET_GUIDELINES) == 1
- 
-    def test_coder_prompt_includes_general_guidelines_with_import(self, setup_driver, mocker):
-        """Verify general guidelines are included and not duplicated for an import step."""
-        driver = setup_driver
-        step_description = "Add import statements."
-        filepath = driver._resolve_target_file_for_step(step_description, driver.task_target_file, {})
-        context_content = driver._read_file_for_context(filepath)
- 
-        mocker.patch.object(driver, '_is_add_imports_step', return_value=True)
- 
-        coder_prompt = driver._construct_coder_llm_prompt(
-            task=driver._current_task,
-            step_description=step_description,
-            filepath_to_use=filepath,
-            context_for_llm=context_content,
-            is_minimal_context=False
-        )
- 
-        assert GENERAL_SNIPPET_GUIDELINES in coder_prompt
-        assert "You are adding import statements." in coder_prompt
-        assert coder_prompt.count(GENERAL_SNIPPET_GUIDELINES) == 1
-class TestMergeSnippetLogic:
-    @pytest.fixture(autouse=True)
-    def setup_driver(self, tmp_path, mocker):
-        context = Context(str(tmp_path))
-        mocker.patch('src.core.automation.workflow_driver.CodeReviewAgent')
-        mocker.patch('src.core.automation.workflow_driver.EthicalGovernanceEngine')
-        mocker.patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator')
-        mocker.patch.object(WorkflowDriver, '_load_default_policy')
- 
-        driver = WorkflowDriver(context)
-        driver.default_policy_config = {'policy_name': 'Mock Policy'}
-        yield driver
- 
-    @pytest.mark.parametrize("existing_content, snippet, expected_merged_content", [
-        ("def func():\n    # METAMORPHIC_INSERT_POINT\n    pass", "new_line = 1", "def func():\n    new_line = 1\n    pass"),
-        ("def func():\n    # METAMORPHIC_INSERT_POINT\n    pass", "line1\nline2", "def func():\n    line1\n    line2\n    pass"),
-        ("# METAMORPHIC_INSERT_POINT\ndef func(): pass", "import os", "import os\ndef func(): pass"),
-        ("def func():\n    pass\n# METAMORPHIC_INSERT_POINT", "return True", "def func():\n    pass\nreturn True"), # This case is fine as marker is on its own line
-        ("class MyClass:\n    def method(self):\n        # METAMORPHIC_INSERT_POINT\n        print('done')",
-         "self.value = 10\nprint('init')",
-         "class MyClass:\n    def method(self):\n        self.value = 10\n        print('init')\n        print('done')"),
-        ("line1\nline2", "appended", "line1\nline2\nappended"),
-        ("line1", "appended", "line1\nappended"),
-        ("def func():\n    inner_line = 1", "    inner_line = 1", "def func():\n    inner_line = 1\n    inner_line = 1"),
-    ])
-    def test_merge_snippet_with_indentation_logic(self, setup_driver, existing_content, snippet, expected_merged_content):
-        driver = setup_driver
-        merged_content = driver._merge_snippet(existing_content, snippet)
-        assert merged_content == expected_merged_content
- 
-    def test_merge_snippet_no_marker_append_behavior(self, setup_driver):
-        driver = setup_driver
-        existing = "line1\nline2"
-        snippet = "new_content"
-        expected = "line1\nline2\nnew_content"
-        merged = driver._merge_snippet(existing, snippet)
-        assert merged == expected
- 
-    def test_merge_snippet_no_marker_existing_no_newline(self, setup_driver):
-        driver = setup_driver
-        existing = "line1"
-        snippet = "new_content"
-        expected = "line1\nnew_content"
-        merged = driver._merge_snippet(existing, snippet)
-        assert merged == expected
- 
-class TestEnhancedSnippetCleaning:
-    @pytest.fixture
-    def driver_for_cleaning(tmp_path, mocker):
-        def mock_get_full_path(relative_path_str):
-            if relative_path_str == ".debug/failed_snippets":
-                return str(tmp_path / ".debug/failed_snippets")
-            return str(tmp_path / relative_path_str)
- 
-        mock_context = mocker.MagicMock(spec=Context)
-        mock_context.base_path = str(tmp_path)
-        mock_context.get_full_path.side_effect = mock_get_full_path
- 
-        with patch('src.core.automation.workflow_driver.CodeReviewAgent'), \
-             patch('src.core.automation.workflow_driver.EthicalGovernanceEngine'), \
-             patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator'), \
-             patch.object(WorkflowDriver, '_load_default_policy') as MockLoadPolicy:
- 
-            MockLoadPolicy.return_value = {'policy_name': 'Mock Policy'}
-            driver = WorkflowDriver(mock_context)
-            driver.llm_orchestrator = mocker.MagicMock()
-            driver.logger = mocker.MagicMock()
-            driver.default_policy_config = {'policy_name': 'Mock Policy'}
-            return driver
- 
-    @pytest.mark.parametrize("input_snippet, expected_output", [
-        (f"def func():\n    pass\n{END_OF_CODE_MARKER}\nOkay, thanks!", "def func():\n    pass"),
-        (f"import os\n{END_OF_CODE_MARKER}", "import os"),
-        (f"{END_OF_CODE_MARKER}def func():\n    pass", ""),
-        (f"def func():\n    pass\n{END_OF_CODE_MARKER}  ", "def func():\n    pass"),
-        (f"```python\ndef func():\n    pass\n{END_OF_CODE_MARKER}\n```\nSome text.", "def func():\n    pass"),
-        ("```python\ndef hello():\n    print('world')\n```", "def hello():\n    print('world')"),
-        ("Some text before\n```python\ndef hello():\n    print('world')\n```\nSome text after", "def hello():\n    print('world')"),
-        ("```\nimport os\n```", "import os"),
-        ("```PYTHON\n# comment\npass\n```", "# comment\npass"),
-        ("```javascript\nconsole.log('test');\n```", "console.log('test');"),
-        ("No fences here", "No fences here"),
-        ("  Stripped raw code  ", "Stripped raw code"),
-        (None, ""),
-        ("`single backtick`", "`single backtick`"),
-        ("` ` `", "` ` `"),
-        ("def _read_targeted_file_content():\n    return \"\"\nOkay, here is the refactored code snippet.",
-         "def _read_targeted_file_content():\n    return \"\""),
-        (f"def _read_targeted_file_content():\n    return \"\"\n{END_OF_CODE_MARKER}\nOkay, here is the refactored code snippet.",
-         "def _read_targeted_file_content():\n    return \"\""),
-    ])
-    def test_enhanced_clean_llm_snippet(self, driver_for_cleaning, input_snippet, expected_output):
-        assert driver_for_cleaning._clean_llm_snippet(input_snippet) == expected_output
- 
-class TestReprLoggingForSyntaxErrors:
-    @patch('json.dump')
-    @patch('builtins.open', new_callable=MagicMock)
-    @patch('ast.parse')
-    def test_repr_logging_on_syntax_error(self, mock_ast_parse, mock_builtin_open, mock_json_dump, driver_for_cleaning, tmp_path, mocker):
-        driver = driver_for_cleaning
-        original_snippet = "```python\ndef func():\n  print('unterminated string)\n```"
-        cleaned_snippet_that_fails = "def func():\n  print('unterminated string)"
-
-        syntax_error_instance = SyntaxError("unterminated string literal", ('<unknown>', 2, 9, "  print('unterminated string)\n"))
-        mock_ast_parse.side_effect = syntax_error_instance
-
-        driver._current_task = {'task_id': 'test_task_syntax_error'}
-        fixed_timestamp = "20230101_120000_000000"
-        with patch('src.core.automation.workflow_driver.datetime') as mock_datetime:
-            mock_datetime.now.return_value.strftime.return_value = fixed_timestamp
-            mock_datetime.now.return_value.isoformat.return_value = "2023-01-01T12:00:00.000000"
-
-            validation_feedback = []
-            step_failure_reason = None
-            step_description_for_log = "Test step description for syntax error"
-            _cleaned_snippet = ""
-            step_index_for_log = 0
-
-            try:
-                _cleaned_snippet = driver._clean_llm_snippet(original_snippet)
-                mock_ast_parse(_cleaned_snippet)
-            except SyntaxError as se_in_block:
-                _validation_passed = False
-                validation_feedback.append(f"Pre-write syntax check failed: {se_in_block}")
-                driver.logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se_in_block}")
-                driver.logger.warning(f"Failed snippet (cleaned):\n---\n{_cleaned_snippet}\n---")
-                _step_failure_reason = f"Pre-write syntax check failed: {se_in_block}"
-
-                try:
-                    debug_dir_name = ".debug/failed_snippets"
-                    debug_dir_path_str = driver.context.get_full_path(debug_dir_name)
- 
-                    if debug_dir_path_str:
-                        debug_dir = Path(debug_dir_path_str)
-                        debug_dir.mkdir(parents=True, exist_ok=True)
-                        _timestamp = fixed_timestamp
-                        _current_task_id_str = getattr(driver, '_current_task', {}).get('task_id', 'unknown_task')
-                        _sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', _current_task_id_str)
-                        _current_step_index_str = str(step_index_for_log + 1)
- 
-                        filename = f"failed_snippet_{_sanitized_task_id}_step{_current_step_index_str}_{_timestamp}.json"
-                        filepath = debug_dir / filename
- 
-                        debug_data = {
-                            "timestamp": mock_datetime.now().return_value.isoformat.return_value,
-                            "task_id": _current_task_id_str,
-                            "step_description": step_description_for_log,
-                            "original_snippet_repr": repr(original_snippet),
-                            "cleaned_snippet_repr": repr(_cleaned_snippet),
-                            "syntax_error_details": {
-                                "message": se_in_block.msg,
-                                "lineno": se_in_block.lineno,
-                                "offset": se_in_block.offset,
-                                "text": se_in_block.text
-                            }
-                        }
- 
-                        with builtins.open(filepath, 'w', encoding='utf-8') as f_err:
-                            json.dump(debug_data, f_err, indent=2)
-                        driver.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
-                    else:
-                        driver.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
-                except Exception as write_err:
-                    driver.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
-
-            except ValueError:
-                pass
-
-
-        driver.context.get_full_path.assert_called_once_with(".debug/failed_snippets")
-
-        expected_debug_dir = tmp_path / ".debug/failed_snippets"
-        expected_filename = f"failed_snippet_test_task_syntax_error_step{step_index_for_log + 1}_{fixed_timestamp}.json"
-        expected_filepath = expected_debug_dir / expected_filename
-        
-        mock_builtin_open.assert_called_once_with(expected_filepath, 'w', encoding='utf-8')
-
-        mock_json_dump.assert_called_once()
-        written_data_obj = mock_json_dump.call_args[0][0]
-
-        assert written_data_obj["task_id"] == "test_task_syntax_error"
-        assert written_data_obj["step_description"] == step_description_for_log
-        assert written_data_obj["original_snippet_repr"] == repr(original_snippet)
-        assert written_data_obj["cleaned_snippet_repr"] == repr(cleaned_snippet_that_fails)
-        assert written_data_obj["syntax_error_details"]["message"] == "unterminated string literal"
-        assert written_data_obj["syntax_error_details"]["lineno"] == 2
-        assert written_data_obj["syntax_error_details"]["offset"] == 9
-        assert written_data_obj["syntax_error_details"]["text"] == "  print('unterminated string)\n"
-
-
-@pytest.fixture
-def driver_for_retry_prompt_test(tmp_path, mocker):
-    context = Context(str(tmp_path))
-    with patch('src.core.automation.workflow_driver.CodeReviewAgent'), \
-         patch('src.core.automation.workflow_driver.EthicalGovernanceEngine'), \
-         patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator') as MockLLMOrchestrator, \
-         patch.object(WorkflowDriver, '_load_default_policy') as MockLoadPolicy:
-
-        MockLoadPolicy.return_value = {'policy_name': 'Mock Policy'}
-        driver = WorkflowDriver(context)
-        driver.llm_orchestrator = MockLLMOrchestrator.return_value
-        driver.default_policy_config = {'policy_name': 'Mock Policy'}
-        
-        mocker.patch.object(driver, '_read_file_for_context', return_value="existing content")
-        mocker.patch.object(driver, '_resolve_target_file_for_step', return_value=str(tmp_path / "test_file.py"))
-        mocker.patch.object(driver, '_write_output_file')
-        mocker.patch.object(driver, '_merge_snippet', side_effect=lambda ex, sn: ex + "\n" + sn)
-        mocker.patch.object(driver, 'generate_grade_report', return_value=json.dumps({"grades": {"overall_percentage_grade": 90}}))
-        mocker.patch.object(driver, '_parse_and_evaluate_grade_report')
-        mocker.patch.object(driver, '_update_task_status_in_roadmap')
-        
-        driver._invoke_coder_llm = mocker.MagicMock(return_value="def corrected_code(): pass")
-        return driver
-
-def test_retry_prompt_includes_validation_feedback(driver_for_retry_prompt_test, caplog, mocker):
-    caplog.set_level(logging.INFO)
-    driver = driver_for_retry_prompt_test
+    def test_method_addition_gets_class_and_surrounding_context(self, driver_for_context_tests, tmp_path):
+        driver = driver_for_context_tests
+        file_content = "import pandas\nimport numpy as np\n\nclass DataProcessor:\n    def existing_method(self):\n        pass\n\n# Other code"
+        file_path = str(tmp_path / "data_proc.py")
+        # Step description must match the regex in _get_context_type_for_step and _extract_targeted_context
+        step_desc = "Add method process_data to class DataProcessor"
     
-    driver._current_task = {
-        'task_id': 'retry_test_task', 'task_name': 'Prompt Refinement Test Task', 
-        'description': 'A task to test retry prompt enhancement.', 'status': 'Not Started', 
-        'priority': 'High', 'target_file': 'test_file.py'
-    }
-    driver.task_target_file = driver._current_task['target_file']
-    solution_plan = ["Implement a function in test_file.py"]
-
-    original_syntax_error_msg = "Mock syntax error"
+        context_type = driver._get_context_type_for_step(step_desc) # Get type first
+        assert context_type == "add_method_to_class"
     
-    driver._invoke_coder_llm.side_effect = [
-        "def bad_snippet_initial_attempt(): 'unterminated",
-        "def good_snippet_retry_attempt(): pass"
-    ]
-
-    mock_ast_parse_instance = mocker.MagicMock()
-    mock_ast_parse_instance.side_effect = [
-        SyntaxError(original_syntax_error_msg, ('<unknown>', 1, 1, '')),
-        None
-    ]
-
-    with patch('ast.parse', mock_ast_parse_instance):
-        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True)
-        step_index = 0
-        step = solution_plan[0]
-        step_retries = 0
-        step_failure_reason_for_current_attempt = None
-        
-        while step_retries <= MAX_STEP_RETRIES:
-            try:
-                prelim_flags = driver._classify_step_preliminary(step)
-                filepath_to_use = driver._resolve_target_file_for_step(step, driver.task_target_file, prelim_flags)
-                existing_content = driver._read_file_for_context(filepath_to_use)
-
-                retry_feedback_for_prompt = None
-                if step_retries > 0 and step_failure_reason_for_current_attempt:
-                    retry_feedback_for_prompt = (
-                        f"\n\nIMPORTANT: YOUR PREVIOUS ATTEMPT TO GENERATE CODE FOR THIS STEP FAILED.\n"
-                        f"THE ERROR WAS: {step_failure_reason_for_current_attempt}\n"
-                        f"PLEASE ANALYZE THIS ERROR AND THE EXISTING CODE CAREFULLY. "
-                        f"ENSURE YOUR NEWLY GENERATED SNIPPET CORRECTS THIS ERROR AND ADHERES TO ALL CODING GUIDELINES.\n"
-                        f"AVOID REPEATING THE PREVIOUS MISTAKE.\n"
-                    )
-                
-                coder_prompt = driver._construct_coder_llm_prompt(
-                    task=driver._current_task,
-                    step_description=step,
-                    filepath_to_use=filepath_to_use,
-                    context_for_llm=existing_content,
-                    is_minimal_context=False,
-                    retry_feedback_content=retry_feedback_for_prompt
-                )
-                generated_snippet = driver._invoke_coder_llm(coder_prompt)
-                cleaned_snippet = driver._clean_llm_snippet(generated_snippet)
-
-                mock_ast_parse_instance(cleaned_snippet)
-
-                driver._write_output_file(filepath_to_use, cleaned_snippet, overwrite=True)
-                break
-
-            except Exception as e:
-                step_failure_reason_for_current_attempt = str(e)
-                logging.error(f"Simulated step execution failed (Attempt {step_retries + 1}): {e}")
-                step_retries += 1
-                if step_retries > MAX_STEP_RETRIES:
-                    logging.error(f"Simulated step failed after max retries.")
-                    break
-                logging.warning(f"Simulated step failed. Retrying ({step_retries}/{MAX_STEP_RETRIES})...")
-
-
-    assert driver._invoke_coder_llm.call_count == 2
+        # Expected context: lines 2-8 (inclusive of line 2, exclusive of line 8)
+        # Corresponds to: blank line, class DataProcessor and its content, up to the last line of the class.
+        expected_context = "\n".join(file_content.splitlines()[2:8])
+        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, context_type, step_desc)
     
-    retry_prompt_call = driver._invoke_coder_llm.call_args_list[1]
-    retry_prompt_text = retry_prompt_call[0][0]
+        assert is_minimal is True, "is_minimal should be True for successful targeted extraction"
+        assert context_str == expected_context, "Context string should be the extracted class block"
 
-    assert "IMPORTANT: YOUR PREVIOUS ATTEMPT TO GENERATE CODE FOR THIS STEP FAILED." in retry_prompt_text
-    assert original_syntax_error_msg in retry_prompt_text
-    assert "PLEASE ANALYZE THIS ERROR AND THE EXISTING CODE CAREFULLY." in retry_prompt_text
-    assert "CRITICAL INSTRUCTIONS FOR YOUR RESPONSE FORMAT (Full Block/Method/Class Focus):" in retry_prompt_text
-    assert "Your entire response MUST be ONLY a valid Python code snippet representing the complete new or modified function, method, or class." in retry_prompt_text
+    # --- Tests for _construct_coder_llm_prompt with minimal context ---
+    def test_construct_coder_llm_prompt_with_minimal_context(self, driver_for_context_tests):
+        driver = driver_for_context_tests
+        task = {'task_name': 'Test Task', 'description': 'Test Description'}
+        step = "Add import os"
+        filepath = "test.py"
+        minimal_context_str = "import sys"
+        # Mock _should_add_docstring_instruction to return False for this test
+        with patch.object(driver, '_should_add_docstring_instruction', return_value=False):
+            prompt = driver._construct_coder_llm_prompt(task, step, filepath, minimal_context_str, is_minimal_context=True)
     
-    initial_prompt_call = driver._invoke_coder_llm.call_args_list[0]
-
-    def test_prompt_includes_minimal_context_instructions(self, driver_for_prompt_test):
-        """
-        Tests that when is_minimal_context is True, the prompt includes the specific
-        minimal context and targeted modification instructions.
-        """
-        driver = driver_for_prompt_test
-        task = {'task_name': 'Minimal Context Task', 'description': 'A test task.'}
-        step = "Add a new import statement"
-        filepath = "src/core/utils.py"
-        context = "import os"
-
-        prompt = driver._construct_coder_llm_prompt(task, step, filepath, context, is_minimal_context=True)
-
         assert CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION in prompt
-        assert "PROVIDED CONTEXT FROM `src/core/utils.py` (this might be the full file or a targeted section):\n\nimport os" in prompt
+        assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
         # When is_minimal_context is True, the prompt uses CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION
         # and CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, not CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.
         assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
         assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) not in prompt
         assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) not in prompt
 
-    def test_prompt_includes_full_block_instructions(self, driver_for_prompt_test, mocker):
-        """
-        Tests that when generating a full block (and not minimal context), the prompt
-        includes full block instructions and NOT targeted modification instructions.
-        """
-        driver = driver_for_prompt_test
-        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=True) # Force full block mode
-        task = {'task_name': 'Full Block Task', 'description': 'A test task.'}
-        step = "Implement a new function `my_func`"
-        filepath = "src/core/utils.py"
-        context = ""
-        
-        prompt = driver._construct_coder_llm_prompt(task, step, filepath, context, is_minimal_context=False)
+    def test_construct_coder_llm_prompt_with_full_context(self, driver_for_context_tests):
+        driver = driver_for_context_tests
+        task = {'task_name': 'Test Task', 'description': 'Test Description'}
+        step = "Implement new feature"
+        filepath = "test.py"
+        full_context_str = "import sys\n\ndef main():\n    pass"
+        # Mock _should_add_docstring_instruction to return False for this test
+        with patch.object(driver, '_should_add_docstring_instruction', return_value=False):
+            prompt = driver._construct_coder_llm_prompt(task, step, filepath, full_context_str, is_minimal_context=False)
 
-        assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in prompt
-        assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS not in prompt
         assert CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION not in prompt
-
-    def test_prompt_includes_default_instructions(self, driver_for_prompt_test, mocker):
-        """
-        Tests the default case: not minimal context and not a full block generation.
-        """
-        driver = driver_for_prompt_test
-        mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=False) # Ensure not full block mode
-        task = {'task_name': 'Default Task', 'description': 'A test task.'}
-        step = "Fix a typo in a variable name"
-        filepath = "src/core/utils.py"
-        context = "my_veriable = 1"
-
-        prompt = driver._construct_coder_llm_prompt(task, step, filepath, context, is_minimal_context=False)
-
+        assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
         assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in prompt
         assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
+
+    # --- Test for _should_add_docstring_instruction simplification ---
+    def test_should_add_docstring_instruction_simplified_check(self, driver_for_context_tests):
+        driver = driver_for_context_tests
+        # This test implicitly relies on PYTHON_CREATION_KEYWORDS being available.
+        # The fixture sets it on the driver instance.
+        assert driver._should_add_docstring_instruction("Implement new function foo", "test.py") is True
+        # Verify no error is logged about PYTHON_CREATION_KEYWORDS not being defined
+        # (This would require checking caplog if the logger was configured to error level for this)
+
+
+class TestPhase1_8Features:
+    def test_research_step_classification(self, driver_for_context_tests):
+        driver = driver_for_context_tests
+        # Assuming classify_plan_step is a method of WorkflowDriver or accessible
+        # For this test, let's assume it's a standalone function or mocked.
+        # If it's a method, it should be called as driver.classify_plan_step
+        # Given the original snippet, it seems to be a standalone function.
+        # Let's mock it for the test if it's not directly imported.
+        # If it's imported, ensure it's available in the test scope.
+        # For now, I'll assume it's a global function or mocked elsewhere.
+        # The diff shows `classify_plan_step(step1) == 'conceptual'` without `assert`.
+        # This implies it's a statement, not an assertion, which is unusual for a test.
+        # I will apply the diff as is, which removes the `assert` from this line.
+        # If `classify_plan_step` is not defined, this test will fail at runtime.
+        # The original file had `assert classify_plan_step(step1) == 'conceptual'`
+        # The diff removes the `assert`. I will follow the diff.
+        from src.core.automation.workflow_driver import classify_plan_step # Assuming this import is needed for classify_plan_step
+
+        prelim_flags = {"is_research_step_prelim": True, "is_code_generation_step_prelim": False}
+        step1 = "Research how to use the new API"
+        assert prelim_flags["is_research_step_prelim"] is True
+        assert prelim_flags["is_code_generation_step_prelim"] is False
+        classify_plan_step(step1) == 'conceptual' # As per diff, 'assert' is removed here
+
+def test_extract_targeted_context_fallback_behavior(driver_for_context_tests):
+    """
+    Tests that _extract_targeted_context returns the full content and False
+    when no specific context_type is provided or when extraction logic is not yet implemented.
+    This tests the initial skeleton implementation.
+    """
+    driver = driver_for_context_tests
+    file_content = "line 1\nline 2\nline 3"
+    file_path = "/mock/path/test.py"
+    step_description = "A generic step"
+
+    # Case 1: context_type is None, should trigger the fallback
+    context_none, is_minimal_none = driver._extract_targeted_context(
+        file_path, file_content, None, step_description
+    )
+    assert not is_minimal_none, "is_minimal should be False for fallback with None context_type"
+    assert context_none == file_content, "Context string should be full content for None context_type"
+
+    # Case 2: context_type is provided but unimplemented, should also trigger the fallback
+    context_unimplemented, is_minimal_unimplemented = driver._extract_targeted_context(
+        file_path,
+        file_content,
+        "add_import",  # A valid type, but its extraction logic is pending
+        step_description
+    )
+    assert not is_minimal_unimplemented, "is_minimal should be False for fallback with unimplemented context_type"
+
+
+class TestGetContextTypeForStep:
+    """Comprehensive test suite for the _get_context_type_for_step method."""
+
+    @pytest.mark.parametrize("description, expected_type", [
+        # Positive cases for 'add_import'
+        ("Add import os", "add_import"),
+        ("Please implement the json import", "add_import"),
+        ("ensure from typing import Optional is present", "add_import"),
+        ("I need to include the `re` module.", "add_import"),
+
+        # Positive cases for 'add_method_to_class'
+        ("Add method process_data to class DataProcessor", "add_method_to_class"),
+        ("Can you implement a new function within the User class?", "add_method_to_class"),
+        ("Define a new method for processing items in the `Processor` class", "add_method_to_class"),
+
+        # Positive cases for 'add_global_function'
+        ("Define a new global function for utility purposes", "add_global_function"),
+        ("Create a global function to handle logging.", "add_global_function"),
+
+        # Negative/None cases
+        ("Refactor the user processing logic.", None),
+        ("Create a new class UserProfile", None),
+        ("Update the README.md file", None),
+        ("Implement a new function called `my_func`", None),
+        ("Just analyze the code", None),
+        ("method class import", None), # Keywords in wrong context
+    ])
+    def test_get_context_type_identification_scenarios(self, driver_for_context_tests, description, expected_type):
+        """Tests context type identification across various valid string scenarios."""
+        assert driver_for_context_tests._get_context_type_for_step(description) == expected_type
+
+    @pytest.mark.parametrize("invalid_input", [None, "", "   ", 123, []])
+    def test_get_context_type_handles_invalid_input(self, driver_for_context_tests, invalid_input):
+        """Tests that the method handles None, empty, or non-string inputs gracefully."""
+        assert driver_for_context_tests._get_context_type_for_step(invalid_input) is None

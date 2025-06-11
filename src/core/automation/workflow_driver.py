@@ -2998,35 +2998,23 @@ Your response should be the complete, corrected code content that addresses the 
             'add_method_to_class', 'add_global_function') or None if no
             specific type is identified.
         """
-        # METAMORPHIC_INSERT_POINT
-        pass
+        if not step_description or not isinstance(step_description, str):
+            return None
 
+        step_lower = step_description.lower().strip()
+        if not step_lower:
+            return None
 
-    def _get_context_type_for_step(self, step_description: str) -> Optional[str]:
-        """
-        Analyzes the step description to classify the type of addition to guide
-        context extraction.
+        # Define patterns (with non-capturing groups for clarity) and their corresponding context types.
+        # Order matters: more specific patterns should come first if there's overlap.
+        context_patterns = [
+            (r'\b(?:add|implement|insert|ensure|include)\s+.*?\b(?:import|imports|from|module|library)\b', "add_import"),
+            (r'\b(?:add|implement|define|create)\s+.*?\b(?:method|function)\s+.*?\b(?:to|in|within)\s+.*?\bclass\b', "add_method_to_class"),
+            (r'\b(?:add|implement|define|create)\s+.*?\bglobal\s+function\b', "add_global_function"),
+        ]
 
-        Args:
-            step_description: The description of the plan step.
-
-        Returns:
-            A string representing the context type (e.g., 'add_import',
-            'add_method_to_class', 'add_global_function') or None if no
-            specific type is identified.
-        """
-        step_lower = step_description.lower()
-
-        # Pattern for adding imports
-        if re.search(r'\b(add|implement|insert|ensure|include)\b.*\b(import|imports|from)\b', step_lower):
-            return "add_import"
-
-        # Pattern for adding a method to a class
-        if re.search(r'\b(add|implement|define|create)\b.*\b(method|function)\b.*\b(to|in|within)\b.*\bclass\b', step_lower):
-            return "add_method_to_class"
-
-        # Pattern for adding a global function
-        if re.search(r'\b(add|implement|define|create)\b.*\b(global function)\b', step_lower):
-            return "add_global_function"
+        for pattern, context_type in context_patterns:
+            if re.search(pattern, step_lower, re.IGNORECASE):
+                return context_type
 
         return None

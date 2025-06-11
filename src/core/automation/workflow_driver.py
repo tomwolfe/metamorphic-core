@@ -195,6 +195,10 @@ class WorkflowDriver:
         original_snippet = snippet
         processed_snippet = original_snippet # Keep original for now, apply strip conditionally at end
         
+        # Flag to indicate if content was extracted from a fenced block *at the beginning*.
+        # This flag helps decide the final stripping behavior.
+        fenced_content_extracted_initially = False 
+
         # 1. Try to extract content from markdown fences first.
         # This handles cases where the LLM provides a fenced block, potentially with chatter outside.
         fenced_block_match = re.search(
@@ -202,18 +206,17 @@ class WorkflowDriver:
             processed_snippet,
             re.DOTALL | re.IGNORECASE
         )
-        fenced_content_extracted = False # Initialize flag
         if fenced_block_match:
             self.logger.debug("Markdown fenced block found and content extracted. Prioritizing fenced content.")
             extracted_content = fenced_block_match.group(1)
             # If the extracted content is just whitespace, treat it as empty.
             # Otherwise, rstrip to remove trailing newlines/whitespace from the fence structure,
             # but preserve leading indentation of the code block.
-            if extracted_content.strip() == "": # Check if it's *only* whitespace
+            if extracted_content.strip() == "": 
                 processed_snippet = ""
             else:
                 processed_snippet = extracted_content.rstrip() # Preserve leading spaces, remove trailing
-            fenced_content_extracted = True # Flag to indicate fenced content was processed
+            fenced_content_extracted_initially = True # Mark that it originated from a fenced block
 
         # 2. Prioritize the end-of-code marker.
         # This marker explicitly signals the end of the code, regardless of fences.
@@ -224,8 +227,8 @@ class WorkflowDriver:
             processed_snippet = parts[0].rstrip() # rstrip after marker truncation to remove trailing newlines from the marker line
 
         # 3. Heuristic to remove trailing conversational chatter.
-        # This applies if no fenced block was found, AND no END_OF_CODE_MARKER was found in the original snippet.
-        if not fenced_content_extracted and END_OF_CODE_MARKER not in original_snippet:
+        # This applies if no fenced block was found *initially*, AND no END_OF_CODE_MARKER was found in the original snippet.
+        if not fenced_content_extracted_initially and END_OF_CODE_MARKER not in original_snippet:
             lines = processed_snippet.splitlines()
             chatter_patterns = [
                 r"^\s*(Okay, here is|Here is the code|Let me know if you need|This code addresses)",
@@ -240,14 +243,15 @@ class WorkflowDriver:
             if first_chatter_line_index != -1:
                 processed_snippet = "\n".join(lines[:first_chatter_line_index]).rstrip() # rstrip after chatter truncation
 
-        # Final cleanup:
-        # Always apply strip at the very end to catch any remaining leading/trailing whitespace
-        # that might have been missed or introduced by previous steps.
-        # This final strip should only apply if no fenced block was found,
-        # as fenced blocks should preserve leading indentation.
-        if not fenced_content_extracted and END_OF_CODE_MARKER not in original_snippet:
+        # Final stripping logic:
+        # If the content was initially extracted from a fenced block, preserve its leading indentation.
+        # The rstrip() calls above handle trailing whitespace.
+        # Otherwise (if it was never a fenced block, or was a fenced block that became empty),
+        # apply a full strip to remove all leading/trailing whitespace.
+        if fenced_content_extracted_initially:
+            return processed_snippet
+        else:
             return processed_snippet.strip()
-        return processed_snippet
 
     def _load_default_policy(self):
         # Use context.get_full_path to resolve the policy path safely
@@ -3016,5 +3020,3 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
-
-        return None

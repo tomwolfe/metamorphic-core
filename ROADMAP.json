@@ -267,15 +267,64 @@
       "description": "Enhance `WorkflowDriver.autonomous_loop` to parse pre-write validation output (e.g., `flake8` findings). If specific, actionable error codes like `F821` (undefined name) are detected, dynamically augment the Coder LLM's retry prompt with targeted advice (e.g., suggesting missing imports). This improves autonomous remediation for common coding errors."
     },
     {
-      "task_id": "task_1_8_2_retry",
+      "task_id": "task_1_8_2_A_prepare_insertion_point",
       "priority": "Critical",
-      "task_name": "Implement Pre-Write Validation per Step (Retry)",
+      "task_name": "Add Anchor for Pre-Write Validation",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_B_enhance_retry_prompts"
       ],
-      "description": "Add logic to the Workflow Driver to run basic syntax, style, and ethical checks on generated code snippets *before* merging and writing to the target file. Use CodeReviewAgent and EthicalGovernanceEngine. This is a retry of the original task_1_8_2."
+      "description": "In `src/core/automation/workflow_driver.py`, inside the `autonomous_loop` method, locate the section where a generated code snippet is validated. Add a comment `# PRE_WRITE_VALIDATION_ANCHOR` on a new line immediately before the `logger.info(f\"Performing pre-write validation...\")` line. This creates a stable anchor for subsequent steps.",
+      "success_criteria": "File compiles successfully and the anchor comment is correctly placed."
+    },
+    {
+      "task_id": "task_1_8_2_B_implement_loop_stub",
+      "priority": "Critical",
+      "task_name": "Implement Pre-Write Validation Loop Stub",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_A_prepare_insertion_point"
+      ],
+      "description": "Using the `# PRE_WRITE_VALIDATION_ANCHOR`, insert a `while` loop structure. The loop should initialize a retry counter and contain only a `pass` statement in its body for now. Example: `retry_count = 0\nwhile retry_count < MAX_STEP_RETRIES:\n    pass`",
+      "success_criteria": "The `while` loop structure is correctly inserted with valid indentation."
+    },
+    {
+      "task_id": "task_1_8_2_C_integrate_validation_logic",
+      "priority": "Critical",
+      "task_name": "Integrate Existing Validation Logic into Loop",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_B_implement_loop_stub"
+      ],
+      "description": "Move the existing pre-write validation logic (AST parse, ethical check, style check) inside the `while` loop created in the previous step. Add logic to check the validation results and `break` the loop on success.",
+      "success_criteria": "Validation logic is cleanly moved inside the loop, and the loop breaks on success."
+    },
+    {
+      "task_id": "task_1_8_2_D_add_llm_regeneration_on_failure",
+      "priority": "Critical",
+      "task_name": "Add LLM Regeneration on Validation Failure",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_C_integrate_validation_logic"
+      ],
+      "description": "Enhance the validation loop. When validation fails, construct a detailed feedback message from the validation results. Use this feedback to re-invoke the Coder LLM to get a new `generated_snippet`. Increment the retry counter. If retries are exhausted, raise a `ValueError`.",
+      "success_criteria": "The system correctly attempts to regenerate code on failure and raises an error after max retries."
+    },
+    {
+      "task_id": "task_1_8_2_E_add_unit_tests",
+      "priority": "High",
+      "task_name": "Add Unit Tests for New Validation Loop",
+      "status": "Not Started",
+      "target_file": "tests/test_workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_D_add_llm_regeneration_on_failure"
+      ],
+      "description": "Implement unit tests for the new pre-write validation loop. Test for: 1. Successful validation on the first attempt. 2. Correct retry behavior with a simulated validation failure. 3. Correct exception handling when max retries are exceeded.",
+      "success_criteria": "All new unit tests pass and cover the specified scenarios."
     },
     {
       "task_id": "task_1_8_C_1_analyze_A1_failure_and_improve_codegen",
@@ -296,7 +345,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_2_retry"
+        "task_1_8_2_E_add_unit_tests"
       ],
       "description": "If pre-write validation fails, provide targeted feedback to the Coder LLM and retry generating the snippet for that specific step (e.g., 2-3 attempts) before failing the step or task."
     },

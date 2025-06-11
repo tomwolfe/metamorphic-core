@@ -124,23 +124,11 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_A_1b_implement_logic']
 
-*   **Task ID**: task_1_8_A_2a_create_skeleton
+*   **Task ID**: task_1_8_A_2_implement_and_test_get_context_type
     *   **Priority**: Critical
-    *   **Task Name**: Create Skeleton for _get_context_type_for_step Helper
+    *   **Task Name**: Implement and Test _get_context_type_for_step Method
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_A_1c_add_tests']
-
-*   **Task ID**: task_1_8_A_2b_implement_logic
-    *   **Priority**: Critical
-    *   **Task Name**: Implement Logic for _get_context_type_for_step
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_2a_create_skeleton']
-
-*   **Task ID**: task_1_8_A_2c_add_tests
-    *   **Priority**: High
-    *   **Task Name**: Add Unit Tests for _get_context_type_for_step
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_2b_implement_logic']
 
 *   **Task ID**: task_1_8_B_enhance_retry_prompts
     *   **Priority**: High

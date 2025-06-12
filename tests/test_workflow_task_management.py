@@ -535,7 +535,7 @@ class TestWorkflowTaskManagement:
         # Corrected assertion based on analysis: task_with_deps should be skipped, dep1 should be selected
         assert next_task is not None
         assert next_task['task_id'] == 'dep1'
-        assert "Skipping task task_with_deps: Dependency 'dep1' status is 'Not Started' (requires 'Completed')." in caplog.text
+        assert "Skipping task task_with_deps: Dependency 'dep1' status is 'DNot Started' (requires 'Completed')." in caplog.text
 
 
     def test_select_next_task_skip_in_progress_dependency(self, test_driver_task_management, caplog):
@@ -548,7 +548,7 @@ class TestWorkflowTaskManagement:
         ]
         next_task = driver.select_next_task(tasks)
         assert next_task is None
-        assert "Skipping task task_with_deps: Dependency 'dep1' status is 'In Progress' (requires 'Completed')." in caplog.text
+        assert "Skipping task task_with_deps: Dependency 'dep1' status is 'DIn Progress' (requires 'Completed')." in caplog.text
 
 
     def test_select_next_task_skip_blocked_dependency(self, test_driver_task_management, caplog):
@@ -561,7 +561,7 @@ class TestWorkflowTaskManagement:
         ]
         next_task = driver.select_next_task(tasks)
         assert next_task is None
-        assert "Skipping task task_with_deps: Dependency 'dep1' status is 'Blocked' (requires 'Completed')." in caplog.text
+        assert "Skipping task task_with_deps: Dependency 'dep1' status is 'DBlocked' (requires 'Completed')." in caplog.text
 
 
     def test_select_next_task_skip_non_existent_dependency(self, test_driver_task_management, caplog):

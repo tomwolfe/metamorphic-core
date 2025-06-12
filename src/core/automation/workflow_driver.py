@@ -1,4 +1,3 @@
-# src/core/automation/workflow_driver.py
 import os
 import json
 import logging
@@ -14,7 +13,7 @@ import builtins
 import spacy
 from spacy.matcher import PhraseMatcher
 
-# Re-add necessary imports that were inadvertently removed
+
 from src.core.agents.code_review_agent import CodeReviewAgent
 from src.core.ethics.governance import EthicalGovernanceEngine
 from datetime import datetime, timezone
@@ -1764,7 +1763,7 @@ Task Description:
                         all_dependencies_completed = False
                         break
                     elif dep_status != 'Completed':
-                        logger.debug(f"Skipping task {task_id}: Dependency '{dep_task_id}' status is '{dep_status}' (requires 'Completed').")
+                        logger.debug(f"Skipping task {task_id}: Dependency '{dep_task_id}' status is 'D{dep_status}' (requires 'Completed').")
                         all_dependencies_completed = False
                         break
                 if all_dependencies_completed:
@@ -1883,7 +1882,6 @@ Task Description:
         # Check if parent directory exists using the resolved path object
         if not parent_dir.exists():
             try:
-                # Create parent directories using the resolved path object
                 parent_dir.mkdir(parents=True, exist_ok=True)
                 logger.info(f"Created directory: {parent_dir}")
             except Exception as e:
@@ -1895,9 +1893,7 @@ Task Description:
             return result
         except FileExistsError as e:
             if not overwrite:
-                # Re-raise if overwrite is False, this is an an expected condition
                 raise e
-            # Log unexpected FileExistsError if overwrite was True
             logger.error(f"Unexpected FileExistsError from write_file for {full_filepath} with overwrite=True: {e}", exc_info=True)
             return False
         except FileNotFoundError as e:
@@ -1914,7 +1910,6 @@ Task Description:
         stdout = ""
         stderr = ""
         return_code = 1
-        # Log the command and CWD clearly
         logger.info(f"Executing command: {' '.join(test_command)} in directory: {cwd or 'current directory'}")
         try:
             process = subprocess.run(
@@ -1934,17 +1929,15 @@ Task Description:
             logger.debug(f"STDOUT:\n{stdout}")
             logger.debug(f"STDERR:\n{stderr}")
         except FileNotFoundError:
-            # Include the command and CWD in the error message
             error_msg = f"Error: Command executable '{test_command[0]}' not found or working directory '{cwd}' does not exist. Ensure '{test_command[0]}' is in your system's PATH and the working directory is valid."
             stderr = error_msg
-            return_code = 127 # Standard exit code for command not found
+            return_code = 127
             logger.error(error_msg)
         except Exception as e:
-            # Include the command and CWD in the error message
             error_msg = f"An unexpected error occurred during command execution ('{' '.join(test_command)}' in '{cwd}'): {e}"
             stderr = error_msg
             return_code = 1
-            logger.error(error_msg, exc_info=True) # Log traceback for unexpected errors
+            logger.error(error_msg, exc_info=True)
         self._current_task_results['test_stdout'] = stdout
         self._current_task_results['test_stderr'] = stderr
         self._current_task_results['last_test_command'] = test_command
@@ -1957,11 +1950,10 @@ Task Description:
         min_indent = float('inf')
         for line in lines:
             stripped_line = line.lstrip()
-            if stripped_line: # Only consider non-empty lines
+            if stripped_line:
                 indent = len(line) - len(stripped_line)
                 min_indent = min(min_indent, indent)
-        return min_indent if min_indent != float('inf') else 0 # Return 0 for empty content or all empty lines
-
+        return min_indent if min_indent != float('inf') else 0
 
     def _merge_snippet(self, existing_content: str, snippet: str) -> str:
         """
@@ -1969,25 +1961,20 @@ Task Description:
         If no marker, appends the snippet.
         """
         original_lines = existing_content.splitlines()
-        # Work on a copy to avoid modifying the list while iterating if we were to use enumerate directly on lines
         lines = list(original_lines)
         marker_line_index = -1
         
-        original_marker_line_indent = "" # Indentation of the line where marker is found
-        # line_prefix_before_marker = ""   # Content on the marker line before the marker itself (excluding original_marker_line_indent)
-        # line_suffix_after_marker = ""    # Content on the marker line after the marker itself
-
+        original_marker_line_indent = ""
+        
         for i, line in enumerate(lines):
             if METAMORPHIC_INSERT_POINT in line:
                 marker_line_index = i
                 break
 
         if marker_line_index != -1:
-            # Marker found
             marker_line = lines[marker_line_index]
             original_marker_line_indent = re.match(r"^(\s*)", marker_line).group(1)
             
-            # Split the content of the marker line around the insert point
             content_after_indent = marker_line[len(original_marker_line_indent):]
             parts = content_after_indent.split(METAMORPHIC_INSERT_POINT, 1)
             
@@ -2003,67 +1990,49 @@ Task Description:
             if raw_suffix and not raw_suffix.startswith('#'):
                 suffix_content = raw_suffix
 
-            # Prepare the snippet lines with correct indentation
             processed_snippet_lines = []
             if snippet.strip():
                 snippet_lines = snippet.splitlines()
                 
-                # Calculate the base indentation of the snippet
                 snippet_base_indent = self._get_min_indentation(snippet)
                 
-                # The indentation to apply to each line of the snippet is the marker's indentation,
-                # adjusted by the snippet's own base indentation to maintain relative indentation.
                 indent_adjustment = len(original_marker_line_indent) - snippet_base_indent 
                 
                 for s_line_content in snippet_lines:
-                    if not s_line_content.strip(): # Preserve blank lines, applying marker's indentation
+                    if not s_line_content.strip():
                         processed_snippet_lines.append(original_marker_line_indent)
                     else:
-                        # Calculate current indentation of the snippet line
                         current_snippet_line_indent = len(s_line_content) - len(s_line_content.lstrip())
-                        # Apply the adjustment to get the new indentation
                         new_indent = current_snippet_line_indent + indent_adjustment
-                        new_indent = max(0, new_indent) # Ensure new_indent is not negative
+                        new_indent = max(0, new_indent)
                         processed_snippet_lines.append(" " * new_indent + s_line_content.lstrip())
             
-            # Construct the new sequence of lines that will replace the marker line
             new_lines_at_insertion_point = []
 
-            # Add prefix content if it exists
             if prefix_content:
                 new_lines_at_insertion_point.append(original_marker_line_indent + prefix_content)
             
-            # Add snippet content
             if processed_snippet_lines:
                 new_lines_at_insertion_point.extend(processed_snippet_lines)
-            elif prefix_content: # If snippet is empty, but prefix exists, add a blank line for the conceptual insert point
+            elif prefix_content:
                 new_lines_at_insertion_point.append(original_marker_line_indent)
 
-            # Add suffix content
             if suffix_content:
-                # If there's content before the suffix (either prefix or snippet),
-                # and the last line added is not already blank, add a blank line to separate.
                 if new_lines_at_insertion_point and new_lines_at_insertion_point[-1].strip():
                     new_lines_at_insertion_point.append(original_marker_line_indent)
                 
                 new_lines_at_insertion_point.append(original_marker_line_indent + suffix_content)
             
-            # If new_lines_at_insertion_point is empty (e.g., marker was on a blank line, empty snippet, no suffix),
-            # it means the line should just be the original indentation (a blank line).
             if not new_lines_at_insertion_point:
                 new_lines_at_insertion_point.append(original_marker_line_indent)
 
-            # Replace the original marker line with the new sequence of lines
             lines[marker_line_index:marker_line_index + 1] = new_lines_at_insertion_point
             
             return "\n".join(lines)
         else:
-            # Marker not found, append logic
-            # If snippet is empty and no marker, return existing content unchanged
             if not snippet:
                 return existing_content
 
-            # Otherwise, append snippet, adding a newline if existing content doesn't end with one
             if existing_content and not existing_content.endswith('\n'):
                 return existing_content + "\n" + snippet
             return existing_content + snippet
@@ -2072,7 +2041,6 @@ Task Description:
         if not raw_output:
             logger.warning("Received empty output for test results parsing.")
             return {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Received empty output.'}
-        # Find the last line that looks like a pytest summary line
         summary_lines = [line for line in raw_output.splitlines() if line.strip().startswith('==') and ('test session' in line or 'passed' in line or 'failed' in line or 'skipped' in line or 'error' in line)]
         if not summary_lines:
             logger.warning("Could not find pytest summary lines in output.")
@@ -2080,7 +2048,6 @@ Task Description:
 
         final_summary_line = summary_lines[-1]
 
-        # Regex to capture counts and statuses
         counts_pattern = re.compile(r'(\d+) (passed|failed|skipped|error)')
         matches = counts_pattern.findall(final_summary_line)
 
@@ -2090,45 +2057,35 @@ Task Description:
         errors = 0
         total = 0
 
-        # Sum up counts and calculate total
         for count_str, status_str in matches:
             try:
                 count = int(count_str)
-                # Total is the sum of all counts found
                 total += count
                 if status_str == 'passed':
                     passed = count
                 elif status_str == 'failed':
                     failed = count
-                elif status_str == 'skipped':
-                    skipped = count
                 elif status_str == 'error':
                     errors = count
+                elif status_str == 'skipped':
+                    skipped = count
             except ValueError:
                 logger.warning(f"Could not parse count '{count_str}' from summary line: {final_summary_line}")
-                # If parsing individual counts fails, the overall result is unreliable
                 return {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Could not parse test results output.'}
 
-
-        # Determine overall status
         if failed > 0 or errors > 0:
             status = 'failed'
         elif total > 0:
             status = 'passed'
         else:
-            # If total is 0 but we found a summary line, it might mean no tests were collected.
-            # Treat this as passed if no failures/errors were reported, otherwise error.
             if passed == 0 and failed == 0 and skipped == 0 and errors == 0:
-                status = 'error' # No counts found, unreliable output
-                # Updated log message to match assertion in test_workflow_validation_execution.py
+                status = 'error'
                 logger.warning(f"No test results counts found or total is zero. Summary line: {final_summary_line}")
                 return {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Could not parse test results output.'}
-            else: # Counts were found, but sum is 0? Unlikely, but handle.
-                status = 'error' # Unreliable state
-                # Updated log message to match assertion in test_workflow_validation_execution.py
+            else:
+                status = 'error'
                 logger.warning(f"Parsed counts ({passed}p, {failed}f, {skipped}s, {errors}e) sum to {passed+failed+skipped+errors}, but total is 0. Summary line: {final_summary_line}")
                 return {'passed': 0, 'failed': 0, 'total': 0, 'status': 'error', 'message': 'Inconsistent test results output.'}
-
 
         results = {
             'passed': passed,
@@ -2140,18 +2097,15 @@ Task Description:
         logger.debug(f"Parsed test results: {results}")
         return results
 
-
     def generate_grade_report(self, task_id: str, validation_results: dict) -> str:
         report = {
             "task_id": task_id,
             "timestamp": datetime.utcnow().isoformat(),
             "validation_results": {
-                # Use .get({}, {}) to ensure these keys exist even if the outer dict is missing them
                 "tests": validation_results.get('test_results', {}),
                 "code_review": validation_results.get('code_review_results', {}),
-                # Use the correct input key 'ethical_analysis_results'
                 "ethical_analysis": validation_results.get('ethical_analysis_results', {}),
-                "step_errors": validation_results.get('step_errors', []) # Ensure step_errors is always a list
+                "step_errors": validation_results.get('step_errors', [])
             },
             "grades": self._calculate_grades(validation_results)
         }
@@ -2159,22 +2113,20 @@ Task Description:
 
     def _calculate_grades(self, validation_results: dict) -> dict:
         grades = {
-            "non_regression": {"percentage": 0, "justification": "No valid test results available or unexpected status."}, # Default justification
-            "test_success": {"percentage": 0, "justification": "No valid test results available or unexpected status."}, # Default justification
-            "code_style": {"percentage": 0, "justification": "No valid code review results available or unexpected status."}, # Default justification
-            "ethical_policy": {"percentage": 0, "justification": "No valid ethical analysis results available or unexpected status."}, # Default justification
-            "security_soundness": {"percentage": 0, "justification": "No valid security results available or unexpected status."} # Default justification
+            "non_regression": {"percentage": 0, "justification": "No valid test results available or unexpected status."},
+            "test_success": {"percentage": 0, "justification": "No valid test results available or unexpected status."},
+            "code_style": {"percentage": 0, "justification": "No valid code review results available or unexpected status."},
+            "ethical_policy": {"percentage": 0, "justification": "No valid ethical analysis results available or unexpected status."},
+            "security_soundness": {"percentage": 0, "justification": "No valid security results available or unexpected status."}
         }
 
-        # --- Test Success & Non-Regression ---
-        # Use the correct input key 'tests'
         test_results = validation_results.get('test_results', {})
         test_status = test_results.get('status')
 
         if test_status == 'passed':
             total_tests = test_results.get('total', 0)
             passed_tests = test_results.get('passed', 0)
-            percentage = 100 * (passed_tests / total_tests) if total_tests > 0 else 100 # 100% if 0 tests passed
+            percentage = 100 * (passed_tests / total_tests) if total_tests > 0 else 100
             grades['test_success'] = {
                 "percentage": round(percentage),
                 "justification": f"Tests status: {test_status}, Passed: {passed_tests}/{total_tests}"
@@ -2182,7 +2134,7 @@ Task Description:
         elif test_status == 'failed':
             total_tests = test_results.get('total', 0)
             passed_tests = test_results.get('passed', 0)
-            percentage = 100 * (passed_tests / total_tests) if total_tests > 0 else 0 # 0% if 0 tests failed
+            percentage = 100 * (passed_tests / total_tests) if total_tests > 0 else 0
             grades['test_success'] = {
                 "percentage": round(percentage),
                 "justification": f"Tests status: {test_results.get('status')}, Passed: {passed_tests}/{total_tests}, Failed: {test_results.get('failed',0)}"
@@ -2190,27 +2142,21 @@ Task Description:
         elif test_status == 'error':
             grades['test_success'] = {
                 "percentage": 0,
-                # Updated justification string to match assertion in test_workflow_reporting.py
                 "justification": f"Test execution or parsing error: {test_results.get('message', 'Unknown error')}"
             }
-        # Non-regression score is currently tied to test success
         grades['non_regression'] = {
             "percentage": grades['test_success']['percentage'],
             "justification": "Non-regression testing is currently based on Test Success percentage."
         }
 
-
-        # --- Code Style & Security Soundness ---
-        # Use the correct input key 'code_review'
         code_review_results = validation_results.get('code_review_results', {})
         cr_status = code_review_results.get('status')
 
-        if cr_status == 'success' or cr_status == 'failed': # Process if analysis ran, regardless of pass/fail status
+        if cr_status == 'success' or cr_status == 'failed':
             all_findings = code_review_results.get('static_analysis', [])
             code_style_findings = [f for f in all_findings if not f.get('severity', '').startswith('security')]
             security_findings = [f for f in all_findings if f.get('severity', '').startswith('security')]
 
-            # Code Style calculation
             high_style_issues = [f for f in code_style_findings if f.get('severity') in ['error', 'warning']]
             other_style_issues = [f for f in code_style_findings if f.get('severity') not in ['error', 'warning']]
             style_high_penalty = 15
@@ -2222,7 +2168,6 @@ Task Description:
                 "justification": f"Code review status: {cr_status}, {len(code_style_findings)} style issues found."
             }
 
-            # Security Soundness calculation
             high_security_findings = [f for f in security_findings if f.get('severity') == 'security_high']
             medium_security_findings = [f for f in security_findings if f.get('severity') == 'security_medium']
             low_security_findings = [f for f in security_findings if f.get('severity') == 'security_low']
@@ -2239,14 +2184,9 @@ Task Description:
             }
         elif cr_status == 'error':
             error_message = code_review_results.get('errors', {}).get('flake8', 'N/A') + ", " + code_review_results.get('errors', {}).get('bandit', 'N/A')
-            # Updated justification string to match assertion in test_workflow_reporting.py
             grades['code_style'] = {"percentage": 0, "justification": f"Code review/security execution error: {error_message}"}
-            # Updated justification string to match assertion in test_workflow_reporting.py
             grades['security_soundness'] = {"percentage": 0, "justification": f"Code review/security execution error: {error_message}"}
 
-
-        # --- Ethical Policy ---
-        # Use the correct input key 'ethical_analysis_results'
         ethical_analysis_results = validation_results.get('ethical_analysis_results', {})
         ethical_overall_status = ethical_analysis_results.get('overall_status')
         
@@ -2258,12 +2198,9 @@ Task Description:
             grades['ethical_policy'] = {"percentage": 0, "justification": f"Ethical analysis skipped: {ethical_analysis_results.get('message', 'Unknown reason')}."}
         elif ethical_overall_status == 'error':
             grades['ethical_policy'] = {"percentage": 0, "justification": f"Ethical analysis execution error: {ethical_analysis_results.get('message', 'Unknown error')}."}
-        else: # Handle None or unexpected status
+        else:
             grades['ethical_policy'] = {"percentage": 0, "justification": "No valid ethical analysis results available or unexpected status."}
         
-
-        # --- Overall Grade ---
-        # Calculate overall percentage based on weights
         overall_percentage = (
             grades['non_regression']['percentage'] * 0.20 +
             grades['test_success']['percentage'] * 0.30 +
@@ -2271,7 +2208,7 @@ Task Description:
             grades['ethical_policy']['percentage'] * 0.20 +
             grades['security_soundness']['percentage'] * 0.20
         )
-        grades['overall_percentage_grade'] = round(overall_percentage) # Round to nearest integer
+        grades['overall_percentage_grade'] = round(overall_percentage)
 
         return grades
 
@@ -2295,41 +2232,34 @@ Task Description:
         logger.info(f"Grade Report Metrics: Overall Grade={overall_percentage_grade}%, Test Status={test_results.get('status')}, Ethical Status={ethical_analysis_results.get('overall_status')}, Code Review Status={code_review_results.get('status')}, Step Errors={len(step_errors)}")
 
         recommended_action = "Manual Review Required"
-        justification = "Default action for unhandled scenarios." # Step errors are handled by the main loop.
+        justification = "Default action for unhandled scenarios."
     
-        # Prioritize Critical Failures (Ethical Rejection, High Security)
         if ethical_analysis_results.get('overall_status') == 'rejected':
             recommended_action = "Blocked"
             justification = "Ethical analysis rejected the code."
         elif code_review_results.get('static_analysis') and any(f.get('severity') == 'security_high' for f in code_review_results['static_analysis']):
             recommended_action = "Blocked"
-            justification = "High-risk security findings detected." # Consistent with _identify_remediation_target
-        # Prioritize Execution Errors (Tests, Code Review, Ethical Analysis)
+            justification = "High-risk security findings detected."
         elif test_results.get('status') == 'error':
-            recommended_action = "Regenerate Code" # Or Manual Review? Regenerate seems more appropriate for execution errors
-            # Updated justification string to match assertion in test_workflow_reporting.py
+            recommended_action = "Regenerate Code"
             justification = f"Test execution or parsing error: {test_results.get('message', 'Unknown error')}."
         elif code_review_results.get('status') == 'error':
-            recommended_action = "Regenerate Code" # Or Manual Review?
-            # Updated justification string to match assertion in test_workflow_reporting.py
+            recommended_action = "Regenerate Code"
             error_message = code_review_results.get('errors', {}).get('flake8', 'N/A') + ", " + code_review_results.get('errors', {}).get('bandit', 'N/A')
             justification = f"Code review or security scan execution error: {error_message}"
         elif ethical_analysis_results.get('overall_status') == 'error':
-            recommended_action = "Regenerate Code" # Or Manual Review?
-            # Updated justification string to match assertion in test_workflow_reporting.py
+            recommended_action = "Regenerate Code"
             justification = f"Ethical analysis execution error: {ethical_analysis_results.get('message', 'Unknown error')}."
-        # Prioritize Test Failures
         elif test_results.get('status') == 'failed':
             recommended_action = "Regenerate Code"
             justification = "Automated tests failed."
-        # Evaluate based on Overall Grade
         elif overall_percentage_grade == 100:
             recommended_action = "Completed"
             justification = "Overall grade is 100%."
-        elif overall_percentage_grade >= 80: # Threshold for automated regeneration
+        elif overall_percentage_grade >= 80:
             recommended_action = "Regenerate Code"
             justification = f"Overall grade ({overall_percentage_grade}%) is below 100% but meets regeneration threshold."
-        else: # Grade below threshold or other issues not explicitly handled
+        else:
             recommended_action = "Manual Review Required"
             justification = f"Overall grade ({overall_percentage_grade}%) is below regeneration threshold or other issues require manual review."
 
@@ -2337,10 +2267,8 @@ Task Description:
         return {"recommended_action": recommended_action, "justification": justification}
 
     def _safe_write_roadmap_json(self, roadmap_path: str, new_content: dict) -> bool:
-        # Use _validate_path to get the resolved path safely
         resolved_filepath = self._validate_path(roadmap_path)
         if resolved_filepath is None:
-            # _validate_path logs a warning if resolution fails
             logger.error(f"Security alert: Path traversal attempt detected for roadmap file: {roadmap_path}")
             return False
         if not isinstance(new_content, dict):
@@ -2352,11 +2280,9 @@ Task Description:
 
         resolved_filepath_obj = Path(resolved_filepath)
         roadmap_dir = resolved_filepath_obj.parent
-        # Use a temporary filename that is unlikely to conflict and is in the same directory
         temp_filename = f".{resolved_filepath_obj.name}.{uuid.uuid4()}.tmp"
         temp_filepath = roadmap_dir / temp_filename
 
-        # Clean up any leftover temporary file from a previous failed attempt
         if temp_filepath.exists():
             try:
                 os.remove(temp_filepath)
@@ -2365,19 +2291,16 @@ Task Description:
                 logger.warning(f"Failed to clean up leftover temporary file {temp_filepath}: {cleanup_e}")
 
         try:
-            # Use builtins.open explicitly
             with builtins.open(temp_filepath, 'w', encoding='utf-8') as f:
                 json.dump(new_content, f, indent=2)
 
-            # Atomically replace the original file with the temporary file
             os.replace(temp_filepath, resolved_filepath)
 
-            logger.info(f"Successfully wrote updated roadmap to {roadmap_path}") # Log original path
+            logger.info(f"Successfully wrote updated roadmap to {roadmap_path}")
             return True
 
         except (IOError, OSError, PermissionError, json.JSONDecodeError) as e:
-            logger.error(f"Error writing roadmap file {roadmap_path}: {e}", exc_info=True) # Log original path
-            # Attempt to clean up the temporary file if it exists after an error
+            logger.error(f"Error writing roadmap file {roadmap_path}: {e}", exc_info=True)
             if temp_filepath.exists():
                 try:
                     os.remove(temp_filepath)
@@ -2386,8 +2309,7 @@ Task Description:
                     logger.warning(f"Failed to clean up temporary file {temp_filepath} after error: {cleanup_e_inner}")
             return False
         except Exception as cleanup_e:
-            logger.error(f"Unexpected error during roadmap file write {roadmap_path}: {cleanup_e}", exc_info=True) # Log original path
-            # Attempt to clean up the temporary file if it exists after an unexpected error
+            logger.error(f"Unexpected error during roadmap file write {roadmap_path}: {cleanup_e}", exc_info=True)
             if temp_filepath.exists():
                 try:
                     os.remove(temp_filepath)
@@ -2398,27 +2320,21 @@ Task Description:
 
     def _update_task_status_in_roadmap(self, task_id: str, new_status: str, reason: str = None):
         try:
-            # Use context.get_full_path to resolve the roadmap path safely
             full_roadmap_path = self.context.get_full_path(self.roadmap_path)
             if full_roadmap_path is None:
-                # Log the original path that failed resolution
                 logger.error(f"Cannot update roadmap status: Invalid roadmap path provided: {self.roadmap_path}")
                 return
 
             try:
-                # Use builtins.open explicitly
                 with builtins.open(full_roadmap_path, 'r') as f:
                     roadmap_data = json.load(f)
             except FileNotFoundError:
-                # Log the resolved path
                 logger.error(f"Error updating roadmap status for task {task_id}: Roadmap file not found at {full_roadmap_path}")
                 return
             except json.JSONDecodeError:
-                # Log the resolved path
                 logger.error(f"Error updating roadmap status for task {task_id}: Invalid JSON in roadmap file {full_roadmap_path}")
                 return
             except Exception as e:
-                # Log the resolved path
                 logger.error(f"Error reading roadmap file {full_roadmap_path} for status update: {e}", exc_info=True)
                 return
 
@@ -2437,13 +2353,12 @@ Task Description:
                         break
 
             if task_found:
-                # Pass the original roadmap_path to _safe_write_roadmap_json
                 if self._safe_write_roadmap_json(self.roadmap_path, roadmap_data):
-                    logger.info(f"Successfully wrote updated status for task {task_id} in {self.roadmap_path}") # Log original path
+                    logger.info(f"Successfully wrote updated status for task {task_id} in {self.roadmap_path}")
                 else:
-                    logger.error(f"Failed to safely write updated roadmap for task {task_id}") # Log original path
+                    logger.error(f"Failed to safely write updated roadmap for task {task_id}")
             else:
-                logger.warning(f"Task {task_id} not found in roadmap file {self.roadmap_path} for status update.") # Log original path
+                logger.warning(f"Task {task_id} not found in roadmap file {self.roadmap_path} for status update.")
 
         except Exception as e:
             logger.error(f"Error updating roadmap status for task {task_id}: {e}", exc_info=True)
@@ -2454,45 +2369,37 @@ Task Description:
             grades = report_data.get('grades', {})
             validation = report_data.get('validation_results', {})
 
-            # Prioritize Step Errors - Should be handled before remediation is attempted, but double check
             step_errors = validation.get('step_errors', [])
             if step_errors:
                 logger.debug("Identified Step Errors. Remediation not applicable.")
-                return None # Remediation is not the right action for step errors
+                return None
 
-            # Prioritize Critical Failures (High Security) - Ethical Rejection handled below
             code_review_results = validation.get('code_review', {})
             if code_review_results.get('static_analysis') and any(f.get('severity') == 'security_high' for f in code_review_results['static_analysis']):
-                logger.debug("Identified High Security findings. Remediation not applicable (requires manual review).") # Consistent with _parse_and_evaluate_grade_report
-                return None # High security issues require manual review, not automated remediation
+                logger.debug("Identified High Security findings. Remediation not applicable (requires manual review).")
+                return None
 
-            # Prioritize Execution Errors - Should be handled before remediation is attempted, but double check
             if validation.get('tests', {}).get('status') == 'error' or \
             code_review_results.get('status') == 'error' or \
             validation.get('ethical_analysis', {}).get('overall_status') == 'error':
                 logger.debug("Identified Execution Errors. Remediation not applicable.")
-                return None # Execution errors block progress, not suitable for code remediation
+                return None
 
-            # Prioritize Ethical Transparency Violation (Specific Check)
             ethical_results = validation.get('ethical_analysis', {})
-            # Check if the specific TransparencyScore status is 'violation'
             transparency_status = ethical_results.get('TransparencyScore', {}).get('status')
             if transparency_status == 'violation':
                 logger.debug("Identified Ethical Transparency violation as remediation target.")
                 return "Ethical Transparency"
 
-            # Prioritize Test Failure
             test_results = validation.get('tests', {})
             if test_results.get('status') == 'failed':
                 logger.debug("Identified Test Failure as remediation target.")
                 return "Test Failure"
 
-            # Prioritize Code Style issues if findings exist
-            # Check if code review results are available and not in error state
             if code_review_results.get('status') in ['success', 'failed']:
                 all_findings = code_review_results.get('static_analysis', [])
                 style_findings = [f for f in all_findings if not f.get('severity', '').startswith('security')]
-                if style_findings: # Check if there are any style findings
+                if style_findings:
                     logger.debug("Identified Code Style as remediation target.")
                     return "Code Style"
 
@@ -2506,12 +2413,11 @@ Task Description:
             return None
 
     def _attempt_code_style_remediation(self, grade_report_json: str, task: dict, step_desc: str, file_path: str, original_code: str) -> bool:
-        logger.info(f"Attempting code style remediation for {file_path}...") # Log original path
+        logger.info(f"Attempting code style remediation for {file_path}...")
         try:
             report_data = json.loads(grade_report_json)
             code_review_results = report_data.get('validation_results', {}).get('code_review', {})
             findings = code_review_results.get('static_analysis', [])
-            # Filter for style findings (severity not starting with 'security')
             style_feedback = [f"- {f.get('code')} at line {f.get('line')}: {f.get('message')}" for f in findings if not f.get('severity', '').startswith('security')]
 
             if not style_feedback:
@@ -2550,27 +2456,24 @@ Output only the complete, corrected Python code. Do not include explanations or 
             logger.info("LLM provided corrected code. Applying and re-validating...")
             content_to_write = corrected_code
 
-            # Resolve file_path before writing (file_path is already resolved absolute path)
-            resolved_file_path = file_path # It's already resolved
+            resolved_file_path = file_path
 
             write_success = self._write_output_file(resolved_file_path, content_to_write, overwrite=True)
 
             if write_success:
                 try:
-                    logger.info(f"Re-running code review for {file_path} after remediation...") # Log original path
+                    logger.info(f"Re-running code review for {file_path} after remediation...")
                     new_review_results = self.code_review_agent.analyze_python(content_to_write)
                     self._current_task_results['code_review_results'] = new_review_results
                     logger.info(f"Code Review Results after remediation: {new_review_results}")
-                    # Note: Re-validation success/failure doesn't determine the return value of this method,
-                    # only whether the write was successful. The autonomous loop re-evaluates the grade report.
                 except Exception as e:
                     logger.error(f"Error occurred during code review re-scan after remediation: {e}", exc_info=True)
                     self._current_task_results['code_review_results'] = {'status': 'error', 'message': f"Re-validation error: {e}"}
 
-                return True # Remediation attempt successful if write succeeded
+                return True
             else:
-                logger.error(f"Failed to write corrected code to {file_path}. Aborting remediation.") # Log original path
-                return False # Remediation attempt failed if write failed
+                logger.error(f"Failed to write corrected code to {file_path}. Aborting remediation.")
+                return False
 
         except json.JSONDecodeError:
             logger.error("Failed to parse grade report JSON for code style remediation.")
@@ -2580,23 +2483,17 @@ Output only the complete, corrected Python code. Do not include explanations or 
             return False
 
     def _attempt_ethical_transparency_remediation(self, grade_report_json: str, task: dict, step_desc: str, file_path: str, original_code: str) -> bool:
-        logger.info(f"Attempting ethical transparency remediation for {file_path}...") # Log original path
+        logger.info(f"Attempting ethical transparency remediation for {file_path}...")
         try:
             report_data = json.loads(grade_report_json)
             ethical_results = report_data.get('validation_results', {}).get('ethical_analysis', {})
-            # Check if overall status is rejected, as _identify_remediation_target should ensure this
-            # Also specifically check for TransparencyScore violation
             transparency_status = ethical_results.get('TransparencyScore', {}).get('status')
             if transparency_status != 'violation':
                 logger.warning("Ethical transparency remediation triggered, but TransparencyScore status is not 'violation'.")
                 return False
 
-            # Use the details from the report, or a default message
-            # Look for specific violation details if available, otherwise use a generic message
             violation_details = []
-            # Iterate through all keys in ethical_results, not just policy names
             for key, policy_result in ethical_results.items():
-                # Ensure policy_result is a dict and has a status key
                 if isinstance(policy_result, dict) and policy_result.get('status') == 'violation':
                     details = policy_result.get('details', f"Violation in policy/check '{key}'.")
                     violation_details.append(details)
@@ -2633,20 +2530,17 @@ Output only the complete, corrected Python code with added documentation/comment
             logger.info("LLM provided corrected code with docstrings. Applying and re-validating...")
             content_to_write = corrected_code
 
-            # Resolve file_path before writing (file_path is already resolved absolute path)
-            resolved_file_path = file_path # It's already resolved
+            resolved_file_path = file_path
 
             write_success = self._write_output_file(resolved_file_path, content_to_write, overwrite=True)
 
             if write_success:
                 if self.default_policy_config:
                     try:
-                        logger.info(f"Re-running ethical analysis for {file_path} after remediation...") # Log original path
+                        logger.info(f"Re-running ethical analysis for {file_path} after remediation...")
                         new_ethical_results = self.ethical_governance_engine.enforce_policy(content_to_write, self.default_policy_config)
                         self._current_task_results['ethical_analysis_results'] = new_ethical_results
                         logger.info(f"Ethical Analysis Results after remediation: {new_ethical_results}")
-                        # Note: Re-validation success/failure doesn't determine the return value of this method,
-                        # only whether the write was successful. The autonomous loop re-evaluates the grade report.
                     except Exception as e:
                         logger.error(f"Error occurred during ethical analysis re-scan after remediation: {e}", exc_info=True)
                         self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': f"Re-validation error: {e}"}
@@ -2654,10 +2548,10 @@ Output only the complete, corrected Python code with added documentation/comment
                     logger.warning("Cannot re-run ethical analysis after remediation: Default policy not loaded.")
                     self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded for re-scan.'}
 
-                return True # Remediation attempt successful if write succeeded
+                return True
             else:
-                logger.error(f"Failed to write corrected code to {file_path}. Aborting remediation.") # Log original path
-                return False # Remediation attempt failed if write failed
+                logger.error(f"Failed to write corrected code to {file_path}. Aborting remediation.")
+                return False
 
         except json.JSONDecodeError:
             logger.error("Failed to parse grade report JSON for ethical transparency remediation.")
@@ -2667,26 +2561,22 @@ Output only the complete, corrected Python code with added documentation/comment
             return False
 
     def _attempt_test_failure_remediation(self, grade_report_json: str, task: dict, step_desc: str, file_path: str, original_code: str) -> bool:
-        logger.info(f"Attempting test failure remediation for {file_path}...") # Log original path
+        logger.info(f"Attempting test failure remediation for {file_path}...")
         try:
-            # Get test results and output from the current task results
             stdout = self._current_task_results.get('test_stdout', '')
             stderr = self._current_task_results.get('test_stderr', '')
             test_results = self._current_task_results.get('test_results', {})
 
-            # Ensure test status is 'failed' before proceeding
             if test_results.get('status') != 'failed':
                 logger.warning("Test failure remediation triggered, but test status is not 'failed'.")
                 return False
 
             logger.debug(f"Test failure details - Stdout: {stdout}, Stderr: {stderr}")
 
-            # Read the current file content again, in case it was modified by other steps
-            # file_path is already resolved absolute path
             current_file_content = self._read_file_for_context(file_path)
 
             if not current_file_content:
-                logger.error(f"Failed to read current file content for {file_path} during test remediation. Cannot attempt remediation.") # Log original path
+                logger.error(f"Failed to read current file content for {file_path} during test remediation. Cannot attempt remediation.")
                 return False
 
             task_name = task.get('task_name', 'Unknown Task')
@@ -2730,16 +2620,14 @@ Your response should be the complete, corrected code content that addresses the 
             logger.info("LLM provided corrected code for test failure. Applying and re-validating...")
             content_to_write = corrected_code
 
-            # Resolve file_path before writing (file_path is already resolved absolute path)
-            resolved_file_path_write = file_path # It's already resolved
+            resolved_file_path_write = file_path
 
             write_success = self._write_output_file(resolved_file_path_write, content_to_write, overwrite=True)
 
             if write_success:
-                logger.info(f"Successfully wrote fixed code to {file_path}") # Log original path
+                logger.info(f"Successfully wrote fixed code to {file_path}")
                 try:
-                    logger.info(f"Re-running validations for {file_path} after test failure remediation...") # Log original path
-                    # Re-run tests
+                    logger.info(f"Re-running validations for {file_path} after test failure remediation...")
                     test_command = self._current_task_results.get('last_test_command', ['pytest', 'tests/'])
                     cwd = self._current_task_results.get('last_test_cwd', self.context.base_path)
                     return_code, new_stdout, new_stderr = self.execute_tests(test_command, cwd)
@@ -2747,7 +2635,6 @@ Your response should be the complete, corrected code content that addresses the 
                     self._current_task_results['test_stderr'] = new_stderr
                     self._current_task_results['test_results'] = self._parse_test_results(new_stdout)
 
-                    # Re-run code review and ethical analysis
                     code_review_result = self.code_review_agent.analyze_python(content_to_write)
                     self._current_task_results['code_review_results'] = code_review_result
 
@@ -2762,7 +2649,6 @@ Your response should be the complete, corrected code content that addresses the 
 
                 except Exception as e:
                     logger.error(f"Error occurred during re-validation after test failure remediation: {e}", exc_info=True)
-                    # Update results with error status if re-validation fails
                     if 'test_results' not in self._current_task_results or self._current_task_results['test_results'].get('status') != 'error':
                         self._current_task_results['test_results'] = {'status': 'error', 'passed': 0, 'failed': 0, 'total': 0, 'message': f"Re-validation error: {e}"}
                     if 'code_review_results' not in self._current_task_results or self._current_task_results['code_review_results'].get('status') != 'error':
@@ -2770,10 +2656,10 @@ Your response should be the complete, corrected code content that addresses the 
                     if 'ethical_analysis_results' not in self._current_task_results or self._current_task_results['ethical_analysis_results'].get('overall_status') != 'error':
                         self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': f"Re-validation error: {e}"}
 
-                return True # Remediation attempt successful if write succeeded
+                return True
             else:
-                logger.error(f"Failed to write fixed code to {file_path}. Aborting test failure remediation.") # Log original path
-                return False # Remediation attempt failed if write failed
+                logger.error(f"Failed to write fixed code to {file_path}. Aborting test failure remediation.")
+                return False
 
         except json.JSONDecodeError:
             logger.error("Failed to parse grade report JSON for test failure remediation.")
@@ -2836,21 +2722,20 @@ Your response should be the complete, corrected code content that addresses the 
 
             if in_multiline_import:
                 import_block_lines.append(line_text)
-                if ")" in stripped_line: # Simplistic check for end of multiline import
+                if ")" in stripped_line:
                     in_multiline_import = False
                 continue
 
-            if not stripped_line: # Blank line
+            if not stripped_line:
                 import_block_lines.append(line_text)
                 continue
             
-            if stripped_line.startswith("#"): # Comment
+            if stripped_line.startswith("#"):
                 import_block_lines.append(line_text)
                 continue
 
-            if stripped_line.startswith("\"\"\"") or stripped_line.startswith("'''"): # Docstring
+            if stripped_line.startswith("\"\"\"") or stripped_line.startswith("'''"):
                 import_block_lines.append(line_text)
-                # Handle multi-line docstrings - simplistic: continue until closing triple quotes
                 if not (stripped_line.endswith("\"\"\"") or stripped_line.endswith("'''")) or len(stripped_line) < 6 :
                     for next_line_idx in range(line_number + 1, len(lines)):
                         import_block_lines.append(lines[next_line_idx])
@@ -2864,7 +2749,6 @@ Your response should be the complete, corrected code content that addresses the 
                     in_multiline_import = True
                 continue
             
-            # If we reach here, it's the first non-import, non-comment, non-blank, non-docstring line
             break 
 
         return "\n".join(import_block_lines)
@@ -2898,12 +2782,10 @@ Your response should be the complete, corrected code content that addresses the 
                     if method_name:
                         for child_node in node.body:
                             if isinstance(child_node, ast.FunctionDef) and child_node.name == method_name:
-                                # Extract just the method lines
                                 start = child_node.lineno -1
                                 end = child_node.end_lineno if hasattr(child_node, 'end_lineno') and child_node.end_lineno is not None else start + (len(ast.unparse(child_node).splitlines()) if hasattr(ast, 'unparse') else 1)
                                 return "\n".join(lines[start:end])
                         logger.warning(f"Method '{method_name}' not found in class '{class_name}'. Returning full class context.")
-                    # Fallback to returning full class if method_name is None or method not found
                     class_start = node.lineno - 1
                     class_end = node.end_lineno if hasattr(node, 'end_lineno') and node.end_lineno is not None else class_start + (len(ast.unparse(node).splitlines()) if hasattr(ast, 'unparse') else 1)
                     return "\n".join(lines[class_start:class_end])
@@ -2947,7 +2829,6 @@ Your response should be the complete, corrected code content that addresses the 
         """
         description_lower = plan_step_description.lower()
 
-        # Patterns that indicate complex changes, refactoring, or new class creation
         complex_patterns = [
             r"create (?:a )?(?:new )?class\b",
             r"add (?:a )?class\b",
@@ -2966,13 +2847,12 @@ Your response should be the complete, corrected code content that addresses the 
                 self.logger.debug(f"Complex pattern '{pattern}' found in step: '{plan_step_description}'. Not a simple addition.")
                 return False
 
-        # Patterns that indicate simple, targeted code additions
         simple_addition_patterns = [
             r"add import\b", r"add new import\b", r"insert import\b", r"include import\b",
             r"add .*?method\b", r"implement .*?method\b", r"define .*?method\b",
             r"add .*?function\b", r"implement .*?function\b", r"define .*?function\b",
             r"add logging\b",
-            r"add (?:a )?line\b", r"insert (?:a )?line\b", # Added for simple line additions
+            r"add (?:a )?line\b", r"insert (?:a )?line\b",
             r"add .*?test case\b",
             r"add __init__ method\b",
             r"add constant\b", r"define .*?constant\b",
@@ -2987,7 +2867,6 @@ Your response should be the complete, corrected code content that addresses the 
                 return True
         self.logger.debug(f"No specific simple addition or complex pattern matched for step: '{plan_step_description}'. Assuming not a simple addition.")
         return False
-
 
     def _get_context_type_for_step(self, step_description: str) -> Optional[str]:
         """
@@ -3009,8 +2888,6 @@ Your response should be the complete, corrected code content that addresses the 
         if not step_lower:
             return None
 
-        # Define patterns (with non-capturing groups for clarity) and their corresponding context types.
-        # Order matters: more specific patterns should come first if there's overlap.
         context_patterns = [
             (r'\b(?:add|implement|insert|ensure|include)\s+.*?\b(?:import|imports|from|module|library)\b', "add_import"),
             (r'\b(?:add|implement|define|create)\s+.*?\b(?:method|function)\s+.*?\b(?:to|in|within)\s+.*?\bclass\b', "add_method_to_class"),

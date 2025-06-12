@@ -1408,9 +1408,9 @@ class WorkflowDriver:
         step_lower = step_description.lower()
         filepath_from_step_match = re.search(r'(\S+\.(?:py|md|json|txt|yml|yaml))', step_description, re.IGNORECASE)
         filepath_from_step = filepath_from_step_match.group(1) if filepath_from_step_match else None
-        code_generation_verbs_prelim = ["implement", "generate code", "write function", "modify", "add", "define", "create", "update", "refactor", "write"]
+        code_generation_verbs_prelim = ["implement", "generate code", "write function", "modify", "add", "define", "create", "update", "refactor", "write", "insert"]
         research_keywords_check_prelim = ["research and identify", "research", "analyze", "investigate", "understand"]
-        code_element_keywords_check_prelim = ["import", "constant", "variable", "function", "class", "method", "definition", "parameter", "return"]
+        code_element_keywords_check_prelim = ["import", "constant", "variable", "function", "class", "method", "definition", "parameter", "return", "loop", "structure", "block", "snippet", "counter"]
         file_writing_keywords_check_prelim = ["write", "write file", "create", "create file", "update", "update file", "modify", "modify file", "save to file", "output file", "generate file", "write output to"]
         test_execution_keywords_check_prelim = ["run tests", "execute tests", "verify tests", "pytest", "test suite", "run test cases"] # Added "run test cases"
         shell_command_keywords_prelim = ["git", "branch", "commit", "push", "checkout", "merge", "pull", "docker", "ls", "cd", "mkdir", "navigate to"]

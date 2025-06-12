@@ -142,23 +142,17 @@
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_B_enhance_retry_prompts', 'task_1_8_A_6_add_tests_for_context_optimization']
 
-*   **Task ID**: task_1_8_2_A_prepare_insertion_point
+*   **Task ID**: task_1_8_2_AB_implement_validation_loop_stub
     *   **Priority**: Critical
-    *   **Task Name**: Add Anchor for Pre-Write Validation
+    *   **Task Name**: Add Pre-Write Validation Anchor and Loop Stub
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_B_enhance_retry_prompts']
-
-*   **Task ID**: task_1_8_2_B_implement_loop_stub
-    *   **Priority**: Critical
-    *   **Task Name**: Implement Pre-Write Validation Loop Stub
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_A_prepare_insertion_point']
 
 *   **Task ID**: task_1_8_2_C_integrate_validation_logic
     *   **Priority**: Critical
     *   **Task Name**: Integrate Existing Validation Logic into Loop
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_B_implement_loop_stub']
+    *   **Depends On**: ['task_1_8_2_AB_implement_validation_loop_stub']
 
 *   **Task ID**: task_1_8_2_D_add_llm_regeneration_on_failure
     *   **Priority**: Critical

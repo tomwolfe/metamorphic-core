@@ -267,16 +267,28 @@
       "description": "Enhance `WorkflowDriver.autonomous_loop` to parse pre-write validation output (e.g., `flake8` findings). If specific, actionable error codes like `F821` (undefined name) are detected, dynamically augment the Coder LLM's retry prompt with targeted advice (e.g., suggesting missing imports). This improves autonomous remediation for common coding errors."
     },
     {
-      "task_id": "task_1_8_2_AB_implement_validation_loop_stub",
+      "task_id": "task_1_8_2_A_add_retry_counter",
       "priority": "Critical",
-      "task_name": "Add Pre-Write Validation Anchor and Loop Stub",
+      "task_name": "Add Retry Counter Variable",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_B_enhance_retry_prompts"
       ],
-      "description": "Using the `# PRE_WRITE_VALIDATION_ANCHOR`, insert a `while` loop structure. The loop should initialize a retry counter and contain only a `pass` statement in its body for now. The anchor comment `# PRE_WRITE_VALIDATION_ANCHOR` should be on the line immediately preceding the `while` loop.",
-      "success_criteria": "File compiles successfully and the anchor comment is correctly placed."
+      "description": "On the line immediately preceding the `# PRE_WRITE_VALIDATION_ANCHOR` comment, insert the code for initializing the retry counter: `retry_count = 0`. Ensure it is correctly indented.",
+      "success_criteria": "The `retry_count = 0` line is correctly added before the anchor and the file compiles successfully."
+    },
+    {
+      "task_id": "task_1_8_2_B_implement_validation_loop_stub",
+      "priority": "Critical",
+      "task_name": "Implement Validation Loop Stub",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_A_add_retry_counter"
+      ],
+      "description": "Using the `# PRE_WRITE_VALIDATION_ANCHOR`, insert a `while` loop structure. The loop should contain only a `pass` statement in its body for now. The anchor comment should be on the line immediately preceding the `while` loop.",
+      "success_criteria": "A `while True: pass` loop is correctly added after the anchor and the file compiles successfully."
     },
     {
       "task_id": "task_1_8_2_C_integrate_validation_logic",
@@ -285,7 +297,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_2_AB_implement_validation_loop_stub"
+        "task_1_8_2_B_implement_validation_loop_stub"
       ],
       "description": "Move the existing pre-write validation logic (AST parse, ethical check, style check) inside the `while` loop created in the previous step. Add logic to check the validation results and `break` the loop on success.",
       "success_criteria": "Validation logic is cleanly moved inside the loop, and the loop breaks on success."

@@ -827,8 +827,10 @@ class WorkflowDriver:
                                 generated_snippet = None # Initialize generated_snippet
 
                                 # --- Step 3: Execute actions based on step classification ---
-
-                                if prelim_flags['is_test_execution_step_prelim']:
+                                # Prioritize shell commands to prevent misclassification as code generation
+                                if prelim_flags.get('is_shell_command_step_prelim'):
+                                    logger.info(f"Step identified as shell command. Skipping agent invocation/file write for step: {step}")
+                                elif prelim_flags['is_test_execution_step_prelim']:
                                     logger.info(f"Step identified as test execution. Running tests for step: {step}")
                                     test_command = ["pytest"]
                                     test_target_path = "tests/" # Default test path relative to base_path
@@ -1411,6 +1413,7 @@ class WorkflowDriver:
         code_element_keywords_check_prelim = ["import", "constant", "variable", "function", "class", "method", "definition", "parameter", "return"]
         file_writing_keywords_check_prelim = ["write", "write file", "create", "create file", "update", "update file", "modify", "modify file", "save to file", "output file", "generate file", "write output to"]
         test_execution_keywords_check_prelim = ["run tests", "execute tests", "verify tests", "pytest", "test suite", "run test cases"] # Added "run test cases"
+        shell_command_keywords_prelim = ["git", "branch", "commit", "push", "checkout", "merge", "pull", "docker", "ls", "cd", "mkdir", "navigate to"]
 
         # Consider task_target_file if filepath_from_step is None for classification
         effective_filepath_for_classification = filepath_from_step
@@ -1438,16 +1441,19 @@ class WorkflowDriver:
             is_test_writing_step_prelim = len(test_writing_matcher(doc)) > 0
         else: # Fallback for when nlp is not loaded
             is_test_writing_step_prelim = bool(any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in test_writing_keywords_for_matcher))
-
+ 
         is_test_execution_step_prelim = bool(any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in test_execution_keywords_check_prelim))
+        is_shell_command_step_prelim = bool(any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in shell_command_keywords_prelim))
         is_explicit_file_writing_step_prelim = bool(any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in file_writing_keywords_check_prelim))
         is_research_step_prelim = bool(any(re.search(r'\b' + re.escape(keyword) + r'\b', step_lower) for keyword in research_keywords_check_prelim))
         is_code_generation_step_prelim = bool(not is_research_step_prelim and \
+                                        not is_shell_command_step_prelim and \
                                         any(re.search(r'\b' + re.escape(verb) + r'\b', step_lower) for verb in code_generation_verbs_prelim) and \
                                         (any(re.search(r'\b' + re.escape(element) + r'\b', step_lower) for element in code_element_keywords_check_prelim) or \
                                         (effective_filepath_for_classification and effective_filepath_for_classification.endswith('.py'))))
         return {
             "is_test_execution_step_prelim": is_test_execution_step_prelim,
+            "is_shell_command_step_prelim": is_shell_command_step_prelim,
             "is_explicit_file_writing_step_prelim": is_explicit_file_writing_step_prelim,
             "is_research_step_prelim": is_research_step_prelim,
             "is_test_writing_step_prelim": is_test_writing_step_prelim,

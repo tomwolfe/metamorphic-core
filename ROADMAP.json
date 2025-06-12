@@ -275,7 +275,7 @@
       "depends_on": [
         "task_1_8_B_enhance_retry_prompts"
       ],
-      "description": "In `src/core/automation/workflow_driver.py`, inside the `autonomous_loop` method, locate the section where a generated code snippet is validated. Add a comment `# PRE_WRITE_VALIDATION_ANCHOR` on a new line immediately before the `logger.info(f\"Performing pre-write validation...\")` line. This creates a stable anchor for subsequent steps.",
+      "description": "In `src/core/automation/workflow_driver.py`, use the existing `# METAMORPHIC_INSERT_POINT` to insert the comment `# PRE_WRITE_VALIDATION_ANCHOR` on a new line. This creates a stable anchor for subsequent steps.",
       "success_criteria": "File compiles successfully and the anchor comment is correctly placed."
     },
     {

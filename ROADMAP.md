@@ -142,11 +142,35 @@
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_B_enhance_retry_prompts', 'task_1_8_A_6_add_tests_for_context_optimization']
 
-*   **Task ID**: task_1_8_2_retry
+*   **Task ID**: task_1_8_2_A_prepare_insertion_point
     *   **Priority**: Critical
-    *   **Task Name**: Implement Pre-Write Validation per Step (Retry)
+    *   **Task Name**: Add Anchor for Pre-Write Validation
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_B_enhance_retry_prompts']
+
+*   **Task ID**: task_1_8_2_B_implement_loop_stub
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Pre-Write Validation Loop Stub
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_A_prepare_insertion_point']
+
+*   **Task ID**: task_1_8_2_C_integrate_validation_logic
+    *   **Priority**: Critical
+    *   **Task Name**: Integrate Existing Validation Logic into Loop
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_B_implement_loop_stub']
+
+*   **Task ID**: task_1_8_2_D_add_llm_regeneration_on_failure
+    *   **Priority**: Critical
+    *   **Task Name**: Add LLM Regeneration on Validation Failure
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_C_integrate_validation_logic']
+
+*   **Task ID**: task_1_8_2_E_add_unit_tests
+    *   **Priority**: High
+    *   **Task Name**: Add Unit Tests for New Validation Loop
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_D_add_llm_regeneration_on_failure']
 
 *   **Task ID**: task_1_8_C_1_analyze_A1_failure_and_improve_codegen
     *   **Priority**: High
@@ -158,7 +182,7 @@
     *   **Priority**: Critical
     *   **Task Name**: Implement Step-Level Remediation Loop
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_retry']
+    *   **Depends On**: ['task_1_8_2_E_add_unit_tests']
 
 *   **Task ID**: task_1_8_4
     *   **Priority**: Critical

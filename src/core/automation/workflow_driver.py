@@ -2860,9 +2860,10 @@ Your response should be the complete, corrected code content that addresses the 
             r"add logging\b",
             r"add (?:a )?line\b", r"insert (?:a )?line\b",
             r"add .*?test case\b",
+            r"prepend .*?header\b", r"append .*?footer\b", # Added for specific header/footer additions
             r"add __init__ method\b",
             r"add constant\b", r"define .*?constant\b",
-            r"append\b", r"insert\b", r"prepend\b",
+            r"append\b", r"insert\b", "prepend\b",
             r"add (?:a )?docstring to\b", r"generate docstring for\b",
             r"add (?:a )?comment\b", r"add (?:a )?type hint\b",
         ]
@@ -2903,3 +2904,4 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
+        return None

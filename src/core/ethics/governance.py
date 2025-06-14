@@ -94,11 +94,18 @@ class EthicalGovernanceEngine:
         """
         logger.debug(f"--- Running transparency check (is_snippet={is_snippet}) ---")
         processed_code = code # Initialize with original code
-
+        
         stripped_code = code.strip()
         # 1. Handle empty code (whitespace only or truly empty)
         if not stripped_code:
             return False, "empty_code"
+
+        # NEW: More robust check for simple, single-line snippets that are not definitions.
+        # This check should only apply to non-empty snippets.
+        if is_snippet and '\n' not in stripped_code and not stripped_code.lstrip().startswith(('def ', 'class ')):
+            logger.debug("Snippet is a simple single-line expression. Bypassing docstring check.")
+            return True, "compliant"
+
         # 2. Handle comment-only snippets (should be compliant)
         if is_snippet and all(line.strip().startswith('#') for line in stripped_code.splitlines()):
             logger.debug("Snippet consists only of comments. Bypassing docstring transparency check.")

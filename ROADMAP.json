@@ -20,7 +20,8 @@
       "task_name": "Refine Step Classification to Correctly Identify Research Steps",
       "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": []
+      "depends_on": [],
+      "description": "Modify WorkflowDriver's step classification logic to ensure that plan steps primarily involving 'Research and identify', 'Analyze', or 'Investigate' are not classified as code generation steps, even if they mention target files or code-related keywords as examples. This is a prerequisite to allow the main task_1_8_1 to proceed autonomously."
     },
     {
       "task_id": "task_1_8_0_fix_summarizer_synthesize",
@@ -30,7 +31,8 @@
       "target_file": "src/core/chunking/recursive_summarizer.py",
       "depends_on": [
         "task_1_8_1_pre_fix"
-      ]
+      ],
+      "description": "The EnhancedLLMOrchestrator calls self.summarizer.synthesize(), but RecursiveSummarizer does not have this method. Add a synthesize(self, summaries: List[str]) -> str method to RecursiveSummarizer in src/core/chunking/recursive_summarizer.py that joins the list of summaries into a single string. This is needed to unblock code generation in _handle_large_context."
     },
     {
       "task_id": "task_1_8_0_fix_token_allocator",
@@ -40,7 +42,8 @@
       "target_file": "src/core/optimization/adaptive_token_allocator.py, src/core/ethics/constraints.py",
       "depends_on": [
         "task_1_8_0_fix_summarizer_synthesize"
-      ]
+      ],
+      "description": "The TokenAllocator's cost function _model_cost in src/core/optimization/adaptive_token_allocator.py has a quadratic term that heavily penalizes token count, resulting in minimal allocations (e.g., 101 tokens). Modify the coefficient of the quadratic term (e.g., change the divisor from 1000.0 to 10000000.0) to allow for more realistic token allocations for code generation tasks. Also, ensure the solver is reset before each allocation call."
     },
     {
       "task_id": "task_1_8_1_unblock_overwrite_fix",
@@ -52,7 +55,8 @@
         "task_1_8_1_pre_fix",
         "task_1_8_0_fix_summarizer_synthesize",
         "task_1_8_0_fix_token_allocator"
-      ]
+      ],
+      "description": "Modify the WorkflowDriver's autonomous_loop logic. Specifically, in the 'explicit file writing' branch, add a condition to prevent writing placeholder content to the main Python task_target_file of a task if the plan step is conceptual (e.g., 'define a list', 'analyze requirements') and not an explicit 'create file' or 'generate file' instruction. Also, ensure Python-specific placeholders (#) are used if a placeholder write to a .py file is genuinely intended."
     },
     {
       "task_id": "task_1_8_1_fix_syntax_and_add_tests",
@@ -62,7 +66,8 @@
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_1_unblock_overwrite_fix"
-      ]
+      ],
+      "description": "The code generated for task_1_8_1 (Enhance Plan Step Identification) included an erroneous trailing line causing a syntax/name error. Remove this line from src/core/automation/workflow_driver.py. Additionally, create comprehensive unit tests for the new classify_plan_step function. Tests should cover code steps, conceptual steps, ambiguous steps, and edge cases. Place tests in tests/test_phase1_8_features.py."
     },
     {
       "task_id": "task_1_8_1",
@@ -72,7 +77,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_1_fix_syntax_and_add_tests"
-      ]
+      ],
+      "description": "Improve the Workflow Driver's logic to better identify plan steps requiring code modification (imports, constants, definitions, etc.) vs. conceptual steps."
     },
     {
       "task_id": "task_1_8_1b_increase_min_token_alloc",
@@ -82,7 +88,8 @@
       "target_file": "src/core/optimization/adaptive_token_allocator.py, src/core/ethics/constraints.py",
       "depends_on": [
         "task_1_8_1"
-      ]
+      ],
+      "description": "Modify TokenAllocator and EthicalAllocationPolicy to enforce a higher minimum token count per chunk (e.g., 1000 tokens instead of 100). This is crucial for effective code generation, as the current minimum leads to insufficient token allocation and stalls progress on code-generating tasks. This task addresses the shortcomings of task_1_8_0_fix_token_allocator."
     },
     {
       "task_id": "task_1_8_2b_fix_placeholder_overwrite_for_modification_steps",
@@ -90,7 +97,8 @@
       "task_name": "Refine Placeholder Write Logic for Main Target Modification",
       "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
-      "depends_on": []
+      "depends_on": [],
+      "description": "Modify WorkflowDriver.autonomous_loop to prevent placeholder overwrites on the main Python task_target_file for steps that imply modification rather than creation (e.g., \"insert a block\", \"add logic to method X\"). Such steps, if classified as 'explicit file writing', should be treated as code generation steps or have their placeholder write skipped entirely if they are too vague for direct code generation. This refines task_1_8_1_unblock_overwrite_fix. Add unit tests for this specific logic in tests/test_phase1_8_features.py, covering scenarios where placeholders should and should not be written to the main Python target."
     },
     {
       "task_id": "task_1_8_2c_target_test_file_for_test_writing_steps",
@@ -100,7 +108,8 @@
       "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2b_fix_placeholder_overwrite_for_modification_steps"
-      ]
+      ],
+      "description": "Enhance WorkflowDriver.autonomous_loop step processing. If a plan step is for writing unit tests (e.g., contains \"write unit tests for X\", mentions tests/test_*.py, or filepath_from_step points to a test file path), ensure the generated test code is written to the appropriate test file path. This path should be derived from filepath_from_step if valid and test-like, or by convention from task_target_file (e.g., src/A.py -> tests/test_A.py). This determined test file path should override task_target_file for the write operation if task_target_file is not itself a test file. Add unit tests for this file targeting logic in tests/test_phase1_8_features.py."
     },
     {
       "task_id": "task_unblock_log_enhance_1_8_2",
@@ -110,7 +119,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2c_target_test_file_for_test_writing_steps"
-      ]
+      ],
+      "description": "Modify the WorkflowDriver to provide more detailed logging during code generation and pre-write validation. Log failed snippets, LLM prompts, and optimizer input/output (if accessible)."
     },
     {
       "task_id": "task_unblock_retry_limit_1_8_2",
@@ -120,7 +130,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_unblock_log_enhance_1_8_2"
-      ]
+      ],
+      "description": "Modify the WorkflowDriver to retry failing plan steps up to a limit. If a step fails after exhausting retries, mark the task as 'Blocked' in ROADMAP.json with a reason and move to the next task."
     },
     {
       "task_id": "task_1_8_Z_implement_llm_rate_limiting",
@@ -130,7 +141,8 @@
       "target_file": "src/core/llm_orchestration.py",
       "depends_on": [
         "task_unblock_retry_limit_1_8_2"
-      ]
+      ],
+      "description": "Modify LLMOrchestrator to add client-side rate limiting for Gemini API calls to prevent 429 errors. 1. Add attributes (`_last_gemini_call_start_time`, `_gemini_call_lock`) to LLMOrchestrator. 2. Implement a method `_apply_gemini_rate_limit` that calculates the necessary sleep duration based on a 10 RPM (6 seconds per request) limit, uses a lock for thread safety, applies `time.sleep` if needed, and updates `_gemini_call_start_time`. 3. Call this method in `_generate_with_retry` before invoking `_gemini_generate`. 4. Add unit tests for the rate limiting logic in `tests/test_llm_orchestration.py` to verify correct sleep timing under various conditions. 5. Ensure logging indicates when rate limiting is active."
     },
     {
       "task_id": "task_1_8_X_fix_multi_target_handling",
@@ -140,7 +152,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_Z_implement_llm_rate_limiting"
-      ]
+      ],
+      "description": "Modify `WorkflowDriver.autonomous_loop` to correctly process tasks with multiple comma-separated `target_file` entries. 1. When a code generation step is identified, and the parent task's `target_file` lists multiple files, implement logic to determine the *actual single target file* for the current plan step. This determination should prioritize explicit file mentions in the step description (e.g., 'modify fileA.py', 'in fileB.py'). If no specific file from the task's list is mentioned in the step, it should default to the first file in the `task_target_file` list and log a warning about the ambiguity. 2. Ensure the determined single file path is used for `_read_file_for_context`, pre-write validation, and `_write_output_file`. 3. Add unit tests for this parsing/determination logic in tests/test_phase1_8_features.py. 4. Add an integration test with a multi-target task and a step modifying one specific file, asserting correct file operations."
     },
     {
       "task_id": "task_1_8_Y_ensure_docstrings_in_codegen",
@@ -150,7 +163,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_X_fix_multi_target_handling"
-      ]
+      ],
+      "description": "Modify `WorkflowDriver.autonomous_loop` prompt construction for the CoderLLM. 1. When a plan step involves Python code generation that is likely to create new functions, methods, or classes, explicitly instruct the CoderLLM in its prompt to include comprehensive docstrings. The instruction should specify that docstrings must explain the purpose, arguments (name, type, description), and return values (type, description). Example instruction: 'IMPORTANT: For any new Python functions, methods, or classes, you MUST include a comprehensive PEP 257 compliant docstring. Use Google-style format (Args:, Returns:, Example: sections). This is required to pass automated ethical and style checks.'. 2. Add unit tests to verify that CoderLLM prompts for Python function/method generation include this instruction in tests/test_phase1_8_features.py."
     },
     {
       "task_id": "task_1_8_fix_rate_limit_enh_orchestrator",
@@ -160,7 +174,8 @@
       "target_file": "src/core/llm_orchestration.py",
       "depends_on": [
         "task_1_8_Y_ensure_docstrings_in_codegen"
-      ]
+      ],
+      "description": "The `_call_llm_api` method in `EnhancedLLMOrchestrator` directly calls `_gemini_generate` without going through `_generate_with_retry`, bypassing the rate limiting logic. Modify `_call_llm_api` to correctly incorporate rate limiting for Gemini calls by directly invoking `self._apply_gemini_rate_limit()` before `self._gemini_generate(text)` if the model is 'gemini'. Add unit tests to verify rate limiting is applied in this specific execution path."
     },
     {
       "task_id": "task_1_8_improve_snippet_handling",
@@ -170,7 +185,8 @@
       "target_file": "src/core/automation/workflow_driver.py, src/core/llm_orchestration.py",
       "depends_on": [
         "task_1_8_fix_rate_limit_enh_orchestrator"
-      ]
+      ],
+      "description": "The system frequently encounters syntax errors (e.g., 'unterminated string literal', 'unexpected indent') during pre-write validation (`ast.parse`) of CoderLLM-generated snippets or after merging. This blocks autonomous development. This task aims to improve robustness: 1. **Enhanced Logging:** (Completed) Modify `WorkflowDriver._invoke_coder_llm` to save the exact `generated_snippet` string (using `repr()`) to a temporary file if `ast.parse` fails, to capture hidden characters/malformations for debugging. 2. **Prompt Refinement:** (Completed) Review and refine CoderLLM prompts in `workflow_driver.py` to explicitly guide the LLM to output syntactically correct, complete, and context-aware code snippets, minimizing issues with string literals, indentation, and partial outputs. 3. **Merge Strategy Review:** (Completed) Modify the `_merge_snippet` method in `workflow_driver.py` to attempt basic indentation adjustment of the snippet if `METAMORPHIC_INSERT_POINT` is found. 4. **Pre-Merge Full File Syntax Check:** (Completed) Before `_merge_snippet` is called, create a temporary in-memory version of the target file content with the snippet hypothetically inserted at the `METAMORPHIC_INSERT_POINT`. Attempt `ast.parse()` on this *full temporary content*. If this full parse fails, the step should fail with specific feedback indicating an integration syntax error, rather than just the snippet failing."
     },
     {
       "task_id": "task_1_8_A_optimize_large_context_epic",
@@ -180,7 +196,8 @@
       "target_file": "src/core/automation/workflow_driver.py, src/core/llm_orchestration.py, src/core/chunking/recursive_summarizer.py",
       "depends_on": [
         "task_1_8_Y_ensure_docstrings_in_codegen"
-      ]
+      ],
+      "description": "OVERARCHING GOAL: Refine `WorkflowDriver.autonomous_loop` and related components to significantly reduce redundant LLM calls when processing large context files for code generation steps, by providing minimal context for simple additions and prompting for only changed lines. This epic is achieved via sub-tasks task_1_8_A_1_helper_is_simple_addition through task_1_8_A_6."
     },
     {
       "task_id": "task_1_8_A_1a_create_skeleton",
@@ -190,7 +207,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_improve_snippet_handling"
-      ]
+      ],
+      "description": "In `WorkflowDriver`, create the new helper method `_is_simple_addition_plan_step(self, plan_step_description: str) -> bool`. The implementation should only contain a `pass` statement. A comprehensive docstring explaining the method's purpose, arguments, and return value must be included. **Ensure the method signature and docstring adhere strictly to PEP8 line length (max 79 chars) and formatting guidelines.** This creates the necessary structure for the subsequent implementation task."
     },
     {
       "task_id": "task_1_8_A_1b_implement_logic",
@@ -200,7 +218,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_A_1a_create_skeleton"
-      ]
+      ],
+      "description": "In `WorkflowDriver`, implement the logic for the `_is_simple_addition_plan_step` method. Use the `re` module to check the `plan_step_description` against a list of regex patterns that identify simple additions (e.g., adding an import, a new method, a constant). Ensure `import re` is present at the top of the file. The method should return True if a pattern matches, and False otherwise. **After implementation, ensure the code passes all Flake8 style and security checks (especially E501 line length) and that `import re` is correctly placed.**"
     },
     {
       "task_id": "task_1_8_A_1c_add_tests",
@@ -210,7 +229,8 @@
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_A_1b_implement_logic"
-      ]
+      ],
+      "description": "In a new test file `tests/test_phase1_8_features.py`, add comprehensive unit tests for the `WorkflowDriver._is_simple_addition_plan_step` method. Use `pytest.mark.parametrize` to cover various cases: simple additions that should return True, complex modifications that should return False, and edge cases like empty strings. **Ensure tests are self-contained and pass `pytest` and `flake8` checks.**"
     },
     {
       "task_id": "task_1_8_A_2_implement_and_test_get_context_type",
@@ -231,7 +251,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_A_test_import_optimization"
-      ]
+      ],
+      "description": "Modify the retry logic within `WorkflowDriver.autonomous_loop`. When a plan step fails due to pre-write validation (syntax, style, ethics) or other captured errors (e.g., test failures post-write), the specific error message(s) should be extracted from `self._current_task_results['pre_write_validation_feedback']` or `self._current_task_results['step_errors']`. This detailed feedback must be appended to the prompt for the CoderLLM during the subsequent retry attempt. The goal is to provide the LLM with concrete information about what went wrong, enabling it to self-correct more effectively."
     },
     {
       "task_id": "task_1_8_B_1_error_specific_feedback",
@@ -242,7 +263,8 @@
       "depends_on": [
         "task_1_8_B_enhance_retry_prompts",
         "task_1_8_A_6_add_tests_for_context_optimization"
-      ]
+      ],
+      "description": "Enhance `WorkflowDriver.autonomous_loop` to parse pre-write validation output (e.g., `flake8` findings). If specific, actionable error codes like `F821` (undefined name) are detected, dynamically augment the Coder LLM's retry prompt with targeted advice (e.g., suggesting missing imports). This improves autonomous remediation for common coding errors."
     },
     {
       "task_id": "task_1_8_2_implement_pre_write_validation_loop",
@@ -265,7 +287,8 @@
       "depends_on": [
         "task_1_8_A_6_add_tests_for_context_optimization",
         "task_1_8_A_test_import_optimization"
-      ]
+      ],
+      "description": "Analyze the failures encountered during the initial autonomous attempt of task_1_8_A_1 (_is_simple_addition_plan_step). Specifically, investigate why the CoderLLM failed to: 1. Correctly include `import re`. 2. Adhere to style guidelines (E302, E501). 3. Consistently include docstrings for new methods. 4. Avoided outputting spurious code that was appended to files. Implement improvements to CoderLLM prompting, snippet cleaning, or pre-write validation to prevent such issues in the future. This task focuses on the AI improving its own code generation process based on past failures."
     },
     {
       "task_id": "task_1_8_3",
@@ -275,7 +298,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_implement_pre_write_validation_loop"
-      ]
+      ],
+      "description": "If pre-write validation fails, provide targeted feedback to the Coder LLM and retry generating the snippet for that specific step (e.g., 2-3 attempts) before failing the step or task."
     },
     {
       "task_id": "task_1_8_4",
@@ -285,7 +309,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_3"
-      ]
+      ],
+      "description": "Modify the Workflow Driver to automatically trigger relevant tests (using execute_tests) after any plan step that successfully modifies code, especially if the task has a target_file that implies testability (e.g., .py file). Capture results in _current_task_results."
     },
     {
       "task_id": "task_1_8_5",
@@ -295,7 +320,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_4"
-      ]
+      ],
+      "description": "Log detailed information about validation failures, remediation attempts, LLM prompts/responses, and outcomes. Store this structured data in the Knowledge Graph or a dedicated database for analysis and learning."
     },
     {
       "task_id": "task_1_8_14",
@@ -306,7 +332,8 @@
       "depends_on": [
         "task_1_8_A_test_import_optimization",
         "task_1_8_5"
-      ]
+      ],
+      "description": "The temporary fix for AllocationError in EthicalAllocationPolicy bypassed diversity constraints. Implement a robust, ethical token allocation strategy that correctly handles large prompts and multiple chunks, potentially revising Z3 constraints or exploring alternative allocation methods. Ensure the policy promotes model diversity where feasible without causing allocation failures."
     },
     {
       "task_id": "task_1_8_7",
@@ -317,7 +344,8 @@
       "depends_on": [
         "task_1_8_1",
         "task_1_8_5"
-      ]
+      ],
+      "description": "Add logic to the Workflow Driver or a Planning Agent to assess task complexity and automatically break down large tasks into smaller, dependent sub-tasks in the roadmap if needed."
     },
     {
       "task_id": "task_1_8_8",
@@ -327,7 +355,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_5"
-      ]
+      ],
+      "description": "Update generate_grade_report to clearly distinguish validation execution errors from findings and highlight critical issues. Improve overall logging clarity for debugging autonomous runs."
     },
     {
       "task_id": "task_1_8_9",
@@ -337,7 +366,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_3"
-      ]
+      ],
+      "description": "Replace the current string-based _merge_snippet with an AST-aware merging utility to handle code modifications more robustly and reduce the chance of introducing syntax errors during merging."
     },
     {
       "task_id": "task_1_8_10",
@@ -348,7 +378,8 @@
       "depends_on": [
         "task_1_8_3",
         "task_1_8_6"
-      ]
+      ],
+      "description": "If remediation attempts fail for a step, analyze the failure and modify the *prompt* sent to the Coder LLM for the next attempt, or potentially modify the original code generation prompt template based on failure patterns."
     },
     {
       "task_id": "task_1_8_11",
@@ -359,7 +390,8 @@
       "depends_on": [
         "task_1_8_5",
         "task_1_8_10"
-      ]
+      ],
+      "description": "Refine how the Workflow Driver constructs prompts for the Coder LLM, incorporating lessons learned from failure data (task_1_8_5) and successful prompt self-correction (task_1_8_10)."
     },
     {
       "task_id": "task_1_8_12",
@@ -369,7 +401,8 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_5"
-      ]
+      ],
+      "description": "Develop a simple model (potentially using data from task_1_8_5) to predict the likelihood of autonomous success for a given task based on its characteristics. Use this to inform task selection or flag low-probability tasks for manual review."
     },
     {
       "task_id": "task_1_8_13",
@@ -390,7 +423,8 @@
         "task_1_8_10",
         "task_1_8_11",
         "task_1_8_12"
-      ]
+      ],
+      "description": "Write comprehensive unit/integration tests covering all new features in Phase 1.8, including pre-write validation, step-level retries, post-write test execution, improved remediation logic, failure data capture, task decomposition, advanced merging, prompt self-correction, improved prompt generation, and task success prediction."
     },
     {
       "task_id": "task_1_8_15_plan_complexity_detection",

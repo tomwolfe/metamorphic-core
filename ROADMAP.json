@@ -250,7 +250,7 @@
       "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_A_test_import_optimization"
+        "task_1_8_A_optimize_large_context_epic"
       ],
       "description": "Modify the retry logic within `WorkflowDriver.autonomous_loop`. When a plan step fails due to pre-write validation (syntax, style, ethics) or other captured errors (e.g., test failures post-write), the specific error message(s) should be extracted from `self._current_task_results['pre_write_validation_feedback']` or `self._current_task_results['step_errors']`. This detailed feedback must be appended to the prompt for the CoderLLM during the subsequent retry attempt. The goal is to provide the LLM with concrete information about what went wrong, enabling it to self-correct more effectively."
     },
@@ -262,7 +262,7 @@
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_B_enhance_retry_prompts",
-        "task_1_8_A_6_add_tests_for_context_optimization"
+        "task_1_8_A_optimize_large_context_epic"
       ],
       "description": "Enhance `WorkflowDriver.autonomous_loop` to parse pre-write validation output (e.g., `flake8` findings). If specific, actionable error codes like `F821` (undefined name) are detected, dynamically augment the Coder LLM's retry prompt with targeted advice (e.g., suggesting missing imports). This improves autonomous remediation for common coding errors."
     },
@@ -282,7 +282,7 @@
       "task_id": "task_1_8_2_B_implement_while_loop",
       "priority": "Critical",
       "task_name": "Implement While Loop for Step Retries",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_A_add_max_retries_constant"
@@ -294,7 +294,7 @@
       "task_id": "task_1_8_2_C_add_retry_counter",
       "priority": "Critical",
       "task_name": "Add and Increment Step Retry Counter",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_B_implement_while_loop"
@@ -306,7 +306,7 @@
       "task_id": "task_1_8_2_D_add_feedback_reinvocation",
       "priority": "Critical",
       "task_name": "Add Feedback Construction for Retry Prompts",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_C_add_retry_counter"
@@ -318,7 +318,7 @@
       "task_id": "task_1_8_2_E_add_exhaustion_error",
       "priority": "Critical",
       "task_name": "Add Logic to Block Task on Retry Exhaustion",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_D_add_feedback_reinvocation"
@@ -345,8 +345,7 @@
       "status": "Not Started",
       "target_file": "src/core/llm/orchestration.py",
       "depends_on": [
-        "task_1_8_A_6_add_tests_for_context_optimization",
-        "task_1_8_A_test_import_optimization"
+        "task_1_8_A_optimize_large_context_epic"
       ],
       "description": "Analyze the failures encountered during the initial autonomous attempt of task_1_8_A_1 (_is_simple_addition_plan_step). Specifically, investigate why the CoderLLM failed to: 1. Correctly include `import re`. 2. Adhere to style guidelines (E302, E501). 3. Consistently include docstrings for new methods. 4. Avoided outputting spurious code that was appended to files. Implement improvements to CoderLLM prompting, snippet cleaning, or pre-write validation to prevent such issues in the future. This task focuses on the AI improving its own code generation process based on past failures."
     },
@@ -390,7 +389,7 @@
       "status": "Not Started",
       "target_file": "src/core/ethics/constraints.py, src/core/optimization/adaptive_token_allocator.py",
       "depends_on": [
-        "task_1_8_A_test_import_optimization",
+        "task_1_8_A_optimize_large_context_epic",
         "task_1_8_5"
       ],
       "description": "The temporary fix for AllocationError in EthicalAllocationPolicy bypassed diversity constraints. Implement a robust, ethical token allocation strategy that correctly handles large prompts and multiple chunks, potentially revising Z3 constraints or exploring alternative allocation methods. Ensure the policy promotes model diversity where feasible without causing allocation failures."
@@ -476,7 +475,6 @@
         "task_1_8_3",
         "task_1_8_4",
         "task_1_8_5",
-        "task_1_8_6",
         "task_1_8_7",
         "task_1_8_8",
         "task_1_8_9",

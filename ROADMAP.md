@@ -142,35 +142,41 @@
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_B_enhance_retry_prompts', 'task_1_8_A_6_add_tests_for_context_optimization']
 
-*   **Task ID**: task_1_8_2_A_add_retry_counter
+*   **Task ID**: task_1_8_2_A_add_max_retries_constant
     *   **Priority**: Critical
-    *   **Task Name**: Add Retry Counter Variable
-    *   **Status**: Not Started
+    *   **Task Name**: Add MAX_STEP_RETRIES Constant
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_B_enhance_retry_prompts']
 
-*   **Task ID**: task_1_8_2_B_implement_validation_loop_stub
+*   **Task ID**: task_1_8_2_B_implement_while_loop
     *   **Priority**: Critical
-    *   **Task Name**: Implement Validation Loop Stub
+    *   **Task Name**: Implement While Loop for Step Retries
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_A_add_retry_counter']
+    *   **Depends On**: ['task_1_8_2_A_add_max_retries_constant']
 
-*   **Task ID**: task_1_8_2_C_integrate_validation_logic
+*   **Task ID**: task_1_8_2_C_add_retry_counter
     *   **Priority**: Critical
-    *   **Task Name**: Integrate Existing Validation Logic into Loop
+    *   **Task Name**: Add and Increment Step Retry Counter
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_B_implement_validation_loop_stub']
+    *   **Depends On**: ['task_1_8_2_B_implement_while_loop']
 
-*   **Task ID**: task_1_8_2_D_add_llm_regeneration_on_failure
+*   **Task ID**: task_1_8_2_D_add_feedback_reinvocation
     *   **Priority**: Critical
-    *   **Task Name**: Add LLM Regeneration on Validation Failure
+    *   **Task Name**: Add Feedback Construction for Retry Prompts
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_C_integrate_validation_logic']
+    *   **Depends On**: ['task_1_8_2_C_add_retry_counter']
 
-*   **Task ID**: task_1_8_2_E_add_unit_tests
+*   **Task ID**: task_1_8_2_E_add_exhaustion_error
+    *   **Priority**: Critical
+    *   **Task Name**: Add Logic to Block Task on Retry Exhaustion
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_D_add_feedback_reinvocation']
+
+*   **Task ID**: task_1_8_2_F_add_hallucination_check
     *   **Priority**: High
-    *   **Task Name**: Add Unit Tests for New Validation Loop
+    *   **Task Name**: Add Pre-Write Validation for Context Leakage
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_D_add_llm_regeneration_on_failure']
+    *   **Depends On**: ['task_1_8_2_E_add_exhaustion_error']
 
 *   **Task ID**: task_1_8_C_1_analyze_A1_failure_and_improve_codegen
     *   **Priority**: High
@@ -182,7 +188,7 @@
     *   **Priority**: Critical
     *   **Task Name**: Implement Step-Level Remediation Loop
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_E_add_unit_tests']
+    *   **Depends On**: ['task_1_8_2_F_add_hallucination_check']
 
 *   **Task ID**: task_1_8_4
     *   **Priority**: Critical
@@ -242,5 +248,17 @@
     *   **Priority**: High
     *   **Task Name**: Add Comprehensive Tests for Phase 1.8 Features
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1', 'task_1_8_2_retry', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_6', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
+    *   **Depends On**: ['task_1_8_1', 'task_1_8_2_F_add_hallucination_check', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_6', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
+
+*   **Task ID**: task_1_8_15_plan_complexity_detection
+    *   **Priority**: High
+    *   **Task Name**: Implement Plan Complexity Detection and Re-Planning
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_7', 'task_1_8_5']
+
+*   **Task ID**: task_1_8_16_context_scoping_refinement
+    *   **Priority**: High
+    *   **Task Name**: Refine Coder LLM Context Scoping for Atomic Modifications
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_optimize_large_context_epic', 'task_1_8_5']
 

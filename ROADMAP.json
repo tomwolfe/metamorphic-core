@@ -327,16 +327,48 @@
       "success_criteria": "Logic to check for exhausted retries, log an error, and break the loop is correctly implemented. The file must compile and all existing tests pass."
     },
     {
-      "task_id": "task_1_8_2_F_add_hallucination_check",
+      "task_id": "task_1_8_2_F_A_define_indicators",
       "priority": "High",
-      "task_name": "Add Pre-Write Validation for Context Leakage",
+      "task_name": "Define Context Leakage Indicators",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_E_add_exhaustion_error"
       ],
-      "description": "Implement a new pre-write validation check that identifies and rejects generated code snippets containing markers or function names from unrelated contexts. This check should analyze the snippet for keywords or signatures that are not relevant to the current modification context to prevent LLM hallucinations from being written to disk.",
-      "success_criteria": "A new validation function is added and integrated into the pre-write check sequence. It successfully blocks a test snippet containing known unrelated code."
+      "description": "In `src/core/automation/workflow_driver.py`, add a new class-level constant named `CONTEXT_LEAKAGE_INDICATORS`. This constant should be a list of strings. Populate this list with patterns that signify LLM hallucinations or context leakage, such as '```python', '`' and common conversational filler words like 'Here is the code'."
+    },
+    {
+      "task_id": "task_1_8_2_F_B_implement_function",
+      "priority": "High",
+      "task_name": "Implement `_validate_for_context_leakage` Function",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_F_A_define_indicators"
+      ],
+      "description": "In `WorkflowDriver`, add a new private method `_validate_for_context_leakage(self, code_snippet: str) -> bool`. This method should iterate through the `CONTEXT_LEAKAGE_INDICATORS` list and return `False` if any indicator is found in the `code_snippet`. It should return `True` if no indicators are found. Ensure the method has a proper docstring."
+    },
+    {
+      "task_id": "task_1_8_2_F_C_integrate_call",
+      "priority": "High",
+      "task_name": "Integrate `_validate_for_context_leakage` into Pre-Write Checks",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_F_B_implement_function"
+      ],
+      "description": "In `WorkflowDriver.autonomous_loop`, locate the pre-write validation section. Add a new check that calls `self._validate_for_context_leakage(cleaned_snippet)`. If it returns `False`, add a specific error message to the `validation_feedback` list and set `validation_passed` to `False`."
+    },
+    {
+      "task_id": "task_1_8_2_F_D_add_tests",
+      "priority": "High",
+      "task_name": "Add Unit Tests for Context Leakage Validation",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_2_F_C_integrate_call"
+      ],
+      "description": "In `tests/test_phase1_8_features.py`, add new unit tests for the `_validate_for_context_leakage` method. Include tests for code that should pass, code that contains leakage indicators, and edge cases like empty strings."
     },
     {
       "task_id": "task_1_8_C_1_analyze_A1_failure_and_improve_codegen",
@@ -356,7 +388,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_2_F_add_hallucination_check"
+        "task_1_8_2_F_D_add_tests"
       ],
       "description": "If pre-write validation fails, provide targeted feedback to the Coder LLM and retry generating the snippet for that specific step (e.g., 2-3 attempts) before failing the step or task."
     },
@@ -471,7 +503,7 @@
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_1",
-        "task_1_8_2_F_add_hallucination_check",
+        "task_1_8_2_F_D_add_tests",
         "task_1_8_3",
         "task_1_8_4",
         "task_1_8_5",

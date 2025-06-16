@@ -110,6 +110,13 @@ class EthicalGovernanceEngine:
         if is_snippet and all(line.strip().startswith('#') for line in stripped_code.splitlines()):
             logger.debug("Snippet consists only of comments. Bypassing docstring transparency check.")
             return True, "compliant"
+        
+        # NEW: If it's a snippet, check if it's a simple block of code vs a full definition
+        if is_snippet:
+            # If the snippet doesn't start with 'def' or 'class', it's likely a block for insertion, not a definition.
+            if not stripped_code.lstrip().startswith(('def ', 'class ')):
+                logger.debug("Snippet is not a function/class definition. Bypassing docstring check.")
+                return True, "compliant"
 
         if is_snippet:
             try:

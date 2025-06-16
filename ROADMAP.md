@@ -134,13 +134,13 @@
     *   **Priority**: High
     *   **Task Name**: Enhance Retry Prompts with Specific Validation Feedback
     *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_test_import_optimization']
+    *   **Depends On**: ['task_1_8_A_optimize_large_context_epic']
 
 *   **Task ID**: task_1_8_B_1_error_specific_feedback
     *   **Priority**: High
     *   **Task Name**: Implement Error-Specific Feedback for Retry Prompts
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_B_enhance_retry_prompts', 'task_1_8_A_6_add_tests_for_context_optimization']
+    *   **Depends On**: ['task_1_8_B_enhance_retry_prompts', 'task_1_8_A_optimize_large_context_epic']
 
 *   **Task ID**: task_1_8_2_A_add_max_retries_constant
     *   **Priority**: Critical
@@ -151,44 +151,62 @@
 *   **Task ID**: task_1_8_2_B_implement_while_loop
     *   **Priority**: Critical
     *   **Task Name**: Implement While Loop for Step Retries
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_A_add_max_retries_constant']
 
 *   **Task ID**: task_1_8_2_C_add_retry_counter
     *   **Priority**: Critical
     *   **Task Name**: Add and Increment Step Retry Counter
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_B_implement_while_loop']
 
 *   **Task ID**: task_1_8_2_D_add_feedback_reinvocation
     *   **Priority**: Critical
     *   **Task Name**: Add Feedback Construction for Retry Prompts
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_C_add_retry_counter']
 
 *   **Task ID**: task_1_8_2_E_add_exhaustion_error
     *   **Priority**: Critical
     *   **Task Name**: Add Logic to Block Task on Retry Exhaustion
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_D_add_feedback_reinvocation']
 
-*   **Task ID**: task_1_8_2_F_add_hallucination_check
+*   **Task ID**: task_1_8_2_F_A_define_indicators
     *   **Priority**: High
-    *   **Task Name**: Add Pre-Write Validation for Context Leakage
+    *   **Task Name**: Define Context Leakage Indicators
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_E_add_exhaustion_error']
+
+*   **Task ID**: task_1_8_2_F_B_implement_function
+    *   **Priority**: High
+    *   **Task Name**: Implement `_validate_for_context_leakage` Function
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_F_A_define_indicators']
+
+*   **Task ID**: task_1_8_2_F_C_integrate_call
+    *   **Priority**: High
+    *   **Task Name**: Integrate `_validate_for_context_leakage` into Pre-Write Checks
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_F_B_implement_function']
+
+*   **Task ID**: task_1_8_2_F_D_add_tests
+    *   **Priority**: High
+    *   **Task Name**: Add Unit Tests for Context Leakage Validation
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_F_C_integrate_call']
 
 *   **Task ID**: task_1_8_C_1_analyze_A1_failure_and_improve_codegen
     *   **Priority**: High
     *   **Task Name**: Analyze task_1_8_A_1 Failures & Improve CodeGen
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_6_add_tests_for_context_optimization', 'task_1_8_A_test_import_optimization']
+    *   **Depends On**: ['task_1_8_A_optimize_large_context_epic']
 
 *   **Task ID**: task_1_8_3
     *   **Priority**: Critical
     *   **Task Name**: Implement Step-Level Remediation Loop
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_add_hallucination_check']
+    *   **Depends On**: ['task_1_8_2_F_D_add_tests']
 
 *   **Task ID**: task_1_8_4
     *   **Priority**: Critical
@@ -206,7 +224,7 @@
     *   **Priority**: High
     *   **Task Name**: Address Ethical Debt in Token Allocator Policy
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_A_test_import_optimization', 'task_1_8_5']
+    *   **Depends On**: ['task_1_8_A_optimize_large_context_epic', 'task_1_8_5']
 
 *   **Task ID**: task_1_8_7
     *   **Priority**: Medium
@@ -248,7 +266,7 @@
     *   **Priority**: High
     *   **Task Name**: Add Comprehensive Tests for Phase 1.8 Features
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1', 'task_1_8_2_F_add_hallucination_check', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_6', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
+    *   **Depends On**: ['task_1_8_1', 'task_1_8_2_F_D_add_tests', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
 
 *   **Task ID**: task_1_8_15_plan_complexity_detection
     *   **Priority**: High

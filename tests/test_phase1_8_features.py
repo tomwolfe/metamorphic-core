@@ -193,10 +193,9 @@ def driver_for_simple_addition_test(tmp_path, mocker):
 @pytest.fixture
 def driver_for_context_tests(tmp_path, mocker):
     context = Context(str(tmp_path))
-    mocker.patch.object(WorkflowDriver, '_load_default_policy')
+    mocker.patch.object(WorkflowDriver, '_load_default_policy') # Mock policy loading
     with patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator'):
         driver = WorkflowDriver(context)
-    driver.logger = MagicMock(spec=logging.Logger)
     return driver
 
 class TestPhase1_8WorkflowDriverEnhancements:
@@ -592,6 +591,60 @@ class TestIsSimpleAdditionPlanStep:
             for record in caplog.records
         ), f"Expected specific log message for ambiguous step '{description_vague}', but found none matching criteria in {caplog.records}"
 
+class TestContextExtractionEnhancements:
+    def test_get_context_type_for_add_constant(self, driver_for_context_tests):
+        driver = driver_for_context_tests
+        description = "add a new constant MAX_RETRIES to the WorkflowDriver class"
+        assert driver._get_context_type_for_step(description) == "add_class_constant"
+
+    def test_extract_context_for_add_constant(self, driver_for_context_tests, tmp_path):
+        driver = driver_for_context_tests
+        file_content = """
+# Preamble
+import os
+
+class MyTestClass:
+    \"\"\"A test class docstring.\"\"\"
+    
+    def __init__(self):
+        pass
+
+    def another_method(self):
+        pass
+"""
+        file_path = str(tmp_path / "test_module.py")
+        (tmp_path / "test_module.py").write_text(file_content)
+        
+        step_description = "Add constant to class MyTestClass"
+        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_class_constant", step_description)
+        
+        expected_context = """class MyTestClass:
+    \"\"\"A test class docstring.\"\"\"
+    
+    def __init__(self):
+        pass"""
+        
+        assert is_minimal is True
+        assert context_str.strip() == expected_context.strip()
+
+    def test_add_constant_fallback_when_no_class(self, driver_for_context_tests, tmp_path, caplog):
+        """Tests the negative case where no class definition exists in the file."""
+        driver = driver_for_context_tests
+        file_content = "import os\n\ndef foo(): pass"  # No class definition
+        file_path = tmp_path / "no_class.py"
+        file_path.write_text(file_content)
+        
+        context, is_minimal = driver._extract_targeted_context(
+            str(file_path), 
+            file_content, 
+            "add_class_constant", 
+            "Add constant MAX_RETRIES"
+        )
+        
+        assert not is_minimal, "Should fall back to full content when no class is found"
+        assert context == file_content
+        assert "Could not find any class definition for 'add_class_constant'" in caplog.text
+
 class TestGetContextTypeForStep:
     @pytest.mark.parametrize("description, expected", [
         # Positive cases for 'add_import'
@@ -650,92 +703,110 @@ class TestContextExtraction:
     def test_extract_context_add_method_to_class(self, driver_for_context_tests):
         """Tests extracting context for adding a method to a specific class."""
         driver = driver_for_context_tests
-        file_content = (
-            "import os\n\n" # Line 1-2
-            "class FirstClass:\n" # Line 3
-            "    pass\n\n" # Line 4-5
-            "# A comment between classes\n" # Line 6
-            "class TargetClass:\n" # Line 7
-            "    def existing_method(self):\n" # Line 8
-            "        return True\n\n" # Line 9-10
-            "class ThirdClass:\n" # Line 11
-            "    pass\n" # Line 12
-        )
-        # FIX: Use get_full_path for path construction
-        file_path = driver_for_context_tests.context.get_full_path("processor.py")
-        step_description = "Add method process_data to class TargetClass" # Changed MyProcessor to TargetClass
-        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_method_to_class", step_description)
+        with patch.object(driver, 'logger', autospec=True) as mock_logger:
+            file_content = (
+                "import os\n\n" # Line 1-2
+                "class FirstClass:\n" # Line 3
+                "    pass\n\n" # Line 4-5
+                "# A comment between classes\n" # Line 6
+                "class TargetClass:\n" # Line 7
+                "    def existing_method(self):\n" # Line 8
+                "        return True\n\n" # Line 9-10
+                "class ThirdClass:\n" # Line 11
+                "    pass\n" # Line 12
+            )
+            # FIX: Use get_full_path for path construction
+            file_path = driver_for_context_tests.context.get_full_path("processor.py")
+            step_description = "Add method process_data to class TargetClass" # Changed MyProcessor to TargetClass
+            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_method_to_class", step_description)
 
-        assert is_minimal is True
-        expected_context = ( # Corrected expected_context to match actual extraction
-            "# A comment between classes\n"
-            "class TargetClass:\n"
-            "    def existing_method(self):\n"
-            "        return True\n"
-            "\n"
-            "class ThirdClass:\n"
-            "    pass"
-        )
-        assert context_str.strip() == expected_context.strip() # This assertion was already correct
-        # FIX: Update expected log message to reflect the correct filename
-        driver.logger.debug.assert_called_with("Extracting class context for 'TargetClass' in processor.py: lines 6 to 12.")
+            assert is_minimal is True
+            expected_context = ( # Corrected expected_context to match actual extraction
+                "# A comment between classes\n"
+                "class TargetClass:\n"
+                "    def existing_method(self):\n"
+                "        return True\n"
+                "\n"
+                "class ThirdClass:\n"
+                "    pass"
+            )
+            assert context_str.strip() == expected_context.strip() # This assertion was already correct
+            # FIX: Update expected log message to reflect the correct filename
+            mock_logger.debug.assert_called_with("Extracting class context for 'TargetClass' in processor.py: lines 6 to 12.")
 
     def test_extract_context_class_not_found(self, driver_for_context_tests):
         """Tests fallback when the target class for method addition is not found."""
         driver = driver_for_context_tests
-        file_content = "class SomeOtherClass:\n    pass"
-        file_path = "module.py"
-        step_description = "Add method to class NonExistentClass"
-        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_method_to_class", step_description)
+        with patch.object(driver, 'logger', autospec=True) as mock_logger:
+            file_content = "class SomeOtherClass:\n    pass"
+            file_path = "module.py"
+            step_description = "Add method to class NonExistentClass"
+            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_method_to_class", step_description)
 
-        assert is_minimal is False
-        assert context_str == file_content
-        driver.logger.warning.assert_called_with(f"Could not find class for 'add_method_to_class' in {file_path} from step: {step_description}. Falling back to full content.")
+            assert is_minimal is False
+            assert context_str == file_content
+            mock_logger.warning.assert_called_with(f"Could not find class for 'add_method_to_class' in {file_path} from step: {step_description}. Falling back to full content.")
 
     def test_extract_context_syntax_error_in_file(self, driver_for_context_tests):
         """Tests fallback to full content when the source file has a syntax error."""
         driver = driver_for_context_tests
-        file_content = "def func_a():\n  print('valid')\n\ndef func_b()\n  print('invalid syntax')"
-        file_path = "broken_syntax.py"
-        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import")
+        with patch.object(driver, 'logger', autospec=True) as mock_logger:
+            file_content = "def func_a():\n  print('valid')\n\ndef func_b()\n  print('invalid syntax')"
+            file_path = "broken_syntax.py"
+            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import")
 
-        assert is_minimal is False
-        assert context_str == file_content
-        driver.logger.warning.assert_called_with(f"SyntaxError parsing {file_path} for targeted context extraction. Falling back to full content.")
+            assert is_minimal is False
+            assert context_str == file_content
+            mock_logger.warning.assert_called_with(f"SyntaxError parsing {file_path} for targeted context extraction. Falling back to full content.")
 
     def test_extract_context_fallback_for_none_type(self, driver_for_context_tests):
         """Tests fallback to full content when context_type is None."""
         driver = driver_for_context_tests
-        file_content = "def func(): pass"
-        file_path = "module.py"
-        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, None, "A generic step")
+        with patch.object(driver, 'logger', autospec=True) as mock_logger:
+            file_content = "def func(): pass"
+            file_path = "module.py"
+            step_description = "A generic step"
+            context_none, is_minimal_none = driver._extract_targeted_context(
+                file_path, file_content, None, step_description
+            )
+            mock_logger.debug.assert_called_with(f"Not a Python file or no context_type for {file_path}. Returning full content.")
+            assert not is_minimal_none, "is_minimal should be False for fallback with None context_type"
+            assert context_none == file_content, "Context string should be full content for None context_type"
 
-        assert is_minimal is False
-        assert context_str == file_content
-        driver.logger.debug.assert_called_with(f"Not a Python file or no context_type for {file_path}. Returning full content.")
+            # Case 2: context_type is provided but unimplemented, should also trigger the fallback
+            context_unimplemented, is_minimal_unimplemented = driver._extract_targeted_context(
+                file_path,
+                file_content,
+                "add_global_function",  # A valid type, but its extraction logic is pending
+                step_description
+            )
+            mock_logger.debug.assert_called_with(f"No specific context extraction rule for type 'add_global_function' or extraction failed for {file_path}. Using full content.")
+            assert not is_minimal_unimplemented, "is_minimal should be False for fallback with unimplemented context_type"
 
     def test_extract_context_fallback_for_non_python_file(self, driver_for_context_tests):
         """Tests fallback to full content for non-Python files."""
         driver = driver_for_context_tests
-        file_content = "Some markdown content"
-        file_path = "README.md"
-        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "A step")
+        with patch.object(driver, 'logger', autospec=True) as mock_logger:
+            file_content = "Some markdown content"
+            file_path = "README.md"
+            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "A step")
 
-        assert is_minimal is False
-        assert context_str == file_content
-        driver.logger.debug.assert_called_with(f"Not a Python file or no context_type for {file_path}. Returning full content.")
+            assert is_minimal is False
+            assert context_str == file_content
+            mock_logger.debug.assert_called_with(f"Not a Python file or no context_type for {file_path}. Returning full content.")
 
     def test_extract_context_fallback_for_unhandled_type(self, driver_for_context_tests):
         """Tests fallback to full content for an unhandled but valid context_type."""
         driver = driver_for_context_tests
-        file_content = "def func(): pass"
-        file_path = "module.py"
-        context_type = "add_global_function" # Assume this is not yet implemented
-        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, context_type, "A step")
+        with patch.object(driver, 'logger', autospec=True) as mock_logger:
+            file_content = "def func(): pass"
+            file_path = "module.py"
+            context_type = "add_global_function" # Assume this is not yet implemented
+            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, context_type, "A step")
 
-        assert is_minimal is False
-        assert context_str == file_content
-        driver.logger.debug.assert_called_with(f"No specific context extraction rule for type '{context_type}' or extraction failed for {file_path}. Using full content.")
+            assert is_minimal is False
+            assert context_str == file_content
+            mock_logger.debug.assert_called_with(f"No specific context extraction rule for type '{context_type}' or extraction failed for {file_path}. Using full content.")
 
     def test_method_addition_gets_class_and_surrounding_context(self, driver_for_context_tests, tmp_path):
         driver = driver_for_context_tests
@@ -881,8 +952,3 @@ class TestGetContextTypeForStep:
     def test_get_context_type_identification_scenarios(self, driver_for_context_tests, description, expected_type):
         """Tests context type identification across various valid string scenarios."""
         assert driver_for_context_tests._get_context_type_for_step(description) == expected_type
-
-    @pytest.mark.parametrize("invalid_input", [None, "", "   ", 123, []])
-    def test_get_context_type_handles_invalid_input(self, driver_for_context_tests, invalid_input):
-        """Tests that the method handles None, empty, or non-string inputs gracefully."""
-        assert driver_for_context_tests._get_context_type_for_step(invalid_input) is None

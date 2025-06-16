@@ -166,6 +166,8 @@ class Context:
             logger.error(f"Error resolving base path '{self.base_path}': {e}", exc_info=True)
             self._resolved_base_path = None
 class WorkflowDriver:
+    MAX_STEP_RETRIES = 2  # Direct fix for task_1_8_2_A
+
     def __init__(self, context: Context):
         self.context = context
         self.tasks = []
@@ -376,6 +378,18 @@ class WorkflowDriver:
                         self.logger.debug(f"Extracting class context for '{target_class_name}' in {Path(file_path).name}: lines {start_idx+1} to {end_idx}.")
                         return "\n".join(lines[start_idx:end_idx]), True
             self.logger.warning(f"Could not find class for 'add_method_to_class' in {Path(file_path).name} from step: {step_description}. Falling back to full content.")
+
+        elif context_type == "add_class_constant":
+            # For adding a constant, we just need the top of the class definition.
+            # Let's find the first class definition in the file.
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef):
+                    # Provide context from start of class def up to 5 lines to capture signature, docstring, and initial attributes.
+                    start_idx = node.lineno - 1
+                    end_idx = min(len(lines), start_idx + 5)
+                    self.logger.debug(f"Extracting class constant context for '{node.name}' in {Path(file_path).name}: lines {start_idx+1} to {end_idx+1}.")
+                    return "\n".join(lines[start_idx:end_idx]), True
+            self.logger.warning(f"Could not find any class definition for 'add_class_constant' in {Path(file_path).name}. Falling back to full content.")
 
         # Fallback for other types or if specific extraction fails
         self.logger.debug(f"No specific context extraction rule for type '{context_type}' or extraction failed for {Path(file_path).name}. Using full content.")
@@ -807,9 +821,9 @@ class WorkflowDriver:
                         step_failure_reason = None # Store reason for failure across retries
                         retry_feedback_for_llm_prompt = None # Initialize outside try block
 
-                        while step_retries <= MAX_STEP_RETRIES:
+                        while step_retries <= self.MAX_STEP_RETRIES:
                             try:
-                                logger.info(f"Executing step {step_index + 1}/{len(solution_plan)} (Attempt {step_retries + 1}/{MAX_STEP_RETRIES + 1}): {step}")
+                                logger.info(f"Executing step {step_index + 1}/{len(solution_plan)} (Attempt {step_retries + 1}/{self.MAX_STEP_RETRIES + 1}): {step}")
                                 prelim_flags = self._classify_step_preliminary(step, self.task_target_file)
 
                                 # --- Step 2: Determine the actual filepath to use for the operation ---
@@ -1206,7 +1220,7 @@ class WorkflowDriver:
                                 else:
                                     current_attempt_error_message = f"{type(e).__name__}: {str(e)}"
 
-                                logger.error(f"Step execution failed (Attempt {step_retries + 1}/{MAX_STEP_RETRIES + 1}): {step}. Error: {current_attempt_error_message}", exc_info=True)
+                                logger.error(f"Step execution failed (Attempt {step_retries + 1}/{self.MAX_STEP_RETRIES + 1}): {step}. Error: {current_attempt_error_message}", exc_info=True)
                                 self._current_task_results['step_errors'].append({
                                     'step_index': step_index + 1,
                                     'step_description': step,
@@ -1217,13 +1231,13 @@ class WorkflowDriver:
                                     'reason': current_attempt_error_message # Store the processed error message
                                 })
                                 step_retries += 1
-                                if step_retries <= MAX_STEP_RETRIES:
-                                    logger.warning(f"Step {step_index + 1} failed. Attempting retry {step_retries}/{MAX_STEP_RETRIES}...")
+                                if step_retries <= self.MAX_STEP_RETRIES:
+                                    logger.warning(f"Step {step_index + 1} failed. Attempting retry {step_retries}/{self.MAX_STEP_RETRIES}...")
                                     retry_feedback_for_llm_prompt = current_attempt_error_message # Set for the next iteration
                                 else:
                                     # Log message format matches the assertion in the test
                                     step_failure_reason = current_attempt_error_message # Set final failure reason
-                                    logger.error(f"Step {step_index + 1}/{len(solution_plan)} failed after {MAX_STEP_RETRIES} retries. Last error: {step_failure_reason}")
+                                    logger.error(f"Step {step_index + 1}/{len(solution_plan)} failed after {self.MAX_STEP_RETRIES} retries. Last error: {step_failure_reason}")
                                     task_failed_step = True # Mark task as failed due to step failure
                                     break # Exit retry loop for this step
 
@@ -1243,7 +1257,7 @@ class WorkflowDriver:
                                 # Construct the default message using a separate f-string
                                 last_error_reason = f'{last_error.get("error_type", "UnknownError")}: {last_error.get("error_message", "No specific error message.")}'
 
-                            reason_blocked = f"Step {step_index + 1} ('{step}') failed after {MAX_STEP_RETRIES + 1} attempts. Last error: {last_error_reason}"
+                            reason_blocked = f"Step {step_index + 1} ('{step}') failed after {self.MAX_STEP_RETRIES + 1} attempts. Last error: {last_error_reason}"
                             logger.warning(f"Task {task_id} marked as '{new_status}'. Reason: {reason_blocked}")
                             self._update_task_status_in_roadmap(task_id, new_status, reason_blocked)
                             break # Exit the step loop
@@ -2899,6 +2913,7 @@ Your response should be the complete, corrected code content that addresses the 
             (r'\b(?:add|implement|insert|ensure|include)\s+.*?\b(?:import|imports|from|module|library)\b', "add_import"),
             (r'\b(?:add|implement|define|create)\s+.*?\b(?:method|function)\s+.*?\b(?:to|in|within)\s+.*?\bclass\b', "add_method_to_class"),
             (r'\b(?:add|implement|define|create)\s+.*?\bglobal\s+function\b', "add_global_function"),
+            (r'\b(?:add|define|create)\s+.*?\bconstant\b', "add_class_constant"),
         ]
 
         for pattern, context_type in context_patterns:

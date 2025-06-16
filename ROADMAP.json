@@ -270,7 +270,7 @@
       "task_id": "task_1_8_2_A_add_max_retries_constant",
       "priority": "Critical",
       "task_name": "Add MAX_STEP_RETRIES Constant",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_B_enhance_retry_prompts"
@@ -288,7 +288,7 @@
         "task_1_8_2_A_add_max_retries_constant"
       ],
       "description": "In `WorkflowDriver.autonomous_loop`, wrap the entire `try...except` block for a single step's execution (from `logger.info(f\"Executing step...`) inside a `while step_retries <= MAX_STEP_RETRIES:` loop. This will enable re-execution of a failing step.",
-      "success_criteria": "The step execution `try...except` block is correctly enclosed within a `while` loop that uses the `MAX_STEP_RETRIES` constant. The file must compile and all existing tests must pass."
+      "success_criteria": "The step execution `try...except` block is correctly enclosed within a `while` loop that uses the `MAX_STEP_RETRIES` constant. The file compiles and all existing tests must pass."
     },
     {
       "task_id": "task_1_8_2_C_add_retry_counter",
@@ -300,7 +300,7 @@
         "task_1_8_2_B_implement_while_loop"
       ],
       "description": "In `WorkflowDriver.autonomous_loop`, initialize a `step_retries` counter to 0 before the `while` loop for step execution. Inside the `except` block of the step execution, increment this counter (`step_retries += 1`).",
-      "success_criteria": "The `step_retries` counter is initialized before the loop and incremented within the `except` block. The file must compile and all existing tests must pass."
+      "success_criteria": "The `step_retries` counter is initialized before the loop and incremented within the `except` block. The file must compile and all existing tests pass."
     },
     {
       "task_id": "task_1_8_2_D_add_feedback_reinvocation",
@@ -312,7 +312,7 @@
         "task_1_8_2_C_add_retry_counter"
       ],
       "description": "In `WorkflowDriver.autonomous_loop`, inside the `except` block for step execution, capture the exception details. Construct a `retry_feedback_for_llm_prompt` string from the error. This feedback string should then be passed to the `_construct_coder_llm_prompt` method on the next iteration of the `while` loop to guide the Coder LLM.",
-      "success_criteria": "A feedback string is constructed from the exception and passed to the Coder LLM prompt on retries. The file must compile and all existing tests must pass."
+      "success_criteria": "A feedback string is constructed from the exception and passed to the Coder LLM prompt on retries. The file must compile and all existing tests pass."
     },
     {
       "task_id": "task_1_8_2_E_add_exhaustion_error",
@@ -324,7 +324,7 @@
         "task_1_8_2_D_add_feedback_reinvocation"
       ],
       "description": "In `WorkflowDriver.autonomous_loop`, after the `step_retries` counter is incremented, add a check: `if step_retries > MAX_STEP_RETRIES:`. Inside this block, log a final error message, mark the task as failed (`task_failed_step = True`), and `break` from the `while` loop. This will cause the task to be marked as 'Blocked'.",
-      "success_criteria": "Logic to check for exhausted retries, log an error, and break the loop is correctly implemented. The file must compile and all existing tests must pass."
+      "success_criteria": "Logic to check for exhausted retries, log an error, and break the loop is correctly implemented. The file must compile and all existing tests pass."
     },
     {
       "task_id": "task_1_8_2_F_add_hallucination_check",
@@ -343,7 +343,7 @@
       "priority": "High",
       "task_name": "Analyze task_1_8_A_1 Failures & Improve CodeGen",
       "status": "Not Started",
-      "target_file": "src/core/llm_orchestration.py",
+      "target_file": "src/core/llm/orchestration.py",
       "depends_on": [
         "task_1_8_A_6_add_tests_for_context_optimization",
         "task_1_8_A_test_import_optimization"

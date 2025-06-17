@@ -335,7 +335,7 @@
       "depends_on": [
         "task_1_8_2_E_add_exhaustion_error"
       ],
-      "description": "In `src/core/automation/workflow_driver.py`, add a new class-level constant named `CONTEXT_LEAKAGE_INDICATORS`. This constant should be a list of strings. Populate this list with patterns that signify LLM hallucinations or context leakage, such as '```python', '`' and common conversational filler words like 'Here is the code'."
+      "description": "In `src/core/automation/workflow_driver.py`, inside the `WorkflowDriver` class, add a new class-level constant `CONTEXT_LEAKAGE_INDICATORS`. This constant must be a `List[str]` and should be placed right after the `MAX_STEP_RETRIES` constant. It must have a concise comment above it explaining its purpose (e.g., '# Patterns that may indicate LLM context leakage or hallucinations.'). Populate the list with at least the following initial string patterns: '```python', '```', 'Here is the code', 'As an AI language model', 'I cannot fulfill this request'."
     },
     {
       "task_id": "task_1_8_2_F_B_implement_function",

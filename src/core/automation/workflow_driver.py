@@ -367,7 +367,7 @@ class WorkflowDriver:
                 return "\n".join(lines[:MAX_IMPORT_CONTEXT_LINES]), True
 
         elif context_type == "add_method_to_class":
-            class_name_match = re.search(r"(?:to|in|for)\s+class\s+`?(\w+)`?", step_description, re.IGNORECASE)
+            class_name_match = re.search(r"\b(?:to|in|for|within)\s+(?:the\s+)?class\s+`?(\w+)`?", step_description, re.IGNORECASE)
             if class_name_match:
                 target_class_name = class_name_match.group(1)
                 for node in ast.walk(tree):

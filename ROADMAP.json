@@ -327,15 +327,48 @@
       "success_criteria": "Logic to check for exhausted retries, log an error, and break the loop is correctly implemented. The file must compile and all existing tests pass."
     },
     {
-      "task_id": "task_1_8_2_F_implement_hallucination_check",
+      "task_id": "task_1_8_2_F_1_add_constant",
       "priority": "High",
-      "task_name": "Implement and Integrate Pre-Write Hallucination Check",
+      "task_name": "Add CONTEXT_LEAKAGE_INDICATORS Constant",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_E_add_exhaustion_error"
       ],
-      "description": "In `src/core/automation/workflow_driver.py`, implement a new pre-write validation check to prevent LLM hallucinations and context leakage. This involves three parts: 1. In the `WorkflowDriver` class, add a new class-level constant `CONTEXT_LEAKAGE_INDICATORS` (List[str]) populated with patterns like '```python', 'As an AI language model', etc. 2. Add a new private method `_validate_for_context_leakage(self, code_snippet: str) -> bool` that returns `False` if any indicator is found in the snippet. 3. Integrate this new method into the pre-write validation sequence in the `autonomous_loop`, ensuring it adds to `validation_feedback` on failure. Finally, add corresponding unit tests for the new method in `tests/test_phase1_8_features.py`."
+      "description": "In `src/core/automation/workflow_driver.py`, add a new class-level constant `CONTEXT_LEAKAGE_INDICATORS` (List[str]) to the `WorkflowDriver` class. Populate it with patterns like '```python', 'As an AI language model', 'I am a large language model', etc. This is the first step in implementing the hallucination check."
+    },
+    {
+      "task_id": "task_1_8_2_F_2_add_method",
+      "priority": "High",
+      "task_name": "Implement _validate_for_context_leakage Method",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_F_1_add_constant"
+      ],
+      "description": "In `src/core/automation/workflow_driver.py`, add a new private method `_validate_for_context_leakage(self, code_snippet: str) -> bool` to the `WorkflowDriver` class. This method should iterate through the `CONTEXT_LEAKAGE_INDICATORS` constant and return `False` if any indicator string is found within the `code_snippet`. If no indicators are found, it should return `True`."
+    },
+    {
+      "task_id": "task_1_8_2_F_3_integrate_call",
+      "priority": "High",
+      "task_name": "Integrate Context Leakage Check into Pre-Write Validation",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_F_2_add_method"
+      ],
+      "description": "In `src/core/automation/workflow_driver.py`, integrate the new `_validate_for_context_leakage` method into the pre-write validation sequence within the `autonomous_loop`. Ensure that if the method returns `False`, a descriptive error message is added to the `validation_feedback` list, causing the step to fail and retry."
+    },
+    {
+      "task_id": "task_1_8_2_F_4_add_tests",
+      "priority": "High",
+      "task_name": "Add Unit Tests for Context Leakage Check",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_2_F_3_integrate_call"
+      ],
+      "description": "In `tests/test_phase1_8_features.py`, add new unit tests for the `WorkflowDriver._validate_for_context_leakage` method. The tests should verify that the method correctly returns `False` for snippets containing leakage indicators and `True` for compliant snippets."
     },
     {
       "task_id": "task_1_8_C_1_analyze_A1_failure_and_improve_codegen",

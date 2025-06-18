@@ -175,7 +175,7 @@
 *   **Task ID**: task_1_8_2_F_1_add_constant
     *   **Priority**: High
     *   **Task Name**: Add CONTEXT_LEAKAGE_INDICATORS Constant
-    *   **Status**: Blocked
+    *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_E_add_exhaustion_error']
 
 *   **Task ID**: task_1_8_2_F_2_add_method

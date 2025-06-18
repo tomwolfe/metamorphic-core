@@ -15,8 +15,7 @@ from src.core.llm_orchestration import (
     EnhancedLLMOrchestrator
 )
 from src.utils.config import ConfigError, SecureConfig # Ensure SecureConfig is imported for direct access in tests
-import google.genai
-
+from google import genai # Corrected import for GenerativeModel
 from src.core.verification.specification import FormalSpecification # Correct import for FormalSpecification
 from src.core.chunking.dynamic_chunker import CodeChunk # Correct import for CodeChunk
 
@@ -37,20 +36,22 @@ def test_answer_extraction(): # Keep existing test
     assert extract_boxed_answer(r"Answer: \boxed{4}") == "4" # This assertion should now pass with the fix in llm_orchestration.py
     assert extract_boxed_answer("No box here") is None
 
-@patch('src.utils.config.SecureConfig.get')
-def test_gemini_configuration(mock_get):
+@patch('src.utils.config.SecureConfig.get') # Patch SecureConfig.get to control config values
+@patch('google.genai.Client') # Patch the genai.Client class
+def test_gemini_configuration(mock_genai_Client, mock_get): # Renamed mock_GenerativeModel to mock_genai_Client
     mock_get.side_effect = lambda var_name, default=None: {
-        'LLM_PROVIDER': 'gemini',
+        'LLM_PROVIDER': 'gemini', # Ensure lowercase is handled by SUT
+        'GEMINI_MODEL': 'gemini-2.5-flash',
         'GEMINI_API_KEY': 'test_key'
     }.get(var_name, default) # Corrected .get() usage
     # Check Client initialization and attributes instead of isinstance
-    # Patch the class itself to check constructor calls
-    with patch('google.genai.Client') as MockClient:
-        orchestrator = LLMOrchestrator() # Re-initialize orchestrator under the patch
-        MockClient.assert_called_once_with(api_key='test_key')
-        # Check attributes on the actual orchestrator client instance
-        assert orchestrator.client.api_key == 'test_key'
-        assert orchestrator.client.model == 'gemini-2.5-flash'
+    orchestrator = LLMOrchestrator() # Re-initialize orchestrator under the patch
+    # Assert that genai.Client was called with the API key
+    mock_genai_Client.assert_called_once_with(api_key='test_key')
+    # Assert that the internal gemini_client is the mock instance
+    assert orchestrator.gemini_client == mock_genai_Client.return_value
+    # Assert that gemini_model_name is correctly stored
+    assert orchestrator.gemini_model_name == 'gemini-2.5-flash'
 
 @patch('src.utils.config.SecureConfig.get')
 def test_hf_configuration(mock_get):
@@ -61,12 +62,13 @@ def test_hf_configuration(mock_get):
     orchestrator = LLMOrchestrator()
     assert orchestrator.config.provider == LLMProvider.HUGGING_FACE
     assert orchestrator.config.hf_api_key == 'test_key'
-    assert orchestrator.hf_client is not None # Ensure dedicated hf_client is also configured
+    assert orchestrator.hf_client is not None # Ensure dedicated hf_client is also configured (if ENABLE_HUGGING_FACE is True)
     assert orchestrator.hf_model_name == orchestrator.config.hugging_face_model
+    assert orchestrator.gemini_client is None # Should be None if HF is primary
 
 @patch('src.utils.config.SecureConfig.get')
 def test_missing_api_keys(mock_get):
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="GEMINI_API_KEY is required for Gemini provider"): # More specific match
         mock_get.side_effect = lambda var_name, default=None: {
             'LLM_PROVIDER': 'gemini' # Missing GEMINI_API_KEY
         }.get(var_name, default) # Corrected .get() usage
@@ -74,36 +76,45 @@ def test_missing_api_keys(mock_get):
 
 
     with pytest.raises(RuntimeError):
+        # Match any of the possible error messages if config validation is strict
         mock_get.side_effect = lambda var_name, default=None: {
             'LLM_PROVIDER': 'huggingface' # Missing HUGGING_FACE_API_KEY
+            # Missing GEMINI_MODEL will cause default, so it's fine.
+            # Missing HF_API_KEY will cause ConfigError from SecureConfig.get itself, then RuntimeError.
         }.get(var_name, default)
         LLMOrchestrator()
-@patch('google.genai.Client')
-@patch('src.utils.config.SecureConfig.get')
-def test_gemini_generation(mock_get, mock_client):
-    mock_instance = mock_client.return_value
+@patch('google.genai.Client') # Patch the genai.Client class
+@patch('src.utils.config.SecureConfig.get') # Patch SecureConfig.get
+def test_gemini_generation(mock_get, mock_genai_Client): # Renamed mock_GenerativeModel to mock_genai_Client
+    mock_client_instance = mock_genai_Client.return_value # Get the mocked genai.Client instance
     mock_get.side_effect = lambda var_name, default=None: {
-        'GEMINI_API_KEY': 'test_key', 'LLM_PROVIDER': 'gemini', 'LLM_MAX_RETRIES': '3'
-    }.get(var_name, default) # Corrected .get() usage
-    # Mock Client.models.generate_content directly
-    mock_instance.models.generate_content.return_value = MagicMock(
-        candidates=[MagicMock(
+        'GEMINI_API_KEY': 'test_key', 'LLM_PROVIDER': 'gemini', 'LLM_MAX_RETRIES': '3',
+        'GEMINI_MODEL': 'gemini-2.5-flash'
+    }.get(var_name, default)
+    # Mock the models.generate_content method on the client instance
+    mock_client_instance.models.generate_content.return_value = MagicMock( # Mock generate_content on the GenerativeModel instance
+        candidates=[MagicMock( # Ensure the return structure matches actual API response
             content=MagicMock(
                 parts=[MagicMock(text="Test response")]
             )
         )]
     )
-    orchestrator = LLMOrchestrator()
+    orchestrator = LLMOrchestrator() # Initialize orchestrator
     # Patch _apply_gemini_rate_limit to prevent actual sleeping during this test
     # Note: _apply_gemini_rate_limit is now called inside _call_llm_api, which is decorated by tenacity.
-    # So, mock_rate_limit will be called once per _call_llm_api attempt.
     with patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit:
         response = orchestrator.generate("test")
         assert "Test response" in response
-        # Rate limit should be attempted before the call in _call_llm_api
         mock_rate_limit.assert_called_once() # This will assert 1 call because LLM_MAX_RETRIES=3 means 4 attempts, but generate succeeds on first.
                                              # If it fails and retries, this would be 4 calls.
                                              # The test is for successful generation, so 1 call is expected.
+        # Assert that models.generate_content was called with the correct parameters
+        mock_client_instance.models.generate_content.assert_called_once_with(
+            model='gemini-2.5-flash', # Ensure model name is passed
+            contents='test',
+            generation_config=genai.types.GenerationConfig(temperature=0.6, top_p=0.95, max_output_tokens=8192) # Ensure config is passed
+        )
+
 
 @patch('src.utils.config.SecureConfig.get')
 def test_hf_generation(mock_get):
@@ -119,7 +130,7 @@ def test_hf_generation(mock_get):
         mock_completion = MagicMock()
         mock_completion.choices = [MagicMock(message=MagicMock(content="Test response"))]
         mock_hf_instance.chat.completions.create.return_value = mock_completion
-
+ 
         orchestrator = LLMOrchestrator()
         with patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit:
             response = orchestrator.generate("test")
@@ -130,16 +141,18 @@ def test_hf_generation(mock_get):
                 model=orchestrator.hf_model_name, messages=[{"role": "user", "content": "test"}], temperature=0.6, top_p=0.95, max_tokens=32768)
 
 
-@patch('google.genai.Client')
-@patch('src.utils.config.SecureConfig.get')
-def test_retry_logic(mock_get, mock_client):
-    mock_instance = mock_client.return_value
+@patch('google.genai.Client') # Patch the genai.Client class
+@patch('src.utils.config.SecureConfig.get') # Patch SecureConfig.get
+def test_retry_logic(mock_get, mock_genai_Client, caplog): # Added caplog
+    mock_client_instance = mock_genai_Client.return_value # Get the mocked genai.Client instance
     mock_get.side_effect = lambda var_name, default=None: {
-        'GEMINI_API_KEY': 'test_key', 'LLM_PROVIDER': 'gemini', 'LLM_MAX_RETRIES': '3'
-    }.get(var_name, default) # Corrected .get() usage
-    # Mock Client.models.generate_content directly
-    # --- MODIFIED: Raise RuntimeError instead of generic Exception ---
-    mock_instance.models.generate_content.side_effect = [
+        'GEMINI_API_KEY': 'test_key', 'LLM_PROVIDER': 'gemini', 'LLM_MAX_RETRIES': '3',
+        'GEMINI_MODEL': 'gemini-2.5-flash'
+    }.get(var_name, default)
+ 
+    # Mock models.generate_content on the client instance
+    # --- MODIFIED: Raise RuntimeError from the LLM error ---
+    mock_client_instance.models.generate_content.side_effect = [
         RuntimeError("API error"),
         RuntimeError("API error"),
         RuntimeError("API error"), # Fail all attempts
@@ -147,40 +160,51 @@ def test_retry_logic(mock_get, mock_client):
     ]
     orchestrator = LLMOrchestrator()
     # Patch _apply_gemini_rate_limit to prevent actual sleeping during this test
-    with patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit:
-        with pytest.raises(RuntimeError):
+    with patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit: # Mock rate limit to avoid timing issues
+        with pytest.raises(RuntimeError) as excinfo:
             orchestrator.generate("test")
         # Verify LLM call was attempted max_retries times
-        # With tenacity, _call_llm_api is called once, and tenacity handles internal retries.
-        # So, mock_instance.models.generate_content (which is called by _gemini_generate, which is called by _call_llm_api)
-        # will be called 3 times (initial + 2 retries).
+        # With tenacity, _call_llm_api is called once per attempt.
+        # _gemini_generate is called by _call_llm_api, and it calls mock_client_instance.models.generate_content.
         # --- MODIFIED: Expect 4 calls if LLM_MAX_RETRIES=3 (initial + 3 retries) ---
-        assert mock_instance.models.generate_content.call_count == 4 # Changed from 3 to 4
-        # Verify rate limit was attempted before each call
-        assert mock_rate_limit.call_count == 4 # Changed from 3 to 4
-
+        assert mock_client_instance.models.generate_content.call_count == 4 # Changed from 3 to 4
+        # The rate limit is applied before each attempt within _call_llm_api
+        assert mock_rate_limit.call_count == 4 # Rate limit called before each attempt
+ 
+        # Assert the exception type and message
+        assert isinstance(excinfo.value, RuntimeError) # Still RuntimeError
+        # FIX: Updated assertion to match the actual RuntimeError message format
+        assert "LLM API failed after all retries" in str(excinfo.value)
+        assert "Gemini error: API error" in str(excinfo.value) # Correct format including "Gemini error:" prefix
+ 
+        # Assert error logging (caplog fixture is needed for this test)
+        assert "LLM API failed after all retries for prompt" in caplog.text # Check for this log
+        assert "Last error: Gemini error: API error" in caplog.text # Check for this log
+ 
 def test_invalid_provider():
     with pytest.raises(RuntimeError):
+        # Match any of the possible error messages if config validation is strict
         with patch('src.utils.config.SecureConfig.get') as mock_get:
             mock_get.side_effect = lambda var_name, default=None: { # Corrected .get() usage
                 'LLM_PROVIDER': 'invalid'
             }.get(var_name, default)
             LLMOrchestrator()
-
-# FIX: Removed isinstance check and added mock call assertion
-@patch('google.genai.Client')
-@patch('src.utils.config.SecureConfig.get')
-def test_gemini_client_initialization(mock_get, mock_client):
+ 
+# FIX: Removed isinstance check and added mock call assertion (already done, but re-verify)
+@patch('google.genai.Client') # Patch the genai.Client class
+@patch('src.utils.config.SecureConfig.get') # Patch SecureConfig.get
+def test_gemini_client_initialization(mock_get, mock_genai_Client): # Renamed mock_GenerativeModel to mock_genai_Client, removed mock_Client_class
     mock_get.side_effect = lambda var_name, default=None: {
-        'LLM_PROVIDER': 'gemini', 'GEMINI_API_KEY': 'test_key'
-    }.get(var_name, default) # Corrected .get() usage
+        'LLM_PROVIDER': 'gemini', 'GEMINI_API_KEY': 'test_key', 'GEMINI_MODEL': 'gemini-2.5-flash'
+    }.get(var_name, default)
     orchestrator = LLMOrchestrator()
-    # Check that the client was initialized with the correct API key
-    mock_client.assert_called_once_with(api_key='test_key')
-    # Check that the client's model and api_key are set on the instance
-    assert orchestrator.client.api_key == 'test_key'
-    assert orchestrator.client.model == 'gemini-2.5-flash'
-
+    # Check that the genai.Client was initialized with the correct API key
+    mock_genai_Client.assert_called_once_with(api_key='test_key')
+    # Assert that the internal gemini_client is the mock instance
+    assert orchestrator.gemini_client == mock_genai_Client.return_value
+    # Assert that the model name is stored
+    assert orchestrator.gemini_model_name == 'gemini-2.5-flash'
+ 
 @patch.object(EnhancedLLMOrchestrator, '_handle_large_context') # Use patch.object for clarity
 def test_large_context_handling(mock_handle_large_context):
     orchestrator = EnhancedLLMOrchestrator(
@@ -188,20 +212,26 @@ def test_large_context_handling(mock_handle_large_context):
         spec=MagicMock(spec=FormalSpecification), # Add spec for type hinting
         ethics_engine=MagicMock()
     )
+    # Mock the underlying genai.Client.models.generate_content for the super().__init__() call
+    with patch('google.genai.Client') as mock_genai_Client_init:
+        mock_genai_Client_init.return_value.models.generate_content.return_value = MagicMock(
+            candidates=[MagicMock(content=MagicMock(parts=[MagicMock(text="Mocked response")]))]
+        )
     large_prompt = "test " * 6000
+    # Now patch _count_tokens and call generate
     # Update the mock return value to exceed the new threshold (8000)
     with patch.object(orchestrator, '_count_tokens', return_value=8001) as mock_count_tokens:
         orchestrator.generate(large_prompt)
         mock_handle_large_context.assert_called_once()
-
+ 
 def test_chunking_algorithm():
     code = """
 def function1():
     print("Hello") # This is a comment
-
+ 
 def function2():
     print("World")
-
+ 
 class MyClass:
     def method(self):
         pass"""
@@ -213,15 +243,15 @@ class MyClass:
     assert "def function1():" in chunks[0].content
     assert "def function2():" in chunks[0].content
     assert "class MyClass:" in chunks[0].content
-
+ 
 def test_summarization():
     code = """
 def function1():
     print("Hello") # This is a comment
-
+ 
 def function2():
     print("World")
-
+ 
 class MyClass:
     def method(self):
         pass"""
@@ -229,10 +259,11 @@ class MyClass:
     chunks = parse_code_chunks(code)
     # The original test expected 1 chunk, let's keep that assumption for now.
     assert len(chunks) == 1
-
+ 
 # --- CORRECTED TEST CASE FOR _call_llm_api unsupported model ---
-@patch('src.utils.config.SecureConfig.get')
-def test_call_llm_api_unsupported_model(mock_secure_get):
+@patch('google.genai.Client') # Patch genai.Client for LLMOrchestrator init
+@patch('src.utils.config.SecureConfig.get') # Patch SecureConfig.get
+def test_call_llm_api_unsupported_model(mock_secure_get, mock_genai_Client):
     """
     Tests that _call_llm_api raises ValueError for an unsupported model string.
     """
@@ -240,23 +271,24 @@ def test_call_llm_api_unsupported_model(mock_secure_get):
     mock_secure_get.side_effect = lambda key, default=None: {
         "LLM_PROVIDER": "gemini", # Or "huggingface", doesn't affect this test
         "GEMINI_API_KEY": "fake_key",
-        "HUGGING_FACE_API_KEY": "fake_key",
+        "GEMINI_MODEL": "gemini-2.5-flash", # Required
+        "HUGGING_FACE_API_KEY": "fake_key", # Required
         "HUGGING_FACE_MODEL": "test-model" # Include HF model config
     }.get(key, default)
-
-
+    
     # Instantiate the base orchestrator
     orchestrator = LLMOrchestrator()
-
+ 
     # Directly call _call_llm_api with an unsupported model string
     # Assert that a ValueError is raised with the expected message
     unsupported_model_name = "unsupported_test_model"
     with pytest.raises(ValueError, match=f"Unsupported model: {unsupported_model_name}"):
         orchestrator._call_llm_api("test text", unsupported_model_name)
-
+ 
     # Optional: Verify that supported models *don't* raise ValueError when called
     # (Requires mocking the underlying generate methods to prevent actual calls)
     try:
+        # Patch the underlying _gemini_generate and _hf_generate, as they are now called
         with patch.object(orchestrator, '_gemini_generate'), \
              patch.object(orchestrator, '_hf_generate'):
              orchestrator._call_llm_api("test text", LLMProvider.GEMINI.value)
@@ -265,71 +297,85 @@ def test_call_llm_api_unsupported_model(mock_secure_get):
     except ValueError as e:
         pytest.fail(f"_call_llm_api raised ValueError for a supported model: {e}")
 # --- END CORRECTED TEST CASE ---
-
+ 
 @patch('src.utils.config.SecureConfig.get')
-def test_hf_client_used_when_primary_is_gemini(mock_secure_get):
+@patch('google.genai.Client') # Patch genai.Client for LLMOrchestrator init
+def test_hf_client_used_when_primary_is_gemini(mock_genai_Client, mock_secure_get):
     """
     Tests that _hf_generate uses the dedicated self.hf_client when the primary
     LLM_PROVIDER is Gemini, but an HF model is requested.
     """
+    # Using lower() to simulate what SecureConfig.get("LLM_PROVIDER").lower() might return
     mock_secure_get.side_effect = lambda key, default=None: {
+        # Ensure provider is lowercase for the Enum comparison in LLMConfig
         "LLM_PROVIDER": "gemini", # Primary is Gemini
         "GEMINI_API_KEY": "gemini_fake_key",
         "HUGGING_FACE_API_KEY": "hf_fake_key", # HF keys are present
         "HUGGING_FACE_MODEL": "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
         "LLM_MAX_RETRIES": "1"
     }.get(key, default)
-
+ 
     # Patch InferenceClient at the point of use in our code
     with patch('src.core.llm_orchestration.InferenceClient') as MockInferenceClient:
-        mock_hf_instance = MockInferenceClient.return_value
+        mock_hf_client_instance = MockInferenceClient.return_value
         # Mock the chat.completions.create method and its return structure
         mock_completion = MagicMock()
         mock_completion.choices = [MagicMock(message=MagicMock(content="HF Model Response"))]
-        mock_hf_instance.chat.completions.create.return_value = mock_completion
-
+        mock_hf_client_instance.chat.completions.create.return_value = mock_completion
+ 
         orchestrator = LLMOrchestrator()
-        assert orchestrator.config.provider == LLMProvider.GEMINI
-        assert orchestrator.client is not None # Gemini client
-        assert orchestrator.hf_client == mock_hf_instance # Should be the mocked HF client
-
+        assert orchestrator.config.provider == LLMProvider.GEMINI # Primary provider is Gemini
+        assert orchestrator.gemini_client is not None # Gemini client is initialized
+        assert orchestrator.hf_client == mock_hf_client_instance # Should be the mocked HF client
+ 
         # Call _call_llm_api requesting the HF model
         # We call _call_llm_api directly and mock the rate limiter to avoid sleep
         with patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit:
             # Use the model name that the code expects for Hugging Face
             response = orchestrator._call_llm_api("prompt for hf", model=orchestrator.config.hugging_face_model)
-
+ 
             assert response == "HF Model Response"
             # Assert that chat.completions.create was called with the correct parameters
-            mock_hf_instance.chat.completions.create.assert_called_once_with(
+            mock_hf_client_instance.chat.completions.create.assert_called_once_with(
                 model=orchestrator.hf_model_name, messages=[{"role": "user", "content": "prompt for hf"}], temperature=0.6, top_p=0.95, max_tokens=32768)
-# --- NEW TESTS FOR GEMINI RATE LIMITING ---
-@patch('src.utils.config.SecureConfig.get')
-def test_gemini_rate_limiting_applied(mock_secure_get, caplog):
+ 
+# --- FIXES FOR GEMINI RATE LIMITING AND TENACITY TESTS (ValueError: MagicMock is not a valid LLMProvider & SyntaxError) ---
+# These tests failed due to a combination of missing SecureConfig.load() mock, incomplete side_effect dictionaries,
+# and the incorrect application of the `safe_lower` helper which caused the SyntaxError.
+@patch('src.utils.config.SecureConfig.load') # Mock SecureConfig.load to prevent actual file access
+@patch('google.genai.Client') # Patch the genai.Client class
+@patch('src.utils.config.SecureConfig.get') # Patch SecureConfig.get
+def test_gemini_rate_limiting_applied(mock_secure_get, mock_genai_Client, mock_secure_config_load, caplog): # Renamed mock_GenerativeModel
     """Tests that _apply_gemini_rate_limit enforces the minimum interval."""
     caplog.set_level(logging.INFO)
-
-
+ 
     # Configure mock to use Gemini provider and a fake API key
     mock_secure_get.side_effect = lambda key, default=None: {
-        "LLM_PROVIDER": "gemini", "GEMINI_API_KEY": "fake_key",
-        "LLM_MAX_RETRIES": "1" # Lower retries for faster test
+        "LLM_PROVIDER": "gemini",
+        "GEMINI_API_KEY": "fake_key",
+        "GEMINI_MODEL": "gemini-2.5-flash",
+        "LLM_MAX_RETRIES": "1", # Lower retries for faster test
+        "LLM_TIMEOUT": "30",
+        "HUGGING_FACE_API_KEY": None,
+        "HUGGING_FACE_MODEL": None,
+        "ENABLE_HUGGING_FACE": "true",
     }.get(key, default)
-
+ 
     orchestrator = LLMOrchestrator()
     orchestrator._GEMINI_MIN_INTERVAL_SECONDS = 0.1
-
-    with patch.object(orchestrator.client.models, 'generate_content') as mock_gemini_call:
-        mock_gemini_call.return_value = MagicMock(
-            candidates=[MagicMock(content=MagicMock(parts=[MagicMock(text="Test response")]))]
+ 
+    # Mock the models.generate_content method on the client instance
+    with patch.object(orchestrator.gemini_client.models, 'generate_content') as mock_gemini_call:
+        mock_genai_Client.return_value.models.generate_content.return_value = MagicMock( # Ensure the mock is set on the correct path
+            candidates=[MagicMock(content=MagicMock(parts=[MagicMock(text="Test response")]))] # Ensure full response structure
         )
-
+ 
         # Use a simple side_effect for time.monotonic that returns a fixed value
         # We will control the _last_gemini_call_start_time directly.
         # This makes the test less fragile to other calls to time.monotonic().
         with patch('time.sleep') as mock_sleep, \
              patch('time.monotonic', return_value=100.0) as mock_monotonic: # Always returns 100.0
-
+ 
             # First call - should not sleep
             # Set last call time far in the past
             orchestrator._last_gemini_call_start_time = 0.0 # Far in the past
@@ -337,10 +383,10 @@ def test_gemini_rate_limiting_applied(mock_secure_get, caplog):
             mock_sleep.assert_not_called()
             assert "Gemini rate limit: sleeping for" not in caplog.text
             # After this call, _last_gemini_call_start_time will be 100.0 (from mock_monotonic)
-
+ 
             caplog.clear()
             mock_sleep.reset_mock() # Reset sleep mock for the next assertion
-
+ 
             # Second call - should sleep
             # Set last call time to be very recent, so elapsed_since_last_call < MIN_INTERVAL
             # current_time will be 100.0 (from mock_monotonic)
@@ -350,35 +396,40 @@ def test_gemini_rate_limiting_applied(mock_secure_get, caplog):
             # sleep_duration = 0.1 - 0.09 = 0.01
             orchestrator._last_gemini_call_start_time = 99.91
             expected_sleep_duration = 0.01 # FIX: Expected sleep duration is 0.01
-
+ 
             orchestrator.generate("prompt2")
-
+ 
             mock_sleep.assert_called_once()
             actual_sleep_duration = mock_sleep.call_args[0][0]
             assert actual_sleep_duration == pytest.approx(expected_sleep_duration) # FIX: Assert against 0.01
-
+ 
             assert f"Gemini rate limit: sleeping for {expected_sleep_duration:.2f} seconds." in caplog.text # FIX: Assert against 0.01
-
+ 
             assert mock_gemini_call.call_count == 2
-# Add a test for thread safety (Optional but good practice)
-@patch('src.utils.config.SecureConfig.get')
-def test_gemini_rate_limiting_thread_safety(mock_secure_get):
+ 
+@patch('src.utils.config.SecureConfig.load') # Mock SecureConfig.load
+@patch('google.genai.Client') # Patch the genai.Client class
+@patch('src.utils.config.SecureConfig.get') # Patch SecureConfig.get
+def test_gemini_rate_limiting_thread_safety(mock_secure_get, mock_genai_Client, mock_secure_config_load): # Renamed mock_GenerativeModel
     """Tests that _apply_gemini_rate_limit is thread-safe."""
     mock_secure_get.side_effect = lambda key, default=None: {
-        "LLM_PROVIDER": "gemini", "GEMINI_API_KEY": "fake_key",
-        "LLM_MAX_RETRIES": "1"
+        "LLM_PROVIDER": "gemini",
+        "GEMINI_API_KEY": "fake_key",
+        "GEMINI_MODEL": "gemini-2.5-flash",
+        "LLM_MAX_RETRIES": "1",
+        "LLM_TIMEOUT": "30",
+        "HUGGING_FACE_API_KEY": None,
+        "HUGGING_FACE_MODEL": None,
+        "ENABLE_HUGGING_FACE": "true",
     }.get(key, default)
-
-
+ 
+    mock_genai_Client.return_value.models.generate_content.return_value = MagicMock(candidates=[MagicMock(content=MagicMock(parts=[MagicMock(text="Test response")]))]) # Mock success
     orchestrator = LLMOrchestrator()
     orchestrator._GEMINI_MIN_INTERVAL_SECONDS = 0.2 # Short interval for test
-
-    # Mock the actual Gemini client call
-    with patch.object(orchestrator.client.models, 'generate_content') as mock_gemini_call:
-        mock_gemini_call.return_value = MagicMock(
-            candidates=[MagicMock(content=MagicMock(parts=[MagicMock(text="Test response")]))]
-        )
-
+ 
+    # Mock the actual Gemini models.generate_content call
+    with patch.object(orchestrator.gemini_client.models, 'generate_content') as mock_gemini_call:
+ 
         # Mock time.sleep and time.monotonic
         # FIX: Use a generator here too for robustness
         def thread_safe_monotonic_generator():
@@ -386,10 +437,10 @@ def test_gemini_rate_limiting_thread_safety(mock_secure_get):
             while True:
                 yield t
                 t += 0.001 # Small increment for each call
-
+ 
         with patch('time.sleep') as mock_sleep, \
              patch('time.monotonic', side_effect=thread_safe_monotonic_generator()) as mock_monotonic:
-
+ 
             def call_generate():
                 # Wrap in try/except to catch the RuntimeError from _generate_with_retry
                 # if the mock setup isn't perfect, preventing unhandled thread exceptions
@@ -397,22 +448,22 @@ def test_gemini_rate_limiting_thread_safety(mock_secure_get):
                     orchestrator.generate("thread prompt")
                 except RuntimeError as e:
                     logging.error(f"Thread caught expected RuntimeError: {e}")
-
-
-            threads = []
+ 
+ 
+            threads = [] # Initialize threads list
             num_threads = 5
             for _ in range(num_threads):
                 thread = threading.Thread(target=call_generate)
                 threads.append(thread)
                 thread.start()
-
+ 
             for thread in threads:
                 thread.join()
-
+ 
             # The exact number and duration of sleeps is hard to predict due to thread scheduling,
             # but we can assert that sleep was called multiple times (at least num_threads - 1 times
             # if they hit the rate limit) and that the underlying LLM call happened num_threads times.
-
+ 
             assert mock_gemini_call.call_count == num_threads # Each thread should attempt the call
             # Assert that sleep was called at least some number of times, indicating rate limiting kicked in
             # Check that sleep was called at least num_threads - 1 times (subsequent calls should sleep)
@@ -421,7 +472,7 @@ def test_gemini_rate_limiting_thread_safety(mock_secure_get):
             # It's possible for threads to finish very quickly, but with a short interval (0.2s)
             # and 5 threads, it's highly likely at least 4 sleeps will occur.
             assert mock_sleep.call_count >= num_threads - 1
-
+ 
             # Also check that time.monotonic was called enough times by _apply_gemini_rate_limit and tenacity
             # Each call to generate calls _call_llm_api once (due to LLM_MAX_RETRIES=1).
             # Each _call_llm_api invocation involves 2 tenacity calls + 2 rate limit calls + 1 telemetry call.
@@ -430,92 +481,108 @@ def test_gemini_rate_limiting_thread_safety(mock_secure_get):
             # as the primary goal is to ensure the rate limiting logic itself works and doesn't crash.
             # assert mock_monotonic.call_count == num_threads * 5 # <-- REMOVED EXACT ASSERTION
 # --- NEW TEST FOR TENACITY INTEGRATION ---
-# This test verifies that tenacity's retry mechanism is correctly applied to _call_llm_api
-# and that _generate_with_retry handles the RetryError correctly.
-
-@patch('src.utils.config.SecureConfig.get')
-def test_tenacity_integration_retries_and_raises_runtime_error(mock_secure_get, caplog):
+@patch('src.utils.config.SecureConfig.load') # Mock SecureConfig.load
+@patch('google.genai.Client') # Patch the genai.Client class
+@patch('src.utils.config.SecureConfig.get') # Patch SecureConfig.get
+def test_tenacity_integration_retries_and_raises_runtime_error(mock_secure_get, mock_genai_Client, mock_secure_config_load, caplog): # Renamed mock_GenerativeModel
     """
     Tests that tenacity retries _call_llm_api and _generate_with_retry
-    converts RetryError to RuntimeError.
+    converts RetryError to RuntimeError. (Fixed MagicMock error and SyntaxError)
     """
+    mock_client_instance = mock_genai_Client.return_value # Get the mocked genai.Client instance
     caplog.set_level(logging.ERROR) # Capture error logs
-
-
+ 
     # Configure mock to use Gemini provider and a fake API key
     mock_secure_get.side_effect = lambda key, default=None: {
-        "LLM_PROVIDER": "gemini", "GEMINI_API_KEY": "fake_key",
-        "LLM_MAX_RETRIES": "3" # Tenacity will use this as stop_after_attempt
+        "LLM_PROVIDER": "gemini",
+        "GEMINI_API_KEY": "fake_key",
+        "GEMINI_MODEL": "gemini-2.5-flash",
+        "LLM_MAX_RETRIES": "3", # Tenacity will use this as stop_after_attempt
+        "LLM_TIMEOUT": "30",
+        "HUGGING_FACE_API_KEY": None,
+        "HUGGING_FACE_MODEL": None,
+        "ENABLE_HUGGING_FACE": "true",
     }.get(key, default)
-
+ 
     orchestrator = LLMOrchestrator()
-
+ 
     # Mock the underlying _gemini_generate to simulate consistent failures
-    # It should fail 3 times (initial + 2 retries)
-    # --- MODIFIED: Raise RuntimeError instead of generic Exception ---
-    with patch.object(orchestrator, '_gemini_generate', side_effect=RuntimeError("Gemini API failed")) as mock_gemini_generate, \
+    # It should fail 4 times (initial + 3 retries) for models.generate_content
+    # The mock should raise the error as it would be formatted by _gemini_generate
+    with patch.object(orchestrator, '_gemini_generate', side_effect=RuntimeError("Gemini error: Gemini API failed")) as mock_gemini_generate, \
          patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit: # Mock rate limit to avoid timing issues
-
+ 
         # Temporarily override tenacity settings for faster testing
         # This is a bit tricky as tenacity is a decorator. We can't easily
         # change its parameters after it's applied.
         # The easiest way to test this is to let it use the default `stop_after_attempt(3)`
         # from LLM_MAX_RETRIES.
-
+ 
         with pytest.raises(RuntimeError) as excinfo:
             orchestrator.generate("test prompt for tenacity")
-
-        # Assert that _gemini_generate was called 3 times (initial + 2 retries)
+ 
+        # Assert that _gemini_generate was called 4 times (initial + 3 retries)
         # --- MODIFIED: Expect 4 calls if LLM_MAX_RETRIES=3 (initial + 3 retries) ---
         assert mock_gemini_generate.call_count == 4 # Changed from 3 to 4
         # Assert that rate limit was applied before each attempt
         assert mock_rate_limit.call_count == 4 # Changed from 3 to 4
-
+ 
         # Assert the exception type and message
-        assert isinstance(excinfo.value, RuntimeError)
+        assert isinstance(excinfo.value, RuntimeError) # Still RuntimeError
         # FIX: Updated assertion to match the actual RuntimeError message format
-        assert "LLM API failed after all retries" in str(excinfo.value) # This should now pass with reraise=False
-        assert "Gemini API failed" in str(excinfo.value) # FIX: Changed from "Gemini error: Gemini API failed"
-
+        assert "LLM API failed after all retries" in str(excinfo.value)
+        assert "Gemini error: Gemini API failed" in str(excinfo.value) # Correct format including "Gemini error:" prefix
+ 
         # Assert error logging
         assert "LLM API failed after all retries for prompt" in caplog.text
-        assert "Last error: Gemini API failed" in caplog.text # FIX: Changed from "Gemini error: Gemini API failed"
-@patch('src.utils.config.SecureConfig.get')
-def test_tenacity_integration_success_after_retry(mock_secure_get, caplog):
+        assert "Last error: Gemini error: Gemini API failed" in caplog.text # Match the actual logged string
+ 
+@patch('src.utils.config.SecureConfig.load') # Mock SecureConfig.load
+@patch('google.genai.Client') # Patch the genai.Client class
+@patch('src.utils.config.SecureConfig.get') # Patch SecureConfig.get
+def test_tenacity_integration_success_after_retry(mock_secure_get, mock_genai_Client, mock_secure_config_load, caplog): # Renamed mock_GenerativeModel
     """
     Tests that tenacity retries _call_llm_api and succeeds on a later attempt.
+    (Fixed MagicMock error and SyntaxError)
     """
     caplog.set_level(logging.INFO)
-
-
+ 
     mock_secure_get.side_effect = lambda key, default=None: {
-        "LLM_PROVIDER": "gemini", "GEMINI_API_KEY": "fake_key",
-        "LLM_MAX_RETRIES": "3"
+        "LLM_PROVIDER": "gemini",
+        "GEMINI_API_KEY": "fake_key",
+        "LLM_MAX_RETRIES": "3",
+        "LLM_TIMEOUT": "30",
+        "HUGGING_FACE_API_KEY": None,
+        "HUGGING_FACE_MODEL": None,
+        "ENABLE_HUGGING_FACE": "true",
     }.get(key, default)
-
+ 
     orchestrator = LLMOrchestrator()
-
+ 
     # Mock _gemini_generate to fail twice, then succeed on the third attempt
-    # --- MODIFIED: Raise RuntimeError instead of generic Exception ---
-    with patch.object(orchestrator, '_gemini_generate', side_effect=[
-        RuntimeError("Attempt 1 failed"),
-        RuntimeError("Attempt 2 failed"),
-        RuntimeError("Attempt 3 failed"), # Added a third failure to match LLM_MAX_RETRIES=3 (4 attempts total)
+    # The mock should raise the errors as they would be formatted by _gemini_generate
+    with patch.object(orchestrator, '_gemini_generate', side_effect=[ # This mocks the orchestrator's internal method
+        RuntimeError("Gemini error: Attempt 1 failed"),
+        RuntimeError("Gemini error: Attempt 2 failed"),
+        RuntimeError("Gemini error: Attempt 3 failed"), # Added a third failure to match LLM_MAX_RETRIES=3 (4 attempts total)
         "Successful response on 4th attempt" # Changed to 4th attempt
     ]) as mock_gemini_generate, \
          patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit:
-
+ 
         response = orchestrator.generate("test prompt for successful retry")
-
+ 
         # Assert that _gemini_generate was called 3 times
         # --- MODIFIED: Expect 4 calls if LLM_MAX_RETRIES=3 (initial + 3 retries) ---
         assert mock_gemini_generate.call_count == 4 # Changed from 3 to 4
         # Assert that rate limit was applied before each attempt
         assert mock_rate_limit.call_count == 4 # Changed from 3 to 4
-
+ 
         # Assert the successful response
         assert response == "Successful response on 4th attempt" # Changed from 3rd to 4th
-
+ 
+        # Assert that the initial error logs (from _gemini_generate's internal logging) are present
+        # The test output in the original prompt (server.py output) shows these logs:
+        # `metamorphic-core-1 | 2025-06-18 03:42:54,647 - src.core.llm_orchestration - ERROR - Gemini error during API call for prompt ... Error: Models.generate_content() got an unexpected keyword argument 'generation_config'`
         # Assert error logs for failed attempts, but no final RuntimeError
         # The logs for "Attempt X failed" would come from _gemini_generate's internal logging,
         # but _gemini_generate is mocked, so its logging is bypassed.
@@ -523,7 +590,7 @@ def test_tenacity_integration_success_after_retry(mock_secure_get, caplog):
         # Therefore, caplog.text should be empty of these specific error messages.
         # assert "Attempt 1 failed: Attempt 1 failed" in caplog.text # <-- REMOVED THIS LINE
         # assert "Attempt 2 failed: Attempt 2 failed" in caplog.text # <-- REMOVED THIS LINE
-
+ 
 @patch('src.utils.config.SecureConfig.get')
 def test_hf_generate_with_qwen3_chat_completions_and_thinking(mock_secure_get, caplog):
     """
@@ -538,7 +605,7 @@ def test_hf_generate_with_qwen3_chat_completions_and_thinking(mock_secure_get, c
         "HUGGING_FACE_MODEL": hf_model_name,
         "LLM_MAX_RETRIES": "1"
     }.get(key, default)
-
+ 
     with patch('src.core.llm_orchestration.InferenceClient') as MockInferenceClient:
         mock_hf_client_instance = MockInferenceClient.return_value
         
@@ -546,17 +613,17 @@ def test_hf_generate_with_qwen3_chat_completions_and_thinking(mock_secure_get, c
         mock_completion = MagicMock()
         mock_completion.choices = [MagicMock(message=MagicMock(content=qwen_response_with_think))]
         mock_hf_client_instance.chat.completions.create.return_value = mock_completion
-
+ 
         orchestrator = LLMOrchestrator()
         
         assert orchestrator.hf_client == mock_hf_client_instance
         assert orchestrator.hf_model_name == hf_model_name
-
+ 
         prompt = "Test prompt for Qwen3"
         # Directly testing _hf_generate, so _apply_gemini_rate_limit is not in its direct call path.
         with patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit:
             actual_content = orchestrator._hf_generate(prompt) 
-
+ 
         mock_hf_client_instance.chat.completions.create.assert_called_once_with(
             model=hf_model_name,
             messages=[{"role": "user", "content": prompt}],
@@ -568,7 +635,7 @@ def test_hf_generate_with_qwen3_chat_completions_and_thinking(mock_secure_get, c
         assert actual_content == "This is the actual answer."
         assert "HF Thinking Content (Qwen3): This is the thinking process." in caplog.text
         assert not mock_rate_limit.called # Corrected assertion
-
+ 
 @patch('src.utils.config.SecureConfig.get')
 def test_hf_generate_with_qwen3_chat_completions_no_thinking_tag(mock_secure_get, caplog):
     """
@@ -582,7 +649,7 @@ def test_hf_generate_with_qwen3_chat_completions_no_thinking_tag(mock_secure_get
         "HUGGING_FACE_MODEL": hf_model_name,
         "LLM_MAX_RETRIES": "1"
     }.get(key, default)
-
+ 
     with patch('src.core.llm_orchestration.InferenceClient') as MockInferenceClient:
         mock_hf_client_instance = MockInferenceClient.return_value
         
@@ -590,16 +657,16 @@ def test_hf_generate_with_qwen3_chat_completions_no_thinking_tag(mock_secure_get
         mock_completion = MagicMock()
         mock_completion.choices = [MagicMock(message=MagicMock(content=qwen_response_no_think))]
         mock_hf_client_instance.chat.completions.create.return_value = mock_completion
-
+ 
         orchestrator = LLMOrchestrator()
         
         with patch.object(orchestrator, '_apply_gemini_rate_limit') as mock_rate_limit:
             actual_content = orchestrator._hf_generate("Test prompt")
-
+ 
         assert actual_content == "This is the actual answer without thinking."
         assert "HF Thinking Content (Qwen3):" not in caplog.text
         assert not mock_rate_limit.called # Corrected assertion
-
+ 
 @patch('src.utils.config.SecureConfig.get')
 def test_hf_generate_qwen3_malformed_think_tag(mock_secure_get, caplog):
     """Tests _hf_generate with a malformed <think> tag (missing closing tag)."""
@@ -609,7 +676,7 @@ def test_hf_generate_qwen3_malformed_think_tag(mock_secure_get, caplog):
         "LLM_PROVIDER": "huggingface", "HUGGING_FACE_API_KEY": "fake_hf_key",
         "HUGGING_FACE_MODEL": hf_model_name, "LLM_MAX_RETRIES": "1"
     }.get(key, default)
-
+ 
     with patch('src.core.llm_orchestration.InferenceClient') as MockInferenceClient:
         mock_hf_instance = MockInferenceClient.return_value
         malformed_response = "<think>This is thinking but no close tag. This is the content."
@@ -623,9 +690,9 @@ def test_hf_generate_qwen3_malformed_think_tag(mock_secure_get, caplog):
         assert content == malformed_response # Should return the full response
         assert "Detected '<think>' tag without a closing '</think>' tag. Treating full response as content." in caplog.text
         assert not mock_rate_limit.called
-
+ 
 # Add these tests to tests/test_llm_orchestration.py
-
+ 
 @patch('src.utils.config.SecureConfig.load') # Mock load to prevent actual env loading during this specific get test
 @patch('os.getenv')
 def test_secure_config_get_typed_defaults(mock_os_getenv, mock_secure_config_load):
@@ -633,7 +700,7 @@ def test_secure_config_get_typed_defaults(mock_os_getenv, mock_secure_config_loa
     # Ensure _parsed_config is initialized for the test
     SecureConfig._parsed_config = {}
     SecureConfig._config_loaded_and_validated = True # Pretend load has run
-
+ 
     # Test boolean
     mock_os_getenv.return_value = "false"
     assert SecureConfig.get("TEST_BOOL", True) is False
@@ -647,7 +714,7 @@ def test_secure_config_get_typed_defaults(mock_os_getenv, mock_secure_config_loa
     assert SecureConfig.get("TEST_BOOL", True) is True # Defaults
     mock_os_getenv.return_value = None # Not in env
     assert SecureConfig.get("TEST_BOOL_NOT_IN_ENV", True) is True # Returns default
-
+ 
     # Test integer
     mock_os_getenv.return_value = "123"
     assert SecureConfig.get("TEST_INT", 0) == 123
@@ -655,14 +722,15 @@ def test_secure_config_get_typed_defaults(mock_os_getenv, mock_secure_config_loa
     assert SecureConfig.get("TEST_INT", 42) == 42 # Defaults
     mock_os_getenv.return_value = None
     assert SecureConfig.get("TEST_INT_NOT_IN_ENV", 7) == 7 # Returns default
-
+ 
     # Test string (default behavior)
     mock_os_getenv.return_value = "test_string"
     assert SecureConfig.get("TEST_STRING", "default_str") == "test_string"
     mock_os_getenv.return_value = None
     assert SecureConfig.get("TEST_STRING_NOT_IN_ENV", "default_str") == "default_str"
-
+ 
     # Test raising ConfigError if not in env and no default
+    SecureConfig._parsed_config = {} # Reset for this specific check
     mock_os_getenv.return_value = None
     with pytest.raises(ConfigError, match="Configuration variable 'MUST_EXIST' not found."):
         SecureConfig.get("MUST_EXIST")
@@ -676,13 +744,14 @@ def test_secure_config_get_pre_parsed(mock_os_getenv, mock_secure_config_load):
         "LLM_MAX_RETRIES": 5
     }
     SecureConfig._config_loaded_and_validated = True
-
+ 
     assert SecureConfig.get("ENABLE_HUGGING_FACE", True) is False
     assert SecureConfig.get("LLM_MAX_RETRIES", 3) == 5
     mock_os_getenv.assert_not_called() # Should not call os.getenv for these
-
+ 
 @patch('src.utils.config.SecureConfig.get')
-def test_llm_orchestrator_hf_disabled_configuration(mock_secure_get):
+@patch('google.genai.Client') # Patch genai.Client for LLMOrchestrator init
+def test_llm_orchestrator_hf_disabled_configuration(mock_genai_Client, mock_secure_get):
     # This test from the original response remains valid.
     mock_secure_get.side_effect = lambda var_name, default=None: {
         'LLM_PROVIDER': 'gemini',
@@ -693,15 +762,20 @@ def test_llm_orchestrator_hf_disabled_configuration(mock_secure_get):
         'LLM_MAX_RETRIES': 3, # Add these as they are now loaded by LLMConfig
         'LLM_TIMEOUT': 30
     }.get(var_name, default)
+    # Mock the underlying genai.Client.models.generate_content for the super().__init__() call
+    with patch('google.genai.Client') as mock_genai_Client_init:
+        mock_genai_Client_init.return_value.models.generate_content.return_value = MagicMock(
+            candidates=[MagicMock(content=MagicMock(parts=[MagicMock(text="Mocked response")]))]
+        )
     
     orchestrator = LLMOrchestrator()
     
     assert orchestrator.config.enable_hugging_face is False
     assert orchestrator.hf_client is None
     assert orchestrator.hf_model_name is None
-    assert orchestrator.client is not None
+    assert orchestrator.gemini_client is not None # Gemini client should still be initialized
     assert orchestrator.config.provider == LLMProvider.GEMINI
-
+ 
 @patch('src.utils.config.SecureConfig.get')
 def test_enhanced_llm_orchestrator_get_model_costs_hf_disabled(mock_secure_get):
     # This test from the original response remains valid.
@@ -714,24 +788,30 @@ def test_enhanced_llm_orchestrator_get_model_costs_hf_disabled(mock_secure_get):
         'LLM_MAX_RETRIES': 3,
         'LLM_TIMEOUT': 30
     }.get(var_name, default)
-
+ 
     mock_kg = MagicMock()
     mock_spec = MagicMock(spec=FormalSpecification)
     mock_ethics_engine = MagicMock()
-
+    # Mock the underlying genai.Client.models.generate_content for the super().__init__() call
+    with patch('google.genai.Client') as mock_genai_Client_init:
+        mock_genai_Client_init.return_value.models.generate_content.return_value = MagicMock(
+            candidates=[MagicMock(content=MagicMock(parts=[MagicMock(text="Mocked response")]))]
+        )
+ 
     enhanced_orchestrator = EnhancedLLMOrchestrator(
         kg=mock_kg, spec=mock_spec, ethics_engine=mock_ethics_engine
     )
     
     model_costs = enhanced_orchestrator._get_model_costs()
     
-    assert "gemini" in model_costs
+    assert enhanced_orchestrator.config.gemini_model_name in model_costs # Use the configured Gemini model name
     assert "Qwen/Qwen3-235B-A22B" not in model_costs
     assert enhanced_orchestrator.config.hugging_face_model not in model_costs
     assert len(model_costs) == 1
-
+ 
 @patch('src.utils.config.SecureConfig.get')
-def test_hf_generate_raises_error_if_hf_disabled_and_called(mock_secure_get):
+@patch('google.genai.Client') # Patch genai.Client for LLMOrchestrator init
+def test_hf_generate_raises_error_if_hf_disabled_and_called(mock_genai_Client, mock_secure_get):
     # This test from the original response remains valid and important.
     hf_model_name = "Qwen/Qwen3-235B-A22B"
     mock_secure_get.side_effect = lambda var_name, default=None: {
@@ -743,12 +823,17 @@ def test_hf_generate_raises_error_if_hf_disabled_and_called(mock_secure_get):
         'LLM_MAX_RETRIES': 3,
         'LLM_TIMEOUT': 30
     }.get(var_name, default)
-
+ 
+    # Mock the underlying genai.Client.models.generate_content for the super().__init__() call
+    with patch('google.genai.Client') as mock_genai_Client_init:
+        mock_genai_Client_init.return_value.models.generate_content.return_value = MagicMock(
+            candidates=[MagicMock(content=MagicMock(parts=[MagicMock(text="Mocked response")]))]
+        )
     orchestrator = LLMOrchestrator()
     assert orchestrator.hf_client is None
-
+ 
     # _hf_generate is called by _call_llm_api if model is HF
     # Test that calling _call_llm_api with an HF model string when HF is disabled
     # correctly leads to the RuntimeError from _hf_generate.
     with pytest.raises(RuntimeError, match="Hugging Face client not initialized"):
-        orchestrator._call_llm_api("test prompt", model=hf_model_name)
+        orchestrator._call_llm_api("test text", hf_model_name)

@@ -4,14 +4,14 @@ import re
 import logging
 from enum import Enum
 from typing import Optional, List, TYPE_CHECKING
-import google.genai
+from google import genai # Corrected import for GenerativeModel
 from huggingface_hub import InferenceClient
 
 # Moved these imports to the top to resolve NameError for CodeChunk
 from src.core.chunking.dynamic_chunker import SemanticChunker, CodeChunk
 from src.core.chunking.recursive_summarizer import RecursiveSummarizer
 
-from src.utils.config import SecureConfig, ConfigError
+from src.utils.config import SecureConfig, ConfigError # Moved up, but this import is fine
 from pydantic import BaseModel, ValidationError
 from src.core.context_manager import parse_code_chunks
 from src.core.monitoring import Telemetry
@@ -25,6 +25,7 @@ from src.core.verification import (
 from collections import defaultdict
 import time
 import threading
+
 from src.core.optimization.adaptive_token_allocator import TokenAllocator
 from src.core.knowledge_graph import KnowledgeGraph, Node
 from src.core.optimization.token_optimizer import TokenOptimizer
@@ -45,13 +46,16 @@ class LLMConfig(BaseModel):
     hf_api_key: Optional[str] = None
     max_retries: int = 3
     timeout: int = 30
-    # Updated default Hugging Face model to Qwen/Qwen3-235B-A22B
-    hugging_face_model: str = SecureConfig.get("HUGGING_FACE_MODEL", "Qwen/Qwen3-235B-A22B")
+    gemini_model_name: str = "gemini-2.5-flash" # Added for clarity and consistency
+    # Updated default Hugging Face model
+    hugging_face_model: Optional[str] = None # Allow None, actual default comes from SecureConfig.get in _load_config
     enable_hugging_face: bool = True # Default to True, will be overridden by SecureConfig
 
 class LLMOrchestrator:
     def __init__(self):
-        self.client = None
+        self.client = None # This client is no longer used for Gemini interaction directly (old comment)
+        self.gemini_client = None # Renamed: This will be the genai.Client instance
+        self.gemini_model_name = None # New: Store the Gemini model name
         self.active_provider = None
         self.hf_client = None
         self.hf_model_name = None
@@ -65,39 +69,48 @@ class LLMOrchestrator:
     def _load_config(self) -> LLMConfig:
         try:
             SecureConfig.load() # Ensures all configs including API keys are validated/loaded
-            return LLMConfig(
-                provider=LLMProvider(SecureConfig.get("LLM_PROVIDER", "gemini")),
+            config = LLMConfig(
+                provider=LLMProvider(SecureConfig.get("LLM_PROVIDER", "gemini").lower()), # Ensure lowercase for enum
                 gemini_api_key=SecureConfig.get("GEMINI_API_KEY"),
                 hf_api_key=SecureConfig.get("HUGGING_FACE_API_KEY"),
+                gemini_model_name=SecureConfig.get("GEMINI_MODEL", "gemini-2.5-flash"), # Allow configuring Gemini model
                 hugging_face_model=SecureConfig.get("HUGGING_FACE_MODEL", "Qwen/Qwen3-235B-A22B"),
                 max_retries=SecureConfig.get("LLM_MAX_RETRIES", 3), # Will be int due to default
                 timeout=SecureConfig.get("LLM_TIMEOUT", 30),       # Will be int due to default
                 enable_hugging_face=SecureConfig.get("ENABLE_HUGGING_FACE", True) # Will be bool
             )
+            # Convert string values to proper types if they came from SecureConfig.get as strings
+            # Pydantic usually handles this, but explicit conversion adds robustness.
+            if isinstance(config.max_retries, str):
+                config.max_retries = int(config.max_retries)
+            if isinstance(config.timeout, str):
+                config.timeout = int(config.timeout)
+            return config
         except (ValidationError, ConfigError, ValueError) as e:
-            logger.error(f"Error loading LLM configuration: {str(e)}")
+            logger.critical(f"Error loading LLM configuration: {str(e)}")
             raise RuntimeError(f"Invalid LLM configuration: {str(e)}")
 
     def _configure_providers(self):
         if self.config.provider == LLMProvider.GEMINI:
             if not self.config.gemini_api_key:
                 raise RuntimeError("GEMINI_API_KEY is required for Gemini provider")
-            self.client = google.genai.Client(api_key=self.config.gemini_api_key)
-            self.client.model = "gemini-2.5-flash"
-            self.client.api_key = self.config.gemini_api_key
-            logger.info(f"Primary LLM_PROVIDER is Gemini. Main client configured for model: {self.client.model}")
+            # Instantiate genai.Client for proper API usage
+            self.gemini_client = genai.Client(api_key=self.config.gemini_api_key)
+            self.gemini_model_name = self.config.gemini_model_name # Store the model name
+            logger.info(f"Primary LLM_PROVIDER is Gemini. Main client configured for model: {self.config.gemini_model_name}")
         elif self.config.provider == LLMProvider.HUGGING_FACE:
             if not self.config.hf_api_key:
                 raise RuntimeError("HUGGING_FACE_API_KEY is required for Hugging Face provider")
             # Explicitly set provider to "hf-inference" to ensure the correct backend
-            # and avoid issues with default provider detection.
+            # and avoid issues with default provider detection. (This is for HF client, not Gemini)
             self.client = InferenceClient(
                 provider="hf-inference",
                 token=self.config.hf_api_key,
                 model=self.config.hugging_face_model,
             )
+            self.gemini_client = None # Ensure Gemini client is not set
             self.hf_model_name = self.config.hugging_face_model
-            logger.info(f"Primary LLM_PROVIDER is Hugging Face. Main client configured for model: {self.config.hugging_face_model}")
+            logger.info(f"Primary LLM_PROVIDER is Hugging Face. Main client configured for model: {self.config.hugging_face_model}") # This is the primary client
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config.provider}")
 
@@ -110,6 +123,7 @@ class LLMOrchestrator:
                         token=self.config.hf_api_key,
                         model=self.config.hugging_face_model
                     )
+                    # self.gemini_client = self.gemini_client # No need to re-assign primary client
                     self.hf_model_name = self.config.hugging_face_model # Store the actual model name used
                     logger.info(f"Dedicated Hugging Face client configured for model: {self.hf_model_name}")
                 except Exception as e:
@@ -166,7 +180,7 @@ class LLMOrchestrator:
         self._apply_gemini_rate_limit()
 
         self.telemetry.track("model_usage", tags={"model": model})
-        if model == LLMProvider.GEMINI.value:
+        if model == self.config.gemini_model_name or model == LLMProvider.GEMINI.value: # Check against actual model name or generic provider
             return self._gemini_generate(text)
         elif model == LLMProvider.HUGGING_FACE.value or model == self.config.hugging_face_model:
             return self._hf_generate(text)
@@ -176,18 +190,20 @@ class LLMOrchestrator:
 
     def _gemini_generate(self, prompt: str) -> str:
         try:
-            # --- START OF CHANGE ---
-            generation_config = google.genai.types.GenerationConfig(
+            if not self.gemini_client: # Check for the genai.Client instance
+                raise RuntimeError("Gemini client not initialized.")
+
+            generation_config = genai.types.GenerationConfig(
                 temperature=0.6,
                 top_p=0.95,
-                max_output_tokens=8192  # <-- ADD THIS LINE
+                max_output_tokens=8192
             )
-            response = self.client.models.generate_content(
-                model=self.client.model,
+            # Use the correctly instantiated genai.Client.models.generate_content
+            response = self.gemini_client.models.generate_content(
+                model=self.gemini_model_name, # Pass the model name here
                 contents=prompt,
-                generation_config=generation_config, # <-- USE THE NEW CONFIG OBJECT
+                generation_config=generation_config,
             )
-            # --- END OF CHANGE ---
             if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
                 parts = response.candidates[0].content.parts
                 return "".join(part.text for part in parts if hasattr(part, "text"))
@@ -310,7 +326,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         summaries = []
 
         for idx, chunk in enumerate(chunks):
-            with self.telemetry.span(f"chunk_{idx}"):
+            with self.telemetry.span(f"chunk_{idx}"): # Span for monitoring
                 if not hasattr(self.spec, 'verify') or not self.spec.verify(chunk):
                     logger.warning(f"FormalSpecification does not have verify or verification failed for chunk {idx}.")
                     if hasattr(self.spec, 'verify'):
@@ -336,7 +352,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
 
     def _get_model_costs(self):
         costs = {
-            "gemini": {"effective_length": 500000, "cost_per_token": 0.000001}
+            self.config.gemini_model_name: {"effective_length": 500000, "cost_per_token": 0.000001}
         }
         if self.hf_model_name: # This is set only if HF is enabled and client initialized
             costs[self.hf_model_name] = {"effective_length": 4096, "cost_per_token": 0.000002}
@@ -346,7 +362,7 @@ class EnhancedLLMOrchestrator(LLMOrchestrator):
         tokens, model = allocation
         last_exception = None
         for strategy in self.fallback_strategy:
-            with self.telemetry.span(f"strategy_{strategy.__name__}"):
+            with self.telemetry.span(f"strategy_{strategy.__name__}"): # Span for monitoring
                 try:
                     result = strategy(chunk, tokens, model)
                     self.telemetry.track(
@@ -395,9 +411,6 @@ Lemma fallback_termination:
     def _call_llm_api(self, text: str, model: str) -> str:
         return super()._call_llm_api(text, model)
 
-def _count_tokens(self, text: str) -> int:
-    return len(text.split())
-
 def format_math_prompt(question: str) -> str:
     return f"""Please reason step by step and put your final answer within \\boxed{{}}.
 Question: {question}
@@ -407,3 +420,4 @@ def extract_boxed_answer(text: str) -> str:
     match = re.search(r"\\boxed{([^}]+)}", text)
     if match:
         return match.group(1)
+    return None

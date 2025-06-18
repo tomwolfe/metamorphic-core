@@ -330,12 +330,13 @@
       "task_id": "task_1_8_2_F_1_add_constant",
       "priority": "High",
       "task_name": "Add CONTEXT_LEAKAGE_INDICATORS Constant",
-      "status": "Not Started",
+      "status": "Blocked",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_E_add_exhaustion_error"
       ],
-      "description": "In `src/core/automation/workflow_driver.py`, add a new class-level constant `CONTEXT_LEAKAGE_INDICATORS` (List[str]) to the `WorkflowDriver` class. Populate it with patterns like '```python', 'As an AI language model', 'I am a large language model', etc. This is the first step in implementing the hallucination check."
+      "description": "In `src/core/automation/workflow_driver.py`, add a new class-level constant `CONTEXT_LEAKAGE_INDICATORS` (List[str]) to the `WorkflowDriver` class. Populate it with patterns like '```python', 'As an AI language model', 'I am a large language model', etc. This is the first step in implementing the hallucination check.",
+      "reason_blocked": "Failed to generate a solution plan."
     },
     {
       "task_id": "task_1_8_2_F_2_add_method",
@@ -547,5 +548,5 @@
     "Set `status`: `Completed` on all Phase 1.8 tasks.",
     "Update the `phase`, `phase_goal`, and `current_focus` fields to 'Phase 2 Iteration 2: Enhanced Agents & Knowledge Graph'."
   ],
-  "current_focus": "🎯 CURRENT FOCUS: Phase 1.8 - Hardened Autonomous Loop & Advanced Remediation 🛠️"
+  "current_focus": "\ud83c\udfaf CURRENT FOCUS: Phase 1.8 - Hardened Autonomous Loop & Advanced Remediation \ud83d\udee0\ufe0f"
 }

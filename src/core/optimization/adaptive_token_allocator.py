@@ -16,10 +16,12 @@ REALISTIC_MIN_TOKENS_PER_CHUNK = 1000
 # --- END ADDED CONSTANT ---
 
 class TokenAllocator:
-    def __init__(self, total_budget: int = 32000):
+    # --- START OF CHANGE 1 ---
+    def __init__(self, total_budget: int = 500000): # <-- INCREASED FROM 32000
         self.total_budget = total_budget
         # self.solver = Optimize() # REMOVE instance creation from __init__
         self.policy = EthicalAllocationPolicy()
+    # --- END OF CHANGE 1 ---
 
     def _model_cost(self, model_idx_var: IntNumRef, tokens_var: IntNumRef, models_list: list) -> ArithRef:
         """
@@ -79,9 +81,12 @@ class TokenAllocator:
             self.solver.add(allocations[i] >= REALISTIC_MIN_TOKENS_PER_CHUNK) # <-- MODIFIED
             # --- END MODIFIED MINIMUM CONSTRAINT ---
 
-            constraint_str_max = f"tokens_{i} <= 20000" # This can be adjusted based on model context windows
+            # --- START OF CHANGE 2 ---
+            # This is a hard cap per chunk for input context. Increase it significantly.
+            constraint_str_max = f"tokens_{i} <= 100000" # <-- INCREASED FROM 20000
             logger.info(f"TokenAllocator: Adding constraint: {constraint_str_max}")
-            self.solver.add(allocations[i] <= 20000)
+            self.solver.add(allocations[i] <= 100000) # <-- INCREASED FROM 20000
+            # --- END OF CHANGE 2 ---
 
         for i in range(len(chunks)):
             # --- FIX START: Correct f-string construction for logging ---
@@ -130,7 +135,7 @@ class TokenAllocator:
                     # --- MODIFIED MINIMUM CONSTRAINT IN FALLBACK ---
                     self.solver.add(allocations[i] >= REALISTIC_MIN_TOKENS_PER_CHUNK) # <-- MODIFIED
                     # --- END MODIFIED MINIMUM CONSTRAINT IN FALLBACK ---
-                    self.solver.add(allocations[i] <= 20000)
+                    self.solver.add(allocations[i] <= 100000) # <-- MODIFIED
                 for i in range(len(chunks)):
                     self.solver.add(model_vars[i] >= 0)
                     self.solver.add(model_vars[i] < len(models))
@@ -161,7 +166,7 @@ class TokenAllocator:
                 # --- MODIFIED MINIMUM CONSTRAINT IN FALLBACK ---
                 self.solver.add(allocations[i] >= REALISTIC_MIN_TOKENS_PER_CHUNK) # <-- MODIFIED
                 # --- END MODIFIED MINIMUM CONSTRAINT IN FALLBACK ---
-                self.solver.add(allocations[i] <= 20000)
+                self.solver.add(allocations[i] <= 100000) # <-- MODIFIED
             for i in range(len(chunks)):
                 self.solver.add(model_vars[i] >= 0)
                 self.solver.add(model_vars[i] < len(models))
@@ -180,4 +185,4 @@ class TokenAllocator:
                 return final_allocation
             else:
                 logger.error("TokenAllocator: Fallback allocation also failed after initial UNSAT.")
-                raise AllocationError("No ethical allocation possible after initial UNSAT and fallback failure.") # Added more specific error message
+                raise AllocationError("No ethical allocation possible after initial UNSAT and fallback failure.")

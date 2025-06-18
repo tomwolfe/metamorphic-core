@@ -79,9 +79,11 @@ class EthicalAllocationPolicy:
             solver.add(alloc_val_int_var >= 1000)  # Minimum token guarantee # <-- MODIFIED
             # --- END MODIFIED MINIMUM CONSTRAINT ---
 
-            constraint_str_max = f"{alloc_val_int_var} <= 20000"
+            # --- START OF PREVIOUS CHANGE ---
+            constraint_str_max = f"{alloc_val_int_var} <= 100000" # <-- INCREASED FROM 20000
             logger.info(f"EthicalAllocationPolicy: Adding constraint: {constraint_str_max}")
-            solver.add(alloc_val_int_var <= 20000) # Max per chunk
+            solver.add(alloc_val_int_var <= 100000) # Max per chunk of input context # <-- INCREASED FROM 20000
+            # --- END OF PREVIOUS CHANGE ---
 
         # --- MODIFICATION START ---
         # TEMPORARY FIX TO UNBLOCK ALLOCATION ERROR (See task_1_8_14)
@@ -131,9 +133,9 @@ class EthicalAllocationPolicy:
                 # --- MODIFIED CONSTRAINT ---
                 # Change the limit from 1000 to REALISTIC_MIN_TOKENS_PER_CHUNK (8000)
                 constraint_gpt4_limit_str = f"Implies({model_vars[i]} == 1, {allocations[i]} <= {REALISTIC_MIN_TOKENS_PER_CHUNK})"
-                logger.info(f"EthicalAllocationPolicy: Adding constraint for high-cost model usage: {constraint_gpt4_limit_str}")
+                logger.info(f"EthicalAllocationPolicy: Adding constraint: {constraint_gpt4_limit_str}")
                 solver.add(Implies(model_vars[i] == 1, allocations[i] <= REALISTIC_MIN_TOKENS_PER_CHUNK)) # <-- MODIFIED HERE
                 # --- END MODIFIED CONSTRAINT ---
             else:
                 # Log a warning if keys are missing, indicating a potential issue in allocation setup
-                logger.warning(f"EthicalAllocationPolicy: Missing keys for chunk {i} in model_vars or allocations. Cannot apply high-cost model constraint.")
+                pass # <-- ADDED THIS LINE TO FIX INDENTATION ERROR

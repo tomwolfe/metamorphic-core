@@ -15,7 +15,8 @@ from src.core.llm_orchestration import (
     EnhancedLLMOrchestrator
 )
 from src.utils.config import ConfigError, SecureConfig # Ensure SecureConfig is imported for direct access in tests
-from google import genai # Corrected import for GenerativeModel
+from google import genai
+from google.genai import types
 from src.core.verification.specification import FormalSpecification # Correct import for FormalSpecification
 from src.core.chunking.dynamic_chunker import CodeChunk # Correct import for CodeChunk
 
@@ -111,8 +112,8 @@ def test_gemini_generation(mock_get, mock_genai_Client): # Renamed mock_Generati
         # Assert that models.generate_content was called with the correct parameters
         mock_client_instance.models.generate_content.assert_called_once_with(
             model='gemini-2.5-flash', # Ensure model name is passed
-            contents='test',
-            generation_config=genai.types.GenerationConfig(temperature=0.6, top_p=0.95, max_output_tokens=8192) # Ensure config is passed
+            contents='test', # Keep this line
+            config=types.GenerateContentConfig(temperature=0.6, top_p=0.95, max_output_tokens=8192) # MODIFIED: Use types.GenerateContentConfig and 'config' argument
         )
 
 

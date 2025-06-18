@@ -3,7 +3,7 @@ import os
 import re
 import logging
 from enum import Enum
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING # Keep this line
 from google import genai # Corrected import for GenerativeModel
 from huggingface_hub import InferenceClient
 
@@ -11,6 +11,7 @@ from huggingface_hub import InferenceClient
 from src.core.chunking.dynamic_chunker import SemanticChunker, CodeChunk
 from src.core.chunking.recursive_summarizer import RecursiveSummarizer
 
+from google.genai import types # ADDED: Import types for GenerateContentConfig
 from src.utils.config import SecureConfig, ConfigError # Moved up, but this import is fine
 from pydantic import BaseModel, ValidationError
 from src.core.context_manager import parse_code_chunks
@@ -193,7 +194,8 @@ class LLMOrchestrator:
             if not self.gemini_client: # Check for the genai.Client instance
                 raise RuntimeError("Gemini client not initialized.")
 
-            generation_config = genai.types.GenerationConfig(
+            # MODIFIED: Use types.GenerateContentConfig instead of genai.types.GenerationConfig
+            generation_config = types.GenerateContentConfig(
                 temperature=0.6,
                 top_p=0.95,
                 max_output_tokens=8192
@@ -201,8 +203,8 @@ class LLMOrchestrator:
             # Use the correctly instantiated genai.Client.models.generate_content
             response = self.gemini_client.models.generate_content(
                 model=self.gemini_model_name, # Pass the model name here
-                contents=prompt,
-                generation_config=generation_config,
+                contents=prompt, # Keep this line
+                config=generation_config, # MODIFIED: Changed 'generation_config' to 'config'
             )
             if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
                 parts = response.candidates[0].content.parts

@@ -172,29 +172,29 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_D_add_feedback_reinvocation']
 
-*   **Task ID**: task_1_8_2_F_A_define_indicators
+*   **Task ID**: task_1_8_2_F_1_add_constant
     *   **Priority**: High
-    *   **Task Name**: Define Context Leakage Indicators
+    *   **Task Name**: Add CONTEXT_LEAKAGE_INDICATORS Constant
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_E_add_exhaustion_error']
 
-*   **Task ID**: task_1_8_2_F_B_implement_function
+*   **Task ID**: task_1_8_2_F_2_add_method
     *   **Priority**: High
-    *   **Task Name**: Implement `_validate_for_context_leakage` Function
+    *   **Task Name**: Implement _validate_for_context_leakage Method
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_A_define_indicators']
+    *   **Depends On**: ['task_1_8_2_F_1_add_constant']
 
-*   **Task ID**: task_1_8_2_F_C_integrate_call
+*   **Task ID**: task_1_8_2_F_3_integrate_call
     *   **Priority**: High
-    *   **Task Name**: Integrate `_validate_for_context_leakage` into Pre-Write Checks
+    *   **Task Name**: Integrate Context Leakage Check into Pre-Write Validation
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_B_implement_function']
+    *   **Depends On**: ['task_1_8_2_F_2_add_method']
 
-*   **Task ID**: task_1_8_2_F_D_add_tests
+*   **Task ID**: task_1_8_2_F_4_add_tests
     *   **Priority**: High
-    *   **Task Name**: Add Unit Tests for Context Leakage Validation
+    *   **Task Name**: Add Unit Tests for Context Leakage Check
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_C_integrate_call']
+    *   **Depends On**: ['task_1_8_2_F_3_integrate_call']
 
 *   **Task ID**: task_1_8_C_1_analyze_A1_failure_and_improve_codegen
     *   **Priority**: High
@@ -206,7 +206,7 @@
     *   **Priority**: Critical
     *   **Task Name**: Implement Step-Level Remediation Loop
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_D_add_tests']
+    *   **Depends On**: ['task_1_8_2_F_implement_hallucination_check']
 
 *   **Task ID**: task_1_8_4
     *   **Priority**: Critical
@@ -266,7 +266,7 @@
     *   **Priority**: High
     *   **Task Name**: Add Comprehensive Tests for Phase 1.8 Features
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1', 'task_1_8_2_F_D_add_tests', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
+    *   **Depends On**: ['task_1_8_1', 'task_1_8_2_F_implement_hallucination_check', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
 
 *   **Task ID**: task_1_8_15_plan_complexity_detection
     *   **Priority**: High

@@ -108,12 +108,11 @@ class TokenAllocator:
         if self.solver.check() == sat:
             logger.info(f"TokenAllocator: Solver check SAT.")
 
-            cost_terms = [self._model_cost(model_vars[i], allocations[i], models)
-                          for i in range(len(chunks))]
-            total_cost_objective = Sum(cost_terms)
+            # Change objective from minimizing cost to maximizing total allocated tokens
+            total_allocated_tokens = Sum([allocations[i] for i in range(len(chunks))])
 
-            logger.info(f"TokenAllocator: Cost expression to minimize: {total_cost_objective}")
-            self.solver.minimize(total_cost_objective)
+            logger.info(f"TokenAllocator: Objective to maximize total allocated tokens: {total_allocated_tokens}")
+            self.solver.maximize(total_allocated_tokens)
 
             if self.solver.check() == sat:
                 final_model_snapshot = self.solver.model()
@@ -126,8 +125,8 @@ class TokenAllocator:
                 logger.info(f"TokenAllocator: Final allocation: {final_allocation}")
                 return final_allocation
             else: # Minimization failed
-                logger.error("TokenAllocator: Solver became UNSAT or UNKNOWN after adding minimization objective.")
-                # Fallback: try to find *any* solution without minimizing cost if minimization fails
+                logger.error("TokenAllocator: Solver became UNSAT or UNKNOWN after adding maximization objective.")
+                # Fallback: try to find *any* solution without maximizing tokens if maximization fails
                 self.solver = Optimize() # Create a new Optimize instance for fallback
                 # Re-add all constraints
                 self.solver.add(Sum([allocations[i] for i in range(len(chunks))]) <= self.total_budget)
@@ -143,22 +142,22 @@ class TokenAllocator:
                 self.policy.apply(self.solver, allocations, model_vars) # Re-apply policy
 
                 if self.solver.check() == sat:
-                    logger.warning("TokenAllocator: Cost minimization failed, but found a feasible solution without minimization.")
+                    logger.warning("TokenAllocator: Token maximization failed, but found a feasible solution without maximization.")
                     fallback_model_snapshot = self.solver.model()
                     final_allocation = {
                         i: (fallback_model_snapshot.eval(allocations[i]).as_long(),
                             models[fallback_model_snapshot.eval(model_vars[i]).as_long()]['name'])
                         for i in range(len(chunks))
                     }
-                    logger.info(f"TokenAllocator: Fallback allocation (no cost minimization): {final_allocation}")
+                    logger.info(f"TokenAllocator: Fallback allocation (no token maximization): {final_allocation}")
                     return final_allocation
                 else:
-                    logger.error("TokenAllocator: Solver still UNSAT/UNKNOWN even without cost minimization.")
-                    raise AllocationError("No ethical allocation possible even without cost minimization.")
+                    logger.error("TokenAllocator: Solver still UNSAT/UNKNOWN even without token maximization.")
+                    raise AllocationError("No ethical allocation possible even without token maximization.")
         else: # Initial solver check was UNSAT or UNKNOWN
-            logger.error("TokenAllocator: Solver check UNSAT or UNKNOWN before minimization.")
+            logger.error("TokenAllocator: Solver check UNSAT or UNKNOWN before maximization.")
             # --- START FIX for Failure 2 ---
-            logger.info("TokenAllocator: Attempting fallback allocation without cost minimization due to initial UNSAT.")
+            logger.info("TokenAllocator: Attempting fallback allocation without token maximization due to initial UNSAT.")
             self.solver = Optimize() # Create a new Optimize instance for fallback
             # Re-add all constraints (same as in the other fallback block)
             self.solver.add(Sum([allocations[i] for i in range(len(chunks))]) <= self.total_budget)
@@ -174,7 +173,7 @@ class TokenAllocator:
             self.policy.apply(self.solver, allocations, model_vars) # Re-apply policy
 
             if self.solver.check() == sat:
-                logger.warning("TokenAllocator: Initial check failed, but found a feasible solution with fallback (no cost minimization).")
+                logger.warning("TokenAllocator: Initial check failed, but found a feasible solution with fallback (no token maximization).")
                 fallback_model_snapshot = self.solver.model()
                 final_allocation = {
                     i: (fallback_model_snapshot.eval(allocations[i]).as_long(),
@@ -185,4 +184,3 @@ class TokenAllocator:
                 return final_allocation
             else:
                 logger.error("TokenAllocator: Fallback allocation also failed after initial UNSAT.")
-                raise AllocationError("No ethical allocation possible after initial UNSAT and fallback failure.")

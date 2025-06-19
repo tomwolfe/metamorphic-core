@@ -78,12 +78,8 @@ class EthicalAllocationPolicy:
             logger.info(f"EthicalAllocationPolicy: Adding constraint: {constraint_str_min}")
             solver.add(alloc_val_int_var >= 1000)  # Minimum token guarantee # <-- MODIFIED
             # --- END MODIFIED MINIMUM CONSTRAINT ---
-
-            # --- START OF PREVIOUS CHANGE ---
-            constraint_str_max = f"{alloc_val_int_var} <= 100000" # <-- INCREASED FROM 20000
-            logger.info(f"EthicalAllocationPolicy: Adding constraint: {constraint_str_max}")
-            solver.add(alloc_val_int_var <= 100000) # Max per chunk of input context # <-- INCREASED FROM 20000
-            # --- END OF PREVIOUS CHANGE ---
+            # REMOVED: Redundant and overly restrictive max token constraint.
+            # The model-specific capacity constraint in TokenAllocator is the correct place for this.
 
         # --- MODIFICATION START ---
         # TEMPORARY FIX TO UNBLOCK ALLOCATION ERROR (See task_1_8_14)

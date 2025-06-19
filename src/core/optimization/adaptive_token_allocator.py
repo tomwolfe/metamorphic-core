@@ -33,7 +33,7 @@ class TokenAllocator:
 
         # The quadratic term penalizes higher token counts. By increasing the divisor,
         # we make this penalty much less severe, encouraging the solver to allocate more tokens.
-        quadratic_divisor = 1000000000.0 # Drastically increased from previous values
+        quadratic_divisor = 1000000000000.0 # Drastically increased from previous values
 
         # Build the nested If expression for symbolic cost calculation
         # Start with the cost of the last model as the final 'else'

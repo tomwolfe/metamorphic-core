@@ -9,10 +9,11 @@ from z3 import Real # Ensure Real is imported
 
 logger = logging.getLogger(__name__) # FIX: Corrected logger name
 
-# Increased minimum token allocation per chunk to leverage larger model capacities.
-# This value defines the minimum tokens per chunk and must be compatible with all LLM capacities.
-# Task 1.8.1b suggested "e.g., 1000" as a suitable minimum.
-REALISTIC_MIN_TOKENS_PER_CHUNK = 1000
+# The minimum token allocation per chunk was too low (1000), causing the optimizer to
+# allocate the bare minimum to most chunks and a large amount to one.
+# Increasing this forces a more even and useful distribution of the total budget.
+# Given a 50k budget and ~11 chunks, 4000 is a more reasonable floor.
+REALISTIC_MIN_TOKENS_PER_CHUNK = 4000
 
 class TokenAllocator:
     # --- START OF CHANGE 1 ---
@@ -166,4 +167,3 @@ class TokenAllocator:
     def _model_cost(self, chunk_idx: int, model_idx: int) -> Real:
         """Internal method to calculate cost for a chunk-model pair.
         This is a stub for testing purposes when the actual cost calculation is not the focus."""
-        return Real(f"mock_cost_term_{chunk_idx}_{model_idx}") # Return a unique Z3 Real variable for mocking

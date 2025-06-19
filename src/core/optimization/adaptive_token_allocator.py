@@ -184,3 +184,4 @@ class TokenAllocator:
                 return final_allocation
             else:
                 logger.error("TokenAllocator: Fallback allocation also failed after initial UNSAT.")
+                raise AllocationError("No ethical allocation possible even without token maximization.")

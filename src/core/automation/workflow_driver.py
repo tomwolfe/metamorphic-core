@@ -168,6 +168,13 @@ class Context:
 class WorkflowDriver:
     MAX_STEP_RETRIES = 2  # Direct fix for task_1_8_2_A
 
+    CONTEXT_LEAKAGE_INDICATORS: List[str] = [
+        '```python',
+        'As an AI language model',
+        'I am a large language model',
+        'I am an AI assistant',
+    ]
+
     def __init__(self, context: Context):
         self.context = context
         self.tasks = []
@@ -561,7 +568,7 @@ class WorkflowDriver:
                 if "test_" in path_candidate.lower() or "tests/" in path_candidate.lower():
                     explicit_test_path_in_step = path_candidate
                     break
-
+            
             if effective_task_target and effective_task_target.endswith('.py') and \
             ("test_" in effective_task_target.lower() or "tests/" in effective_task_target.lower()):
                 # If task target is already a test file, use it directly
@@ -2919,4 +2926,3 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
-        return None

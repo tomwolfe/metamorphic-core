@@ -330,7 +330,7 @@
       "task_id": "task_1_8_2_F_1_add_constant",
       "priority": "High",
       "task_name": "Add CONTEXT_LEAKAGE_INDICATORS Constant",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_E_add_exhaustion_error"

@@ -175,7 +175,7 @@
 *   **Task ID**: task_1_8_2_F_1_add_constant
     *   **Priority**: High
     *   **Task Name**: Add CONTEXT_LEAKAGE_INDICATORS Constant
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_E_add_exhaustion_error']
 
 *   **Task ID**: task_1_8_2_F_2_add_method
@@ -206,7 +206,7 @@
     *   **Priority**: Critical
     *   **Task Name**: Implement Step-Level Remediation Loop
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_implement_hallucination_check']
+    *   **Depends On**: ['task_1_8_2_F_3_integrate_call']
 
 *   **Task ID**: task_1_8_4
     *   **Priority**: Critical
@@ -266,7 +266,7 @@
     *   **Priority**: High
     *   **Task Name**: Add Comprehensive Tests for Phase 1.8 Features
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_1', 'task_1_8_2_F_implement_hallucination_check', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
+    *   **Depends On**: ['task_1_8_1', 'task_1_8_2_F_3_integrate_call', 'task_1_8_3', 'task_1_8_4', 'task_1_8_5', 'task_1_8_7', 'task_1_8_8', 'task_1_8_9', 'task_1_8_10', 'task_1_8_11', 'task_1_8_12']
 
 *   **Task ID**: task_1_8_15_plan_complexity_detection
     *   **Priority**: High
@@ -279,4 +279,16 @@
     *   **Task Name**: Refine Coder LLM Context Scoping for Atomic Modifications
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_A_optimize_large_context_epic', 'task_1_8_5']
+
+*   **Task ID**: task_1_8_17_robust_step_classification
+    *   **Priority**: High
+    *   **Task Name**: Implement Robust Plan Step Classification (AST/Semantic)
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_A_2_implement_and_test_get_context_type', 'task_1_8_5']
+
+*   **Task ID**: task_1_8_18_pre_write_diff_validation
+    *   **Priority**: High
+    *   **Task Name**: Implement Pre-Write Diff Validation Guardrail
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_improve_snippet_handling', 'task_1_8_5']
 

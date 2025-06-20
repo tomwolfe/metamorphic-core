@@ -576,6 +576,17 @@
         "task_1_8_5"
       ],
       "description": "Introduce a new pre-write validation step in `WorkflowDriver.autonomous_loop`. Before writing the merged code, generate a diff between the original file content and the proposed merged content. If the diff indicates unintended modifications (e.g., changes outside the targeted area for a 'simple addition' task, or excessive unrelated lines), reject the change and provide specific feedback to the Coder LLM for remediation. This acts as a crucial guardrail against LLM over-generation or misinterpretation."
+    },
+    {
+      "task_id": "task_1_8_19_pre_write_source_validation",
+      "priority": "High",
+      "task_name": "Enhance Pre-Write Validation to Differentiate Snippet Errors from Source File Errors",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_F_4_add_tests"
+      ],
+      "description": "Modify the pre-write validation logic in `WorkflowDriver`. When a `SyntaxError` occurs during the hypothetical merge check, analyze the error's line number. If the error line is outside the line range of the inserted snippet, the system should identify it as a pre-existing source file error. It should then block the current task and create a new, high-priority 'fix syntax error' task targeting the source file."
     }
   ],
   "next_phase_actions": [

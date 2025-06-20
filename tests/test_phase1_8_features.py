@@ -248,7 +248,9 @@ class TestPhase1_8WorkflowDriverEnhancements:
         # --- Test that _construct_coder_llm_prompt uses this refined description ---
         mock_task_data = {'task_id': 'test_task_sig', 'task_name': 'Test Signature Task', 'description': 'Test signature prompt.', 'target_file': 'src/core/automation/workflow_driver.py'}
         mock_filepath_to_use = "src/core/automation/workflow_driver.py" 
-        mock_context_for_llm = "class WorkflowDriver:\n    # METAMORPHIC_INSERT_POINT\n    pass"
+        mock_context_for_llm = """class WorkflowDriver:
+        # METAMORPHIC_INSERT_POINT
+    pass"""
         
         final_prompt = driver._construct_coder_llm_prompt(
             task=mock_task_data,
@@ -367,7 +369,7 @@ class TestPhase1_8Features:
         prelim_flags_conceptual = driver._classify_step_preliminary(step_desc_conceptual_with_target, task_target_py_file)
         
         assert prelim_flags_conceptual["is_code_generation_step_prelim"] is False, \
-            f"Step '{step_desc_conceptual_with_target}' should NOT be code gen despite .py target."
+            f"Step '{step_conceptual_with_target}' should NOT be code gen despite .py target."
         assert prelim_flags_conceptual["is_research_step_prelim"] is True
 
     def test_classify_step_preliminary_filepath_in_step_overrides_task_target(self, driver_enhancements):

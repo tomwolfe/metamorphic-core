@@ -137,7 +137,7 @@
     *   **Depends On**: ['task_1_8_A_optimize_large_context_epic']
 
 *   **Task ID**: task_1_8_B_1_error_specific_feedback
-    *   **Priority**: High
+    *   **Priority**: Not Started
     *   **Task Name**: Implement Error-Specific Feedback for Retry Prompts
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_B_enhance_retry_prompts', 'task_1_8_A_optimize_large_context_epic']
@@ -181,13 +181,13 @@
 *   **Task ID**: task_1_8_2_F_2_add_method
     *   **Priority**: High
     *   **Task Name**: Implement _validate_for_context_leakage Method
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_F_1_add_constant']
 
 *   **Task ID**: task_1_8_2_F_3_integrate_call
     *   **Priority**: High
     *   **Task Name**: Integrate Context Leakage Check into Pre-Write Validation
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_F_2_add_method']
 
 *   **Task ID**: task_1_8_2_F_4_add_tests
@@ -201,6 +201,12 @@
     *   **Task Name**: Analyze task_1_8_A_1 Failures & Improve CodeGen
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_A_optimize_large_context_epic']
+
+*   **Task ID**: task_1_8_C_2_focus_instruction
+    *   **Priority**: Critical
+    *   **Task Name**: Add Focus Instruction to CoderLLM Prompt for New Code Blocks
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_F_4_add_tests']
 
 *   **Task ID**: task_1_8_3
     *   **Priority**: Critical
@@ -275,19 +281,19 @@
     *   **Depends On**: ['task_1_8_7', 'task_1_8_5']
 
 *   **Task ID**: task_1_8_16_context_scoping_refinement
-    *   **Priority**: High
+    *   **Priority**: Not Started
     *   **Task Name**: Refine Coder LLM Context Scoping for Atomic Modifications
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_A_optimize_large_context_epic', 'task_1_8_5']
 
 *   **Task ID**: task_1_8_17_robust_step_classification
-    *   **Priority**: High
+    *   **Priority**: Not Started
     *   **Task Name**: Implement Robust Plan Step Classification (AST/Semantic)
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_A_2_implement_and_test_get_context_type', 'task_1_8_5']
 
 *   **Task ID**: task_1_8_18_pre_write_diff_validation
-    *   **Priority**: High
+    *   **Priority**: Not Started
     *   **Task Name**: Implement Pre-Write Diff Validation Guardrail
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_improve_snippet_handling', 'task_1_8_5']

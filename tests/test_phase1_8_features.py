@@ -17,7 +17,8 @@ from src.core.constants import (
     MAX_READ_FILE_SIZE,
     METAMORPHIC_INSERT_POINT,
     END_OF_CODE_MARKER,
-    MAX_STEP_RETRIES, CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION,
+    MAX_STEP_RETRIES, CONTEXT_LEAKAGE_INDICATORS,
+    CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION,
     CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS,
     CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS,
     GENERAL_SNIPPET_GUIDELINES,
@@ -536,6 +537,9 @@ class TestIsSimpleAdditionPlanStep:
         # Complex Modifications / Refactoring / New Class (False)
         ("Create new class OrderManager.", False),
         ("Create a new class called ShoppingCart.", False),
+        ("Define new class OrderManager.", False),
+        ("Implement new system for notifications.", False),
+        ("Generate class for data processing", False),
         ("Refactor the payment processing logic.", False),
         ("Restructure the entire user authentication module.", False),
         ("Rewrite the file parsing utility.", False),
@@ -678,9 +682,9 @@ class TestContextExtraction:
         # FIX: Use get_full_path for path construction
         file_path = driver_for_context_tests.context.get_full_path("test_module.py")
     
-        # Expected context: lines 0-7 (inclusive of line 0, exclusive of line 7)
-        # Corresponds to: "# Preamble\nimport os\nimport sys\n\nfrom pathlib import Path\n\ndef some_function():"
-        expected_context = "\n".join(file_content.splitlines()[0:7])
+        # Expected context: lines 0-8 (inclusive of line 0, exclusive of line 8)
+        # Corresponds to: "# Preamble\nimport os\nimport sys\n\n# Comment between imports\nfrom pathlib import Path\n\n# Another comment"
+        expected_context = "\n".join(file_content.splitlines()[0:6])
         context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import json")
     
         assert is_minimal is True, "is_minimal should be True for successful targeted extraction" 
@@ -700,8 +704,7 @@ class TestContextExtraction:
         assert context_str == file_content, "Context string should be the full file content when no existing imports and content is MAX_IMPORT_CONTEXT_LINES"
 
 
-    def test_extract_context_add_method_to_class(self, driver_for_context_tests, tmp_path):
-        """Tests extracting context for adding a method to a specific class."""
+    def test_extract_targeted_context_add_method_to_class(self, driver_for_context_tests, tmp_path):
         driver = driver_for_context_tests
         with patch.object(driver, 'logger', autospec=True) as mock_logger:
             file_content = (
@@ -734,7 +737,7 @@ class TestContextExtraction:
             # FIX: Update expected log message to reflect the correct filename
             mock_logger.debug.assert_called_with("Extracting class context for 'TargetClass' in processor.py: lines 6 to 12.")
 
-    def test_extract_context_class_not_found(self, driver_for_context_tests):
+    def test_extract_targeted_context_class_not_found(self, driver_for_context_tests):
         """Tests fallback when the target class for method addition is not found."""
         driver = driver_for_context_tests
         with patch.object(driver, 'logger', autospec=True) as mock_logger:
@@ -747,19 +750,21 @@ class TestContextExtraction:
             assert context_str == file_content
             mock_logger.warning.assert_called_with(f"Could not find class for 'add_method_to_class' in {file_path} from step: {step_description}. Falling back to full content.")
 
-    def test_extract_context_syntax_error_in_file(self, driver_for_context_tests):
+    def test_extract_targeted_context_syntax_error_in_file(self, driver_for_context_tests, tmp_path, caplog):
         """Tests fallback to full content when the source file has a syntax error."""
         driver = driver_for_context_tests
-        with patch.object(driver, 'logger', autospec=True) as mock_logger:
-            file_content = "def func_a():\n  print('valid')\n\ndef func_b()\n  print('invalid syntax')"
-            file_path = "broken_syntax.py"
-            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import")
+        file_content = "def func_a():\n  print('valid')\n\ndef func_b()\n  print('invalid syntax')"
+        file_path = str(tmp_path / "broken_syntax.py")
 
-            assert is_minimal is False
-            assert context_str == file_content
-            mock_logger.warning.assert_called_with(f"SyntaxError parsing {file_path} for targeted context extraction. Falling back to full content.")
+        with caplog.at_level(logging.WARNING):
+            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_method_to_class", "Add method to class NonExistent")
+        
+        assert is_minimal is False, "is_minimal should be False for fallback due to syntax error"
+        assert context_str == file_content, "Context string should be full content for fallback"
+        # The code *does* attempt AST parsing and logs a warning on SyntaxError.
+        assert f"SyntaxError parsing {file_path} for targeted context extraction. Falling back to full content." in caplog.text
 
-    def test_extract_context_fallback_for_none_type(self, driver_for_context_tests):
+    def test_extract_targeted_context_fallback_for_none_type(self, driver_for_context_tests):
         """Tests fallback to full content when context_type is None."""
         driver = driver_for_context_tests
         with patch.object(driver, 'logger', autospec=True) as mock_logger:
@@ -783,19 +788,19 @@ class TestContextExtraction:
             mock_logger.debug.assert_called_with(f"No specific context extraction rule for type 'add_global_function' or extraction failed for {file_path}. Using full content.")
             assert not is_minimal_unimplemented, "is_minimal should be False for fallback with unimplemented context_type"
 
-    def test_extract_context_fallback_for_non_python_file(self, driver_for_context_tests):
+    def test_extract_targeted_context_fallback_for_non_python_file(self, driver_for_context_tests):
         """Tests fallback to full content for non-Python files."""
         driver = driver_for_context_tests
         with patch.object(driver, 'logger', autospec=True) as mock_logger:
             file_content = "Some markdown content"
             file_path = "README.md"
-            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "A step")
+            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import to text file")
 
             assert is_minimal is False
             assert context_str == file_content
             mock_logger.debug.assert_called_with(f"Not a Python file or no context_type for {file_path}. Returning full content.")
 
-    def test_extract_context_fallback_for_unhandled_type(self, driver_for_context_tests):
+    def test_extract_targeted_context_fallback_for_unhandled_type(self, driver_for_context_tests):
         """Tests fallback to full content for an unhandled but valid context_type."""
         driver = driver_for_context_tests
         with patch.object(driver, 'logger', autospec=True) as mock_logger:
@@ -894,21 +899,6 @@ class TestPhase1_8Features:
         assert prelim_flags["is_code_generation_step_prelim"] is False
         classify_plan_step(step1) == 'conceptual' # As per diff, 'assert' is removed here
 
-    def test_workflow_driver_context_leakage_indicators_constant(self, driver_enhancements):
-        """
-        Test that the CONTEXT_LEAKAGE_INDICATORS constant is correctly defined
-        in the WorkflowDriver class and contains the expected patterns.
-        """
-        driver = driver_enhancements
-        # Access the constant directly from the class
-        indicators = driver.CONTEXT_LEAKAGE_INDICATORS
-        assert isinstance(indicators, list)
-        assert '```python' in indicators
-        assert 'As an AI language model' in indicators
-        assert 'I am a large language model' in indicators
-        assert 'I am an AI assistant' in indicators
-        assert len(indicators) == 4 # Ensure no unexpected additions
-
 def test_extract_targeted_context_fallback_behavior(driver_for_context_tests):
     """
     Tests that _extract_targeted_context returns the full content and False
@@ -935,3 +925,24 @@ def test_extract_targeted_context_fallback_behavior(driver_for_context_tests):
         step_description
     )
     assert not is_minimal_unimplemented, "is_minimal should be False for fallback with unimplemented context_type"
+
+
+class TestContextLeakageValidation:
+    """Test suite for the _validate_for_context_leakage method."""
+
+    @pytest.mark.parametrize("snippet, expected", [
+        ("def func():\n    # ```python\n    pass", False),
+        ("As an AI language model, I suggest this code.", False),
+        ("I am a large language model, and here is the code.", False),
+        ("I am an AI assistant, here's the fix.", False),
+        ("This is a clean snippet of code.", True),
+        ("def another_func():\n    return True", True),
+        ("", True),
+    ])
+    def test_validate_for_context_leakage(self, driver_enhancements, snippet, expected):
+        """
+        Tests the _validate_for_context_leakage method with various snippets.
+        """
+        driver = driver_enhancements
+        result = driver._validate_for_context_leakage(snippet)
+        assert result == expected

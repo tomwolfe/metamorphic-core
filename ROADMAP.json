@@ -256,7 +256,7 @@
     },
     {
       "task_id": "task_1_8_B_1_error_specific_feedback",
-      "priority": "High",
+      "priority": "Not Started",
       "task_name": "Implement Error-Specific Feedback for Retry Prompts",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
@@ -341,7 +341,7 @@
       "task_id": "task_1_8_2_F_2_add_method",
       "priority": "High",
       "task_name": "Implement _validate_for_context_leakage Method",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_F_1_add_constant"
@@ -352,7 +352,7 @@
       "task_id": "task_1_8_2_F_3_integrate_call",
       "priority": "High",
       "task_name": "Integrate Context Leakage Check into Pre-Write Validation",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_F_2_add_method"
@@ -380,6 +380,17 @@
         "task_1_8_A_optimize_large_context_epic"
       ],
       "description": "Analyze the failures encountered during the initial autonomous attempt of task_1_8_A_1 (_is_simple_addition_plan_step). Specifically, investigate why the CoderLLM failed to: 1. Correctly include `import re`. 2. Adhere to style guidelines (E302, E501). 3. Consistently include docstrings for new methods. 4. Avoided outputting spurious code that was appended to files. Implement improvements to CoderLLM prompting, snippet cleaning, or pre-write validation to prevent such issues in the future. This task focuses on the AI improving its own code generation process based on past failures."
+    },
+    {
+      "task_id": "task_1_8_C_2_focus_instruction",
+      "priority": "Critical",
+      "task_name": "Add Focus Instruction to CoderLLM Prompt for New Code Blocks",
+      "status": "Not Started",
+      "target_file": "src/core/constants.py, src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_F_4_add_tests"
+      ],
+      "description": "To prevent the CoderLLM from getting distracted by large context files when generating new, self-contained code blocks (like methods or classes), update the prompt construction logic. Modify the `CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS` constant in `src/core/constants.py` to include a strong instruction for the LLM to focus *only* on the specific plan step, not the overall task description. Then, update `_construct_coder_llm_prompt` in `workflow_driver.py` to conditionally include this new instruction when generating full blocks."
     },
     {
       "task_id": "task_1_8_3",
@@ -531,7 +542,7 @@
     },
     {
       "task_id": "task_1_8_16_context_scoping_refinement",
-      "priority": "High",
+      "priority": "Not Started",
       "task_name": "Refine Coder LLM Context Scoping for Atomic Modifications",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
@@ -544,7 +555,7 @@
     },
     {
       "task_id": "task_1_8_17_robust_step_classification",
-      "priority": "High",
+      "priority": "Not Started",
       "task_name": "Implement Robust Plan Step Classification (AST/Semantic)",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
@@ -556,7 +567,7 @@
     },
     {
       "task_id": "task_1_8_18_pre_write_diff_validation",
-      "priority": "High",
+      "priority": "Not Started",
       "task_name": "Implement Pre-Write Diff Validation Guardrail",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",

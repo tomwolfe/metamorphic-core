@@ -5,6 +5,13 @@ MAX_READ_FILE_SIZE = 1024 * 1024  # 1 MB
 METAMORPHIC_INSERT_POINT = "# METAMORPHIC_INSERT_POINT"
 MAX_IMPORT_CONTEXT_LINES = 10 # Number of lines to provide as context when adding imports and no existing imports are found
 END_OF_CODE_MARKER = "# METAMORPHIC_END_OF_CODE_SNIPPET"
+CONTEXT_LEAKAGE_INDICATORS: list[str] = [
+    '```python',
+    '```',
+    'As an AI language model',
+    'I am a large language model',
+    'I am an AI assistant',
+]
 
 # Workflow Driver Constants
 MAX_STEP_RETRIES = 2  # Allows 2 retries per step (3 attempts total)
@@ -19,7 +26,7 @@ CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION = (
 # Coder LLM Prompt Guidelines
 GENERAL_SNIPPET_GUIDELINES = (
     "1. Ensure all string literals are correctly terminated (e.g., matching quotes, proper escaping).\n"
-    "2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a METAMORPHIC_INSERT_POINT is present. Use 4 spaces per indentation level.\n" # Enhanced indentation
+    "2. Pay close attention to Python's indentation rules. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation should align with the insertion point if a METAMORPHIC_INSERT_POINT is present. Use 4 spaces per indentation level.\n"
     "3. Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons.\n"
     "4. If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity.\n"
     "5. **CRITICAL PEP 8 ADHERENCE:** All generated Python code snippets MUST strictly adhere to PEP 8 style guidelines. This is mandatory for code acceptance.\n"
@@ -33,7 +40,7 @@ GENERAL_SNIPPET_GUIDELINES = (
     "       - **EXCEPTION FOR VALIDATION:** If your new method/function snippet uses types/modules like `Path`, `Optional`, `List`, `Dict`, `Any`, `Tuple`, `Union` from `pathlib` or `typing`, or modules like `ast`, `re`, `json`, `datetime`, YOU MUST INCLUDE the necessary `from X import Y` statements (e.g., `from pathlib import Path`, `from typing import Optional, List`, `import ast`) AT THE TOP OF YOUR SNIPPET. This is required for your snippet to pass isolated pre-write validation checks. These snippet-local imports might be removed later if they are redundant with existing imports in the full file.\n"
     "       - If your snippet *requires* a new third-party library, you MAY include the import at the start of your snippet.\n"
     "     - For any other type of snippet (e.g., a standalone script, or if unsure), ensure all necessary imports are at the beginning of your snippet.\n"
-    "6. Logging: If logging is required within a class method, use `self.logger.debug(...)`, `self.logger.info(...)`, etc., assuming `self.logger` is available. For standalone functions or scripts, ensure `logger` is properly initialized (e.g., `import logging; logger = logging.getLogger(__name__)`) if not provided in context.\n"
+    "6. Logging: If logging is required within a class method, use `self.logger.debug(...)`, `self.logger.info(...)`, etc., assuming `self.logger` is available. For standalone functions or scripts, ensure `logger` is properly initialized (e.g., `import logging; logger = getLogger(__name__)`) if not provided in context.\n"
     "8. **Raw Strings and Regular Expressions (CRITICAL):** When generating Python code that includes raw strings (e.g., for regular expressions), it is absolutely CRITICAL that they are correctly formatted and fully terminated. This is a common source of `SyntaxError: unterminated string literal`.\n"
     "    - **Termination:** Ensure raw strings are always closed with the correct quote type (`'` or `\"` for single-line, `'''` or `\"\"\"` for multi-line).\n"
     "    - **Escaping:** Be extremely careful with backslashes (`\\`) within raw strings. If a backslash is intended to be literal, it should be escaped (e.g., `r'C:\\\\path\\\\to\\\\file'`).\n"
@@ -72,8 +79,8 @@ CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS = (
 DOCSTRING_INSTRUCTION_PYTHON = (
     "IMPORTANT: For new Python functions, methods, or classes, if you are generating the *full implementation* (including the body), you MUST include a comprehensive PEP 257 compliant docstring. Use Google-style format (Args:, Returns:, Example: sections). This is required to pass automated ethical and style checks.\n"
     "If only defining a signature or placeholder (e.g., `def foo(): pass`), a docstring is not required for *that specific step* but must be added in a subsequent step."
-) # Removed trailing space
-PYTHON_CREATION_KEYWORDS = [ # Task 1.8.Y: Keywords indicating creation of new Python code structures
+)
+PYTHON_CREATION_KEYWORDS = [
     "implement function", "add method", "create class", "define function",
     "write function", "write method", "write class",
     "implement a function", "add a method", "create a class", "define a function",
@@ -83,26 +90,23 @@ PYTHON_CREATION_KEYWORDS = [ # Task 1.8.Y: Keywords indicating creation of new P
     "write a new function", "write a python function", "write a new python function",
     "create a new function", "create a python function", "create a new python function",
     "define a new function", "define a python function",
-    "define a new class", "define a python class",
-    "define a new global function", # Added for test coverage
-    "define new global function", # Additional pattern for variation (already present)
+    "define a new global function",
+    "define new global function",
     "define a global function",
     "define a python function",
     "define a new python function",
-    "define a new python class", # Added keyword for test case
+    "define a new python class",
     "implement a new function", "implement a python function", "implement a new python function",
     "add a new method", "add a python method", "add a new python method",
     "create a new class", "create a python class", "create a new python class",
     "define a new class", "define a python class",
     "implement a new class", "implement a python class", "implement a new python class",
-    # These were already in constants, but ensure they are covered
-    "add function", "add method", "add class", "test case", # Added for docstring robustness
-    # Added for Phase 1.8 docstring robustness (Task: unblock task_1_8_A_optimize_large_context)
-    "develop test case", "write test method", "create test class", # For test generation
-    "add logic", "implement logic", "define logic", # For adding significant blocks
-    "refactor function", "refactor method", # For substantial rewrites that might need new/updated docstrings
-    "add helper function", "implement helper function", "define helper method", # For new helpers
-    "enhance prompt construction", "modify prompt construction", # For tasks involving prompt logic changes
+    "add function", "add method", "add class", "test case",
+    "develop test case", "write test method", "create test class",
+    "add logic", "implement logic", "define logic",
+    "refactor function", "refactor method",
+    "add helper function", "implement helper function", "define helper method",
+    "enhance prompt construction", "modify prompt construction",
 ]
 
 
@@ -119,8 +123,10 @@ CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS = (
     "CRITICAL INSTRUCTIONS FOR YOUR RESPONSE FORMAT (Full Block/Method/Class Focus):\n"
     "1. Your entire response MUST be ONLY a valid Python code snippet representing the complete new or modified function, method, or class.\n"
     "2. Do NOT include any explanations, introductory text, apologies, or markdown formatting like ```python or ```.\n"
-    "3. The Python code snippet you generate will be directly parsed and then merged.\n"
-    "4. Your Python code snippet MUST end with the exact marker line, on its own line: `{END_OF_CODE_MARKER}`\n"
-    "5. Ensure the generated function/method/class is syntactically correct and complete in itself.\n"
-    "6. The base indentation of your snippet should be 0 (i.e., the `def` or `class` keyword should not be indented within the snippet itself), unless the snippet is meant to be a nested structure that is itself a complete parsable unit.\n"
+    "3. The Python code snippet you generate will be directly parsed and then merged. It must be syntactically correct on its own.\n"
+    "4. Your Python code snippet MUST end with the exact marker line, on its own line: `{END_OF_CODE_MARKER}`\n\n"
+    "!!! CRITICAL FOCUS FOR THIS STEP !!!\n"
+    "Your *sole* objective is to fulfill the 'Specific Plan Step' provided below. "
+    "Do NOT attempt to implement logic from the 'Overall Task Description' at this stage. "
+    "Focus *exclusively* on the 'Specific Plan Step' and output only the requested code structure.\n"
 )

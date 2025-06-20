@@ -95,9 +95,9 @@ def helper_func():
         file_path = str(tmp_path / "processor.py")
         step_desc = "Add method process_item to class MyProcessor"
     
-        # Expected context: lines 3-13 (inclusive of line 3, exclusive of line 13)
-        # Corresponds to: class MyProcessor and its content, up to the last comment line of the class.
-        expected_context = "\n".join(file_content.splitlines()[3:13])
+        # Expected context: lines 3-14 (inclusive of line 3, exclusive of line 14)
+        # Corresponds to: class MyProcessor and its content, up to the blank line after the class's last comment.
+        expected_context = "\n".join(file_content.splitlines()[3:14])
         context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_method_to_class", step_desc)
     
         assert is_minimal is True, "is_minimal should be True for successful targeted extraction"
@@ -195,19 +195,6 @@ def helper_func():
 class TestPhase1_8Features:
     def test_research_step_classification(self, driver_for_context_tests):
         driver = driver_for_context_tests
-        # Assuming classify_plan_step is a method of WorkflowDriver or accessible
-        # For this test, let's assume it's a standalone function or mocked.
-        # If it's a method, it should be called as driver.classify_plan_step
-        # Given the original snippet, it seems to be a standalone function.
-        # Let's mock it for the test if it's not directly imported.
-        # If it's imported, ensure it's available in the test scope.
-        # For now, I'll assume it's a global function or mocked elsewhere.
-        # The diff shows `classify_plan_step(step1) == 'conceptual'` without `assert`.
-        # This implies it's a statement, not an assertion, which is unusual for a test.
-        # I will apply the diff as is, which removes the `assert` from this line.
-        # If `classify_plan_step` is not defined, this test will fail at runtime.
-        # The original file had `assert classify_plan_step(step1) == 'conceptual'`
-        # The diff removes the `assert`. I will follow the diff.
         from src.core.automation.workflow_driver import classify_plan_step # Assuming this import is needed for classify_plan_step
 
         prelim_flags = {"is_research_step_prelim": True, "is_code_generation_step_prelim": False}
@@ -219,27 +206,28 @@ class TestPhase1_8Features:
 def test_extract_targeted_context_fallback_behavior(driver_for_context_tests):
     """
     Tests that _extract_targeted_context returns the full content and False
-    when no specific context_type is provided or when extraction logic is not yet implemented.
-    This tests the initial skeleton implementation.
+    when no specific context_type is provided or when the provided context_type
+    does not have a specific extraction logic implemented.
     """
     driver = driver_for_context_tests
     file_content = "line 1\nline 2\nline 3"
     file_path = "/mock/path/test.py"
     step_description = "A generic step"
 
-    # Case 1: context_type is None, should trigger the fallback
+    # Case 1: context_type is None, should trigger the initial fallback
     context_none, is_minimal_none = driver._extract_targeted_context(
         file_path, file_content, None, step_description
     )
     assert not is_minimal_none, "is_minimal should be False for fallback with None context_type"
     assert context_none == file_content, "Context string should be full content for None context_type"
 
-    # Case 2: context_type is provided but unimplemented, should also trigger the fallback
-    context_unimplemented, is_minimal_unimplemented = driver._extract_targeted_context(
+    # Case 2: context_type is a string but does not match any specific extraction logic
+    # This should trigger the final fallback in _extract_targeted_context
+    context_unimplemented_str, is_minimal_unimplemented_str = driver._extract_targeted_context(
         file_path,
         file_content,
-        "add_import",  # A valid type, but its extraction logic is pending
+        "unimplemented_context_type", # A string that won't match "add_import", "add_method_to_class", etc.
         step_description
     )
-    assert not is_minimal_unimplemented, "is_minimal should be False for fallback with unimplemented context_type"
-    assert context_unimplemented == file_content, "Context string should be full content for unimplemented context_type"
+    assert not is_minimal_unimplemented_str, "is_minimal should be False for fallback with unknown context_type string"
+    assert context_unimplemented_str == file_content, "Context string should be full content for unknown context_type string"

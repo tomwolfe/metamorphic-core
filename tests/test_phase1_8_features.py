@@ -248,9 +248,27 @@ class TestPhase1_8WorkflowDriverEnhancements:
         # --- Test that _construct_coder_llm_prompt uses this refined description ---
         mock_task_data = {'task_id': 'test_task_sig', 'task_name': 'Test Signature Task', 'description': 'Test signature prompt.', 'target_file': 'src/core/automation/workflow_driver.py'}
         mock_filepath_to_use = "src/core/automation/workflow_driver.py" 
-        mock_context_for_llm = """class WorkflowDriver:
-        # METAMORPHIC_INSERT_POINT
-    pass"""
+        mock_context_for_llm = '''class WorkflowDriver:
+        class TestContextLeakageValidation:
+            """Test suite for the _validate_for_context_leakage method."""
+        
+            @pytest.mark.parametrize("snippet, expected", [
+                ("def func():\\n    # ```python\\n    pass", False),
+                ("As an AI language model, I suggest this code.", False),
+                ("I am a large language model, and here is the code.", False),
+                ("I am an AI assistant, here's the fix.", False),
+                ("This is a clean snippet of code.", True),
+                ("def another_func():\\n    return True", True),
+                ("", True),
+            ])
+            def test_validate_for_context_leakage(self, driver_enhancements, snippet, expected):
+                """
+                Tests the _validate_for_context_leakage method with various snippets.
+                """
+                driver = driver_enhancements
+                result = driver._validate_for_context_leakage(snippet)
+                assert result == expected
+    pass'''
         
         final_prompt = driver._construct_coder_llm_prompt(
             task=mock_task_data,
@@ -889,7 +907,7 @@ class TestPhase1_8Features:
         # For now, I'll assume it's a global function or mocked elsewhere.
         # The diff shows `classify_plan_step(step1) == 'conceptual'` without `assert`.
         # This implies it's a statement, not an assertion, which is unusual for a test.
-        # I will apply the diff as is, which removes the `assert` from this line.
+        # I will apply the diff as is, which removes the `assert`.
         # If `classify_plan_step` is not defined, this test will fail at runtime.
         # The original file had `assert classify_plan_step(step1) == 'conceptual'`
         # The diff removes the `assert`. I will follow the diff.

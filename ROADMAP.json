@@ -360,15 +360,37 @@
       "description": "In `src/core/automation/workflow_driver.py`, integrate the new `_validate_for_context_leakage` method into the pre-write validation sequence within the `autonomous_loop`. Ensure that if the method returns `False`, a descriptive error message is added to the `validation_feedback` list, causing the step to fail and retry."
     },
     {
-      "task_id": "task_1_8_2_F_4_add_tests",
+      "task_id": "task_1_8_2_F_4a_create_test_class",
       "priority": "High",
-      "task_name": "Add Unit Tests for Context Leakage Check",
+      "task_name": "Create Test Class for Context Leakage Validation",
       "status": "Not Started",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2_F_3_integrate_call"
       ],
-      "description": "In `tests/test_phase1_8_features.py`, add new unit tests for the `WorkflowDriver._validate_for_context_leakage` method. The tests should verify that the method correctly returns `False` for snippets containing leakage indicators and `True` for compliant snippets."
+      "description": "In `tests/test_phase1_8_features.py`, create a new empty `unittest.TestCase` class named `TestContextLeakageValidation`. The class should have a docstring explaining its purpose and a `pass` statement as its body. This provides the necessary structure for subsequent test method additions."
+    },
+    {
+      "task_id": "task_1_8_2_F_4b_add_failing_tests",
+      "priority": "High",
+      "task_name": "Add Failing Unit Tests for Context Leakage Check",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_2_F_4a_create_test_class"
+      ],
+      "description": "In `tests/test_phase1_8_features.py`, add a new test method to the `TestContextLeakageValidation` class. This method should use `pytest.mark.parametrize` to test multiple code snippets that contain context leakage indicators (e.g., '```python', 'As an AI...') and assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `False` for each."
+    },
+    {
+      "task_id": "task_1_8_2_F_4c_add_passing_tests",
+      "priority": "High",
+      "task_name": "Add Passing Unit Tests for Context Leakage Check",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_2_F_4b_add_failing_tests"
+      ],
+      "description": "In `tests/test_phase1_8_features.py`, add a second new test method to the `TestContextLeakageValidation` class. This method should use `pytest.mark.parametrize` to test multiple compliant code snippets that do NOT contain context leakage indicators and assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True` for each."
     },
     {
       "task_id": "task_1_8_C_1_analyze_A1_failure_and_improve_codegen",
@@ -388,7 +410,7 @@
       "status": "Not Started",
       "target_file": "src/core/constants.py, src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_2_F_4_add_tests"
+        "task_1_8_2_F_4c_add_passing_tests"
       ],
       "description": "To prevent the CoderLLM from getting distracted by large context files when generating new, self-contained code blocks (like methods or classes), update the prompt construction logic. Modify the `CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS` constant in `src/core/constants.py` to include a strong instruction for the LLM to focus *only* on the specific plan step, not the overall task description. Then, update `_construct_coder_llm_prompt` in `workflow_driver.py` to conditionally include this new instruction when generating full blocks."
     },
@@ -584,7 +606,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_2_F_4_add_tests"
+        "task_1_8_2_F_4c_add_passing_tests"
       ],
       "description": "Modify the pre-write validation logic in `WorkflowDriver`. When a `SyntaxError` occurs during the hypothetical merge check, analyze the error's line number. If the error line is outside the line range of the inserted snippet, the system should identify it as a pre-existing source file error. It should then block the current task and create a new, high-priority 'fix syntax error' task targeting the source file."
     }

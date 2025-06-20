@@ -335,7 +335,7 @@
       "depends_on": [
         "task_1_8_2_E_add_exhaustion_error"
       ],
-      "description": "In `src/core/automation/workflow_driver.py`, add a new class-level constant `CONTEXT_LEAKAGE_INDICATORS` (List[str]) to the `WorkflowDriver` class. Populate it with patterns like '```python', 'As an AI language model', 'I am a large language model', etc. This is the first step in implementing the hallucination check."
+      "description": "In `src/core/automation/workflow_driver.py`, add a class-level constant `CONTEXT_LEAKAGE_INDICATORS: List[str]` to the `WorkflowDriver` class. Initialize it with `['```python', 'As an AI language model', 'I am a large language model']`."
     },
     {
       "task_id": "task_1_8_2_F_2_add_method",
@@ -388,7 +388,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_2_F_implement_hallucination_check"
+        "task_1_8_2_F_3_integrate_call"
       ],
       "description": "If pre-write validation fails, provide targeted feedback to the Coder LLM and retry generating the snippet for that specific step (e.g., 2-3 attempts) before failing the step or task."
     },
@@ -503,7 +503,7 @@
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_1",
-        "task_1_8_2_F_implement_hallucination_check",
+        "task_1_8_2_F_3_integrate_call",
         "task_1_8_3",
         "task_1_8_4",
         "task_1_8_5",
@@ -541,6 +541,30 @@
       ],
       "description": "Enhance the `WorkflowDriver`'s `_construct_coder_llm_prompt` and `_extract_targeted_context` methods. For plan steps identified as very small, atomic code modifications (e.g., inserting a single line, changing a variable initialization), the system should provide the Coder LLM with a highly localized context (e.g., 5-10 lines around the insertion/modification point) instead of the entire file. This aims to reduce LLM hallucination and improve the precision of code generation for minor changes.",
       "success_criteria": "The Coder LLM receives appropriately scoped context for atomic modifications, leading to fewer hallucinations and higher success rates for small code changes. Unit tests verify correct context extraction for various atomic modification scenarios."
+    },
+    {
+      "task_id": "task_1_8_17_robust_step_classification",
+      "priority": "High",
+      "task_name": "Implement Robust Plan Step Classification (AST/Semantic)",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_A_2_implement_and_test_get_context_type",
+        "task_1_8_5"
+      ],
+      "description": "Replace or significantly enhance the current regex-based plan step classification in `WorkflowDriver` with a more robust, semantic approach (e.g., AST parsing of step descriptions, NLP semantic understanding, or a fine-tuned model). This aims to accurately identify the intent of each step (e.g., 'add constant', 'modify method', 'refactor block') to ensure precise context is provided to the Coder LLM, reducing hallucinations and improving code generation accuracy."
+    },
+    {
+      "task_id": "task_1_8_18_pre_write_diff_validation",
+      "priority": "High",
+      "task_name": "Implement Pre-Write Diff Validation Guardrail",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_improve_snippet_handling",
+        "task_1_8_5"
+      ],
+      "description": "Introduce a new pre-write validation step in `WorkflowDriver.autonomous_loop`. Before writing the merged code, generate a diff between the original file content and the proposed merged content. If the diff indicates unintended modifications (e.g., changes outside the targeted area for a 'simple addition' task, or excessive unrelated lines), reject the change and provide specific feedback to the Coder LLM for remediation. This acts as a crucial guardrail against LLM over-generation or misinterpretation."
     }
   ],
   "next_phase_actions": [

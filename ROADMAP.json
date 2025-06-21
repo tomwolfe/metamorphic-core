@@ -368,7 +368,7 @@
       "depends_on": [
         "task_1_8_2_F_3_integrate_call"
       ],
-      "description": "In `tests/test_phase1_8_features.py`, create a new empty `unittest.TestCase` class named `TestContextLeakageValidation`. The class should have a docstring explaining its purpose and a `pass` statement as its body. This provides the necessary structure for subsequent test method additions."
+      "description": "In `tests/test_phase1_8_features.py`, add `import unittest` if it is not already present, and then create a new empty `unittest.TestCase` class named `TestContextLeakageValidation`. The class should have a docstring explaining its purpose and a `pass` statement as its body. This must be done in a single code modification step to ensure the `import unittest` and its usage are added together, preventing 'unused import' errors."
     },
     {
       "task_id": "task_1_8_2_F_4b_add_failing_tests",

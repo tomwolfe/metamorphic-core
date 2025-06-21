@@ -1,3 +1,4 @@
+# src/core/automation/workflow_driver.py
 import os
 import json
 import logging
@@ -1117,7 +1118,8 @@ class WorkflowDriver:
                                                 critical_findings = [f for f in style_review_results.get('static_analysis', []) if f.get('severity') in ['error', 'security_high']]
                                                 if critical_findings:
                                                     validation_passed = False
-                                                    validation_feedback.append(f"Pre-write style/security check failed: Critical findings detected.")
+                                                    # Make feedback specific for the LLM to enable better self-correction.
+                                                    validation_feedback.append(f"Pre-write style/security check failed. Critical findings: {critical_findings}")
                                                     logger.warning(f"Pre-write style/security validation failed for snippet. Critical findings: {critical_findings}")
                                                 else:
                                                     logger.info("Pre-write style/security validation passed for snippet.")
@@ -2941,4 +2943,3 @@ Your response should be the complete, corrected code content that addresses the 
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
         # If no specific context type is identified, return None
-        return None

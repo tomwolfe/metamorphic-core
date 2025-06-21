@@ -362,13 +362,13 @@
     {
       "task_id": "task_1_8_2_F_4a_create_test_class",
       "priority": "High",
-      "task_name": "Create Test Class for Context Leakage Validation",
+      "task_name": "Create Unittest-based Test Class for Context Leakage Validation",
       "status": "Not Started",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2_F_3_integrate_call"
       ],
-      "description": "In `tests/test_phase1_8_features.py`, add `import unittest` if it is not already present, and then create a new empty `unittest.TestCase` class named `TestContextLeakageValidation`. The class should have a docstring explaining its purpose and a `pass` statement as its body. This must be done in a single code modification step to ensure the `import unittest` and its usage are added together, preventing 'unused import' errors."
+      "description": "In `tests/test_phase1_8_features.py`, add `import unittest` at the top of the file, and then create a new empty `unittest.TestCase` class named `TestContextLeakageValidationUnittest`. The class should have a docstring explaining its purpose and a `pass` statement as its body. **This must be done in a single code modification step** to ensure the `import unittest` and its usage are added together, preventing 'unused import' errors."
     },
     {
       "task_id": "task_1_8_2_F_4b_add_failing_tests",
@@ -379,7 +379,7 @@
       "depends_on": [
         "task_1_8_2_F_4a_create_test_class"
       ],
-      "description": "In `tests/test_phase1_8_features.py`, add a new test method to the `TestContextLeakageValidation` class. This method should use `pytest.mark.parametrize` to test multiple code snippets that contain context leakage indicators (e.g., '```python', 'As an AI...') and assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `False` for each."
+      "description": "In `tests/test_phase1_8_features.py`, add a new test method to the `TestContextLeakageValidationUnittest` class. This method should use `pytest.mark.parametrize` to test multiple code snippets that contain context leakage indicators (e.g., '```python', 'As an AI...') and assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `False` for each."
     },
     {
       "task_id": "task_1_8_2_F_4c_add_passing_tests",
@@ -390,7 +390,29 @@
       "depends_on": [
         "task_1_8_2_F_4b_add_failing_tests"
       ],
-      "description": "In `tests/test_phase1_8_features.py`, add a second new test method to the `TestContextLeakageValidation` class. This method should use `pytest.mark.parametrize` to test multiple compliant code snippets that do NOT contain context leakage indicators and assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True` for each."
+      "description": "In `tests/test_phase1_8_features.py`, add a second new test method to the `TestContextLeakageValidationUnittest` class. This method should use `pytest.mark.parametrize` to test multiple compliant code snippets that do NOT contain context leakage indicators and assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True` for each."
+    },
+    {
+      "task_id": "task_1_8_2_G_atomic_planner",
+      "priority": "Critical",
+      "task_name": "Implement Atomic Step Recognition in Planner",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_F_4c_add_passing_tests"
+      ],
+      "description": "Enhance the planning agent to recognize when a task description requires multiple code changes to be performed in a single, atomic step (e.g., using keywords like 'in a single step', 'atomically', 'together'). When detected, the planner should generate a single, combined plan step for the Coder LLM, rather than multiple separate code generation steps. This prevents intermediate validation failures (e.g., 'undefined name' errors) and ensures logical changes are applied together."
+    },
+    {
+      "task_id": "task_1_8_2_H_lint_codebase",
+      "priority": "High",
+      "task_name": "Codebase Linting and Style Conformance",
+      "status": "Not Started",
+      "target_file": "src/, tests/",
+      "depends_on": [
+        "task_1_8_2_G_atomic_planner"
+      ],
+      "description": "Run a linter (e.g., `flake8`) and an autoformatter (e.g., `black`) across the entire `src` and `tests` directories to fix existing style violations (PEP8, etc.). This will reduce noise in future validation steps, allowing the autonomous system to more accurately identify new issues introduced by its own code modifications. This task should be completed before proceeding with further feature development."
     },
     {
       "task_id": "task_1_8_C_1_analyze_A1_failure_and_improve_codegen",

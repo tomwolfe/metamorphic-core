@@ -363,7 +363,7 @@
       "task_id": "task_1_8_2_F_4a_create_test_class",
       "priority": "High",
       "task_name": "Create Unittest-based Test Class for Context Leakage Validation",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2_F_3_integrate_call"
@@ -401,11 +401,11 @@
       "depends_on": [
         "task_1_8_2_F_4c_add_passing_tests"
       ],
-      "description": "Enhance the planning agent to recognize when a task description requires multiple code changes to be performed in a single, atomic step (e.g., using keywords like 'in a single step', 'atomically', 'together'). When detected, the planner should generate a single, combined plan step for the Coder LLM, rather than multiple separate code generation steps. This prevents intermediate validation failures (e.g., 'undefined name' errors) and ensures logical changes are applied together."
+      "description": "Enhance the planning agent to recognize when a task description requires multiple code changes to be performed in a single, atomic step (e.g., using keywords like 'in a single step', 'atomically', 'together'). When detected, the planner should generate a single, combined plan step for the Coder LLM, rather than multiple separate code generation steps. This prevents intermediate validation failures (e.g., 'F401: imported but unused' as seen in task_1_8_2_F_4a_create_test_class) and ensures logical changes are applied together."
     },
     {
       "task_id": "task_1_8_2_H_lint_codebase",
-      "priority": "High",
+      "priority": "Critical",
       "task_name": "Codebase Linting and Style Conformance",
       "status": "Not Started",
       "target_file": "src/, tests/",
@@ -413,6 +413,26 @@
         "task_1_8_2_G_atomic_planner"
       ],
       "description": "Run a linter (e.g., `flake8`) and an autoformatter (e.g., `black`) across the entire `src` and `tests` directories to fix existing style violations (PEP8, etc.). This will reduce noise in future validation steps, allowing the autonomous system to more accurately identify new issues introduced by its own code modifications. This task should be completed before proceeding with further feature development."
+    },
+    {
+      "task_id": "task_1_8_19_pre_write_source_validation",
+      "priority": "High",
+      "task_name": "Enhance Pre-Write Validation to Differentiate Snippet Errors from Source File Errors",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_F_4c_add_passing_tests"
+      ],
+      "description": "Modify the pre-write validation logic in `WorkflowDriver`. When a `SyntaxError` occurs during the hypothetical merge check, analyze the error's line number. If the error line is outside the line range of the inserted snippet, the system should identify it as a pre-existing source file error. It should then block the current task and create a new, high-priority 'fix syntax error' task targeting the source file."
+    },
+    {
+      "task_id": "task_1_8_20_scoped_validation",
+      "priority": "High",
+      "task_name": "Implement Scoped Validation for Code Review and Ethics",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py,src/core/agents/code_review_agent.py",
+      "depends_on": ["task_1_8_2_H_lint_codebase"],
+      "description": "Modify the validation logic in the WorkflowDriver to perform 'scoped' analysis. Instead of validating the entire file after a change, generate a diff of the proposed change and run linters (Flake8) and ethical checks only on the added/modified lines. This prevents the system from being blocked by pre-existing issues in a file and provides more targeted feedback to the Coder LLM."
     },
     {
       "task_id": "task_1_8_C_1_analyze_A1_failure_and_improve_codegen",

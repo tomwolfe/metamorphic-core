@@ -2,7 +2,6 @@
 
 # tests/test_phase1_8_features.py
 import pytest
-import unittest
 import re
 import json
 from pathlib import Path
@@ -938,7 +937,7 @@ class TestContextLeakageValidation:
         assert result == expected
 
 
-class TestContextLeakageValidationUnittest(unittest.TestCase):
+class TestContextLeakageValidationUnittest:
     """
     Test class for validating context leakage prevention mechanisms.
 

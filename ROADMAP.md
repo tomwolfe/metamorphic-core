@@ -192,7 +192,7 @@
 
 *   **Task ID**: task_1_8_2_F_4a_create_test_class
     *   **Priority**: High
-    *   **Task Name**: Create Test Class for Context Leakage Validation
+    *   **Task Name**: Create Unittest-based Test Class for Context Leakage Validation
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_F_3_integrate_call']
 
@@ -207,6 +207,18 @@
     *   **Task Name**: Add Passing Unit Tests for Context Leakage Check
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_F_4b_add_failing_tests']
+
+*   **Task ID**: task_1_8_2_G_atomic_planner
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Atomic Step Recognition in Planner
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_F_4c_add_passing_tests']
+
+*   **Task ID**: task_1_8_2_H_lint_codebase
+    *   **Priority**: High
+    *   **Task Name**: Codebase Linting and Style Conformance
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_G_atomic_planner']
 
 *   **Task ID**: task_1_8_C_1_analyze_A1_failure_and_improve_codegen
     *   **Priority**: High

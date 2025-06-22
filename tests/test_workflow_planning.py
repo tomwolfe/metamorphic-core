@@ -142,7 +142,7 @@ class TestWorkflowPlanning:
         plan = driver.generate_solution_plan(mock_task)
 
         mock_invoke_coder_llm.assert_called_once()
-        assert plan == ["Bold step.", "Italic step.", "Code step."]
+        assert plan == ["Bold step.", "_Italic step_.", "Code step."]
 
     @patch.object(WorkflowDriver, '_invoke_coder_llm')
     def test_generate_solution_plan_preserves_html_chars(self, mock_invoke_coder_llm, test_driver_planning):

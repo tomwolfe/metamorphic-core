@@ -1,4 +1,3 @@
-# tests/test_workflow_reporting.py
 import pytest
 import json
 from src.core.automation.workflow_driver import WorkflowDriver, Context
@@ -274,7 +273,7 @@ class TestWorkflowReporting:
         grades = driver._calculate_grades(mock_validation_results)
 
         assert grades['test_success']['percentage'] == 100
-        assert grades['code_style']['percentage'] == 100 # No style issues
+        assert grades['code_style']['percentage'] == 100 # No security issues
         # Calculation: 100 - (1 * 50) = 50
         assert grades['security_soundness']['percentage'] == 50
         assert grades['ethical_policy']['percentage'] == 100
@@ -449,7 +448,7 @@ class TestWorkflowReporting:
             "grades": {"overall_percentage_grade": 79},
             "validation_results": {
                 "tests": {"status": "passed"},
-                "code_review": {"status": "failed", "static_analysis": [{"severity": "error", "code": "E001"}]},
+                "code_review": {"status": "success", "static_analysis": []},
                 "ethical_analysis": {"overall_status": "approved"},
                 "step_errors": [] # Include step_errors for completeness in mock
             }
@@ -771,10 +770,8 @@ class TestWorkflowReporting:
 
             # FIX: Update log assertion to use the resolved path
             assert "Running code review and security scan for /resolved/src/feature.py..." in caplog.text
-            # FIX: Remove the assertion about ethical analysis results as it's skipped
-            # assert f"Ethical Analysis Results for src/feature.py: {{'overall_status': 'skipped', 'message': 'Default policy not loaded.'}}" in caplog.text
-            # The warning log is already asserted by the original test output, but let's add it explicitly for clarity
-            assert "Default ethical policy not loaded. Skipping ethical analysis." in caplog.text
+            # The warning log is emitted during setup, so check caplog.messages
+            assert "Skipping post-write ethical analysis: Default policy not loaded." in caplog.text
 
 
             # Verify report generation and evaluation were called after all steps

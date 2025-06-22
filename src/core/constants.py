@@ -2,6 +2,7 @@
 
 # File Handling Constants
 MAX_READ_FILE_SIZE = 1024 * 1024  # 1 MB
+MAX_FULL_REWRITE_SIZE = 256 * 1024 # 256 KB - Guardrail for full file rewrites
 METAMORPHIC_INSERT_POINT = "# METAMORPHIC_INSERT_POINT"
 MAX_IMPORT_CONTEXT_LINES = 10 # Number of lines to provide as context when adding imports and no existing imports are found
 END_OF_CODE_MARKER = "# METAMORPHIC_END_OF_CODE_SNIPPET"
@@ -43,10 +44,10 @@ GENERAL_SNIPPET_GUIDELINES = (
     "6. Logging: If logging is required within a class method, use `self.logger.debug(...)`, `self.logger.info(...)`, etc., assuming `self.logger` is available. For standalone functions or scripts, ensure `logger` is properly initialized (e.g., `import logging; logger = getLogger(__name__)`) if not provided in context.\n"
     "8. **Raw Strings and Regular Expressions (CRITICAL):** When generating Python code that includes raw strings (e.g., for regular expressions), it is absolutely CRITICAL that they are correctly formatted and fully terminated. This is a common source of `SyntaxError: unterminated string literal`.\n"
     "    - **Termination:** Ensure raw strings are always closed with the correct quote type (`'` or `\"` for single-line, `'''` or `\"\"\"` for multi-line).\n"
-    "    - **Escaping:** Be extremely careful with backslashes (`\\`) within raw strings. If a backslash is intended to be literal, it should be escaped (e.g., `r'C:\\\\path\\\\to\\\\file'`).\n"
-    "    - **Common Error:** Avoid generating incomplete raw string literals like `r\\\"^\\\\s*` (missing closing quote) or `r'my_pattern\\'` (trailing unescaped backslash). These are common failure modes for LLMs.\n"
+    "    - **Escaping:** Be extremely careful with backslashes (`\\\\`) within raw strings. If a backslash is intended to be literal, it should be escaped (e.g., `r'C:\\\\\\\\path\\\\\\\\to\\\\\\\\file'`).\n"
+    "    - **Common Error:** Avoid generating incomplete raw string literals like `r\\\"^\\\\s*` (missing closing quote) or `r'my_pattern\\\\'` (trailing unescaped backslash). These are common failure modes for LLMs.\n"
     "    - **Example of Correct Usage:** `pattern = r\\\"^\\\\s*\\\"` or `path = r'C:\\\\Users\\\\Name\\\\Docs'`\n"
-    "    - **Example of Incorrect Usage (AVOID):** `r\\\"^\\\\s*` (missing closing quote) or `r'path\\'` (trailing unescaped backslash).\n"
+    "    - **Example of Incorrect Usage (AVOID):** `r\\\"^\\\\s*` (missing closing quote) or `r'path\\\\'` (trailing unescaped backslash).\n"
     "9. Snippet Completeness: Ensure the generated snippet is a fully complete and syntactically valid block of code that can be inserted. Avoid partial lines or incomplete statements, especially at the end of the snippet. Double-check for unterminated strings or comments."
 )
 
@@ -63,6 +64,16 @@ CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS = (
     "   - To change a single line: `    return new_value`\n"
     "5. If the plan step asks for an explanation or analysis, output only a Python comment explaining the error.\n"
     "6. Your response MUST end with the exact marker on its own line: `{END_OF_CODE_MARKER}`"
+)
+
+# New constant for full file output instructions
+CRITICAL_CODER_LLM_FULL_FILE_OUTPUT_INSTRUCTIONS = (
+    "CRITICAL INSTRUCTIONS FOR YOUR RESPONSE FORMAT (Full File Output):\n"
+    "1. Your entire response MUST be ONLY the complete, modified content of the source file.\n"
+    "2. Do NOT include any explanations, introductory text, apologies, or markdown formatting like ```python or ```.\n"
+    "3. You are replacing the entire file. Ensure all original code that should be kept is included in your response.\n"
+    "4. Ensure all new and existing public modules, classes, and functions have appropriate docstrings to pass validation.\n"
+    "5. Your response MUST end with the exact marker on its own line: `{END_OF_CODE_MARKER}`"
 )
 
 # Instruction for CoderLLM on output format for targeted modifications

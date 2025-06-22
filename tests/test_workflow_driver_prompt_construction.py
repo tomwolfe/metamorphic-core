@@ -65,10 +65,10 @@ class TestWorkflowDriverPromptConstruction:
         # Assertions for the significantly enhanced Raw Strings and Regular Expressions guideline
         assert "Raw Strings and Regular Expressions (CRITICAL):" in prompt
         assert "CRITICAL that they are correctly formatted and fully terminated." in prompt
-        # The test assertion needs to match the literal string that will be in the prompt
-        assert "    - **Common Error:** Avoid generating incomplete raw string literals like `r\\\"^\\\\s*` (missing closing quote) or `r'my_pattern\\'` (trailing unescaped backslash). These are common failure modes for LLMs." in prompt
+        # The test assertion needs to match the literal string that will be in the prompt (without the trailing newline) from constants.py
+        assert "    - **Common Error:** Avoid generating incomplete raw string literals like `r\\\"^\\\\s*` (missing closing quote) or `r'my_pattern\\\\'` (trailing unescaped backslash). These are common failure modes for LLMs." in prompt
         assert "    - **Example of Correct Usage:** `pattern = r\\\"^\\\\s*\\\"` or `path = r'C:\\\\Users\\\\Name\\\\Docs'`" in prompt
-        assert "    - **Example of Incorrect Usage (AVOID):** `r\\\"^\\\\s*` (missing closing quote) or `r'path\\'` (trailing unescaped backslash)." in prompt
+        assert "    - **Example of Incorrect Usage (AVOID):** `r\\\"^\\\\s*` (missing closing quote) or `r'path\\\\'` (trailing unescaped backslash)." in prompt
 
         assert GENERAL_SNIPPET_GUIDELINES in prompt
 

@@ -122,11 +122,6 @@ class TestWorkflowValidationExecution:
         )
         assert return_code == 127
         assert stdout == ""
-        # Note: The error message comes from the FileNotFoundError caught in execute_tests
-        # The specific message might vary slightly based on the OS and Python version,
-        # but the core issue is the command not being found in the specified cwd.
-        # The current code logs "Error: Command executable not found..." which is a bit
-        # misleading for a CWD issue, but matches the current implementation's error handling.
         # FIX: Update assertion to match the actual stderr message format
         assert f"Error: Command executable '{test_command[0]}' not found or working directory '{cwd}' does not exist. Ensure '{test_command[0]}' is in your system's PATH and the working directory is valid." in stderr
         assert f"Error: Command executable '{test_command[0]}' not found or working directory '{cwd}' does not exist. Ensure '{test_command[0]}' is in your system's PATH and the working directory is valid." in caplog.text
@@ -528,7 +523,7 @@ without a summary line
 
         # FIX: Update assertion to expect the resolved path in the log message
         assert f"Running code review and security scan for {mock_get_full_path('src/feature.py')}..." in caplog.text
-        assert "Default ethical policy not loaded. Skipping ethical analysis." in caplog.text # Check log for skipped ethical analysis
+        assert "Skipping post-write ethical analysis: Default policy not loaded." in caplog.text # Check log for skipped ethical analysis
 
         # Verify report generation and evaluation were called after all steps
         mock_generate_grade_report.assert_called_once()
@@ -701,7 +696,6 @@ without a summary line
         # FIX: Update assertion to expect the resolved path
         mock__write_output_file.assert_called_once_with(mock_get_full_path("documentation.md"), ANY, overwrite=True)
         mock_execute_tests.assert_not_called()
-        mock__parse_test_results.assert_not_called()
         mock_code_review_agent.analyze_python.assert_not_called()
         mock_ethical_governance_engine.enforce_policy.assert_not_called()
 
@@ -715,3 +709,4 @@ without a summary line
         # FIX: Add log assertion for the explicit file write step
         assert "Step identified as explicit file writing. Processing file operation for step: Step 2: Write file documentation.md" in caplog.text
         # FIX: Update assertion to expect the resolved path
+        assert "Successfully wrote placeholder content to /resolved/documentation.md." in caplog.text

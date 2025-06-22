@@ -25,11 +25,11 @@ from src.cli.write_file import write_file
 from src.core.constants import (
     CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS, CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS,
     END_OF_CODE_MARKER, GENERAL_SNIPPET_GUIDELINES, DOCSTRING_INSTRUCTION_PYTHON,
+    CRITICAL_CODER_LLM_FULL_FILE_OUTPUT_INSTRUCTIONS,
     PYTHON_CREATION_KEYWORDS, GENERAL_PYTHON_DOCSTRING_REMINDER, CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION,
     CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS,
     MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, MAX_STEP_RETRIES, MAX_IMPORT_CONTEXT_LINES,
-    END_OF_CODE_MARKER,
-    CONTEXT_LEAKAGE_INDICATORS
+    CONTEXT_LEAKAGE_INDICATORS, MAX_FULL_REWRITE_SIZE
 )
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
 logger = logging.getLogger(__name__)
@@ -201,7 +201,7 @@ class WorkflowDriver:
         # Flag to indicate if content was extracted from a fenced block *at the beginning*.
         # This flag helps decide the final stripping behavior.
         fenced_content_extracted_initially = False 
-
+        
         # 1. Try to extract content from markdown fences first.
         # This handles cases where the LLM provides a fenced block, potentially with chatter outside.
         fenced_block_match = re.search(
@@ -255,6 +255,21 @@ class WorkflowDriver:
             return processed_snippet
         else:
             return processed_snippet.strip()
+
+    def _is_multi_location_edit_step(self, step_description: str) -> bool:
+        """
+        Determines if a step requires edits in multiple locations, such as adding
+        an import at the top and a class/function at the bottom.
+        """
+        step_lower = step_description.lower()
+        # A simple heuristic: if it mentions 'import' and ('class' or 'def' or 'function'),
+        # it's likely a multi-location edit requiring a full file rewrite.
+        has_import = 'import' in step_lower
+        has_definition = 'class' in step_lower or 'def' in step_lower or 'function' in step_lower
+        # Also check for explicit instructions
+        has_multi_location_phrase = 'at the top' in step_lower and ('at the end' in step_lower or 'append' in step_lower)
+        
+        return (has_import and has_definition) or has_multi_location_phrase
 
     def _load_default_policy(self):
         # Use context.get_full_path to resolve the policy path safely
@@ -539,7 +554,7 @@ class WorkflowDriver:
                 )
             else: # No task_target_file_spec or it was empty after parsing.
                 if task_target_file_spec is not None and task_target_file_spec.strip() != "":
-                    logger.warning(f"Task target file list was unexpectedly empty after parsing '{task_target_file_spec}' for step: '{current_step_description}'")
+                    logger.warning(f"Task target file list was unexpectedly empty after parsing '{task_target_file_spec}' for planning prompt context.")
 
                 determined_target_file_relative = self._determine_filepath_to_use(
                     current_step_description,
@@ -745,7 +760,7 @@ class WorkflowDriver:
             logger.error(f"Permission denied when listing files in {path or 'base path'} (resolved: {resolved_base_path_str})")
             return []
         except Exception as e:
-            logger.error(f"Error listing files in {path or 'base_path'} (resolved: {resolved_base_path_str}): {e}", exc_info=True)
+            logger.error(f"An error occurred in list_files for {path or 'base_path'} (resolved: {resolved_base_path_str}): {e}", exc_info=True)
             return []
 
         return entries
@@ -858,7 +873,7 @@ class WorkflowDriver:
                                 # Note: content_to_write will be None for code generation steps;
                                 # the LLM-generated snippet will be used instead.
                                 content_to_write, overwrite_mode = self._determine_write_operation_details(step, filepath_to_use, self.task_target_file, prelim_flags)
-                                generated_snippet = None # Initialize generated_snippet
+                                generated_output = None # Initialize generated_output
 
                                 # --- Step 3: Execute actions based on step classification ---
                                 # Prioritize shell commands to prevent misclassification as code generation
@@ -939,263 +954,22 @@ class WorkflowDriver:
                                     # This step involves generating Python code and writing it to a .py file
                                     logger.info(f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.") # Log resolved path
                                     original_full_content = self._read_file_for_context(filepath_to_use)
-                                    
-                                    step_description_for_coder = step # Original step description
-                                    # Check for "Define Method Signature" pattern to refine prompt
-                                    # This pattern specifically looks for steps that provide the python signature
-                                    # Flexible pattern: tolerates varied phrasing and missing/extra colons in the *input step description*
-                                    define_sig_pattern = r"Define Method Signature[^\n]*?(?:python\s*)?(def\s+\w+\([^)]*\)(?:\s*->\s*[\w\.\[\], ]+)?)\s*:?"
-                                    define_sig_match = re.match(define_sig_pattern, step, re.IGNORECASE)
-                                    if define_sig_match:
-                                        extracted_signature_line = define_sig_match.group(1).strip()
-                                        # Ensure it's a valid start of a Python function definition
-                                        if extracted_signature_line.startswith("def "):
-                                            # Enforce trailing colon if missing for the actual code generation
-                                            if not extracted_signature_line.endswith(':'):
-                                                extracted_signature_line += ':'
-                                            method_definition_with_pass = f"{extracted_signature_line}\n    pass"
-                                            step_description_for_coder = (
-                                                f"Insert the following Python method definition into the class. "
-                                                f"Ensure it is correctly indented and includes a `pass` statement as its body. "
-                                                f"Output ONLY the complete method definition (signature and 'pass' body).\n"
-                                                f"Method to insert:\n```python\n{method_definition_with_pass}\n```"
-                                            )
-                                            self.logger.info("Refined step description for CoderLLM (Define Method Signature)")
-                                        else:
-                                            self.logger.warning(f"Could not reliably extract Python 'def' from 'Define Method Signature' step: {step}. Using original step description for CoderLLM.")
 
                                     if original_full_content is None: # Handle read errors
                                         step_failure_reason = f"Failed to read current content of {filepath_to_use} for code generation."
                                         logger.error(step_failure_reason)
                                         raise RuntimeError(step_failure_reason)
 
-                                    if self._is_simple_addition_plan_step(step):
-                                        context_type = self._get_context_type_for_step(step)
-                                        context_for_llm, is_minimal = self._extract_targeted_context(filepath_to_use, original_full_content, context_type, step)
-                                    else:
-                                        context_for_llm = original_full_content
-                                        is_minimal = False
-                                    logger.debug(f"Context for LLM (is_minimal={is_minimal}, len={len(context_for_llm)} chars) for file {filepath_to_use}.")
-
-                                    # Construct the Coder LLM prompt using the new helper method
-                                    coder_prompt = self._construct_coder_llm_prompt(
-                                        self._current_task,
-                                        step_description_for_coder,  # Use the potentially refined step description
-                                        filepath_to_use,
-                                        context_for_llm,
-                                        is_minimal,
+                                    success, generated_output_content = self._execute_code_generation_step(
+                                        step, filepath_to_use, original_full_content,
                                         retry_feedback_for_llm_prompt if step_retries > 0 else None
                                     )
-                                    logger.debug("Invoking Coder LLM with prompt (first 500 chars):\n%s", coder_prompt[:500]) # Log truncated prompt
-                                    generated_snippet = self._invoke_coder_llm(coder_prompt)
-
-                                    if generated_snippet:
-                                        logger.info(f"Coder LLM generated snippet (first 100 chars): {generated_snippet[:100]}...")
-                                        # >>> ADD CLEANING STEP HERE <<<
-                                        cleaned_snippet = self._clean_llm_snippet(generated_snippet)
-                                        self.logger.debug(f"Cleaned snippet (first 100 chars): {cleaned_snippet[:100]}...")
-
-                                        # --- START: Pre-Merge Full File Syntax Check (Promoted) ---
-                                        # This is a robust check ensuring the snippet integrates syntactically
-                                        # with the existing code. It's now performed *before* other validations.
-                                        try:
-                                            hypothetical_merged_content = self._merge_snippet(original_full_content, cleaned_snippet)
-                                            ast.parse(hypothetical_merged_content)
-                                            logger.info("Pre-merge full file syntax check (AST parse) passed.")
-                                        except SyntaxError as se_merge:
-                                            # This is a definitive syntax failure upon integration.
-                                            error_msg = f"Pre-merge full file syntax check failed: {se_merge.msg} on line {se_merge.lineno} (offset {se_merge.offset}). Offending line: '{se_merge.text.strip() if se_merge.text else 'N/A'}'"
-                                            logger.warning(f"Pre-merge full file syntax validation failed for {filepath_to_use}: {se_merge}")
-                                            # Preserve debugging context by logging the failed content
-                                            logger.warning(f"Hypothetical merged content (cleaned):\n---\n{hypothetical_merged_content}\n---")
-                                            raise ValueError(error_msg) from se_merge
-                                        # --- END: Pre-Merge Full File Syntax Check ---
-
-                                        # Perform pre-write validation on the generated snippet
-                                        logger.info(f"Performing pre-write validation for snippet targeting {filepath_to_use}...")
-                                        validation_passed = True # Assume pass initially for this attempt
-                                        validation_feedback = []
-                                        initial_snippet_syntax_error_details = None # Store details of initial snippet syntax error
-                                        try:
-                                            # Attempt to parse the snippet in isolation.
-                                            # This helps catch fundamental syntax errors within the snippet itself
-                                            # that are not related to its integration context (e.g., typos).
-                                            ast.parse(cleaned_snippet)
-                                            logger.info("Snippet AST parse check passed (isolated).")
-                                        except SyntaxError as se_snippet:
-                                            # If it's a SyntaxError (including IndentationError), it might be acceptable
-                                            # if the snippet integrates correctly into the full file.
-                                            # We will still proceed to the full file check, which is more definitive.
-                                            initial_snippet_syntax_error_details = f"Initial snippet syntax check failed: {se_snippet.msg} on line {se_snippet.lineno} (offset {se_snippet.offset}). Offending line: '{se_snippet.text.strip() if se_snippet.text else 'N/A'}'"
-                                            logger.warning(f"Snippet AST parse check (isolated) failed with SyntaxError: {se_snippet}. This might be acceptable if the snippet integrates correctly. Proceeding to other checks.")
-                                            logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---")
-
-                                            # --- START of manual addition for task_1_8_improve_snippet_handling sub-task 1 ---
-                                            try:
-                                                debug_dir_name = ".debug/failed_snippets"
-                                                debug_dir_path_str = self.context.get_full_path(debug_dir_name)
-
-                                                if debug_dir_path_str:
-                                                    debug_dir = Path(debug_dir_path_str)
-                                                    debug_dir.mkdir(parents=True, exist_ok=True)
-                                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                                                    current_task_id_str = getattr(self, '_current_task', {}).get('task_id', 'unknown_task')
-                                                    sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', current_task_id_str)
-                                                    current_step_index_str = str(locals().get('step_index', -1) + 1)
-
-                                                    filename = f"failed_snippet_{sanitized_task_id}_step{current_step_index_str}_{timestamp}.json"
-                                                    filepath = debug_dir / filename
-
-                                                    debug_data = {
-                                                        "timestamp": datetime.now().isoformat(),
-                                                        "task_id": current_task_id_str,
-                                                        "step_description": locals().get('step', 'Unknown Step'), # Use 'step' from loop
-                                                        "original_snippet_repr": repr(generated_snippet),
-                                                        "cleaned_snippet_repr": repr(cleaned_snippet), # Use cleaned_snippet here
-                                                        "syntax_error_details": {
-                                                            "message": se_snippet.msg,
-                                                            "lineno": se_snippet.lineno,
-                                                            "offset": se_snippet.offset,
-                                                            "text": se_snippet.text
-                                                        }
-                                                    }
-
-                                                    with builtins.open(filepath, 'w', encoding='utf-8') as f_err:
-                                                        json.dump(debug_data, f_err, indent=2)
-                                                    self.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
-                                                else:
-                                                    self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet details (path was None).")
-
-                                            except Exception as write_err:
-                                                self.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
-                                            # --- END of manual addition ---
-
-                                        except Exception as e: # Catches non-SyntaxError from ast.parse, or other unexpected issues
-                                            validation_passed = False
-                                            validation_feedback.append(f"Error during pre-write syntax validation (AST parse of snippet): {e}")
-                                            logger.error(f"Error during pre-write syntax validation (AST parse of snippet): {e}", exc_info=True)
-                                            logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet}\n---")
-                                        
-                                        if validation_passed and self.default_policy_config:
-                                            # All policy-based checks (Context Leakage, Ethical) are conditional on default_policy_config
-                                            # Context Leakage Check (first in policy chain)
-                                            if validation_passed: # Only run if previous checks passed
-                                                if not self._validate_for_context_leakage(cleaned_snippet):
-                                                    validation_passed = False
-                                                    leakage_feedback = "Pre-write context leakage check failed: Snippet contains forbidden patterns (e.g., '```python', 'As an AI...')."
-                                                    validation_feedback.append(leakage_feedback)
-                                                    logger.warning(f"Pre-write context leakage validation failed for snippet.")
-                                                else:
-                                                    logger.info("Pre-write context leakage validation passed for snippet.")
-
-                                            # Ethical check (second in policy chain)
-                                            if validation_passed: # Only run if previous checks passed
-                                                try:
-                                                    ethical_results = self.ethical_governance_engine.enforce_policy(
-                                                        cleaned_snippet,
-                                                        self.default_policy_config,
-                                                        is_snippet=True
-                                                    )
-                                                    if ethical_results.get('overall_status') == 'rejected':
-                                                        validation_passed = False
-                                                        validation_feedback.append(f"Pre-write ethical check failed: {ethical_results}")
-                                                        logger.warning(f"Pre-write ethical validation failed for snippet: {ethical_results}")
-                                                    else:
-                                                        logger.info("Pre-write ethical validation passed for snippet.")
-                                                except Exception as e:
-                                                    validation_passed = False
-                                                    validation_feedback.append(f"Error during pre-write ethical validation: {e}")
-                                                    logger.error(f"Error during pre-write ethical validation: {e}", exc_info=True)
-                                        elif validation_passed and not self.default_policy_config:
-                                            logger.warning("Skipping pre-write ethical validation: Default policy not loaded.")
-
-                                        # Style/Security check (always runs if validation_passed is True at this point, regardless of policy config)
-                                        if validation_passed:
-                                            # Style/Security check on the snippet itself.
-                                            try:
-                                                # Call code review/security analysis on the snippet
-                                                style_review_results = self.code_review_agent.analyze_python(cleaned_snippet)
-                                                critical_findings = [f for f in style_review_results.get('static_analysis', []) if f.get('severity') in ['error', 'security_high']]
-                                                if critical_findings:
-                                                    validation_passed = False
-                                                    # Make feedback specific for the LLM to enable better self-correction.
-                                                    validation_feedback.append(f"Pre-write style/security check failed. Critical findings: {critical_findings}")
-                                                    logger.warning(f"Pre-write style/security validation failed for snippet. Critical findings: {critical_findings}")
-                                                else:
-                                                    logger.info("Pre-write style/security validation passed for snippet.")
-                                            except Exception as e:
-                                                validation_passed = False
-                                                validation_feedback.append(f"Error during pre-write style/security validation: {e}")
-                                                logger.error(f"Error during pre-write style/security validation: {e}", exc_info=True)
-                                        
-                                        # If any check failed (ethical, style, or definitive full-file syntax)
-                                        if not validation_passed:
-                                            # If there was an initial snippet syntax error, ensure it's part of the feedback
-                                            if initial_snippet_syntax_error_details and not any("Initial snippet syntax check failed" in item for item in validation_feedback):
-                                                validation_feedback.insert(0, initial_snippet_syntax_error_details)
-                                            
-                                            error_message_for_retry = f"Pre-write validation failed for snippet targeting {filepath_to_use}. Feedback: {validation_feedback}"
-                                            logger.warning(error_message_for_retry)
-                                            # Store the detailed feedback for the Grade Report
-                                            self._current_task_results['pre_write_validation_feedback'] = validation_feedback
-                                            raise ValueError(f"Pre-write validation failed: {'. '.join(validation_feedback)}")
-
-                                        # If all checks passed, proceed to write
-                                        logger.info(f"All pre-write validations passed for snippet targeting {filepath_to_use}. Proceeding with actual merge/write.")
-                                        # Merge the snippet into the existing content
-                                        merged_content = self._merge_snippet(original_full_content, cleaned_snippet)
-                                        logger.debug("Snippet merged.")
-                                        # Write the merged content to the file (filepath_to_use is already resolved)
-                                        logger.info(f"Attempting to write merged content to {filepath_to_use}.")
-                                        try:
-                                            self._write_output_file(filepath_to_use, merged_content, overwrite=True)
-                                            logger.info(f"Successfully wrote merged content to {filepath_to_use}.")
-                                            code_written_in_iteration = True # Mark that code was written
-
-                                            # Perform post-write validation on the entire file
-                                            try:
-                                                logger.info(f"Running code review and security scan for {filepath_to_use}...")
-                                                review_results = self.code_review_agent.analyze_python(merged_content)
-                                                self._current_task_results['code_review_results'] = review_results
-                                                logger.info(f"Code Review and Security Scan Results for {filepath_to_use}: {review_results}")
-                                            except Exception as review_e:
-                                                logger.error(f"Error running code review/security scan for {filepath_to_use}: {review_e}", exc_info=True)
-                                                self._current_task_results['code_review_results'] = {'status': 'error', 'message': str(review_e)}
-                                                # Decide if this post-write error should fail the step or just be logged.
-                                                # For now, it doesn't fail the step, but it might be desirable.
-
-                                            if self.default_policy_config:
-                                                try:
-                                                    logger.info(f"Running ethical analysis for {filepath_to_use}...")
-                                                    ethical_analysis_results = self.ethical_governance_engine.enforce_policy(merged_content, self.default_policy_config)
-                                                    self._current_task_results['ethical_analysis_results'] = ethical_analysis_results
-                                                    logger.info(f"Ethical Analysis Results for {filepath_to_use}: {ethical_analysis_results}")
-                                                except Exception as ethical_e:
-                                                    logger.error(f"Error running ethical analysis for {filepath_to_use}: {ethical_e}", exc_info=True)
-                                                    self._current_task_results['ethical_analysis_results'] = {'overall_status': 'error', 'message': str(ethical_e)}
-                                                    # Decide if this post-write error should fail the step or just be logged.
-                                            else:
-                                                logger.warning("Default ethical policy not loaded. Skipping ethical analysis.")
-                                                self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded.'}
-
-                                            step_succeeded = True # Mark step as successful after writing and post-checks (if post-checks aren't blocking)
-
-                                        except FileExistsError:
-                                            # This should not happen with overwrite=True, but handle defensively
-                                            error_msg = f"Unexpected FileExistsError when writing merged content to {filepath_to_use} with overwrite=True."
-                                            logger.error(error_msg)
-                                            raise FileExistsError(error_msg) # Trigger retry/failure
-                                        except Exception as e:
-                                            error_msg = f"Failed to write merged content to {filepath_to_use}: {e}"
-                                            logger.error(error_msg, exc_info=True)
-                                            step_failure_reason = error_msg
-                                            raise e # Re-raise to trigger retry/failure
+                                    if success:
+                                        code_written_in_iteration = True
+                                        step_succeeded = True
                                     else:
-                                        # LLM returned empty or None snippet, raise exception to trigger step retries
-                                        error_message = f"Coder LLM returned empty or None snippet for step {step_index + 1}. Skipping file write."
-                                        logger.warning(error_message)
-                                        step_failure_reason = error_message
-                                        raise ValueError(f"Coder LLM returned empty snippet for step {step_index + 1}.")
+                                        step_failure_reason = self._current_task_results.get('pre_write_validation_feedback', ["Code generation failed for unknown reason."])[0]
+                                        raise ValueError(step_failure_reason)
 
                                 # Use filepath_to_use (the resolved determined target file) here
                                 elif content_to_write is not None and filepath_to_use:
@@ -1216,7 +990,7 @@ class WorkflowDriver:
                                         # Any other exception during write is a step failure
                                         logger.error(f"Failed to write file {filepath_to_use}: {e}", exc_info=True)
                                         step_failure_reason = f"Failed to write file {filepath_to_use}: {e}"
-                                        raise e # Re-raise to trigger step retries
+                                        raise e # Re-raise to trigger retry/failure
 
                                 else:
                                     # Step is not identified as code generation, explicit file writing, or test execution.
@@ -1450,6 +1224,148 @@ class WorkflowDriver:
             logger.info('Autonomous loop iteration finished.')
         logger.info('Autonomous loop terminated.')
 
+    def _execute_code_generation_step(self, step: str, filepath_to_use: str, original_full_content: str, retry_feedback_for_llm_prompt: Optional[str]) -> Tuple[bool, Optional[str]]:
+        """
+        Executes the code generation and writing logic for a given step.
+        Returns (success_status, generated_content_if_successful).
+        """
+        is_multi_location_edit = self._is_multi_location_edit_step(step)
+        
+        step_description_for_coder = step
+        # Check for "Define Method Signature" pattern to refine prompt
+        define_sig_pattern = r"Define Method Signature[^\n]*?(?:python\s*)?(def\s+\w+\([^)]*\)(?:\s*->\s*[\w\.\[\], ]+)?)\s*:?"
+        define_sig_match = re.match(define_sig_pattern, step, re.IGNORECASE)
+        if define_sig_match:
+            extracted_signature_line = define_sig_match.group(1).strip()
+            if extracted_signature_line.startswith("def "):
+                if not extracted_signature_line.endswith(':'):
+                    extracted_signature_line += ':'
+                method_definition_with_pass = f"{extracted_signature_line}\n    pass"
+                step_description_for_coder = (
+                    f"Insert the following Python method definition into the class. "
+                    f"Ensure it is correctly indented and includes a `pass` statement as its body. "
+                    f"Output ONLY the complete method definition (signature and 'pass' body).\n"
+                    f"Method to insert:\n```python\n{method_definition_with_pass}\n```"
+                )
+                self.logger.info("Refined step description for CoderLLM (Define Method Signature)")
+            else:
+                self.logger.warning(f"Could not reliably extract Python 'def' from 'Define Method Signature' step: {step}. Using original step description for CoderLLM.")
+        
+        # Check file size for full rewrite strategy
+        if is_multi_location_edit:
+            try:
+                file_size = os.path.getsize(filepath_to_use)
+                if file_size > MAX_FULL_REWRITE_SIZE:
+                    self.logger.warning(f"File {filepath_to_use} ({file_size} bytes) exceeds MAX_FULL_REWRITE_SIZE ({MAX_FULL_REWRITE_SIZE} bytes). Falling back to snippet generation.")
+                    is_multi_location_edit = False # Revert to snippet strategy
+            except Exception as e:
+                self.logger.warning(f"Could not get file size for {filepath_to_use}: {e}. Proceeding with multi-location edit strategy.")
+
+        if original_full_content is None:
+            self.logger.error(f"Failed to read current content of {filepath_to_use} for code generation.")
+            return False, None
+
+        if is_multi_location_edit:
+            context_for_llm = original_full_content
+            is_minimal = False
+        elif self._is_simple_addition_plan_step(step):
+            context_type = self._get_context_type_for_step(step)
+            context_for_llm, is_minimal = self._extract_targeted_context(filepath_to_use, original_full_content, context_type, step)
+        else:
+            context_for_llm = original_full_content
+            is_minimal = False
+        self.logger.debug(f"Context for LLM (is_minimal={is_minimal}, len={len(context_for_llm)} chars) for file {filepath_to_use}.")
+
+        coder_prompt = self._construct_coder_llm_prompt(
+            self._current_task,
+            step_description_for_coder,
+            filepath_to_use,
+            context_for_llm,
+            is_minimal,
+            retry_feedback_for_llm_prompt
+        )
+        self.logger.debug("Invoking Coder LLM with prompt (first 500 chars):\n%s", coder_prompt[:500])
+        generated_output = self._invoke_coder_llm(coder_prompt)
+
+        if not generated_output:
+            self.logger.warning(f"Coder LLM returned empty or None snippet. Skipping file write.")
+            return False, None
+
+        self.logger.info(f"Coder LLM generated output (first 100 chars): {generated_output[:100]}...")
+        cleaned_output = self._clean_llm_snippet(generated_output)
+        self.logger.debug(f"Cleaned output (first 100 chars): {cleaned_output[:100]}...")
+
+        if is_multi_location_edit:
+            content_for_validation = cleaned_output
+            content_to_write = cleaned_output
+            is_snippet_for_ethics = False
+        else:
+            content_for_validation = cleaned_output
+            content_to_write = self._merge_snippet(original_full_content, content_for_validation)
+            is_snippet_for_ethics = True
+
+        # --- Pre-Write Validation ---
+        self.logger.info(f"Performing pre-write validation for {'full file' if is_multi_location_edit else 'snippet'} targeting {filepath_to_use}...")
+        validation_passed = True
+        validation_feedback = []
+
+        self.logger.info(f"Running code review and security scan for {filepath_to_use}...")
+        try:
+            content_for_ast_check = content_to_write if is_multi_location_edit else self._merge_snippet(original_full_content, content_for_validation)
+            ast.parse(content_for_ast_check)
+            self.logger.info("Pre-write full file syntax check (AST parse) passed.")
+        except SyntaxError as se:
+            validation_passed = False
+            error_msg = f"Pre-write syntax check failed: {se.msg} on line {se.lineno}."
+            validation_feedback.append(error_msg)
+            self.logger.warning(f"Pre-write syntax validation failed for {filepath_to_use}: {se}")
+
+        if validation_passed: # Check validation_passed again after previous check
+            if not self._validate_for_context_leakage(content_for_validation):
+                validation_passed = False
+                validation_feedback.append("Pre-write validation failed: Context leakage detected.")
+            if validation_passed: # Check validation_passed again after previous check
+                style_review_results = self.code_review_agent.analyze_python(content_for_validation)
+                critical_findings = [f for f in style_review_results.get('static_analysis', []) if f.get('severity') in ['error', 'security_high', 'security_medium']] # Include medium for pre-write
+                if critical_findings: # If any critical findings, fail validation
+                    validation_passed = False
+                    validation_feedback.append(f"Pre-write validation failed: Style/security check found critical findings: {critical_findings}")
+                self.logger.info(f"Code Review and Security Scan Results for {filepath_to_use}: {style_review_results}")
+                self.logger.info(f"Running ethical analysis for {filepath_to_use}...")
+                ethical_results = {'overall_status': 'skipped', 'message': 'Ethical analysis skipped: Default policy not loaded.'} # Initialize ethical_results
+                if self.default_policy_config:
+                    ethical_results = self.ethical_governance_engine.enforce_policy(content_for_validation, self.default_policy_config, is_snippet=is_snippet_for_ethics)
+                    if ethical_results.get('overall_status') == 'rejected':
+                        validation_passed = False
+                        validation_feedback.append(f"Pre-write validation failed: Ethical check failed: {ethical_results}")
+                self.logger.info(f"Ethical Analysis Results for {filepath_to_use}: {ethical_results}")
+
+
+        if not validation_passed:
+            error_message_for_retry = f"Pre-write validation failed for {'full file' if is_multi_location_edit else 'snippet'} targeting {filepath_to_use}. Feedback: {validation_feedback}"
+            self.logger.warning(error_message_for_retry)
+            self._current_task_results['pre_write_validation_feedback'] = validation_feedback
+            return False, None
+
+        self.logger.info(f"All pre-write validations passed. Proceeding with write to {filepath_to_use}.")
+        self._write_output_file(filepath_to_use, content_to_write, overwrite=True)
+        self.logger.info(f"Successfully wrote content to {filepath_to_use}.")
+        
+        # Post-Write Validation
+        self.logger.info(f"Running post-write validations for {filepath_to_use}...")
+        post_write_review = self.code_review_agent.analyze_python(content_to_write)
+        self._current_task_results['code_review_results'] = post_write_review
+        self.logger.info(f"Post-write Code Review Results: {post_write_review}")
+        if self.default_policy_config:
+            post_write_ethical = self.ethical_governance_engine.enforce_policy(content_to_write, self.default_policy_config)
+            self._current_task_results['ethical_analysis_results'] = post_write_ethical
+            self.logger.info(f"Post-write Ethical Analysis Results: {post_write_ethical}")
+        else:
+            self.logger.warning("Skipping post-write ethical analysis: Default policy not loaded.")
+            self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded.'}
+
+        return True, content_to_write
+
     def _classify_step_preliminary(self, step_description: str, task_target_file_spec: Optional[str] = None) -> dict:
         step_lower = step_description.lower()
         filepath_from_step_match = re.search(r'(\S+\.(?:py|md|json|txt|yml|yaml))', step_description, re.IGNORECASE)
@@ -1599,8 +1515,7 @@ Task Description:
                 current_step_text += " " + line.strip()
         if current_step_text is not None:
             plan_steps.append(current_step_text.strip())
-        sanitized_steps = [re.sub(r'[*_`]', '', step).strip() for step in plan_steps]
-        sanitized_steps = [step for step in sanitized_steps if step]
+        sanitized_steps = [re.sub(r'[*`]', '', step).strip() for step in plan_steps]
         logger.debug(f"Parsed and sanitized plan steps: {sanitized_steps}")
         return sanitized_steps
 
@@ -1609,16 +1524,21 @@ Task Description:
         Constructs the full prompt for the Coder LLM based on task, step, and file context,
         incorporating general, import-specific, docstring guidelines, and retry feedback.
         """
-        
         preamble = "You are an expert Python Coder LLM.\n"
-        # Removed the if is_minimal_context block from preamble as per diff
-
         # Determine if this step is likely generating a full new block (function, method, class).
         # We reuse _should_add_docstring_instruction as it already identifies "new structure" generation.
         is_generating_full_block = self._should_add_docstring_instruction(step_description, filepath_to_use)
 
         # Define the output instructions based on whether a full block is being generated
-        if is_minimal_context:
+        is_multi_location_edit = self._is_multi_location_edit_step(step_description)
+
+        if is_multi_location_edit:
+            output_instructions = CRITICAL_CODER_LLM_FULL_FILE_OUTPUT_INSTRUCTIONS.format(
+                END_OF_CODE_MARKER=END_OF_CODE_MARKER
+            )
+            # For full file, targeted mod instructions are not applicable
+            targeted_mod_instructions_content = ""
+        elif is_minimal_context:
             output_instructions = CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION
         elif is_generating_full_block:
             output_instructions = CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(
@@ -1711,7 +1631,7 @@ Task Description:
             output_instructions, # This dynamic based on is_generating_full_block
         ]
         # Add targeted modification instructions for minimal and default cases, but not for full block generation.
-        if is_minimal_context or not is_generating_full_block:
+        if (is_minimal_context or not is_generating_full_block) and not is_multi_location_edit:
             coder_prompt_parts.append(CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS)
 
         coder_prompt_parts.extend([
@@ -1798,24 +1718,23 @@ Task Description:
             validated_task = {
                 'task_id': task_id,
                 'priority': task_data['priority'],
-                'task_name': task_name,
-                'status': task_data['status'],
+                'task_name': task_data['task_name'], # Corrected to use task_data['task_name']
+                'status': task_data['status'], # Corrected to use task_data['status']
                 'description': escaped_description,
                 'target_file': task_data.get('target_file'),
                 'depends_on': validated_depends_on
             }
-
             if validated_task['status'] == 'Not Started':
                 depends_on = validated_task.get('depends_on', [])
                 all_dependencies_completed = True
                 for dep_task_id in depends_on:
                     dep_status = task_status_map.get(dep_task_id)
                     if dep_status is None:
-                        logger.debug(f"Skipping task {task_id}: Dependency '{dep_task_id}' not found in roadmap.")
+                        logger.info(f"Skipping task {task_id}: Dependency '{dep_task_id}' not found in roadmap.")
                         all_dependencies_completed = False
                         break
                     elif dep_status != 'Completed':
-                        logger.debug(f"Skipping task {task_id}: Dependency '{dep_task_id}' status is 'D{dep_status}' (requires 'Completed').")
+                        logger.info(f"Skipping task {task_id}: Dependency '{dep_task_id}' status is 'D{dep_status}' (requires 'Completed').")
                         all_dependencies_completed = False
                         break
                 if all_dependencies_completed:
@@ -1883,7 +1802,7 @@ Task Description:
             task = {
                 'task_id': task_id,
                 'priority': task_data['priority'],
-                'task_name': task_name,
+                'task_name': task_data['task_name'],
                 'status': task_data['status'],
                 'description': escaped_description,
                 'target_file': task_data.get('target_file'),
@@ -2942,4 +2861,3 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
-        # If no specific context type is identified, return None

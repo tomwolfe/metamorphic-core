@@ -400,6 +400,7 @@ class TestWorkflowDriver:
 
 
     # REMOVED: @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Implement logic in incorrect/file_from_step.py"])
+    @patch('src.core.automation.workflow_driver._load_spacy_model', return_value=False) # Patch spacy model loading to avoid TypeError
     @patch.object(WorkflowDriver, '_invoke_coder_llm', side_effect=llm_responses_for_mock)
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'task_prioritize_target', 'task_name': 'Prioritize Target File', 'status': 'Not Started', 'description': 'Test target file prioritization.', 'priority': 'High', 'target_file': 'correct/file_from_task.py'},
@@ -432,8 +433,9 @@ class TestWorkflowDriver:
                                                     mock_read_file_for_context,    # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
                                                     mock_load_roadmap,             # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
                                                     mock_select_next_task,         # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
-                                                    # REMOVED: mock_generate_plan, # This mock is no longer needed as generate_solution_plan is not patched
                                                     mock_invoke_coder_llm,         # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
+                                                    mock_load_spacy_model, # Corresponds to @patch('src.core.automation.workflow_driver._load_spacy_model', ...)
+                                                    # REMOVED: mock_generate_plan, # This mock is no longer needed as generate_solution_plan is not patched
                                                                                     test_driver_validation, caplog, tmp_path, mocker):
         """
         Test that autonomous_loop prioritizes the 'target_file' from the task
@@ -571,17 +573,17 @@ class TestWorkflowDriver:
         # Verify overall loop termination and logging
         assert 'Selected task: ID=task_prioritize_target' in caplog.text
         # FIX: Update log assertion to include attempt number
-        assert f'Executing step 1/1 (Attempt 1/{MAX_STEP_RETRIES + 1}): Step 1: Implement logic in incorrect/filefromstep.py' in caplog.text
+        assert f'Executing step 1/1 (Attempt 1/{MAX_STEP_RETRIES + 1}): Step 1: Implement logic in incorrect/file_from_step.py' in caplog.text
         # Check the log for the file identified for code generation/write (should be the target_file)
         # FIX: Expect the resolved path in the log message
         assert "Step identified as code generation for file /resolved/correct/file_from_task.py. Orchestrating read-generate-merge-write." in caplog.text
         # FIX: Expect the resolved path in the log message
-        assert 'Successfully wrote merged content to /resolved/correct/file_from_task.py.' in caplog.text
+        assert 'Successfully wrote content to /resolved/correct/file_from_task.py.' in caplog.text # Changed from 'merged content' to 'content'
         # FIX: Expect the resolved path in the log message
-        assert 'Running code review and security scan for /resolved/correct/file_from_task.py...' in caplog.text
-        # FIX: Expect the resolved path in the log message
-        assert 'Running ethical analysis for /resolved/correct/file_from_task.py...' in caplog.text
-        assert 'Grade Report Evaluation: Recommended Action=\'Completed\'' in caplog.text
+        assert 'Running post-write validations for /resolved/correct/file_from_task.py...' in caplog.text # Changed from 'Running code review and security scan'
+        # FIX: Assert the actual ethical analysis log message
+        assert "Post-write Ethical Analysis Results: {'overall_status': 'approved', 'policy_name': 'Mock Policy'}" in caplog.text
+        assert 'Initial Grade Report Evaluation: Recommended Action=\'Completed\'' in caplog.text # Changed from 'Grade Report Evaluation'
         assert 'Updating task status from \'Not Started\' to \'Completed\' for task task_prioritize_target' in caplog.text
         assert 'Successfully wrote updated status for task task_prioritize_target in dummy_roadmap.json' in caplog.text # Added assertion back
         assert 'No tasks available in Not Started status. Exiting autonomous loop.' in caplog.text
@@ -598,6 +600,7 @@ class TestWorkflowDriver:
     # FIX: Remove the assertion that expects the loop termination log
     @patch.object(WorkflowDriver, '_invoke_coder_llm', return_value=None)
     @patch.object(WorkflowDriver, 'generate_solution_plan', return_value=["Step 1: Write output to error.txt", "Step 2: Another step."])
+    @patch('src.core.automation.workflow_driver._load_spacy_model', return_value=False) # Patch spacy model loading to avoid TypeError
     @patch.object(WorkflowDriver, 'select_next_task', side_effect=[
         {'task_id': 'task_generic_error', 'task_name': 'Task Generic Error', 'status': 'Not Started', 'description': 'Desc Generic Error', 'priority': 'High', 'target_file': 'error.txt'},
         None # Second call returns None to exit loop
@@ -627,6 +630,7 @@ class TestWorkflowDriver:
                                                           mock_read_file_for_context, # Corresponds to @patch.object(WorkflowDriver, '_read_file_for_context', ...)
                                                           mock_load_roadmap, # Corresponds to @patch.object(WorkflowDriver, 'load_roadmap', ...)
                                                           mock_select_next_task, # Corresponds to @patch.object(WorkflowDriver, 'select_next_task', ...)
+                                                          mock_load_spacy_model, # Corresponds to @patch('src.core.automation.workflow_driver._load_spacy_model', ...)
                                                           mock_generate_plan, # Corresponds to @patch.object(WorkflowDriver, 'generate_solution_plan', ...)
                                                           mock_invoke_coder_llm, # Corresponds to @patch.object(WorkflowDriver, '_invoke_coder_llm', ...)
                                                           test_driver_validation, tmp_path, mocker, caplog): # Changed fixture

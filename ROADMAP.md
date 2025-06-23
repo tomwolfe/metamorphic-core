@@ -193,18 +193,18 @@
 *   **Task ID**: task_1_8_2_F_4a_create_test_class
     *   **Priority**: High
     *   **Task Name**: Create Unittest-based Test Class for Context Leakage Validation
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_F_3_integrate_call']
 
 *   **Task ID**: task_1_8_2_F_4b_add_failing_tests
     *   **Priority**: High
-    *   **Task Name**: Add Failing Unit Tests for Context Leakage Check
+    *   **Task Name**: Add an Expected-to-Fail Unit Test for Context Leakage Detection
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_F_4a_create_test_class']
 
 *   **Task ID**: task_1_8_2_F_4c_add_passing_tests
     *   **Priority**: High
-    *   **Task Name**: Add Passing Unit Tests for Context Leakage Check
+    *   **Task Name**: Add Passing Unit Tests for Compliant Snippets
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_F_4b_add_failing_tests']
 
@@ -215,10 +215,22 @@
     *   **Depends On**: ['task_1_8_2_F_4c_add_passing_tests']
 
 *   **Task ID**: task_1_8_2_H_lint_codebase
-    *   **Priority**: High
+    *   **Priority**: Critical
     *   **Task Name**: Codebase Linting and Style Conformance
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_G_atomic_planner']
+
+*   **Task ID**: task_1_8_19_pre_write_source_validation
+    *   **Priority**: High
+    *   **Task Name**: Enhance Pre-Write Validation to Differentiate Snippet Errors from Source File Errors
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_F_4c_add_passing_tests']
+
+*   **Task ID**: task_1_8_20_scoped_validation
+    *   **Priority**: High
+    *   **Task Name**: Implement Scoped Validation for Code Review and Ethics
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_H_lint_codebase']
 
 *   **Task ID**: task_1_8_C_1_analyze_A1_failure_and_improve_codegen
     *   **Priority**: High
@@ -321,10 +333,4 @@
     *   **Task Name**: Implement Pre-Write Diff Validation Guardrail
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_improve_snippet_handling', 'task_1_8_5']
-
-*   **Task ID**: task_1_8_19_pre_write_source_validation
-    *   **Priority**: High
-    *   **Task Name**: Enhance Pre-Write Validation to Differentiate Snippet Errors from Source File Errors
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_4c_add_passing_tests']
 

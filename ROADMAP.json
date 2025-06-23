@@ -379,18 +379,18 @@
       "depends_on": [
         "task_1_8_2_F_4a_create_test_class"
       ],
-      "description": "In `tests/test_phase1_8_features.py`, add a new test method to the `TestContextLeakageValidationUnittest` class. This method should test a single code snippet that *contains* a context leakage indicator (e.g., '```python'). The test MUST assert that `WorkflowDriver._validate_for_context_leakage` returns `True`. This test is *expected to fail* initially, demonstrating the need for the function to correctly identify leakage."
+      "description": "In `tests/test_phase1_8_features.py`, add a new test method to the `TestContextLeakageValidationUnittest` class. This method MUST use `pytest.mark.parametrize` to test multiple code snippets that *contain* context leakage indicators (e.g., '```python', 'As an AI...'). For each snippet, the test must assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `False`. This test is *expected to fail* initially, demonstrating the need for the function to correctly identify leakage. Ensure all test case strings are defined using triple quotes (`\"\"\"` or `'''`)."
     },
     {
       "task_id": "task_1_8_2_F_4c_add_passing_tests",
       "priority": "High",
-      "task_name": "Add Passing Unit Tests for Context Leakage Check",
+      "task_name": "Add Passing Unit Tests for Compliant Snippets",
       "status": "Not Started",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2_F_4b_add_failing_tests"
       ],
-      "description": "In `tests/test_phase1_8_features.py`, add two new test methods to the `TestContextLeakageValidationUnittest` class, both using `pytest.mark.parametrize`. The first method should test multiple code snippets that *contain* context leakage indicators (e.g., '```python', 'As an AI...') and assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True` for each. The second method should test multiple compliant code snippets (i.e., no leakage) and assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `False` for each."
+      "description": "In `tests/test_phase1_8_features.py`, add another new test method to the `TestContextLeakageValidationUnittest` class. This method MUST use `pytest.mark.parametrize` to test multiple code snippets that *do not* contain any context leakage indicators. For each compliant snippet, the test must assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True`. Ensure all test case strings are defined using triple quotes (`\"\"\"` or `'''`)."
     },
     {
       "task_id": "task_1_8_2_G_atomic_planner",

@@ -48,7 +48,15 @@ GENERAL_SNIPPET_GUIDELINES = (
     "    - **Common Error:** Avoid generating incomplete raw string literals like `r\\\"^\\\\s*` (missing closing quote) or `r'my_pattern\\\\'` (trailing unescaped backslash). These are common failure modes for LLMs.\n"
     "    - **Example of Correct Usage:** `pattern = r\\\"^\\\\s*\\\"` or `path = r'C:\\\\Users\\\\Name\\\\Docs'`\n"
     "    - **Example of Incorrect Usage (AVOID):** `r\\\"^\\\\s*` (missing closing quote) or `r'path\\\\'` (trailing unescaped backslash).\n"
-    "9. Snippet Completeness: Ensure the generated snippet is a fully complete and syntactically valid block of code that can be inserted. Avoid partial lines or incomplete statements, especially at the end of the snippet. Double-check for unterminated strings or comments."
+    "9. **Strings Containing Code (CRITICAL):** When you need to create a Python string literal that contains code snippets (e.g., for a test case), ALWAYS use triple quotes (`\"\"\"` or `'''`). This prevents `SyntaxError: unterminated string literal` by correctly handling quotes and newlines within the string. Example:\n"
+    "   ```python\n"
+    "   test_code_snippet = \"\"\"def my_function_to_test():\n"
+    "       print('Hello, world!') # This string contains 'quotes' safely.\n"
+    "   \"\"\"\n"
+    "   # Or for a simple string:\n"
+    "   simple_string = \"\"\"This is a test string containing 'single quotes' and \"double quotes\" safely.\"\"\"\n"
+    "   ```\n"
+    "10. Snippet Completeness: Ensure the generated snippet is a fully complete and syntactically valid block of code that can be inserted. Avoid partial lines or incomplete statements, especially at the end of the snippet. Double-check for unterminated strings or comments."
 )
 
 # CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS is a template string that needs to be formatted

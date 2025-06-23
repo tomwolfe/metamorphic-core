@@ -107,6 +107,7 @@ def driver_enhancements(tmp_path, mocker):
     mocker.patch.object(driver, '_is_add_imports_step', return_value=False)
     mocker.patch.object(driver, '_find_import_block_end', return_value=0)
     mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=False)
+    mocker.patch.object(driver, '_validate_for_context_leakage', return_value=True) # Mock this for other tests
 
     yield driver
 
@@ -116,7 +117,7 @@ def driver_for_multi_target_resolution(tmp_path, mocker):
     mock_context = Context(str(tmp_path))
     def mock_get_full_path_side_effect(relative_path_str):
         if not isinstance(relative_path_str, str):
-            logger.warning(f"Mock Path validation received invalid input: {relative_path_str}")
+            logger.warning(f"Mock Path validation received invalid input: {type(relative_path_str)}")
             return None
 
         try:
@@ -150,6 +151,7 @@ def driver_for_multi_target_resolution(tmp_path, mocker):
         driver = WorkflowDriver(mock_context)
         driver.llm_orchestrator = mocker.MagicMock()
         driver.default_policy_config = {'policy_name': 'Mock Policy'}
+        mocker.patch.object(driver, '_validate_for_context_leakage', return_value=True) # Mock this for other tests
 
         mock_context_get_full_path.reset_mock()
 
@@ -194,6 +196,7 @@ def driver_for_simple_addition_test(tmp_path, mocker):
     mocker.patch.object(WorkflowDriver, '_load_default_policy') # Mock policy loading
     driver = WorkflowDriver(mock_context)
     driver.llm_orchestrator = MagicMock() 
+    mocker.patch.object(driver, '_validate_for_context_leakage', return_value=True) # Mock this for other tests
     return driver
 
 # Fixture for a WorkflowDriver instance with mocked dependencies for context extraction tests.
@@ -203,6 +206,7 @@ def driver_for_context_tests(tmp_path, mocker):
     mocker.patch.object(WorkflowDriver, '_load_default_policy') # Mock policy loading
     with patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator'):
         driver = WorkflowDriver(context)
+    mocker.patch.object(driver, '_validate_for_context_leakage', return_value=True) # Mock this for other tests
     return driver
 
 class TestPhase1_8WorkflowDriverEnhancements:
@@ -226,6 +230,7 @@ class TestPhase1_8WorkflowDriverEnhancements:
         mocker.patch.object(driver, '_is_add_imports_step', return_value=False)
         mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=False)
         mocker.patch.object(driver, '_validate_path', side_effect=lambda p: str(Path(driver.context.base_path) / p if p else Path(driver.context.base_path)))
+        mocker.patch.object(driver, '_validate_for_context_leakage', return_value=True) # Mock this for other tests
         return driver
 
     def test_prompt_refinement_for_define_method_signature_step(self, driver_for_prompt_test, mocker):
@@ -682,7 +687,7 @@ class TestContextExtraction:
         file_path = driver_for_context_tests.context.get_full_path("test_module.py")
     
         # Expected context: lines 0-8 (inclusive of line 0, exclusive of line 8)
-        # Corresponds to: "# Preamble\nimport os\nimport sys\n\nfrom pathlib import Path\n"
+        # Corresponds to: "# Initial comment\nimport os\nimport sys\n\n# Comment between imports\nfrom pathlib import Path\n\n# Another comment"
         expected_context = "\n".join(file_content.splitlines()[0:6])
         context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import json")
     
@@ -944,4 +949,12 @@ class TestContextLeakageValidationUnittest:
     This class will contain tests to ensure that context-specific data does
     not inadvertently persist or leak between different execution contexts.
     """
-    pass
+    # Using a mix of raw triple-double and triple-single quotes.
+    # Both are valid and this demonstrates flexibility.
+    LEAKAGE_SNIPPETS = [
+        r"""As an AI language model, I am unable to...""",
+        r'''I am a large language model, trained by Google.''',
+        r"""My apologies, but as an AI, I cannot fulfill that request.""",
+        r"""Based on the previous turn in our conversation...""",
+        r"""Remember when I mentioned earlier that...""",
+    ]

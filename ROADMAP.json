@@ -374,7 +374,7 @@
       "task_id": "task_1_8_2_F_4b_define_leakage_snippets",
       "priority": "High",
       "task_name": "Define Context Leakage Snippets List",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2_F_4a_create_test_class"
@@ -673,6 +673,26 @@
         "task_1_8_11_auto_refinement"
       ],
       "description": "Enhance the Refinement Agent (from task_1_8_11_auto_refinement). When a task is blocked because a plan step failed all retries, and that step is not the last in the plan, the agent should attempt to decompose the task. It will split the original task into two: one containing the successful steps up to (but not including) the failure point, which will be marked as 'Completed'. The second, new task will be a copy of the original but with its plan starting from the failing step, and it will depend on the first part. This allows the system to make incremental progress on complex tasks that fail midway through their plan."
+    },
+    {
+      "task_id": "task_1_8_21_raw_string_validation",
+      "priority": "High",
+      "task_name": "Implement Targeted Raw String Literal Validation",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_improve_snippet_handling"
+      ],
+      "description": "Enhance pre-write validation in `WorkflowDriver` with a targeted regex check to specifically detect malformed raw string literals (e.g., `r\"\"\"`) in generated Python code. This acts as an immediate guardrail to catch common LLM syntax errors related to string escaping before `ast.parse`."
+    },
+    {
+      "task_id": "task_1_8_22_roadmap_example_style_guide",
+      "priority": "Medium",
+      "task_name": "Update CONTRIBUTING.md for ROADMAP.json Example Style",
+      "status": "Not Started",
+      "target_file": "CONTRIBUTING.md",
+      "depends_on": [],
+      "description": "Update the `CONTRIBUTING.md` file to include a style guide rule for providing Python code examples within `ROADMAP.json` descriptions. The rule should recommend preferring triple-single-quoted raw strings (`r'''...'''`) or careful escaping with single-quoted JSON strings (`'...'`) to avoid ambiguity and `SyntaxError` for LLMs."
     }
   ],
   "next_phase_actions": [

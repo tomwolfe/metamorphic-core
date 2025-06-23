@@ -373,13 +373,13 @@
     {
       "task_id": "task_1_8_2_F_4b_add_failing_tests",
       "priority": "High",
-      "task_name": "Add an Expected-to-Fail Unit Test for Context Leakage Detection",
+      "task_name": "Add Failing Unit Tests for Context Leakage Check",
       "status": "Not Started",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2_F_4a_create_test_class"
       ],
-      "description": "In `tests/test_phase1_8_features.py`, add a new test method to the `TestContextLeakageValidationUnittest` class. This method MUST use `pytest.mark.parametrize` to test multiple code snippets that *contain* context leakage indicators (e.g., '```python', 'As an AI...'). For each snippet, the test must assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `False`. This test is *expected to fail* initially, demonstrating the need for the function to correctly identify leakage. Ensure all test case strings are defined using triple quotes (`\"\"\"` or `'''`)."
+      "description": "In `tests/test_phase1_8_features.py`, add failing unit tests for `_validate_for_context_leakage`.\n**Part 1: Define Data.** Inside the `TestContextLeakageValidationUnittest` class, but outside any method, define a class-level variable named `LEAKAGE_SNIPPETS`. This variable must be a list of strings.\n**CRITICAL SYNTAX RULES:**\n1. To avoid syntax errors, define each string using raw, triple-double-quotes, like `r\"\"\"...\"\"\"`.\n2. If a snippet itself must contain `\"\"\"`, it must be escaped: `r\"\"\"This snippet contains \\\"\\\"\\\" escaped quotes.\"\"\"`.\n**Example Snippets:** `r\"\"\"```python\\nprint('hello')\\n```\"\"\"`, `r\"\"\"As an AI, I think...\"\"\"`.\n**Part 2: Create Test.** Add a new test method `test_context_leakage_detection_finds_leaks` to the class. This method must be decorated with `@pytest.mark.parametrize('snippet', TestContextLeakageValidationUnittest.LEAKAGE_SNIPPETS)`.\n**Part 3: Assert.** Inside the test method, call `WorkflowDriver._validate_for_context_leakage(snippet)` and assert that the result is `False`. This test is expected to fail until the validation logic is implemented."
     },
     {
       "task_id": "task_1_8_2_F_4c_add_passing_tests",
@@ -640,6 +640,17 @@
         "task_1_8_5"
       ],
       "description": "Introduce a new pre-write validation step in `WorkflowDriver.autonomous_loop`. Before writing the merged code, generate a diff between the original file content and the proposed merged content. If the diff indicates unintended modifications (e.g., changes outside the targeted area for a 'simple addition' task, or excessive unrelated lines), reject the change and provide specific feedback to the Coder LLM for remediation. This acts as a crucial guardrail against LLM over-generation or misinterpretation."
+    },
+    {
+      "task_id": "task_1_8_11_auto_refinement",
+      "priority": "High",
+      "task_name": "Implement Self-Healing Task Descriptions via Refinement Agent",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_10"
+      ],
+      "description": "Implement a mechanism for the system to self-correct by refining its own roadmap. When a task is marked 'Blocked' due to repeated step failures, a new 'Refinement Agent' should be invoked. This agent will analyze the blocked task's description, the failing step, and the final error message (reason_blocked). It will then generate a new, more detailed and prescriptive description for the task and patch the ROADMAP.json file. This allows the system to learn from its failures at a strategic level, not just a code-generation level. The agent should leverage error-specific templates (e.g., for syntax errors, add explicit formatting rules to the description)."
     }
   ],
   "next_phase_actions": [

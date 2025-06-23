@@ -371,15 +371,26 @@
       "description": "In `tests/test_phase1_8_features.py`, add `import unittest` at the top of the file, and then create a new empty `unittest.TestCase` class named `TestContextLeakageValidationUnittest`. The class should have a docstring explaining its purpose and a `pass` statement as its body. **This must be done in a single code modification step** to ensure the `import unittest` and its usage are added together, preventing 'unused import' errors."
     },
     {
-      "task_id": "task_1_8_2_F_4b_add_failing_tests",
+      "task_id": "task_1_8_2_F_4b_define_leakage_snippets",
       "priority": "High",
-      "task_name": "Add Failing Unit Tests for Context Leakage Check",
+      "task_name": "Define Context Leakage Snippets List",
       "status": "Not Started",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2_F_4a_create_test_class"
       ],
-      "description": "In `tests/test_phase1_8_features.py`, add failing unit tests for `_validate_for_context_leakage`.\n**Part 1: Define Data.** Inside the `TestContextLeakageValidationUnittest` class, but outside any method, define a class-level variable named `LEAKAGE_SNIPPETS`. This variable must be a list of strings.\n**CRITICAL SYNTAX RULES:**\n1. To avoid syntax errors, define each string using raw, triple-double-quotes, like `r\"\"\"...\"\"\"`.\n2. If a snippet itself must contain `\"\"\"`, it must be escaped: `r\"\"\"This snippet contains \\\"\\\"\\\" escaped quotes.\"\"\"`.\n**Example Snippets:** `r\"\"\"```python\\nprint('hello')\\n```\"\"\"`, `r\"\"\"As an AI, I think...\"\"\"`.\n**Part 2: Create Test.** Add a new test method `test_context_leakage_detection_finds_leaks` to the class. This method must be decorated with `@pytest.mark.parametrize('snippet', TestContextLeakageValidationUnittest.LEAKAGE_SNIPPETS)`.\n**Part 3: Assert.** Inside the test method, call `WorkflowDriver._validate_for_context_leakage(snippet)` and assert that the result is `False`. This test is expected to fail until the validation logic is implemented."
+      "description": "In `tests/test_phase1_8_features.py`, inside the `TestContextLeakageValidationUnittest` class, define a class-level variable named `LEAKAGE_SNIPPETS`. This variable must be a Python list of strings. Each string should be a simple example of context leakage. Use raw, triple-quoted strings for each entry (e.g., `r\"\"\"As an AI, I think...\"\"\"`). Do not include complex examples with nested triple quotes for this step."
+    },
+    {
+      "task_id": "task_1_8_2_F_4b_create_failing_test_method",
+      "priority": "High",
+      "task_name": "Create Failing Test Method for Context Leakage",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_2_F_4b_define_leakage_snippets"
+      ],
+      "description": "In `tests/test_phase1_8_features.py`, add a new test method `test_context_leakage_detection_finds_leaks` to the `TestContextLeakageValidationUnittest` class. This method must be decorated with `@pytest.mark.parametrize('snippet', TestContextLeakageValidationUnittest.LEAKAGE_SNIPPETS)`. Inside the test method, call `WorkflowDriver._validate_for_context_leakage(snippet)` and assert that the result is `False`. This test is expected to fail until the validation logic is implemented correctly."
     },
     {
       "task_id": "task_1_8_2_F_4c_add_passing_tests",
@@ -388,7 +399,7 @@
       "status": "Not Started",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
-        "task_1_8_2_F_4b_add_failing_tests"
+        "task_1_8_2_F_4b_create_failing_test_method"
       ],
       "description": "In `tests/test_phase1_8_features.py`, add another new test method to the `TestContextLeakageValidationUnittest` class. This method MUST use `pytest.mark.parametrize` to test multiple code snippets that *do not* contain any context leakage indicators. For each compliant snippet, the test must assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True`. Ensure all test case strings are defined using triple quotes (`\"\"\"` or `'''`)."
     },
@@ -651,6 +662,17 @@
         "task_1_8_10"
       ],
       "description": "Implement a mechanism for the system to self-correct by refining its own roadmap. When a task is marked 'Blocked' due to repeated step failures, a new 'Refinement Agent' should be invoked. This agent will analyze the blocked task's description, the failing step, and the final error message (reason_blocked). It will then generate a new, more detailed and prescriptive description for the task and patch the ROADMAP.json file. This allows the system to learn from its failures at a strategic level, not just a code-generation level. The agent should leverage error-specific templates (e.g., for syntax errors, add explicit formatting rules to the description)."
+    },
+    {
+      "task_id": "task_1_8_11b_failure_driven_decomposition",
+      "priority": "High",
+      "task_name": "Implement Failure-Driven Task Decomposition",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_11_auto_refinement"
+      ],
+      "description": "Enhance the Refinement Agent (from task_1_8_11_auto_refinement). When a task is blocked because a plan step failed all retries, and that step is not the last in the plan, the agent should attempt to decompose the task. It will split the original task into two: one containing the successful steps up to (but not including) the failure point, which will be marked as 'Completed'. The second, new task will be a copy of the original but with its plan starting from the failing step, and it will depend on the first part. This allows the system to make incremental progress on complex tasks that fail midway through their plan."
     }
   ],
   "next_phase_actions": [

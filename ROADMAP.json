@@ -385,7 +385,7 @@
       "task_id": "task_1_8_2_F_4b_create_failing_test_method",
       "priority": "High",
       "task_name": "Create Failing Test Method for Context Leakage",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2_F_4b_define_leakage_snippets"
@@ -442,7 +442,9 @@
       "task_name": "Implement Scoped Validation for Code Review and Ethics",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py,src/core/agents/code_review_agent.py",
-      "depends_on": ["task_1_8_2_H_lint_codebase"],
+      "depends_on": [
+        "task_1_8_2_H_lint_codebase"
+      ],
       "description": "Modify the validation logic in the WorkflowDriver to perform 'scoped' analysis. Instead of validating the entire file after a change, generate a diff of the proposed change and run linters (Flake8) and ethical checks only on the added/modified lines. This prevents the system from being blocked by pre-existing issues in a file and provides more targeted feedback to the Coder LLM."
     },
     {
@@ -693,6 +695,17 @@
       "target_file": "CONTRIBUTING.md",
       "depends_on": [],
       "description": "Update the `CONTRIBUTING.md` file to include a style guide rule for providing Python code examples within `ROADMAP.json` descriptions. The rule should recommend preferring triple-single-quoted raw strings (`r'''...'''`) or careful escaping with single-quoted JSON strings (`'...'`) to avoid ambiguity and `SyntaxError` for LLMs."
+    },
+    {
+      "task_id": "task_1_8_23_failing_test_success_criteria",
+      "priority": "High",
+      "task_name": "Implement Success Criteria for Intentionally Failing Tests",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_4"
+      ],
+      "description": "Enhance the `_parse_and_evaluate_grade_report` method to handle tasks that are expected to produce failing tests. Add a field to the task definition in `ROADMAP.json` (e.g., `\"expected_outcome\": \"tests_fail\"`). If this field is present, the grading logic should treat a 'failed' test status as a success for that specific task, allowing the system to proceed with Test-Driven Development workflows autonomously."
     }
   ],
   "next_phase_actions": [

@@ -342,13 +342,13 @@ class TestPhase1_8WorkflowDriverEnhancements:
             assert "Refined step description for CoderLLM" not in call_args[0][0]
 
         mock_task_data = {'task_id': 'test_task_impl', 'task_name': 'Test Implementation Task', 'description': 'Test implementation prompt.', 'target_file': 'src/core/automation/workflow_driver.py'}
-        mock_filepath_to_use = "src/core/automation/workflow_driver.py"
+        mock_filepath_to_use = "src/core/automation/workflow_driver.py" 
         mock_context_for_llm = "class WorkflowDriver:\n    pass"
         
         final_prompt = driver._construct_coder_llm_prompt(
             task=mock_task_data,
             step_description=step_description_for_coder, 
-            filepath_to_use=driver._validate_path(mock_filepath_to_use),
+            filepath_to_use=driver._validate_path(mock_filepath_to_use), 
             context_for_llm=mock_context_for_llm,
             is_minimal_context=False
         )
@@ -687,7 +687,7 @@ class TestContextExtraction:
         file_path = driver_for_context_tests.context.get_full_path("test_module.py")
     
         # Expected context: lines 0-8 (inclusive of line 0, exclusive of line 8)
-        # Corresponds to: "# Initial comment\nimport os\nimport sys\n\n# Comment between imports\nfrom pathlib import Path\n\n# Another comment"
+        # Corresponds to: "# Preamble\nimport os\nimport sys\n\nfrom pathlib import Path\n"
         expected_context = "\n".join(file_content.splitlines()[0:6])
         context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import json")
     
@@ -847,7 +847,7 @@ class TestContextExtraction:
         assert constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION in prompt
         assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
         # When is_minimal_context is True, the prompt uses CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION
-        # and CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, not CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.
+        # and constants.CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, not constants.CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.
         assert constants.CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
         assert constants.CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) not in prompt
         assert constants.CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) not in prompt
@@ -958,3 +958,17 @@ class TestContextLeakageValidationUnittest:
         r"""Based on the previous turn in our conversation...""",
         r"""Remember when I mentioned earlier that...""",
     ]
+
+    @pytest.mark.parametrize('snippet', LEAKAGE_SNIPPETS)
+    def test_context_leakage_detection_finds_leaks(self, snippet):
+        """
+        Tests that the context leakage detection mechanism correctly identifies
+        snippets that are expected to cause context leakage.
+
+        This test is expected to fail until the validation logic is implemented correctly.
+        """
+        # We need a driver instance to call the method.
+        # Since this is a unit-like test, we can create a simple one.
+        driver = WorkflowDriver(Context(os.getcwd()))
+        assert driver._validate_for_context_leakage(snippet) is False, \
+            f"Context leakage was not detected for a known leaky snippet. Snippet: {snippet!r}"

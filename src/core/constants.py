@@ -12,6 +12,9 @@ CONTEXT_LEAKAGE_INDICATORS: list[str] = [
     'As an AI language model',
     'I am a large language model',
     'I am an AI assistant',
+    'My apologies, but as an AI, I cannot fulfill that request.',
+    'Based on the previous turn in our conversation...',
+    'Remember when I mentioned earlier that...',
 ]
 
 # Workflow Driver Constants

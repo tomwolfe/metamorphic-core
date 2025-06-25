@@ -951,7 +951,7 @@ class WorkflowDriver:
 
                                     success, generated_output_content = self._execute_code_generation_step(
                                         step, filepath_to_use, original_full_content,
-                                        retry_feedback_for_llm_prompt if step_retries > 0 else None
+                                        retry_feedback_for_llm_prompt if step_retries > 0 else None, step_retries
                                     )
                                     if success:
                                         code_written_in_iteration = True
@@ -1213,7 +1213,7 @@ class WorkflowDriver:
             logger.info('Autonomous loop iteration finished.')
         logger.info('Autonomous loop terminated.')
 
-    def _execute_code_generation_step(self, step: str, filepath_to_use: str, original_full_content: str, retry_feedback_for_llm_prompt: Optional[str]) -> Tuple[bool, Optional[str]]:
+    def _execute_code_generation_step(self, step: str, filepath_to_use: str, original_full_content: str, retry_feedback_for_llm_prompt: Optional[str], step_retries: int) -> Tuple[bool, Optional[str]]:
         """
         Executes the code generation and writing logic for a given step.
         Returns (success_status, generated_content_if_successful).
@@ -2887,4 +2887,3 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
-        return None

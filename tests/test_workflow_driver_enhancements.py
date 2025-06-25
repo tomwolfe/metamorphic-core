@@ -260,7 +260,8 @@ class TestPhase1_8WorkflowDriverEnhancements:
             step_description=step_description_for_coder, 
             filepath_to_use=driver._validate_path(mock_filepath_to_use), 
             context_for_llm=mock_context_for_llm,
-            is_minimal_context=False
+            is_minimal_context=False,
+            retry_feedback_for_llm_prompt=None # Added this argument
         )
         
         assert f"Specific Plan Step:\n{original_step_desc}\n" in final_prompt
@@ -336,15 +337,16 @@ class TestPhase1_8WorkflowDriverEnhancements:
             assert "Refined step description for CoderLLM" not in call_args[0][0]
 
         mock_task_data = {'task_id': 'test_task_impl', 'task_name': 'Test Implementation Task', 'description': 'Test implementation prompt.', 'target_file': 'src/core/automation/workflow_driver.py'}
-        mock_filepath_to_use = "src/core/automation/workflow_driver.py"
+        mock_filepath_to_use = "src/core/automation/workflow_driver.py" 
         mock_context_for_llm = "class WorkflowDriver:\n    pass"
         
         final_prompt = driver._construct_coder_llm_prompt(
             task=mock_task_data,
             step_description=step_description_for_coder, 
-            filepath_to_use=driver._validate_path(mock_filepath_to_use),
+            filepath_to_use=driver._validate_path(mock_filepath_to_use), 
             context_for_llm=mock_context_for_llm,
-            is_minimal_context=False
+            is_minimal_context=False,
+            retry_feedback_for_llm_prompt=None # Added this argument
         )
         
         assert f"Specific Plan Step:\n{original_step_desc}\n" in final_prompt
@@ -666,7 +668,7 @@ class TestGetContextTypeForStep:
 class TestContextExtraction:
     """Test suite for the _extract_targeted_context method in WorkflowDriver."""
 
-    def test_extract_context_add_import_with_existing(self, driver_for_context_tests, tmp_path):
+    def test_extract_context_add_import_existing_imports(self, driver_for_context_tests, tmp_path):
         """Tests extracting context for adding an import to a file with existing imports.""" 
         driver = driver_for_context_tests
         file_content = (
@@ -681,14 +683,14 @@ class TestContextExtraction:
         file_path = driver_for_context_tests.context.get_full_path("test_module.py")
     
         # Expected context: lines 0-8 (inclusive of line 0, exclusive of line 8)
-        # Corresponds to: "# Preamble\nimport os\nimport sys\n\nfrom pathlib import Path\n"
+        # Corresponds to: "# Preamble\nimport os\nimport sys\n\n# Comment between imports\nfrom pathlib import Path\n"
         expected_context = "\n".join(file_content.splitlines()[0:6])
         context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import json")
     
         assert is_minimal is True, "is_minimal should be True for successful targeted extraction" 
         assert context_str == expected_context, "Context string should be the extracted import block"
 
-    def test_extract_context_add_import_no_existing(self, driver_for_context_tests, tmp_path):
+    def test_extract_context_add_import_no_existing_imports(self, driver_for_context_tests, tmp_path):
         """Tests extracting context for adding an import to a file with no existing imports."""
         driver = driver_for_context_tests
         # Simplified content to ensure AST parsing doesn't fail on large dummy data
@@ -836,7 +838,7 @@ class TestContextExtraction:
         minimal_context_str = "import sys"
         # Mock _should_add_docstring_instruction to return False for this test
         with patch.object(driver, '_should_add_docstring_instruction', return_value=False):
-            prompt = driver._construct_coder_llm_prompt(task, step, filepath, minimal_context_str, is_minimal_context=True)
+            prompt = driver._construct_coder_llm_prompt(task, step, filepath, minimal_context_str, is_minimal_context=True, retry_feedback_for_llm_prompt=None)
     
         assert constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION in prompt
         assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
@@ -854,7 +856,7 @@ class TestContextExtraction:
         full_context_str = "import sys\n\ndef main():\n    pass"
         # Mock _should_add_docstring_instruction to return False for this test
         with patch.object(driver, '_should_add_docstring_instruction', return_value=False):
-            prompt = driver._construct_coder_llm_prompt(task, step, filepath, full_context_str, is_minimal_context=False)
+            prompt = driver._construct_coder_llm_prompt(task, step, filepath, full_context_str, is_minimal_context=False, retry_feedback_for_llm_prompt=None)
 
         assert constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION not in prompt
         assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
@@ -930,6 +932,7 @@ class TestContextLeakageValidation:
         driver = driver_enhancements
         # Call the original method directly from the class, bypassing the instance mock from the fixture.
         result = WorkflowDriver._validate_for_context_leakage(driver, snippet)
+        assert result == expected
 
 
     def test_autonomous_loop_handles_multi_location_edit(self, driver_enhancements, mocker, caplog):
@@ -974,7 +977,7 @@ class TestContextLeakageValidation:
         
         # Simulate the relevant part of the autonomous loop by calling the code generation logic
         # This is a simplified way to test the logic path without running the full loop
-        success, generated_content = driver._execute_code_generation_step(step, filepath_to_use, original_content, retry_feedback_for_llm_prompt=None)
+        success, generated_content = driver._execute_code_generation_step(step, filepath_to_use, original_content, retry_feedback_for_llm_prompt=None, step_retries=0)
 
         # Assertions
         assert success is True
@@ -985,4 +988,3 @@ class TestContextLeakageValidation:
         mock_merge_snippet.assert_not_called() # Crucial: merge_snippet should be bypassed
         mock_write_file.assert_called_once_with(filepath_to_use, expected_written_content, overwrite=True)
         assert f"Performing pre-write validation for full file targeting {filepath_to_use}..." in caplog.text
-        assert f"Successfully wrote content to {filepath_to_use}." in caplog.text

@@ -196,17 +196,23 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_F_3_integrate_call']
 
-*   **Task ID**: task_1_8_2_F_4b_add_failing_tests
+*   **Task ID**: task_1_8_2_F_4b_define_leakage_snippets
     *   **Priority**: High
-    *   **Task Name**: Add an Expected-to-Fail Unit Test for Context Leakage Detection
-    *   **Status**: Not Started
+    *   **Task Name**: Define Context Leakage Snippets List
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_F_4a_create_test_class']
+
+*   **Task ID**: task_1_8_2_F_4b_create_failing_test_method
+    *   **Priority**: High
+    *   **Task Name**: Create Failing Test Method for Context Leakage
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_2_F_4b_define_leakage_snippets']
 
 *   **Task ID**: task_1_8_2_F_4c_add_passing_tests
     *   **Priority**: High
     *   **Task Name**: Add Passing Unit Tests for Compliant Snippets
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_4b_add_failing_tests']
+    *   **Depends On**: ['task_1_8_2_F_4b_create_failing_test_method']
 
 *   **Task ID**: task_1_8_2_G_atomic_planner
     *   **Priority**: Critical
@@ -333,4 +339,34 @@
     *   **Task Name**: Implement Pre-Write Diff Validation Guardrail
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_improve_snippet_handling', 'task_1_8_5']
+
+*   **Task ID**: task_1_8_11_auto_refinement
+    *   **Priority**: High
+    *   **Task Name**: Implement Self-Healing Task Descriptions via Refinement Agent
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_10']
+
+*   **Task ID**: task_1_8_11b_failure_driven_decomposition
+    *   **Priority**: High
+    *   **Task Name**: Implement Failure-Driven Task Decomposition
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_11_auto_refinement']
+
+*   **Task ID**: task_1_8_21_raw_string_validation
+    *   **Priority**: High
+    *   **Task Name**: Implement Targeted Raw String Literal Validation
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_improve_snippet_handling']
+
+*   **Task ID**: task_1_8_22_roadmap_example_style_guide
+    *   **Priority**: Medium
+    *   **Task Name**: Update CONTRIBUTING.md for ROADMAP.json Example Style
+    *   **Status**: Not Started
+    *   **Depends On**: []
+
+*   **Task ID**: task_1_8_23_failing_test_success_criteria
+    *   **Priority**: High
+    *   **Task Name**: Implement Success Criteria for Intentionally Failing Tests
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_4']
 

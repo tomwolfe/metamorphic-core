@@ -261,7 +261,7 @@ class TestPhase1_8WorkflowDriverEnhancements:
             filepath_to_use=driver._validate_path(mock_filepath_to_use), 
             context_for_llm=mock_context_for_llm,
             is_minimal_context=False,
-            retry_feedback_for_llm_prompt=None # Added this argument
+            retry_feedback_content=None 
         )
         
         assert f"Specific Plan Step:\n{original_step_desc}\n" in final_prompt
@@ -346,7 +346,7 @@ class TestPhase1_8WorkflowDriverEnhancements:
             filepath_to_use=driver._validate_path(mock_filepath_to_use), 
             context_for_llm=mock_context_for_llm,
             is_minimal_context=False,
-            retry_feedback_for_llm_prompt=None # Added this argument
+            retry_feedback_content=None 
         )
         
         assert f"Specific Plan Step:\n{original_step_desc}\n" in final_prompt
@@ -515,7 +515,7 @@ class TestClassifyPlanStep:
         description = "Review the code for bugs."
         assert classify_plan_step(description) == 'conceptual'
         assert "SpaCy model 'en_core_web_sm' not found" in caplog.text
-        assert "Falling back to regex-based classification" in caplog.text
+        assert "Falling back to regex-based classification." in caplog.text
 
 
 class TestIsSimpleAdditionPlanStep:
@@ -838,7 +838,7 @@ class TestContextExtraction:
         minimal_context_str = "import sys"
         # Mock _should_add_docstring_instruction to return False for this test
         with patch.object(driver, '_should_add_docstring_instruction', return_value=False):
-            prompt = driver._construct_coder_llm_prompt(task, step, filepath, minimal_context_str, is_minimal_context=True, retry_feedback_for_llm_prompt=None)
+            prompt = driver._construct_coder_llm_prompt(task, step, filepath, minimal_context_str, is_minimal_context=True, retry_feedback_content=None)
     
         assert constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION in prompt
         assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
@@ -856,7 +856,7 @@ class TestContextExtraction:
         full_context_str = "import sys\n\ndef main():\n    pass"
         # Mock _should_add_docstring_instruction to return False for this test
         with patch.object(driver, '_should_add_docstring_instruction', return_value=False):
-            prompt = driver._construct_coder_llm_prompt(task, step, filepath, full_context_str, is_minimal_context=False, retry_feedback_for_llm_prompt=None)
+            prompt = driver._construct_coder_llm_prompt(task, step, filepath, full_context_str, is_minimal_context=False, retry_feedback_content=None)
 
         assert constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION not in prompt
         assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt

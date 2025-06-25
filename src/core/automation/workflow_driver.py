@@ -880,39 +880,32 @@ class WorkflowDriver:
                                 if prelim_flags.get('is_shell_command_step_prelim'):
                                     logger.info(f"Step identified as shell command. Skipping agent invocation/file write for step: {step}")
                                 elif prelim_flags['is_test_execution_step_prelim']:
-                                    logger.info(f"Step identified as test execution. Running tests for step: {step}")
+                                    logger.info(f"Step identified as test execution. Running tests for step: '{step}'")
                                     test_command = ["pytest"]
-                                    test_target_path = "tests/" # Default test path relative to base_path
-                                    # Determine the specific test target path if possible
-                                    # Use _resolve_target_file_for_step to get the resolved path for the task target
-                                    # Consider if the step description itself might contain a specific test file path.
-                                    resolved_task_target = self._resolve_target_file_for_step(step, self.task_target_file, prelim_flags) # Use step context too
-
-                                    if resolved_task_target and "test_" in Path(resolved_task_target).name.lower():
-                                        # If the task target file looks like a test file, use its resolved path
-                                        test_target_path = resolved_task_target
-                                        logger.info(f"Running tests specifically for task target file: {test_target_path}")
-                                    elif filepath_to_use and "test_" in Path(filepath_to_use).name.lower():
-                                        # If _resolve_target_file_for_step found a test file path in the step, use it
-                                        test_target_path = filepath_to_use
-                                        logger.info(f"Running tests specifically for target file identified in step: {test_target_path}")
+                                    test_target_path = None
+                                    
+                                    # New, simplified logic: Prioritize task context, then parse step, then fallback.
+                                    if self.task_target_file and "test_" in Path(self.task_target_file).name.lower():
+                                        test_target_path = self.task_target_file
+                                        logger.info(f"Using task's target_file for test execution: {test_target_path}")
                                     else:
-                                        # Otherwise, default to the 'tests/' directory relative to the base path
-                                        # Resolve the default 'tests/' path using context
-                                        resolved_default_test_path = self.context.get_full_path("tests") # Pass "tests" not "tests/"
-                                        if resolved_default_test_path:
-                                            test_target_path = resolved_default_test_path
-                                            # Updated log message to match assertion in test_workflow_validation_execution.py
-                                            logger.info(f"No specific test file identified for step or task. Running all tests in '{test_target_path}'.")
+                                        # Fallback to parsing the step description for a specific pytest command.
+                                        specific_test_target_match = re.search(r'pytest\s+([/\w\.\-:]+\.py(?:::\w+)*)', step, re.IGNORECASE)
+                                        if specific_test_target_match:
+                                            target_from_step = specific_test_target_match.group(1).split('::')[0]
+                                            if self.file_exists(target_from_step):
+                                                test_target_path = specific_test_target_match.group(1)
+                                                logger.info(f"Found specific test target in plan step: {test_target_path}")
+                                            else:
+                                                logger.warning(f"Test target file '{target_from_step}' from step not found. Defaulting to 'tests/'.")
+                                                test_target_path = "tests/"
                                         else:
-                                            logger.error("Could not resolve default 'tests/' path. Cannot run tests.")
-                                            # Add error to task results
-                                            self._current_task_results['step_errors'].append(f"Step {step_index + 1} failed: Could not resolve default test path.")
-                                            raise RuntimeError("Could not resolve default test path.") # Trigger retry/failure
-
+                                            # Final fallback if no other target is found.
+                                            test_target_path = "tests/"
+                                            logger.warning(f"No valid test target found in task or step. Defaulting to '{test_target_path}'.")
 
                                     test_command.append(test_target_path)
-
+ 
                                     try:
                                         # Execute tests from the base path context
                                         # Assumes execute_tests is safe and handles subprocess execution correctly.
@@ -923,22 +916,18 @@ class WorkflowDriver:
                                         self._current_task_results['test_stderr'] = stderr
                                         self._current_task_results['last_test_command'] = test_command
                                         self._current_task_results['last_test_cwd'] = self.context.base_path
-
+ 
                                         logger.info(f"Test Execution Results: Status={test_results.get('status')}, Passed={test_results.get('passed')}, Failed={test_results.get('failed')}, Total={test_results.get('total')}")
                                         # If tests fail or have errors, raise an exception to trigger step retries
-                                        if test_results.get('status') == 'failed':
-                                            error_msg = f"Tests failed for step: {step}. Raw stderr:\n{stderr}"
+                                        if test_results.get('status') in ['failed', 'error']:
+                                            failure_details = stderr.strip() if stderr and stderr.strip() else stdout
+                                            error_msg = f"Tests failed for step: {step}. Raw output:\n{failure_details}"
                                             logger.error(error_msg)
                                             step_failure_reason = error_msg
                                             raise RuntimeError("Tests failed for step.")
-                                        elif test_results.get('status') == 'error':
-                                            error_msg = f"Test execution or parsing error for step: {step}. Message: {test_results.get('message')}. Raw stderr:\n{stderr}"
-                                            logger.error(error_msg)
-                                            step_failure_reason = error_msg
-                                            raise RuntimeError(f"Test execution or parsing error: {test_results.get('message')}")
                                         # If status is 'passed', the step succeeded.
                                         step_succeeded = True # Mark step as successful
-
+ 
                                     except Exception as e:
                                         # Catch any exception during command execution or test parsing
                                         error_msg = f"An unexpected error occurred during command execution or test parsing: {e}"
@@ -1282,7 +1271,7 @@ class WorkflowDriver:
             filepath_to_use,
             context_for_llm,
             is_minimal,
-            retry_feedback_for_llm_prompt
+            retry_feedback_for_llm_prompt if step_retries > 0 else None
         )
         self.logger.debug("Invoking Coder LLM with prompt (first 500 chars):\n%s", coder_prompt[:500])
         generated_output = self._invoke_coder_llm(coder_prompt)
@@ -1318,7 +1307,44 @@ class WorkflowDriver:
             validation_passed = False
             error_msg = f"Pre-write syntax check failed: {se.msg} on line {se.lineno}."
             validation_feedback.append(error_msg)
-            self.logger.warning(f"Pre-write syntax validation failed for {filepath_to_use}: {se}")
+            self.logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se}")
+            self.logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_output}\n---")
+            # --- START of manual addition for task_1_8_improve_snippet_handling sub-task 1 ---
+            try:
+                debug_dir_name = ".debug/failed_snippets"
+                debug_dir_path_str = self.context.get_full_path(debug_dir_name)
+                if debug_dir_path_str:
+                    debug_dir = Path(debug_dir_path_str)
+                    debug_dir.mkdir(parents=True, exist_ok=True)
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+                    current_task_id_str = getattr(self, '_current_task', {}).get('task_id', 'unknown_task')
+                    sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', current_task_id_str)
+                    current_step_index_str = str(step_index + 1)
+
+                    filename = f"failed_snippet_{sanitized_task_id}_step{current_step_index_str}_{timestamp}.json"
+                    filepath = debug_dir / filename
+
+                    debug_data = {
+                        "timestamp": datetime.now().isoformat(),
+                        "task_id": current_task_id_str,
+                        "step_description": step, # Use the original step description
+                        "original_snippet_repr": repr(generated_output),
+                        "cleaned_snippet_repr": repr(cleaned_output),
+                        "syntax_error_details": {
+                            "message": se.msg,
+                            "lineno": se.lineno,
+                            "offset": se.offset,
+                            "text": se.text
+                        }
+                    }
+                    with builtins.open(filepath, 'w', encoding='utf-8') as f_err:
+                        json.dump(debug_data, f_err, indent=2)
+                    self.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
+                else:
+                    self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
+            except Exception as write_err:
+                self.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
+            # --- END of manual addition ---
 
         if validation_passed: # Check validation_passed again after previous check
             if not self._validate_for_context_leakage(content_for_validation):
@@ -1370,11 +1396,11 @@ class WorkflowDriver:
         step_lower = step_description.lower()
         filepath_from_step_match = re.search(r'(\S+\.(?:py|md|json|txt|yml|yaml))', step_description, re.IGNORECASE)
         filepath_from_step = filepath_from_step_match.group(1) if filepath_from_step_match else None
-        code_generation_verbs_prelim = ["implement", "generate code", "write function", "modify", "add", "define", "create", "update", "refactor", "write", "insert"]
+        code_generation_verbs_prelim = ["implement", "generate code", "write function", "modify", "add", "define", "create", "update", "refactor", "write", "insert", "ensure"]
         research_keywords_check_prelim = ["research and identify", "research", "analyze", "investigate", "understand"]
         code_element_keywords_check_prelim = ["import", "constant", "variable", "function", "class", "method", "definition", "parameter", "return", "loop", "structure", "block", "snippet", "counter"]
         file_writing_keywords_check_prelim = ["write", "write file", "create", "create file", "update", "update file", "modify", "modify file", "save to file", "output file", "generate file", "write output to"]
-        test_execution_keywords_check_prelim = ["run tests", "execute tests", "verify tests", "pytest", "test suite", "run test cases"] # Added "run test cases"
+        test_execution_keywords_check_prelim = ["run tests", "execute tests", "verify tests", "test suite", "run test cases"]
         shell_command_keywords_prelim = ["git", "branch", "commit", "push", "checkout", "merge", "pull", "docker", "ls", "cd", "mkdir", "navigate to"]
 
         # Consider task_target_file if filepath_from_step is None for classification
@@ -1382,7 +1408,7 @@ class WorkflowDriver:
         if not effective_filepath_for_classification and task_target_file_spec:
             targets = [f.strip() for f in task_target_file_spec.split(',') if f.strip()]
             if targets:
-                effective_filepath_for_classification = targets[0] # Use the first target for classification
+                effective_filepath_for_classification = targets[0]
 
         # Enhanced test writing keywords for PhraseMatcher
         test_writing_keywords_for_matcher = [
@@ -2861,3 +2887,4 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
+        return None

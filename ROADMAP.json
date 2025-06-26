@@ -192,7 +192,7 @@
       "task_id": "task_1_8_18_fix_string_literal_prompting",
       "priority": "Critical",
       "task_name": "Harden CoderLLM Prompting to Prevent String Literal Syntax Errors",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/constants.py",
       "depends_on": [
         "task_1_8_improve_snippet_handling"

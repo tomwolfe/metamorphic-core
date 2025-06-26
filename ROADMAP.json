@@ -189,6 +189,17 @@
       "description": "The system frequently encounters syntax errors (e.g., 'unterminated string literal', 'unexpected indent') during pre-write validation (`ast.parse`) of CoderLLM-generated snippets or after merging. This blocks autonomous development. This task aims to improve robustness: 1. **Enhanced Logging:** (Completed) Modify `WorkflowDriver._invoke_coder_llm` to save the exact `generated_snippet` string (using `repr()`) to a temporary file if `ast.parse` fails, to capture hidden characters/malformations for debugging. 2. **Prompt Refinement:** (Completed) Review and refine CoderLLM prompts in `workflow_driver.py` to explicitly guide the LLM to output syntactically correct, complete, and context-aware code snippets, minimizing issues with string literals, indentation, and partial outputs. 3. **Merge Strategy Review:** (Completed) Modify the `_merge_snippet` method in `workflow_driver.py` to attempt basic indentation adjustment of the snippet if `METAMORPHIC_INSERT_POINT` is found. 4. **Pre-Merge Full File Syntax Check:** (Completed) Before `_merge_snippet` is called, create a temporary in-memory version of the target file content with the snippet hypothetically inserted at the `METAMORPHIC_INSERT_POINT`. Attempt `ast.parse()` on this *full temporary content*. If this full parse fails, the step should fail with specific feedback indicating an integration syntax error, rather than just the snippet failing."
     },
     {
+      "task_id": "task_1_8_18_fix_string_literal_prompting",
+      "priority": "Critical",
+      "task_name": "Harden CoderLLM Prompting to Prevent String Literal Syntax Errors",
+      "status": "Not Started",
+      "target_file": "src/core/constants.py",
+      "depends_on": [
+        "task_1_8_improve_snippet_handling"
+      ],
+      "description": "The CoderLLM is repeatedly generating snippets with `SyntaxError: unterminated triple-quoted string literal`. To fix this, modify the `GENERAL_SNIPPET_GUIDELINES` constant in `src/core/constants.py`. Add a new, high-priority rule at the top of the guidelines under a heading like `CRITICAL SYNTAX RULES`. This rule must explicitly instruct the LLM on how to correctly handle string literals to avoid this specific error. Key points to include in the instruction are: 1. All string literals MUST be correctly terminated with matching quotes. 2. Be extremely careful with raw strings (r'...'), as a backslash (`\\`) cannot be the final character. 3. When a string literal must contain code (like a test case or a prompt), ALWAYS use triple quotes (`\"\"\"` or `'''`). Provide clear examples of correct and incorrect usage."
+    },
+    {
       "task_id": "task_1_8_A_optimize_large_context_epic",
       "priority": "Critical",
       "task_name": "EPIC: Optimize Large Context Handling for Code Generation Steps",
@@ -431,7 +442,8 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_2_F_4c_syntax_fix"
+        "task_1_8_2_F_4c_syntax_fix",
+        "task_1_8_18_fix_string_literal_prompting"
       ],
       "description": "Modify the pre-write validation logic in `WorkflowDriver`. When a `SyntaxError` occurs during the hypothetical merge check, analyze the error's line number. If the error line is outside the line range of the inserted snippet, the system should identify it as a pre-existing source file error. It should then block the current task and create a new, high-priority 'fix syntax error' task targeting the source file."
     },

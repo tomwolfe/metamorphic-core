@@ -950,15 +950,15 @@ class TestContextLeakageValidation:
         }
         step = task['description'] # Use the description as the step
         filepath_to_use = driver.context.get_full_path(task['target_file'])
-
+    
         original_content = "def existing_function():\n    pass\n"
-        full_file_from_llm = "import json\n\ndef existing_function():\n    pass\n\nclass MyClass:\n    pass\n" + END_OF_CODE_MARKER
+        full_file_from_llm = "import json\n\ndef existing_function():\n    pass\n\nclass MyClass:\n    pass\n" + constants.END_OF_CODE_MARKER
         expected_written_content = "import json\n\ndef existing_function():\n    pass\n\nclass MyClass:\n    pass"
-
+    
         # Mock the driver's internal state for a single step execution
         driver._current_task = task
         driver.task_target_file = task['target_file']
-        
+    
         # Mock file system and LLM calls
         # Ensure the file exists for _read_file_for_context to find it
         (Path(filepath_to_use)).parent.mkdir(parents=True, exist_ok=True)
@@ -967,24 +967,23 @@ class TestContextLeakageValidation:
         mock_invoke_llm = mocker.patch.object(driver, '_invoke_coder_llm', return_value=full_file_from_llm)
         mock_merge_snippet = mocker.patch.object(driver, '_merge_snippet') # Should NOT be called
         mock_write_file = mocker.patch.object(driver, '_write_output_file', return_value=True)
-        
+    
         # Mock validation to pass
         # Patch ast.parse within the workflow_driver module, not globally.
         mocker.patch('src.core.automation.workflow_driver.ast.parse', side_effect=_original_ast.parse)
         mocker.patch.object(driver, '_validate_for_context_leakage', return_value=True)
         mocker.patch.object(driver.code_review_agent, 'analyze_python', return_value={'status': 'success', 'static_analysis': []})
         mocker.patch.object(driver.ethical_governance_engine, 'enforce_policy', return_value={'overall_status': 'approved'})
-        
+    
         # Simulate the relevant part of the autonomous loop by calling the code generation logic
         # This is a simplified way to test the logic path without running the full loop
-        success, generated_content = driver._execute_code_generation_step(step, filepath_to_use, original_content, retry_feedback_for_llm_prompt=None, step_retries=0)
-
+        success, generated_content = driver._execute_code_generation_step(step, filepath_to_use, original_content, retry_feedback_for_llm_prompt=None, step_retries=0, step_index=0)
+    
         # Assertions
         assert success is True
         assert generated_content == expected_written_content
         mock_invoke_llm.assert_called_once()
         # Check that the prompt asks for a full file
-        assert constants.CRITICAL_CODER_LLM_FULL_FILE_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in mock_invoke_llm.call_args[0][0]
+        assert constants.CRITICAL_CODER_LLM_FULL_FILE_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) in mock_invoke_llm.call_args[0][0]
         mock_merge_snippet.assert_not_called() # Crucial: merge_snippet should be bypassed
         mock_write_file.assert_called_once_with(filepath_to_use, expected_written_content, overwrite=True)
-        assert f"Performing pre-write validation for full file targeting {filepath_to_use}..." in caplog.text

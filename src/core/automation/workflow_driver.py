@@ -507,8 +507,8 @@ class WorkflowDriver:
 
         Args:
             current_step_description: The text description of the plan step.
-            task_target_file_spec: The 'target_file' string from the task definition,
-                                   which might be a single file or comma-separated list.
+            task_target_file_spec: The 'target_file' string from the task definition.
+                                   Which might be a single file or comma-separated list.
             prelim_flags: Preliminary classification flags for the step.
 
         Returns:
@@ -951,7 +951,7 @@ class WorkflowDriver:
 
                                     success, generated_output_content = self._execute_code_generation_step(
                                         step, filepath_to_use, original_full_content,
-                                        retry_feedback_for_llm_prompt if step_retries > 0 else None, step_retries
+                                        retry_feedback_for_llm_prompt if step_retries > 0 else None, step_retries, step_index
                                     )
                                     if success:
                                         code_written_in_iteration = True
@@ -1213,7 +1213,7 @@ class WorkflowDriver:
             logger.info('Autonomous loop iteration finished.')
         logger.info('Autonomous loop terminated.')
 
-    def _execute_code_generation_step(self, step: str, filepath_to_use: str, original_full_content: str, retry_feedback_for_llm_prompt: Optional[str], step_retries: int) -> Tuple[bool, Optional[str]]:
+    def _execute_code_generation_step(self, step: str, filepath_to_use: str, original_full_content: str, retry_feedback_for_llm_prompt: Optional[str], step_retries: int, step_index: int) -> Tuple[bool, Optional[str]]:
         """
         Executes the code generation and writing logic for a given step.
         Returns (success_status, generated_content_if_successful).
@@ -1304,47 +1304,58 @@ class WorkflowDriver:
             ast.parse(content_for_ast_check)
             self.logger.info("Pre-write full file syntax check (AST parse) passed.")
         except SyntaxError as se:
-            validation_passed = False
-            error_msg = f"Pre-write syntax check failed: {se.msg} on line {se.lineno}."
-            validation_feedback.append(error_msg)
-            self.logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se}")
-            self.logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_output}\n---")
-            # --- START of manual addition for task_1_8_improve_snippet_handling sub-task 1 ---
+            # Differentiate between pre-existing syntax errors and snippet-introduced errors.
             try:
-                debug_dir_name = ".debug/failed_snippets"
-                debug_dir_path_str = self.context.get_full_path(debug_dir_name)
-                if debug_dir_path_str:
-                    debug_dir = Path(debug_dir_path_str)
-                    debug_dir.mkdir(parents=True, exist_ok=True)
-                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-                    current_task_id_str = getattr(self, '_current_task', {}).get('task_id', 'unknown_task')
-                    sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', current_task_id_str)
-                    current_step_index_str = str(step_index + 1)
+                # Attempt to parse the original file content. `ast.parse("")` is valid.
+                ast.parse(original_full_content)
+            except SyntaxError as original_se:
+                # The syntax error was in the original file, not introduced by the snippet.
+                error_msg = f"Pre-existing syntax error in source file {filepath_to_use} on line {original_se.lineno}: {original_se.msg}. Cannot apply snippet."
+                self.logger.error(error_msg)
+                validation_feedback.append(error_msg)
+                validation_passed = False
+            else:
+                # The syntax error was introduced by the snippet or the merge.
+                validation_passed = False
+                error_msg = f"Pre-write syntax check failed: {se.msg} on line {se.lineno}."
+                validation_feedback.append(error_msg)
+                self.logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se}")
+                self.logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_output}\n---")
+                # Attempt to save malformed snippet details for debugging
+                try:
+                    debug_dir_name = ".debug/failed_snippets"
+                    debug_dir_path_str = self.context.get_full_path(debug_dir_name)
+                    if debug_dir_path_str:
+                        debug_dir = Path(debug_dir_path_str)
+                        debug_dir.mkdir(parents=True, exist_ok=True)
+                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+                        current_task_id_str = getattr(self, '_current_task', {}).get('task_id', 'unknown_task')
+                        sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', current_task_id_str)
+                        current_step_index_str = str(step_index + 1)
 
-                    filename = f"failed_snippet_{sanitized_task_id}_step{current_step_index_str}_{timestamp}.json"
-                    filepath = debug_dir / filename
+                        filename = f"failed_snippet_{sanitized_task_id}_step{current_step_index_str}_{timestamp}.json"
+                        filepath = debug_dir / filename
 
-                    debug_data = {
-                        "timestamp": datetime.now().isoformat(),
-                        "task_id": current_task_id_str,
-                        "step_description": step, # Use the original step description
-                        "original_snippet_repr": repr(generated_output),
-                        "cleaned_snippet_repr": repr(cleaned_output),
-                        "syntax_error_details": {
-                            "message": se.msg,
-                            "lineno": se.lineno,
-                            "offset": se.offset,
-                            "text": se.text
+                        debug_data = {
+                            "timestamp": datetime.now().isoformat(),
+                            "task_id": current_task_id_str,
+                            "step_description": step,
+                            "original_snippet_repr": repr(generated_output),
+                            "cleaned_snippet_repr": repr(cleaned_output),
+                            "syntax_error_details": {
+                                "message": se.msg,
+                                "lineno": se.lineno,
+                                "offset": se.offset,
+                                "text": se.text
+                            }
                         }
-                    }
-                    with builtins.open(filepath, 'w', encoding='utf-8') as f_err:
-                        json.dump(debug_data, f_err, indent=2)
-                    self.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
-                else:
-                    self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
-            except Exception as write_err:
-                self.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
-            # --- END of manual addition ---
+                        with builtins.open(filepath, 'w', encoding='utf-8') as f_err:
+                            json.dump(debug_data, f_err, indent=2)
+                        self.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
+                    else:
+                        self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
+                except Exception as write_err:
+                    self.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
 
         if validation_passed: # Check validation_passed again after previous check
             if not self._validate_for_context_leakage(content_for_validation):
@@ -2887,3 +2898,4 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
+        return None

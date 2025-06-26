@@ -393,13 +393,23 @@
       "description": "In `tests/test_phase1_8_features.py`, add a new test method `test_context_leakage_detection_finds_leaks` to the `TestContextLeakageValidationUnittest` class. This method must be decorated with `@pytest.mark.parametrize('snippet', TestContextLeakageValidationUnittest.LEAKAGE_SNIPPETS)`. Inside the test method, call `WorkflowDriver._validate_for_context_leakage(snippet)` and assert that the result is `False`. This test is expected to fail until the validation logic is implemented correctly."
     },
     {
+      "task_id": "task_1_8_2_F_4c_syntax_fix",
+      "priority": "Critical",
+      "task_name": "Fix Pre-existing Syntax Error in test_phase1_8_features.py",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [],
+      "description": "The file `tests/test_phase1_8_features.py` contains a `SyntaxError: unterminated string literal` on line 262 (or nearby), specifically `mock_context_for_llm = \"class WorkflowDriver:\\n`. This string literal needs to be corrected to use triple quotes (`\"\"\"` or `'''`) to properly span multiple lines and be correctly terminated. This task is critical to unblock further development on `task_1_8_2_F_4c_add_passing_tests` and subsequent tasks."
+    },
+    {
       "task_id": "task_1_8_2_F_4c_add_passing_tests",
       "priority": "High",
       "task_name": "Add Passing Unit Tests for Compliant Snippets",
       "status": "Not Started",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
-        "task_1_8_2_F_4b_create_failing_test_method"
+        "task_1_8_2_F_4b_create_failing_test_method",
+        "task_1_8_2_F_4c_syntax_fix"
       ],
       "description": "In `tests/test_phase1_8_features.py`, add another new test method to the `TestContextLeakageValidationUnittest` class. This method MUST use `pytest.mark.parametrize` to test multiple code snippets that *do not* contain any context leakage indicators. For each compliant snippet, the test must assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True`. Ensure all test case strings are defined using triple quotes (`\"\"\"` or `'''`)."
     },

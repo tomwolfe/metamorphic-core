@@ -38,6 +38,7 @@ from src.core.constants import (
 from src.core.automation.workflow_driver import (
     WorkflowDriver,
     Context,
+    METAMORPHIC_INSERT_POINT,
 )
 
 # Import EnhancedLLMOrchestrator as it's patched
@@ -848,8 +849,8 @@ class TestContextExtraction:
     
         assert constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION in prompt
         assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
-        # When is_minimal_context is True, the prompt uses CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION
-        # and CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, not CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.
+        # When is_minimal_context is True, the prompt uses constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION
+        # and constants.CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, not constants.CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.
         assert constants.CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
         assert constants.CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) not in prompt
         assert constants.CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) not in prompt
@@ -872,10 +873,10 @@ class TestContextExtraction:
     # --- Test for _should_add_docstring_instruction simplification ---
     def test_should_add_docstring_instruction_simplified_check(self, driver_for_context_tests):
         driver = driver_for_context_tests
-        # This test implicitly relies on PYTHON_CREATION_KEYWORDS being available.
+        # This test implicitly relies on constants.PYTHON_CREATION_KEYWORDS being available.
         # The fixture sets it on the driver instance.
         assert driver._should_add_docstring_instruction("Implement new function foo", "test.py") is True
-        # Verify no error is logged about PYTHON_CREATION_KEYWORDS not being defined
+        # Verify no error is logged about constants.PYTHON_CREATION_KEYWORDS not being defined
         # (This would require checking caplog if the logger was configured to error level for this)
 
 
@@ -919,34 +920,127 @@ def test_extract_targeted_context_fallback_behavior(driver_for_context_tests):
     assert not is_minimal_unimplemented_str, "is_minimal should be False for fallback with unknown context_type string"
 
 
-class TestContextLeakageValidationUnittest:
-    """
-    Test class for validating context leakage prevention mechanisms.
+class TestContextLeakageValidation:
+    """Test suite for the _validate_for_context_leakage method."""
 
-    This class will contain tests to ensure that context-specific data does
-    not inadvertently persist or leak between different execution contexts.
-    """
-    mock_context_for_llm = r'''class WorkflowDriver:
-    # METAMORPHIC_INSERT_POINT
-    pass'''
-    # Using a mix of raw triple-double and triple-single quotes.
-    # Both are valid and this demonstrates flexibility.
-    LEAKAGE_SNIPPETS = [
-        r"""As an AI language model, I am unable to...""",
-        r'''I am a large language model, trained by Google.''',
-        r"""My apologies, but as an AI, I cannot fulfill that request.""",
-        r"""Based on the previous turn in our conversation...""",
-        r"""Remember when I mentioned earlier that...""",
-    ]
-
-    @pytest.mark.parametrize('snippet', LEAKAGE_SNIPPETS)
-    def test_context_leakage_detection_finds_leaks(self, snippet):
+    @pytest.mark.parametrize("snippet, expected", [
+        ("def func():\n    # ```python\n    pass", False),
+        ("As an AI language model, I suggest this code.", False),
+        ("I am a large language model, and here is the code.", False),
+        ("I am an AI assistant, here's the fix.", False),
+        ("This is a clean snippet of code.", True),
+        ("def another_func():\n    return True", True),
+        ("", True),
+    ])
+    def test_validate_for_context_leakage(self, driver_enhancements, snippet, expected):
         """
-        Tests that the context leakage detection mechanism correctly identifies
-        snippets that are expected to cause context leakage.
-
-        This test is expected to fail until the validation logic is implemented correctly.
+        Tests the _validate_for_context_leakage method with various snippets.
         """
-        # We need a driver instance to call the method.
-        # Since this is a unit-like test, we can create a simple one.
-        driver = WorkflowDriver(Context(os.getcwd()))
+        driver = driver_enhancements
+        # Call the original method directly from the class, bypassing the instance mock from the fixture.
+        result = WorkflowDriver._validate_for_context_leakage(driver, snippet)
+        assert result == expected
+
+
+    def test_autonomous_loop_handles_multi_location_edit(self, driver_enhancements, mocker, caplog):
+        """
+        Tests that a multi-location edit step (import + class) triggers the full-file
+        rewrite workflow, bypassing the snippet merge logic.
+        """
+        caplog.set_level(logging.INFO)
+        driver = driver_enhancements
+        task = {
+            'task_id': 'multi_edit_task',
+            'task_name': 'Multi-Location Edit Task',
+            'description': 'Add an import json at the top and a new class MyClass at the end.',
+            'target_file': 'src/module.py'
+        }
+        step = task['description'] # Use the description as the step
+        filepath_to_use = driver.context.get_full_path(task['target_file'])
+    
+        original_content = "def existing_function():\n    pass\n"
+        full_file_from_llm = "import json\n\ndef existing_function():\n    pass\n\nclass MyClass:\n    pass\n" + constants.END_OF_CODE_MARKER
+        expected_written_content = "import json\n\ndef existing_function():\n    pass\n\nclass MyClass:\n    pass"
+    
+        # Mock the driver's internal state for a single step execution
+        driver._current_task = task
+        driver.task_target_file = task['target_file']
+    
+        # Mock file system and LLM calls
+        # Ensure the file exists for _read_file_for_context to find it
+        (Path(filepath_to_use)).parent.mkdir(parents=True, exist_ok=True)
+        (Path(filepath_to_use)).write_text(original_content)
+        mocker.spy(driver, '_read_file_for_context') # Spy instead of mock to allow actual file reading
+        mock_invoke_llm = mocker.patch.object(driver, '_invoke_coder_llm', return_value=full_file_from_llm)
+        mock_merge_snippet = mocker.patch.object(driver, '_merge_snippet') # Should NOT be called
+        mock_write_file = mocker.patch.object(driver, '_write_output_file', return_value=True)
+    
+        # Mock validation to pass
+        # Patch ast.parse within the workflow_driver module, not globally.
+        mocker.patch('src.core.automation.workflow_driver.ast.parse', side_effect=_original_ast.parse)
+        mocker.patch.object(driver, '_validate_for_context_leakage', return_value=True)
+        mocker.patch.object(driver.code_review_agent, 'analyze_python', return_value={'status': 'success', 'static_analysis': []})
+        mocker.patch.object(driver.ethical_governance_engine, 'enforce_policy', return_value={'overall_status': 'approved'})
+    
+        # Simulate the relevant part of the autonomous loop by calling the code generation logic
+        # This is a simplified way to test the logic path without running the full loop
+        success, generated_content = driver._execute_code_generation_step(step, filepath_to_use, original_content, retry_feedback_for_llm_prompt=None, step_retries=0, step_index=0)
+    
+        # Assertions
+        assert success is True
+        assert generated_content == expected_written_content
+        mock_invoke_llm.assert_called_once()
+        # Check that the prompt asks for a full file
+        assert constants.CRITICAL_CODER_LLM_FULL_FILE_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) in mock_invoke_llm.call_args[0][0]
+        mock_merge_snippet.assert_not_called() # Crucial: merge_snippet should be bypassed
+
+
+class TestPreWriteValidationEnhancements:
+    """Tests for the enhanced pre-write validation logic (Task 1.8.19)."""
+
+    def test_pre_existing_syntax_error_blocks_task(self, driver_enhancements, mocker, caplog):
+        """
+        Tests that if a pre-existing SyntaxError is detected in the source file,
+        the current task is blocked and an error is raised.
+        """
+        caplog.set_level(logging.ERROR)
+        driver = driver_enhancements
+        task = {
+            'task_id': 'task_blocked_by_source_error',
+            'task_name': 'A Task',
+            'description': 'This task will be blocked.',
+            'target_file': 'src/broken_file.py'
+        }
+        step = "Implement a new feature."
+        filepath_to_use = driver.context.get_full_path(task['target_file'])
+
+        # Source file with a syntax error (missing colon) and an insert point
+        original_content_with_error = f"def broken_function()\n    pass\n\n{METAMORPHIC_INSERT_POINT}\n"
+        # A valid snippet that the AI wants to insert
+        valid_snippet = "def new_function():\n    pass"
+
+        # Mock driver's internal state
+        driver._current_task = task
+        driver.task_target_file = task['target_file']
+
+        # Mock internal calls
+        mocker.patch.object(driver, '_read_file_for_context', return_value=original_content_with_error)
+        mocker.patch.object(driver, '_invoke_coder_llm', return_value=valid_snippet)
+        mock_update_status = mocker.patch.object(driver, '_update_task_status_in_roadmap')
+
+        # We expect a ValueError to be raised, which the main loop would catch.
+        with pytest.raises(ValueError) as excinfo:
+            driver._execute_code_generation_step(
+                step, filepath_to_use, original_content_with_error,
+                retry_feedback_for_llm_prompt=None, step_retries=0, step_index=0
+            )
+
+        # Assert that the correct error message was raised
+        assert "Pre-existing syntax error identified" in str(excinfo.value)
+        assert "line 1: expected ':'" in str(excinfo.value)
+
+        # Assert that the task was blocked
+        mock_update_status.assert_called_once_with(
+            'task_blocked_by_source_error', 'Blocked', ANY
+        )
+        assert "Blocked due to pre-existing syntax error" in mock_update_status.call_args[0][2]

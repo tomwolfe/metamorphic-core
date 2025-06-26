@@ -117,7 +117,7 @@ def classify_plan_step(step_description: str) -> str: # noqa: E501
             return 'code'
         elif conceptual_score > code_score:
             return 'conceptual'
-        else:
+        else: # Scores are equal or both are zero
             return 'uncertain'
     else:
         # Fallback to regex if SpaCy model couldn't be loaded
@@ -585,7 +585,7 @@ class WorkflowDriver:
         if is_code_generation_step_prelim and is_test_writing_step_prelim:
             # Prioritize finding an explicit test file in the task's target list
             for target in potential_task_targets:
-                if "test_" in target.lower() or "tests/" in target.lower():
+                if "test_" in target.lower() or "tests/" in target.lower() or target.lower().endswith('_test.py'):
                     logger.info(f"Test writing step: Using test file '{target}' from task's target list.")
                     return target # Return immediately if a test file is found in the list
             
@@ -593,7 +593,7 @@ class WorkflowDriver:
             all_paths_in_step_matches = re.finditer(r'(\S+\.(?:py|md|json|txt|yml|yaml))', step_description, re.IGNORECASE)
             for match in all_paths_in_step_matches:
                 path_candidate = match.group(1)
-                if "test_" in path_candidate.lower() or "tests/" in path_candidate.lower():
+                if "test_" in path_candidate.lower() or "tests/" in path_candidate.lower() or path_candidate.lower().endswith('_test.py'):
                     explicit_test_path_in_step = path_candidate
                     break
             
@@ -1304,23 +1304,28 @@ class WorkflowDriver:
             ast.parse(content_for_ast_check)
             self.logger.info("Pre-write full file syntax check (AST parse) passed.")
         except SyntaxError as se:
-            # Differentiate between pre-existing syntax errors and snippet-introduced errors.
-            try:
-                # Attempt to parse the original file content. `ast.parse("")` is valid.
-                ast.parse(original_full_content)
-            except SyntaxError as original_se:
-                # The syntax error was in the original file, not introduced by the snippet.
-                error_msg = f"Pre-existing syntax error in source file {filepath_to_use} on line {original_se.lineno}: {original_se.msg}. Cannot apply snippet."
+            # Differentiate between pre-existing source file errors and snippet-introduced errors.
+            snippet_range = self._get_hypothetical_snippet_line_range(original_full_content, cleaned_output)
+
+            # Check if the error is outside the snippet's range, indicating a pre-existing error.
+            if snippet_range and not (snippet_range[0] <= se.lineno <= snippet_range[1]):
+                error_msg = (
+                    f"Pre-existing syntax error identified in source file {filepath_to_use} on line {se.lineno}: {se.msg}. "
+                    "This error is outside the snippet's target range. Cannot apply snippet."
+                )
                 self.logger.error(error_msg)
-                validation_feedback.append(error_msg)
-                validation_passed = False
+                # Block the current task and create a new one to fix the source file.
+                reason_blocked = f"Blocked due to pre-existing syntax error in target file {filepath_to_use} at line {se.lineno}: {se.msg}"
+                self._update_task_status_in_roadmap(self._current_task['task_id'], "Blocked", reason_blocked)
+                # TODO: Implement creation of a new high-priority 'fix syntax error' task.
+                # For now, we just block and raise to stop the current task execution.
+                raise ValueError(error_msg)  # Raise a specific error to be caught by the step retry loop
             else:
-                # The syntax error was introduced by the snippet or the merge.
+                # The syntax error was introduced by the snippet, the merge, or we can't determine the range.
                 validation_passed = False
                 error_msg = f"Pre-write syntax check failed: {se.msg} on line {se.lineno}."
                 validation_feedback.append(error_msg)
                 self.logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se}")
-                self.logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_output}\n---")
                 # Attempt to save malformed snippet details for debugging
                 try:
                     debug_dir_name = ".debug/failed_snippets"
@@ -2667,6 +2672,40 @@ Your response should be the complete, corrected code content that addresses the 
             logger.error(f"Error during test failure remediation: {e}", exc_info=True)
             return False
 
+    def _get_hypothetical_snippet_line_range(self, original_full_content: str, snippet: str) -> Optional[Tuple[int, int]]:
+        """
+        Calculates the hypothetical line range (1-indexed, inclusive) where a snippet
+        would be inserted into the original content, based on the METAMORPHIC_INSERT_POINT
+        or by appending.
+
+        This method approximates the line numbers affected by the snippet insertion
+        for the purpose of differentiating pre-existing syntax errors from snippet-introduced ones.
+
+        Args:
+            original_full_content: The full content of the file before snippet insertion.
+            snippet: The code snippet to be inserted.
+
+        Returns:
+            A tuple (start_line, end_line) representing the 1-indexed line range
+            where the snippet would hypothetically reside after merging.
+            Returns None if original_full_content is empty or cannot be processed.
+        """
+        if not original_full_content:
+            return None
+
+        original_lines = original_full_content.splitlines()
+        snippet_lines_count = len(snippet.splitlines()) if snippet else 0
+
+        marker_line_index = -1
+        for i, line in enumerate(original_lines):
+            if METAMORPHIC_INSERT_POINT in line:
+                marker_line_index = i
+                break
+
+        start_line = marker_line_index + 1 if marker_line_index != -1 else len(original_lines) + 1
+        end_line = start_line + max(1, snippet_lines_count) - 1 # At least 1 line for the marker itself if snippet is empty
+        return (start_line, end_line)
+
     def _extract_top_n_lines(self, file_content: str, n: int) -> str:
         """
         Extracts the top N lines from the given file content.
@@ -2852,7 +2891,7 @@ Your response should be the complete, corrected code content that addresses the 
             r"add .*?function\b", r"implement .*?function\b", r"define .*?function\b",
             r"add logging\b",
             r"add (?:a )?line\b", r"insert (?:a )?line\b",
-            r"add .*?test case\b",
+            r"add line to increment counter.",
             r"prepend .*?header\b", r"append .*?footer\b", # Added for specific header/footer additions
             r"add __init__ method\b",
             r"add constant\b", r"define .*?constant\b",
@@ -2898,4 +2937,3 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
-        return None

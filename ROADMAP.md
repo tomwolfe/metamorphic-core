@@ -136,12 +136,6 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_A_optimize_large_context_epic']
 
-*   **Task ID**: task_1_8_B_1_error_specific_feedback
-    *   **Priority**: Not Started
-    *   **Task Name**: Implement Error-Specific Feedback for Retry Prompts
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_B_enhance_retry_prompts', 'task_1_8_A_optimize_large_context_epic']
-
 *   **Task ID**: task_1_8_2_A_add_max_retries_constant
     *   **Priority**: Critical
     *   **Task Name**: Add MAX_STEP_RETRIES Constant
@@ -211,14 +205,14 @@
 *   **Task ID**: task_1_8_2_F_4c_syntax_fix
     *   **Priority**: Critical
     *   **Task Name**: Fix Pre-existing Syntax Error in test_phase1_8_features.py
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: []
 
 *   **Task ID**: task_1_8_2_F_4c_add_passing_tests
     *   **Priority**: High
     *   **Task Name**: Add Passing Unit Tests for Compliant Snippets
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_4b_create_failing_test_method', 'task_1_8_2_F_4c_syntax_fix']
+    *   **Depends On**: ['task_1_8_2_F_4b_create_failing_test_method', 'task_1_8_2_F_4c_syntax_fix', 'task_1_8_19_pre_write_source_validation']
 
 *   **Task ID**: task_1_8_2_G_atomic_planner
     *   **Priority**: Critical
@@ -236,7 +230,7 @@
     *   **Priority**: High
     *   **Task Name**: Enhance Pre-Write Validation to Differentiate Snippet Errors from Source File Errors
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_4c_add_passing_tests']
+    *   **Depends On**: ['task_1_8_2_F_4c_syntax_fix']
 
 *   **Task ID**: task_1_8_20_scoped_validation
     *   **Priority**: High
@@ -304,6 +298,12 @@
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_3', 'task_1_8_6']
 
+*   **Task ID**: task_1_8_11_auto_refinement
+    *   **Priority**: High
+    *   **Task Name**: Implement Self-Healing Task Descriptions via Refinement Agent
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_10']
+
 *   **Task ID**: task_1_8_11
     *   **Priority**: High
     *   **Task Name**: Improve Coder LLM Prompt Generation Logic
@@ -345,12 +345,6 @@
     *   **Task Name**: Implement Pre-Write Diff Validation Guardrail
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_improve_snippet_handling', 'task_1_8_5']
-
-*   **Task ID**: task_1_8_11_auto_refinement
-    *   **Priority**: High
-    *   **Task Name**: Implement Self-Healing Task Descriptions via Refinement Agent
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_10']
 
 *   **Task ID**: task_1_8_11b_failure_driven_decomposition
     *   **Priority**: High

@@ -64,7 +64,7 @@ class LLMOrchestrator:
         self._configure_providers()
         self._last_gemini_call_start_time = 0.0
         self._gemini_call_lock = threading.Lock()
-        self._GEMINI_MIN_INTERVAL_SECONDS = 6.0
+        self._GEMINI_MIN_INTERVAL_SECONDS = 4.0 # Increased rate limit to 15 RPM (60s/15req = 4s/req)
         self.telemetry = Telemetry()
 
     def _load_config(self) -> LLMConfig:

@@ -255,18 +255,6 @@
       "description": "Modify the retry logic within `WorkflowDriver.autonomous_loop`. When a plan step fails due to pre-write validation (syntax, style, ethics) or other captured errors (e.g., test failures post-write), the specific error message(s) should be extracted from `self._current_task_results['pre_write_validation_feedback']` or `self._current_task_results['step_errors']`. This detailed feedback must be appended to the prompt for the CoderLLM during the subsequent retry attempt. The goal is to provide the LLM with concrete information about what went wrong, enabling it to self-correct more effectively."
     },
     {
-      "task_id": "task_1_8_B_1_error_specific_feedback",
-      "priority": "Not Started",
-      "task_name": "Implement Error-Specific Feedback for Retry Prompts",
-      "status": "Not Started",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_B_enhance_retry_prompts",
-        "task_1_8_A_optimize_large_context_epic"
-      ],
-      "description": "Enhance `WorkflowDriver.autonomous_loop` to parse pre-write validation output (e.g., `flake8` findings). If specific, actionable error codes like `F821` (undefined name) are detected, dynamically augment the Coder LLM's retry prompt with targeted advice (e.g., suggesting missing imports). This improves autonomous remediation for common coding errors."
-    },
-    {
       "task_id": "task_1_8_2_A_add_max_retries_constant",
       "priority": "Critical",
       "task_name": "Add MAX_STEP_RETRIES Constant",
@@ -572,6 +560,17 @@
       "description": "If remediation attempts fail for a step, analyze the failure and modify the *prompt* sent to the Coder LLM for the next attempt, or potentially modify the original code generation prompt template based on failure patterns."
     },
     {
+      "task_id": "task_1_8_11_auto_refinement",
+      "priority": "High",
+      "task_name": "Implement Self-Healing Task Descriptions via Refinement Agent",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_10"
+      ],
+      "description": "Implement a mechanism for the system to self-correct by refining its own roadmap. When a task is marked 'Blocked' due to repeated step failures (e.g., `SyntaxError` during code generation), a new 'Refinement Agent' should be invoked. This agent will analyze the blocked task's description, the failing step, and the final error message (reason_blocked). It will then generate a new, more detailed and prescriptive description for the task and patch the ROADMAP.json file. This allows the system to learn from its failures at a strategic level, not just a code-generation level. The agent should leverage error-specific templates (e.g., for syntax errors, add explicit formatting rules to the description like preferring raw triple-quoted strings). **The Refinement Agent should be triggered after a task has failed 3 consecutive times due to code generation issues.**"
+    },
+    {
       "task_id": "task_1_8_11",
       "priority": "High",
       "task_name": "Improve Coder LLM Prompt Generation Logic",
@@ -664,17 +663,6 @@
         "task_1_8_5"
       ],
       "description": "Introduce a new pre-write validation step in `WorkflowDriver.autonomous_loop`. Before writing the merged code, generate a diff between the original file content and the proposed merged content. If the diff indicates unintended modifications (e.g., changes outside the targeted area for a 'simple addition' task, or excessive unrelated lines), reject the change and provide specific feedback to the Coder LLM for remediation. This acts as a crucial guardrail against LLM over-generation or misinterpretation."
-    },
-    {
-      "task_id": "task_1_8_11_auto_refinement",
-      "priority": "High",
-      "task_name": "Implement Self-Healing Task Descriptions via Refinement Agent",
-      "status": "Not Started",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_10"
-      ],
-      "description": "Implement a mechanism for the system to self-correct by refining its own roadmap. When a task is marked 'Blocked' due to repeated step failures (e.g., `SyntaxError` during code generation), a new 'Refinement Agent' should be invoked. This agent will analyze the blocked task's description, the failing step, and the final error message (reason_blocked). It will then generate a new, more detailed and prescriptive description for the task and patch the ROADMAP.json file. This allows the system to learn from its failures at a strategic level, not just a code-generation level. The agent should leverage error-specific templates (e.g., for syntax errors, add explicit formatting rules to the description like preferring raw triple-quoted strings)."
     },
     {
       "task_id": "task_1_8_11b_failure_driven_decomposition",

@@ -409,7 +409,8 @@
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2_F_4b_create_failing_test_method",
-        "task_1_8_2_F_4c_syntax_fix"
+        "task_1_8_2_F_4c_syntax_fix",
+        "task_1_8_19_pre_write_source_validation"
       ],
       "description": "In `tests/test_phase1_8_features.py`, add another new test method to the `TestContextLeakageValidationUnittest` class. This method MUST use `pytest.mark.parametrize` to test multiple code snippets that *do not* contain any context leakage indicators. For each compliant snippet, the test must assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True`. Ensure all test case strings are defined using triple quotes (`\"\"\"` or `'''`)."
     },
@@ -442,7 +443,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_2_F_4c_add_passing_tests"
+        "task_1_8_2_F_4c_syntax_fix"
       ],
       "description": "Modify the pre-write validation logic in `WorkflowDriver`. When a `SyntaxError` occurs during the hypothetical merge check, analyze the error's line number. If the error line is outside the line range of the inserted snippet, the system should identify it as a pre-existing source file error. It should then block the current task and create a new, high-priority 'fix syntax error' task targeting the source file."
     },
@@ -704,7 +705,7 @@
       "status": "Not Started",
       "target_file": "CONTRIBUTING.md",
       "depends_on": [],
-      "description": "Update the `CONTRIBUTING.md` file to include a style guide rule for providing Python code examples within `ROADMAP.json` descriptions. The rule should recommend preferring raw triple-single-quoted strings (`r'''...'''`) or raw triple-double-quoted strings (`r\"\"\"...\"\"\"`) for multi-line code blocks, or careful escaping with single-quoted JSON strings (`'...'`) to avoid ambiguity and `SyntaxError` for LLMs. Example: `✅ r'''class Example:\\n    pass'''` vs. `❌ \"class Example:\\n    pass\"`."
+      "description": "Update the `CONTRIBUTING.md` file to include a style guide rule for providing Python code examples within `ROADMAP.json` descriptions. The rule should recommend preferring raw triple-single-quoted strings (`r'''...'''`) or raw triple-double-quoted strings (`r\"\"\"...\"\"\"`) for multi-line code blocks, or careful escaping with single-quoted JSON strings (`'...'`) to avoid ambiguity and `SyntaxError` for LLMs. Example: `\u2705 r'''class Example:\\n    pass'''` vs. `\u274c \"class Example:\\n    pass\"`."
     },
     {
       "task_id": "task_1_8_23_failing_test_success_criteria",

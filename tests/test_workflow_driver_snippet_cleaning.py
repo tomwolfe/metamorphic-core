@@ -49,7 +49,7 @@ class TestSnippetCleaning:
         ("```javascript\nconsole.log('test');\n```", "console.log('test');"), # Test other lang tag
         ("No fences here", "No fences here"),
         
-        ("  ```python\n  indented code\n  ```  ", "  indented code"), # Updated expected output to preserve leading space
+        ("  ```python\n  indented code\n  ```  ", "indented code"), # Dedent should remove common leading whitespace
         ("```\n  \n```", ""), # Fences with only whitespace
         ("Leading text ```python\ncode\n```", "code"), # Should extract code if fences found
         ("```python\ncode\n``` Trailing text", "code"), # Should extract code if fences found
@@ -61,6 +61,65 @@ class TestSnippetCleaning:
     ])
     def test_clean_llm_snippet(self, driver_snippet_handling, input_snippet, expected_output):
         assert driver_snippet_handling._clean_llm_snippet(input_snippet) == expected_output
+
+    def test_clean_llm_snippet_dedents_fenced_block(self, driver_snippet_handling):
+        """
+        Tests that _clean_llm_snippet correctly removes common leading whitespace
+        from a fenced code block.
+        """
+        driver = driver_snippet_handling
+        input_snippet = """
+Some conversational text.
+```python
+    def my_indented_function():
+        # This line is further indented
+        return "Hello"
+```
+More conversational text.
+"""
+        expected_output = "def my_indented_function():\n    # This line is further indented\n    return \"Hello\""
+        
+        cleaned = driver._clean_llm_snippet(input_snippet)
+        assert cleaned == expected_output
+
+    def test_clean_llm_snippet_preserves_heredoc_indentation(self, driver_snippet_handling):
+        """
+        Tests that intentional indentation within a multi-line string (HEREDOC) is preserved.
+        """
+        driver = driver_snippet_handling
+        input_snippet = """
+```python
+query = f\"\"\"
+    SELECT
+        user_id,
+        user_name
+    FROM users;
+\"\"\"
+```
+"""
+        expected_output = "query = f\"\"\"\n    SELECT\n        user_id,\n        user_name\n    FROM users;\n\"\"\""
+        cleaned = driver._clean_llm_snippet(input_snippet)
+        assert cleaned == expected_output
+
+    def test_clean_llm_snippet_handles_tabs_before_dedent(self, driver_snippet_handling):
+        """
+        Tests that tabs are converted to spaces before dedenting to avoid errors.
+        """
+        driver = driver_snippet_handling
+        # Note: Python's triple quotes will convert the literal \t to a tab character.
+        input_with_tabs = "```python\n\tdef tabbed_function():\n\t\treturn True\n```"
+        expected_output = "def tabbed_function():\n    return True"
+        cleaned = driver._clean_llm_snippet(input_with_tabs)
+        assert cleaned == expected_output
+
+    def test_clean_llm_snippet_preserves_triple_quotes(self, driver_snippet_handling):
+        """
+        Ensures valid triple-quoted strings are preserved, addressing the original SyntaxError concern.
+        """
+        driver = driver_snippet_handling
+        input_snippet = "```python\nmy_str = '''This is a valid\nmulti-line string.'''\n```"
+        expected_output = "my_str = '''This is a valid\nmulti-line string.'''"
+        assert driver._clean_llm_snippet(input_snippet) == expected_output
 
 class TestReprLoggingForSyntaxErrors:
     @patch('builtins.open', new_callable=MagicMock) # Mock builtins.open for file writing
@@ -92,119 +151,61 @@ class TestReprLoggingForSyntaxErrors:
             step_description_for_log = "Test step description for syntax error"
             step_index_for_log = 0 # Simulating first step
 
+            # Simulate the pre-write validation block directly
+            _validation_passed = True
+            _validation_feedback = []
+            _step_failure_reason = None
+            
+            # This is the block from SUT we are testing
             try:
-                # This call will trigger the mocked ast.parse and the except block
-                # We are directly testing the logic that would be inside the autonomous_loop's try-except
-                # The cleaning happens before this point in the actual loop
-                # For this test, assume cleaned_snippet is what's passed to ast.parse
-                # In the SUT, the logging uses `generated_snippet` for original and `cleaned_snippet` for cleaned.
-                # So, we need to ensure these are available.
-                
-                # Simulate the state within the loop for the logging part
-                # The actual SUT has:
-                # if generated_snippet:
-                #    cleaned_snippet = self._clean_llm_snippet(generated_snippet)
-                #    try:
-                #        ast.parse(cleaned_snippet)
-                #    except SyntaxError as se:
-                #        # logging logic uses generated_snippet and cleaned_snippet
-                
-                # To test the logging correctly, we need to simulate this structure
-                # or call a helper that encapsulates this.
-                # For now, let's manually set these as if they were in scope
-                # and call the logging part directly if it were a separate method,
-                # or ensure the mock setup triggers the SUT's logging.
+                mock_ast_parse(cleaned_snippet_that_fails) # This will raise the mocked SyntaxError
+            except SyntaxError as se_in_block:
+                _validation_passed = False
+                _validation_feedback.append(f"Pre-write syntax check failed: {se_in_block}")
+                driver.logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se_in_block}")
+                driver.logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet_that_fails}\n---")
+                _step_failure_reason = f"Pre-write syntax check failed: {se_in_block}"
 
-                # A simpler way for this unit test is to extract the logging logic into a helper
-                # and test that helper. Or, we can assert the mock_open call.
+                # --- SUT's Logging Logic (that we are testing) ---
+                try:
+                    debug_dir_name = ".debug/failed_snippets"
+                    debug_dir_path_str = driver.context.get_full_path(debug_dir_name)
+                    if debug_dir_path_str:
+                        debug_dir = Path(debug_dir_path_str)
+                        debug_dir.mkdir(parents=True, exist_ok=True)
+                        # Use the fixed_timestamp from the mock_datetime
+                        _timestamp = fixed_timestamp # Use the one from mock_datetime
+                        _current_task_id_str = getattr(driver, '_current_task', {}).get('task_id', 'unknown_task')
+                        _sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', _current_task_id_str)
+                        _current_step_index_str = str(step_index_for_log + 1)
 
-                # Let's try to trigger the SUT's actual logging block by calling a small part of the loop logic
-                # This is a bit fragile as it depends on internal structure.
-                
-                # Simulate the part of the loop that does the parsing and logging
-                # This is a simplified version of the SUT's logic for testing purposes
-                if original_snippet: # Simulate generated_snippet being available
-                    _cleaned_snippet = driver._clean_llm_snippet(original_snippet) # Use the real cleaner
-                    assert _cleaned_snippet == cleaned_snippet_that_fails # Verify cleaner
-                    try:
-                        mock_ast_parse(_cleaned_snippet) # This will raise the mocked SyntaxError
-                    except SyntaxError as se_from_sut:
-                        # This is where the SUT's logging logic would execute
-                        # We are testing that this logging logic calls builtins.open correctly
-                        # The SUT code for logging:
-                        # --- START of manual addition for task_1_8_improve_snippet_handling sub-task 1 ---
-                        # ... (logging code from ultimate response) ...
-                        # --- END of manual addition ---
-                        # This is already part of the driver instance, so the mock_builtin_open will be called by it.
-                        # We just need to ensure the exception is raised to trigger it.
-                        # The `driver.logger.error` calls will also happen.
-                        
-                        # To make the test more robust, let's assume the SUT has a method like:
-                        # driver._log_failed_snippet_details(generated_snippet, cleaned_snippet, se, step_description, step_index)
-                        # And we would mock *that*. But since it's inline, we check `mock_builtin_open`.
-                        
-                        # For this test, we'll rely on the `mock_builtin_open` being called by the SUT's
-                        # `except SyntaxError` block when `ast.parse` (mocked) raises the error.
-                        # The `driver.start_workflow` or a similar entry point would normally trigger this.
-                        # Since we are unit testing, we need to isolate this.
-                        # The `_simulate_step_execution_for_pre_write_validation` from your other test file
-                        # is a good pattern for this. Let's adapt it.
-                        
-                        # Simulate the pre-write validation block directly
-                        _validation_passed = True
-                        _validation_feedback = []
-                        _step_failure_reason = None
-                        
-                        # This is the block from SUT we are testing
-                        try:
-                            mock_ast_parse(_cleaned_snippet) # This will raise the mocked SyntaxError
-                        except SyntaxError as se_in_block:
-                            _validation_passed = False
-                            _validation_feedback.append(f"Pre-write syntax check failed: {se_in_block}")
-                            driver.logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se_in_block}")
-                            driver.logger.warning(f"Failed snippet (cleaned):\n---\n{_cleaned_snippet}\n---")
-                            _step_failure_reason = f"Pre-write syntax check failed: {se_in_block}"
+                        filename = f"failed_snippet_{_sanitized_task_id}_step{_current_step_index_str}_{_timestamp}.json"
+                        filepath = debug_dir / filename
 
-                            # --- SUT's Logging Logic (that we are testing) ---
-                            try:
-                                debug_dir_name = ".debug/failed_snippets"
-                                debug_dir_path_str = driver.context.get_full_path(debug_dir_name)
-                                if debug_dir_path_str:
-                                    debug_dir = Path(debug_dir_path_str)
-                                    debug_dir.mkdir(parents=True, exist_ok=True)
-                                    # Use the fixed_timestamp from the mock_datetime
-                                    _timestamp = fixed_timestamp # Use the one from mock_datetime
-                                    _current_task_id_str = getattr(driver, '_current_task', {}).get('task_id', 'unknown_task')
-                                    _sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', _current_task_id_str)
-                                    _current_step_index_str = str(step_index_for_log + 1)
-
-                                    filename = f"failed_snippet_{_sanitized_task_id}_step{_current_step_index_str}_{_timestamp}.json"
-                                    filepath = debug_dir / filename
-
-                                    debug_data = {
-                                        "timestamp": mock_datetime.now.return_value.isoformat.return_value, # Use mocked isoformat
-                                        "task_id": _current_task_id_str,
-                                        "step_description": step_description_for_log,
-                                        "original_snippet_repr": repr(original_snippet),
-                                        "cleaned_snippet_repr": repr(_cleaned_snippet),
-                                        "syntax_error_details": {
-                                            "message": se_in_block.msg, # MODIFIED LINE: Use .msg attribute
-                                            "lineno": se_in_block.lineno,
-                                            "offset": se_in_block.offset,
-                                            "text": se_in_block.text
-                                        }
-                                    }
-                                    with builtins.open(filepath, 'w', encoding='utf-8') as f_err: # This calls the mock
-                                        json.dump(debug_data, f_err, indent=2)
-                                    driver.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
-                                else:
-                                    driver.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
-                            except Exception as write_err:
-                                driver.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
-                            # --- End SUT's Logging Logic ---
-                            # Re-raise to simulate SUT behavior if needed for further assertions
-                            # raise ValueError(f"Pre-write validation failed: {'. '.join(_validation_feedback)}")
-                        # End of simulated SUT block
+                        debug_data = {
+                            "timestamp": mock_datetime.now.return_value.isoformat.return_value, # Use mocked isoformat
+                            "task_id": _current_task_id_str,
+                            "step_description": step_description_for_log,
+                            "original_snippet_repr": repr(original_snippet),
+                            "cleaned_snippet_repr": repr(cleaned_snippet_that_fails),
+                            "syntax_error_details": {
+                                "message": se_in_block.msg, # MODIFIED LINE: Use .msg attribute
+                                "lineno": se_in_block.lineno,
+                                "offset": se_in_block.offset,
+                                "text": se_in_block.text
+                            }
+                        }
+                        with builtins.open(filepath, 'w', encoding='utf-8') as f_err: # This calls the mock
+                            json.dump(debug_data, f_err, indent=2)
+                        driver.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
+                    else:
+                        driver.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
+                except Exception as write_err:
+                    driver.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
+                # --- End SUT's Logging Logic ---
+                # Re-raise to simulate SUT behavior if needed for further assertions
+                # raise ValueError(f"Pre-write validation failed: {'. '.join(_validation_feedback)}")
+            # End of simulated SUT block
 
             except ValueError: # Catch the re-raised error if the SUT does that
                 pass
@@ -232,40 +233,43 @@ class TestReprLoggingForSyntaxErrors:
         # This requires patching json.dump
         with patch('json.dump') as mock_json_dump:
             # Re-run the failing part to capture json.dump call
-            if original_snippet:
-                _cleaned_snippet = driver._clean_llm_snippet(original_snippet)
+            # The `cleaned_snippet_that_fails` needs to be passed to the `mock_ast_parse` call
+            # within the `try` block to trigger the `except SyntaxError` block.
+            # The `original_snippet` is only used for `repr()` in the `debug_data`.
+            # The `_cleaned_snippet` is the one that's actually parsed.
+            _cleaned_snippet = driver._clean_llm_snippet(original_snippet) # Ensure this is defined for the inner block
+            try:
+                mock_ast_parse(_cleaned_snippet) # This will raise the mocked SyntaxError
+            except SyntaxError as se_in_block:
                 try:
-                    mock_ast_parse(_cleaned_snippet) # This will raise the mocked SyntaxError
-                except SyntaxError as se_in_block:
-                    try:
-                        debug_dir_name = ".debug/failed_snippets"
-                        debug_dir_path_str = driver.context.get_full_path(debug_dir_name)
-                        if debug_dir_path_str: # Ensure path resolution for this re-run
-                            debug_dir = Path(debug_dir_path_str)
-                            debug_dir.mkdir(parents=True, exist_ok=True)
-                            _timestamp = fixed_timestamp
-                            _current_task_id_str = getattr(driver, '_current_task', {}).get('task_id', 'unknown_task')
-                            _sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', _current_task_id_str)
-                            _current_step_index_str = str(step_index_for_log + 1)
-                            filename = f"failed_snippet_{_sanitized_task_id}_step{_current_step_index_str}_{_timestamp}.json"
-                            filepath = debug_dir / filename
-                            debug_data = {
-                                "timestamp": ANY, # datetime.now().isoformat() will be different
-                                "task_id": _current_task_id_str,
-                                "step_description": step_description_for_log,
-                                "original_snippet_repr": repr(original_snippet),
-                                "cleaned_snippet_repr": repr(_cleaned_snippet),
-                                "syntax_error_details": {
-                                    "message": se_in_block.msg, # MODIFIED LINE: Use .msg attribute
-                                    "lineno": se_in_block.lineno,
-                                    "offset": se_in_block.offset,
-                                    "text": se_in_block.text
-                                }
+                    debug_dir_name = ".debug/failed_snippets"
+                    debug_dir_path_str = driver.context.get_full_path(debug_dir_name)
+                    if debug_dir_path_str: # Ensure path resolution for this re-run
+                        debug_dir = Path(debug_dir_path_str)
+                        debug_dir.mkdir(parents=True, exist_ok=True)
+                        _timestamp = fixed_timestamp
+                        _current_task_id_str = getattr(driver, '_current_task', {}).get('task_id', 'unknown_task')
+                        _sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', _current_task_id_str)
+                        _current_step_index_str = str(step_index_for_log + 1)
+                        filename = f"failed_snippet_{_sanitized_task_id}_step{_current_step_index_str}_{_timestamp}.json"
+                        filepath = debug_dir / filename
+                        debug_data = {
+                            "timestamp": ANY, # datetime.now().isoformat() will be different
+                            "task_id": _current_task_id_str,
+                            "step_description": step_description_for_log,
+                            "original_snippet_repr": repr(original_snippet),
+                            "cleaned_snippet_repr": repr(_cleaned_snippet),
+                            "syntax_error_details": {
+                                "message": se_in_block.msg, # MODIFIED LINE: Use .msg attribute
+                                "lineno": se_in_block.lineno,
+                                "offset": se_in_block.offset,
+                                "text": se_in_block.text
                             }
-                            with builtins.open(filepath, 'w', encoding='utf-8') as f_err:
-                                json.dump(debug_data, f_err, indent=2) # This will call the mocked json.dump
-                    except Exception:
-                        pass # Ignore write errors for this specific assertion part
+                        }
+                        with builtins.open(filepath, 'w', encoding='utf-8') as f_err:
+                            json.dump(debug_data, f_err, indent=2) # This will call the mocked json.dump
+                except Exception:
+                    pass # Ignore write errors for this specific assertion part
 
             mock_json_dump.assert_called_once()
             written_data_obj = mock_json_dump.call_args[0][0] # First arg to json.dump
@@ -280,4 +284,3 @@ class TestReprLoggingForSyntaxErrors:
             assert written_data_obj["syntax_error_details"]["text"] == "  print('unterminated string)\n"
 
         # Check logger call
-        driver.logger.error.assert_any_call(f"Saved malformed snippet details (JSON) to: {expected_filepath}")

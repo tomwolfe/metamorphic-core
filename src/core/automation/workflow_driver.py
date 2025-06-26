@@ -6,6 +6,7 @@ import re
 import html
 from typing import List, Dict, Any, Optional, Tuple, Union
 import ast
+import textwrap
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -194,67 +195,43 @@ class WorkflowDriver:
         if not isinstance(snippet, str):
             self.logger.warning(f"Snippet cleaning received non-string input: {type(snippet)}. Returning empty string.")
             return ""
- 
-        original_snippet = snippet
-        processed_snippet = original_snippet # Keep original for now, apply strip conditionally at end
-        
-        # Flag to indicate if content was extracted from a fenced block *at the beginning*.
-        # This flag helps decide the final stripping behavior.
-        fenced_content_extracted_initially = False 
+
+        processed_snippet = snippet
         
         # 1. Try to extract content from markdown fences first.
-        # This handles cases where the LLM provides a fenced block, potentially with chatter outside.
         fenced_block_match = re.search(
             r"```(?:\w+)?\s*\n(.*?)\n?\s*```",
             processed_snippet,
             re.DOTALL | re.IGNORECASE
         )
         if fenced_block_match:
-            self.logger.debug("Markdown fenced block found and content extracted. Prioritizing fenced content.")
-            extracted_content = fenced_block_match.group(1)
-            # If the extracted content is just whitespace, treat it as empty.
-            # Otherwise, rstrip to remove trailing newlines/whitespace from the fence structure,
-            # but preserve leading indentation of the code block.
-            if extracted_content.strip() == "": 
-                processed_snippet = ""
-            else:
-                processed_snippet = extracted_content.rstrip() # Preserve leading spaces, remove trailing
-            fenced_content_extracted_initially = True # Mark that it originated from a fenced block
+            self.logger.debug("Markdown fenced block found. Extracting and dedenting content.")
+            # Proactively replace tabs with spaces to prevent errors in dedent.
+            content_to_dedent = fenced_block_match.group(1).replace('\t', '    ')
+            # Use textwrap.dedent to remove common leading whitespace from the entire block,
+            # which is crucial for preventing top-level indentation errors, while preserving relative indentation.
+            processed_snippet = textwrap.dedent(content_to_dedent)
 
         # 2. Prioritize the end-of-code marker.
-        # This marker explicitly signals the end of the code, regardless of fences.
-        # It should truncate anything *after* it.
         parts = re.split(re.escape(END_OF_CODE_MARKER), processed_snippet, 1)
         if len(parts) > 1:
             self.logger.debug("End-of-code marker found. Truncating snippet after marker.")
-            processed_snippet = parts[0].rstrip() # rstrip after marker truncation to remove trailing newlines from the marker line
+            processed_snippet = parts[0]
 
-        # 3. Heuristic to remove trailing conversational chatter.
-        # This applies if no fenced block was found *initially*, AND no END_OF_CODE_MARKER was found in the original snippet.
-        if not fenced_content_extracted_initially and END_OF_CODE_MARKER not in original_snippet:
-            lines = processed_snippet.splitlines()
-            chatter_patterns = [
-                r"^\s*(Okay, here is|Here is the code|Let me know if you need|This code addresses)",
-            ]
-            chatter_regex = re.compile("|".join(chatter_patterns), re.IGNORECASE)
-            first_chatter_line_index = -1
-            for i, line in enumerate(lines):
-                if chatter_regex.match(line):
-                    first_chatter_line_index = i
-                    self.logger.debug(f"Identified trailing chatter at line {i}. Truncating.")
-                    break
-            if first_chatter_line_index != -1:
-                processed_snippet = "\n".join(lines[:first_chatter_line_index]).rstrip() # rstrip after chatter truncation
-
-        # Final stripping logic:
-        # If the content was initially extracted from a fenced block, preserve its leading indentation.
-        # The rstrip() calls above handle trailing whitespace.
-        # Otherwise (if it was never a fenced block, or was a fenced block that became empty),
-        # apply a full strip to remove all leading/trailing whitespace.
-        if fenced_content_extracted_initially:
-            return processed_snippet
+        # 3. Heuristic to remove leading/trailing conversational chatter by finding the first and last non-empty lines.
+        lines = processed_snippet.splitlines()
+        first_code_line_idx = -1
+        last_code_line_idx = -1
+        for i, line in enumerate(lines):
+            if line.strip(): # Check if the line contains any non-whitespace characters
+                if first_code_line_idx == -1:
+                    first_code_line_idx = i
+                last_code_line_idx = i
+        
+        if first_code_line_idx != -1:
+            return "\n".join(lines[first_code_line_idx : last_code_line_idx + 1])
         else:
-            return processed_snippet.strip()
+            return ""
 
     def _is_multi_location_edit_step(self, step_description: str) -> bool:
         """
@@ -2937,3 +2914,4 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
+        return None

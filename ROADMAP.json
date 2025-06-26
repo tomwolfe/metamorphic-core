@@ -396,7 +396,7 @@
       "task_id": "task_1_8_2_F_4c_syntax_fix",
       "priority": "Critical",
       "task_name": "Fix Pre-existing Syntax Error in test_phase1_8_features.py",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [],
       "description": "The file `tests/test_phase1_8_features.py` contains a `SyntaxError: unterminated string literal` on line 262 (or nearby), specifically `mock_context_for_llm = \"class WorkflowDriver:\\n`. This string literal needs to be corrected to use triple quotes (`\"\"\"` or `'''`) to properly span multiple lines and be correctly terminated. This task is critical to unblock further development on `task_1_8_2_F_4c_add_passing_tests` and subsequent tasks."
@@ -673,7 +673,7 @@
       "depends_on": [
         "task_1_8_10"
       ],
-      "description": "Implement a mechanism for the system to self-correct by refining its own roadmap. When a task is marked 'Blocked' due to repeated step failures, a new 'Refinement Agent' should be invoked. This agent will analyze the blocked task's description, the failing step, and the final error message (reason_blocked). It will then generate a new, more detailed and prescriptive description for the task and patch the ROADMAP.json file. This allows the system to learn from its failures at a strategic level, not just a code-generation level. The agent should leverage error-specific templates (e.g., for syntax errors, add explicit formatting rules to the description)."
+      "description": "Implement a mechanism for the system to self-correct by refining its own roadmap. When a task is marked 'Blocked' due to repeated step failures (e.g., `SyntaxError` during code generation), a new 'Refinement Agent' should be invoked. This agent will analyze the blocked task's description, the failing step, and the final error message (reason_blocked). It will then generate a new, more detailed and prescriptive description for the task and patch the ROADMAP.json file. This allows the system to learn from its failures at a strategic level, not just a code-generation level. The agent should leverage error-specific templates (e.g., for syntax errors, add explicit formatting rules to the description like preferring raw triple-quoted strings)."
     },
     {
       "task_id": "task_1_8_11b_failure_driven_decomposition",
@@ -695,7 +695,7 @@
       "depends_on": [
         "task_1_8_improve_snippet_handling"
       ],
-      "description": "Enhance pre-write validation in `WorkflowDriver` with a targeted regex check to specifically detect malformed raw string literals (e.g., `r\"\"\"`) in generated Python code. This acts as an immediate guardrail to catch common LLM syntax errors related to string escaping before `ast.parse`."
+      "description": "Enhance pre-write validation in `WorkflowDriver` with a targeted regex check to specifically detect malformed raw string literals (e.g., `r\"\"\"`) in generated Python code. This acts as an immediate guardrail to catch common LLM syntax errors related to string escaping before `ast.parse`. Example regex check: `if re.search(r'\\br[\"\\'][\"\\']{2}', code_snippet): raise ValueError('Invalid raw string')`."
     },
     {
       "task_id": "task_1_8_22_roadmap_example_style_guide",
@@ -704,7 +704,7 @@
       "status": "Not Started",
       "target_file": "CONTRIBUTING.md",
       "depends_on": [],
-      "description": "Update the `CONTRIBUTING.md` file to include a style guide rule for providing Python code examples within `ROADMAP.json` descriptions. The rule should recommend preferring triple-single-quoted raw strings (`r'''...'''`) or careful escaping with single-quoted JSON strings (`'...'`) to avoid ambiguity and `SyntaxError` for LLMs."
+      "description": "Update the `CONTRIBUTING.md` file to include a style guide rule for providing Python code examples within `ROADMAP.json` descriptions. The rule should recommend preferring raw triple-single-quoted strings (`r'''...'''`) or raw triple-double-quoted strings (`r\"\"\"...\"\"\"`) for multi-line code blocks, or careful escaping with single-quoted JSON strings (`'...'`) to avoid ambiguity and `SyntaxError` for LLMs. Example: `✅ r'''class Example:\\n    pass'''` vs. `❌ \"class Example:\\n    pass\"`."
     },
     {
       "task_id": "task_1_8_23_failing_test_success_criteria",

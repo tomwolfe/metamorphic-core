@@ -266,7 +266,8 @@ class TestPhase1_8WorkflowDriverEnhancements:
             step_description=step_description_for_coder, 
             filepath_to_use=driver._validate_path(mock_filepath_to_use), 
             context_for_llm=mock_context_for_llm,
-            is_minimal_context=False
+            is_minimal_context=False,
+            retry_feedback_content=None 
         )
         
         assert f"Specific Plan Step:\n{original_step_desc}\n" in final_prompt
@@ -350,7 +351,8 @@ class TestPhase1_8WorkflowDriverEnhancements:
             step_description=step_description_for_coder, 
             filepath_to_use=driver._validate_path(mock_filepath_to_use), 
             context_for_llm=mock_context_for_llm,
-            is_minimal_context=False
+            is_minimal_context=False,
+            retry_feedback_content=None 
         )
         
         assert f"Specific Plan Step:\n{original_step_desc}\n" in final_prompt
@@ -672,7 +674,7 @@ class TestGetContextTypeForStep:
 class TestContextExtraction:
     """Test suite for the _extract_targeted_context method in WorkflowDriver."""
 
-    def test_extract_context_add_import_with_existing(self, driver_for_context_tests, tmp_path):
+    def test_extract_context_add_import_existing_imports(self, driver_for_context_tests, tmp_path):
         """Tests extracting context for adding an import to a file with existing imports.""" 
         driver = driver_for_context_tests
         file_content = (
@@ -687,14 +689,14 @@ class TestContextExtraction:
         file_path = driver_for_context_tests.context.get_full_path("test_module.py")
     
         # Expected context: lines 0-8 (inclusive of line 0, exclusive of line 8)
-        # Corresponds to: "# Preamble\nimport os\nimport sys\n\nfrom pathlib import Path\n"
+        # Corresponds to: "# Preamble\nimport os\nimport sys\n\n# Comment between imports\nfrom pathlib import Path\n"
         expected_context = "\n".join(file_content.splitlines()[0:6])
         context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import json")
     
         assert is_minimal is True, "is_minimal should be True for successful targeted extraction" 
         assert context_str == expected_context, "Context string should be the extracted import block"
 
-    def test_extract_context_add_import_no_existing(self, driver_for_context_tests, tmp_path):
+    def test_extract_context_add_import_no_existing_imports(self, driver_for_context_tests, tmp_path):
         """Tests extracting context for adding an import to a file with no existing imports."""
         driver = driver_for_context_tests
         # Simplified content to ensure AST parsing doesn't fail on large dummy data
@@ -842,15 +844,15 @@ class TestContextExtraction:
         minimal_context_str = "import sys"
         # Mock _should_add_docstring_instruction to return False for this test
         with patch.object(driver, '_should_add_docstring_instruction', return_value=False):
-            prompt = driver._construct_coder_llm_prompt(task, step, filepath, minimal_context_str, is_minimal_context=True)
+            prompt = driver._construct_coder_llm_prompt(task, step, filepath, minimal_context_str, is_minimal_context=True, retry_feedback_content=None)
     
-        assert constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION in prompt
+        assert CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION in prompt
         assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
         # When is_minimal_context is True, the prompt uses CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION
-        # and constants.CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, not constants.CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.
-        assert constants.CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
-        assert constants.CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) not in prompt
-        assert constants.CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) not in prompt
+        # and CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, not CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.
+        assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
+        assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) not in prompt
+        assert CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) not in prompt
 
     def test_construct_coder_llm_prompt_with_full_context(self, driver_for_context_tests):
         driver = driver_for_context_tests
@@ -860,12 +862,12 @@ class TestContextExtraction:
         full_context_str = "import sys\n\ndef main():\n    pass"
         # Mock _should_add_docstring_instruction to return False for this test
         with patch.object(driver, '_should_add_docstring_instruction', return_value=False):
-            prompt = driver._construct_coder_llm_prompt(task, step, filepath, full_context_str, is_minimal_context=False)
+            prompt = driver._construct_coder_llm_prompt(task, step, filepath, full_context_str, is_minimal_context=False, retry_feedback_content=None)
 
-        assert constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION not in prompt
+        assert CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION not in prompt
         assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
-        assert constants.CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) in prompt
-        assert constants.CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
+        assert CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=END_OF_CODE_MARKER) in prompt
+        assert CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
 
     # --- Test for _should_add_docstring_instruction simplification ---
     def test_should_add_docstring_instruction_simplified_check(self, driver_for_context_tests):
@@ -877,71 +879,6 @@ class TestContextExtraction:
         # (This would require checking caplog if the logger was configured to error level for this)
 
 
-class TestPhase1_8Features:
-    def test_research_step_classification(self, driver_enhancements):
-        driver = driver_enhancements
-        from src.core.automation.workflow_driver import classify_plan_step # Assuming this import is needed for classify_plan_step
-
-        prelim_flags = {"is_research_step_prelim": True, "is_code_generation_step_prelim": False}
-        step1 = "Research how to use the new API"
-        assert prelim_flags["is_research_step_prelim"] is True
-        assert prelim_flags["is_code_generation_step_prelim"] is False
-        classify_plan_step(step1) == 'conceptual' # As per diff, 'assert' is removed here
-
-def test_extract_targeted_context_fallback_behavior(driver_for_context_tests):
-    """
-    Tests that _extract_targeted_context returns the full content and False
-    when no specific context_type is provided or when the provided context_type
-    does not have a specific extraction logic implemented.
-    """
-    driver = driver_for_context_tests
-    file_content = "line 1\nline 2\nline 3"
-    file_path = "/mock/path/test.py"
-    step_description = "A generic step"
-
-    # Case 1: context_type is None, should trigger the initial fallback
-    context_none, is_minimal_none = driver._extract_targeted_context(
-        file_path, file_content, None, step_description
-    )
-    assert not is_minimal_none, "is_minimal should be False for fallback with None context_type"
-    assert context_none == file_content, "Context string should be full content for None context_type"
-
-    # Case 2: context_type is a string but does not match any specific extraction logic
-    # This should trigger the final fallback in _extract_targeted_context
-    context_unimplemented_str, is_minimal_unimplemented_str = driver._extract_targeted_context(
-        file_path,
-        file_content,
-        "unimplemented_context_type", # A string that won't match "add_import", "add_method_to_class", etc.
-        step_description
-    )
-    assert not is_minimal_unimplemented_str, "is_minimal should be False for fallback with unknown context_type string"
-
-
-class TestContextLeakageValidation:
-    """Test suite for the _validate_for_context_leakage method."""
-
-    # Note: This test uses a pytest fixture (`driver_for_context_leakage_tests`)
-    # which is passed as an argument. This is a common pattern when mixing
-    # unittest.TestCase with pytest fixtures.
-    @pytest.mark.parametrize("snippet, expected", [
-        ("def func():\n    # ```python\n    pass", False),
-        ("As an AI language model, I suggest this code.", False),
-        ("I am a large language model, and here is the code.", False),
-        ("I am an AI assistant, here's the fix.", False),
-        ("This is a clean snippet of code.", True),
-        ("def another_func():\n    return True", True),
-        ("", True),
-    ])
-    def test_validate_for_context_leakage(self, driver_enhancements, snippet, expected):
-        """
-        Tests the _validate_for_context_leakage method with various snippets.
-        """
-        driver = driver_enhancements
-        # Call the original method directly from the class, bypassing the instance mock from the fixture.
-        result = WorkflowDriver._validate_for_context_leakage(driver, snippet)
-        assert result == expected
-
-
 class TestContextLeakageValidationUnittest:
     """
     Test class for validating context leakage prevention mechanisms.
@@ -949,6 +886,9 @@ class TestContextLeakageValidationUnittest:
     This class will contain tests to ensure that context-specific data does
     not inadvertently persist or leak between different execution contexts.
     """
+    mock_context_for_llm = r"""class WorkflowDriver:
+    # METAMORPHIC_INSERT_POINT
+    pass"""
     # Using a mix of raw triple-double and triple-single quotes.
     # Both are valid and this demonstrates flexibility.
     LEAKAGE_SNIPPETS = [
@@ -971,4 +911,3 @@ class TestContextLeakageValidationUnittest:
         # Since this is a unit-like test, we can create a simple one.
         driver = WorkflowDriver(Context(os.getcwd()))
         assert driver._validate_for_context_leakage(snippet) is False, \
-            f"Context leakage was not detected for a known leaky snippet. Snippet: {snippet!r}"

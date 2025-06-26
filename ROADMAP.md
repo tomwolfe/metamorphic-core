@@ -100,6 +100,12 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_fix_rate_limit_enh_orchestrator']
 
+*   **Task ID**: task_1_8_18_fix_string_literal_prompting
+    *   **Priority**: Critical
+    *   **Task Name**: Harden CoderLLM Prompting to Prevent String Literal Syntax Errors
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_improve_snippet_handling']
+
 *   **Task ID**: task_1_8_A_optimize_large_context_epic
     *   **Priority**: Critical
     *   **Task Name**: EPIC: Optimize Large Context Handling for Code Generation Steps
@@ -230,7 +236,7 @@
     *   **Priority**: High
     *   **Task Name**: Enhance Pre-Write Validation to Differentiate Snippet Errors from Source File Errors
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_4c_syntax_fix']
+    *   **Depends On**: ['task_1_8_2_F_4c_syntax_fix', 'task_1_8_18_fix_string_literal_prompting']
 
 *   **Task ID**: task_1_8_20_scoped_validation
     *   **Priority**: High

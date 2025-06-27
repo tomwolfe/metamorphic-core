@@ -218,7 +218,7 @@
     *   **Priority**: High
     *   **Task Name**: Add Passing Unit Tests for Compliant Snippets
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_2_F_4b_create_failing_test_method', 'task_1_8_2_F_4c_syntax_fix', 'task_1_8_19_pre_write_source_validation']
+    *   **Depends On**: ['task_1_8_2_F_4b_create_failing_test_method', 'task_1_8_2_F_4c_syntax_fix', 'task_1_8_19b_add_tests_for_differentiation']
 
 *   **Task ID**: task_1_8_2_G_atomic_planner
     *   **Priority**: Critical
@@ -232,11 +232,17 @@
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_G_atomic_planner']
 
-*   **Task ID**: task_1_8_19_pre_write_source_validation
+*   **Task ID**: task_1_8_19a_implement_differentiation
     *   **Priority**: High
-    *   **Task Name**: Enhance Pre-Write Validation to Differentiate Snippet Errors from Source File Errors
+    *   **Task Name**: Implement Syntax Error Differentiation in Pre-Write Validation
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_F_4c_syntax_fix', 'task_1_8_18_fix_string_literal_prompting']
+
+*   **Task ID**: task_1_8_19b_add_tests_for_differentiation
+    *   **Priority**: High
+    *   **Task Name**: Add Unit Tests for Syntax Error Differentiation Logic
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_19a_implement_differentiation']
 
 *   **Task ID**: task_1_8_20_scoped_validation
     *   **Priority**: High

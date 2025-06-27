@@ -409,7 +409,7 @@
       "depends_on": [
         "task_1_8_2_F_4b_create_failing_test_method",
         "task_1_8_2_F_4c_syntax_fix",
-        "task_1_8_19_pre_write_source_validation"
+        "task_1_8_19b_add_tests_for_differentiation"
       ],
       "description": "In `tests/test_phase1_8_features.py`, add another new test method to the `TestContextLeakageValidationUnittest` class. This method MUST use `pytest.mark.parametrize` to test multiple code snippets that *do not* contain any context leakage indicators. For each compliant snippet, the test must assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True`. Ensure all test case strings are defined using triple quotes (`\"\"\"` or `'''`)."
     },
@@ -436,16 +436,27 @@
       "description": "Run a linter (e.g., `flake8`) and an autoformatter (e.g., `black`) across the entire `src` and `tests` directories to fix existing style violations (PEP8, etc.). This will reduce noise in future validation steps, allowing the autonomous system to more accurately identify new issues introduced by its own code modifications. This task should be completed before proceeding with further feature development."
     },
     {
-      "task_id": "task_1_8_19_pre_write_source_validation",
+      "task_id": "task_1_8_19a_implement_differentiation",
       "priority": "High",
-      "task_name": "Enhance Pre-Write Validation to Differentiate Snippet Errors from Source File Errors",
+      "task_name": "Implement Syntax Error Differentiation in Pre-Write Validation",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_F_4c_syntax_fix",
         "task_1_8_18_fix_string_literal_prompting"
       ],
-      "description": "Modify the pre-write validation logic in `WorkflowDriver`. When a `SyntaxError` occurs during the hypothetical merge check, analyze the error's line number. If the error line is outside the line range of the inserted snippet, the system should identify it as a pre-existing source file error. It should then block the current task and create a new, high-priority 'fix syntax error' task targeting the source file."
+      "description": "Modify the pre-write validation logic in `WorkflowDriver` (within `_execute_code_generation_step`). When a `SyntaxError` occurs during the hypothetical merge check (`ast.parse`), analyze the error's line number (`se.lineno`). Compare this to the snippet's line range (which can be determined via `_get_hypothetical_snippet_line_range`). If the error is outside the snippet's range, identify it as a pre-existing source file error, log it, block the current task, and prepare to create a new high-priority 'fix syntax error' task targeting the source file."
+    },
+    {
+      "task_id": "task_1_8_19b_add_tests_for_differentiation",
+      "priority": "High",
+      "task_name": "Add Unit Tests for Syntax Error Differentiation Logic",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_19a_implement_differentiation"
+      ],
+      "description": "In `tests/test_phase1_8_features.py`, add new unit tests to verify the syntax error differentiation logic implemented in `task_1_8_19a`. The tests should cover cases where a `SyntaxError` occurs within the generated snippet and cases where the error exists in the original source file content, outside the snippet's range. Use `pytest.raises` and mock `ast.parse` to simulate these `SyntaxError` conditions."
     },
     {
       "task_id": "task_1_8_20_scoped_validation",
@@ -604,7 +615,7 @@
         "task_1_8_5"
       ],
       "description": "Develop a simple model (potentially using data from task_1_8_5) to predict the likelihood of autonomous success for a given task based on its characteristics. Use this to inform task selection or flag low-probability tasks for manual review."
-    },
+        },
     {
       "task_id": "task_1_8_13",
       "priority": "High",

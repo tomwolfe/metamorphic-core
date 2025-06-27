@@ -191,47 +191,37 @@ class WorkflowDriver:
         self.logger = logger
 
     def _clean_llm_snippet(self, snippet: Optional[str]) -> str:
-        """Cleans a snippet from an LLM by removing markdown fences and conversational chatter."""
-        if not isinstance(snippet, str):
+        """Cleans a snippet from an LLM by removing markdown fences and conversational chatter,
+        and dedents the content if it was from a fenced block."""
+        if not isinstance(snippet, str) or not snippet.strip():
             self.logger.warning(f"Snippet cleaning received non-string input: {type(snippet)}. Returning empty string.")
             return ""
 
         processed_snippet = snippet
-        
-        # 1. Try to extract content from markdown fences first.
+
+        # 1. Prioritize extracting content from markdown fences. This is the most reliable signal.
         fenced_block_match = re.search(
             r"```(?:\w+)?\s*\n(.*?)\n?\s*```",
             processed_snippet,
             re.DOTALL | re.IGNORECASE
         )
         if fenced_block_match:
-            self.logger.debug("Markdown fenced block found. Extracting and dedenting content.")
-            # Proactively replace tabs with spaces to prevent errors in dedent.
-            content_to_dedent = fenced_block_match.group(1).replace('\t', '    ')
-            # Use textwrap.dedent to remove common leading whitespace from the entire block,
-            # which is crucial for preventing top-level indentation errors, while preserving relative indentation.
-            processed_snippet = textwrap.dedent(content_to_dedent)
+            self.logger.debug("Markdown fenced block found. Using content within fences.")
+            processed_snippet = fenced_block_match.group(1)
+            # Convert tabs to spaces before dedenting to ensure consistent whitespace
+            # and correct dedentation, as textwrap.dedent does not convert tabs.
+            processed_snippet = processed_snippet.replace('\t', '    ') # Convert tabs to 4 spaces
+            self.logger.debug("Dedenting content extracted from fenced block.")
+            processed_snippet = textwrap.dedent(processed_snippet)
 
-        # 2. Prioritize the end-of-code marker.
-        parts = re.split(re.escape(END_OF_CODE_MARKER), processed_snippet, 1)
-        if len(parts) > 1:
-            self.logger.debug("End-of-code marker found. Truncating snippet after marker.")
-            processed_snippet = parts[0]
+        # 2. Truncate at the end-of-code marker. This is done after fence extraction
+        # to handle cases where the marker might be inside the fence.
+        if END_OF_CODE_MARKER in processed_snippet:
+            self.logger.debug("End-of-code marker found. Truncating snippet.")
+            processed_snippet = processed_snippet.split(END_OF_CODE_MARKER, 1)[0]
 
-        # 3. Heuristic to remove leading/trailing conversational chatter by finding the first and last non-empty lines.
-        lines = processed_snippet.splitlines()
-        first_code_line_idx = -1
-        last_code_line_idx = -1
-        for i, line in enumerate(lines):
-            if line.strip(): # Check if the line contains any non-whitespace characters
-                if first_code_line_idx == -1:
-                    first_code_line_idx = i
-                last_code_line_idx = i
-        
-        if first_code_line_idx != -1:
-            return "\n".join(lines[first_code_line_idx : last_code_line_idx + 1])
-        else:
-            return ""
+        # 3. Final cleanup: strip leading/trailing whitespace from the entire result.
+        return processed_snippet.strip()
 
     def _is_multi_location_edit_step(self, step_description: str) -> bool:
         """
@@ -302,12 +292,10 @@ class WorkflowDriver:
             # Use context.get_full_path to resolve the roadmap path safely
             full_roadmap_path = self.context.get_full_path(self.roadmap_path)
             if full_roadmap_path is None:
-                # Log the original path that failed resolution
                 logger.error(f"Invalid roadmap path provided: {self.roadmap_path}. Cannot start autonomous loop.")
                 return
             self.tasks = self.load_roadmap(full_roadmap_path)
         except Exception as e:
-            # Log the original path that failed resolution
             logger.error(f"Failed to load roadmap from {self.roadmap_path}: {e}", exc_info=True)
             return
         logger.info(f"Workflow initiated with roadmap: {roadmap_path}, output: {output_dir}")
@@ -1913,7 +1901,7 @@ Task Description:
             stderr = process.stderr
             return_code = process.returncode
             if return_code == 0:
-                logger.info(f"Command executed successfully. Return code: {return_code}")
+                logger.info(f"Command executed successfully. Return code: 0")
             else:
                 logger.error(f"Command failed with return code: {return_code}")
             logger.debug(f"STDOUT:\n{stdout}")
@@ -2914,4 +2902,3 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
-        return None

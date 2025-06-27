@@ -29,30 +29,31 @@ CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION = (
 
 # Coder LLM Prompt Guidelines
 GENERAL_SNIPPET_GUIDELINES = (
-    '''**CRITICAL SYNTAX RULES (PRIORITIZE THESE TO PREVENT BLOCKAGES):**
-    -   **String Literals (AVOID `SyntaxError: unterminated string literal`):**
-        -   **Termination:** ALL string literals MUST be correctly terminated with matching quotes (`'`, `"`, `\'\'\'`, `\"\"\"`).
+    """**CRITICAL SYNTAX RULES (PRIORITIZE THESE TO PREVENT BLOCKAGES):**
+    1.  **String Literals (AVOID `SyntaxError: unterminated string literal`):**
+        -   **Termination:** ALL string literals MUST be correctly terminated with matching quotes (`'`, `"`, `'''`, `\"\"\"`).
         -   **Raw Strings:** Be extremely careful with raw strings (e.g., `r'...'`). A backslash (`\\`) CANNOT be the last character inside a raw string, as it escapes the closing quote.
             -   Correct: `path = r'C:\\Users\\Name\\Documents'`
             -   Correct: `path = 'C:\\\\Users\\\\Name\\\\'`
             -   Incorrect (AVOID): `path = r'C:\\Users\\Name\\'`
-        -   **Strings Containing Code:** When a string literal must contain code (e.g., for a test case or a prompt), ALWAYS use triple quotes (`\"\"\"` or `\'\'\'`). This correctly handles newlines and quotes within the string.
-            -   Correct: `test_code = \"\"\"def f(): pass\"\"\"`
-            -   Incorrect (AVOID): `test_code = "def f(): pass"` (Prone to errors with multi-line code or internal quotes).
-    -   **Indentation:** Use EXACTLY 4 spaces per indentation level. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation MUST align with the insertion point if a `METAMORPHIC_INSERT_POINT` is present.
-    -   **Syntactic Completeness:** Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons. The snippet must be syntactically valid on its own.
+        -   **Strings Containing Code:** Use triple quotes for strings with quotes, newlines, or code (e.g., `\"\"\"code = "x=1"\"\"\"` ✅).
+    2.  **Indentation:** Use EXACTLY 4 spaces per indentation level. Ensure consistent and correct internal indentation. If inserting into existing code, the snippet's base indentation MUST align with the insertion point if a `METAMORPHIC_INSERT_POINT` is present.
+    3.  **Syntactic Completeness:** Generate complete and runnable Python code snippets. Avoid partial statements, unclosed parentheses/brackets/braces, or missing colons. The snippet must be syntactically valid on its own.
 
 **PEP 8 ADHERENCE (GENERAL STYLE GUIDELINES):**
-    -   **Line Length:** Strictly keep lines under 80 characters (preferably 79). Use Python's line continuation methods (e.g., within parentheses, brackets, braces, or using a backslash `\\`) for long statements.
-    -   **Comment Spacing:** Inline comments MUST start with `#` and a single space, and be preceded by at least two spaces (e.g., `x = 1  # This is a comment`).
-3.  **IMPORTS (CRITICAL FOR VALIDATION & CONTEXT):**
-    -   **Adding/Modifying Imports:** If the task is to add or modify import statements at the top of a file, output *only* the `import` or `from ... import ...` lines.
-    -   **Standard Library Modules:** If generating a new method or function snippet for an existing Python file, for standard library modules (e.g., `os`, `sys`, `re`, `json`, `datetime`, `pathlib`, `typing`, `ast`), **assume these are already imported in the target file.** Do NOT include these `import` statements within your generated method/function snippet.
-    -   **Validation Exception (MUST INCLUDE):** If your new method/function snippet uses types/modules like `Path`, `Optional`, `List`, `Dict`, `Any`, `Tuple`, `Union` from `pathlib` or `typing`, or modules like `ast`, `re`, `json`, `datetime`, YOU MUST INCLUDE the necessary `from X import Y` statements (e.g., `from pathlib import Path`, `from typing import Optional, List`, `import ast`) AT THE TOP OF YOUR SNIPPET. This is required for your snippet to pass isolated pre-write validation checks.
-    -   **Third-Party Libraries:** If your snippet *requires* a new third-party library not commonly imported, you MAY include the import at the start of your snippet.
-4.  **Logging:** If logging is required within a class method, use `self.logger.debug(...)`, `self.logger.info(...)`, etc., assuming `self.logger` is available. For standalone functions or scripts, ensure `logger` is properly initialized (e.g., `import logging; logger = getLogger(__name__)`) if not provided in context.\n"
-5.  **Snippet Integration:** If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity of the target file.\n"
-'''
+    4.  **Line Length:** Strictly keep lines under 80 characters (preferably 79). Use Python's line continuation methods (e.g., within parentheses, brackets, braces, or using a backslash `\\`) for long statements.
+    5.  **Comment Spacing:** Inline comments MUST start with `#` and a single space, and be preceded by at least two spaces (e.g., `x = 1  # This is a comment`).
+
+**IMPORTS (CRITICAL FOR VALIDATION & CONTEXT):**
+    6.  **Adding/Modifying Imports:** If the task is to add or modify import statements at the top of a file, output *only* the `import` or `from ... import ...` lines.
+    7.  **Standard Library Modules:** If generating a new method or function snippet for an existing Python file, for standard library modules (e.g., `os`, `sys`, `re`, `json`, `datetime`, `pathlib`, `typing`, `ast`), **assume these are already imported in the target file.** Do NOT include these `import` statements within your generated method/function snippet.
+    8.  **Validation Exception (MUST INCLUDE):** If your new method/function snippet uses types/modules like `Path`, `Optional`, `List`, `Dict`, `Any`, `Tuple`, `Union` from `pathlib` or `typing`, or modules like `ast`, `re`, `json`, `datetime`, YOU MUST INCLUDE the necessary `from X import Y` statements (e.g., `from pathlib import Path`, `from typing import Optional, List`, `import ast`) AT THE TOP OF YOUR SNIPPET. This is required for your snippet to pass isolated pre-write validation checks.
+    9.  **Third-Party Libraries:** If your snippet *requires* a new third-party library not commonly imported, you MAY include the import at the start of your snippet.
+
+**OTHER GUIDELINES:**
+    10. **Logging:** If logging is required within a class method, use `self.logger.debug(...)`, `self.logger.info(...)`, etc., assuming `self.logger` is available. For standalone functions or scripts, ensure `logger` is properly initialized (e.g., `import logging; logger = getLogger(__name__)`) if not provided in context.
+    11. **Snippet Integration:** If modifying existing code, ensure the snippet integrates seamlessly and maintains overall syntactic validity of the target file.
+"""
 )
 
 # CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS is a template string that needs to be formatted

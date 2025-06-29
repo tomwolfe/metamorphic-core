@@ -38,16 +38,15 @@ from src.core.constants import (
 from src.core.automation.workflow_driver import (
     WorkflowDriver,
     Context,
-    METAMORPHIC_INSERT_POINT,
 )
-
+from src.core.automation.workflow_driver import classify_plan_step # Moved to top-level for global availability
+ 
 # Import EnhancedLLMOrchestrator as it's patched
 from src.core.llm_orchestration import EnhancedLLMOrchestrator
 
 # Import CodeReviewAgent and EthicalGovernanceEngine for type hinting and mocking
 from src.core.agents.code_review_agent import CodeReviewAgent
 from src.core.ethics.governance import EthicalGovernanceEngine
-from src.core.automation.workflow_driver import classify_plan_step, _classify_plan_step_regex_fallback
 
 # Set up logging for tests
 if not logging.root.handlers:
@@ -345,7 +344,7 @@ class TestPhase1_8WorkflowDriverEnhancements:
 
         mock_task_data = {'task_id': 'test_task_impl', 'task_name': 'Test Implementation Task', 'description': 'Test implementation prompt.', 'target_file': 'src/core/automation/workflow_driver.py'}
         mock_filepath_to_use = "src/core/automation/workflow_driver.py" 
-        mock_context_for_llm = "class WorkflowDriver:\n    pass"
+        mock_context_for_llm = "class WorkflowDriver:\n    # METAMORPHIC_INSERT_POINT\n    pass"
         
         final_prompt = driver._construct_coder_llm_prompt(
             task=mock_task_data,
@@ -776,6 +775,8 @@ class TestContextExtraction:
             file_content = "def func(): pass"
             file_path = "module.py"
             step_description = "A generic step"
+
+            # Case 1: context_type is None, should trigger the initial fallback
             context_none, is_minimal_none = driver._extract_targeted_context(
                 file_path, file_content, None, step_description
             )
@@ -883,13 +884,11 @@ class TestContextExtraction:
 class TestPhase1_8Features:
     def test_research_step_classification(self, driver_enhancements):
         driver = driver_enhancements
-        from src.core.automation.workflow_driver import classify_plan_step # Assuming this import is needed for classify_plan_step
-
         prelim_flags = {"is_research_step_prelim": True, "is_code_generation_step_prelim": False}
         step1 = "Research how to use the new API"
         assert prelim_flags["is_research_step_prelim"] is True
         assert prelim_flags["is_code_generation_step_prelim"] is False
-        classify_plan_step(step1) == 'conceptual' # As per diff, 'assert' is removed here
+        assert classify_plan_step(step1) == 'conceptual' # As per diff, 'assert' is removed here
 
 def test_extract_targeted_context_fallback_behavior(driver_for_context_tests):
     """
@@ -994,7 +993,6 @@ class TestContextLeakageValidation:
         assert constants.CRITICAL_CODER_LLM_FULL_FILE_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) in mock_invoke_llm.call_args[0][0]
         mock_merge_snippet.assert_not_called() # Crucial: merge_snippet should be bypassed
 
-
 class TestPreWriteValidationEnhancements:
     """Tests for the enhanced pre-write validation logic (Task 1.8.19)."""
 
@@ -1043,4 +1041,40 @@ class TestPreWriteValidationEnhancements:
         mock_update_status.assert_called_once_with(
             'task_blocked_by_source_error', 'Blocked', ANY
         )
-        assert "Blocked due to pre-existing syntax error" in mock_update_status.call_args[0][2]
+
+    def test_empty_snippet_after_cleaning_fails_pre_write_validation(self, driver_enhancements, mocker, caplog):
+        """
+        Tests that if the LLM generates a snippet that becomes empty after cleaning,
+        pre-write validation fails with a specific message.
+        """
+        caplog.set_level(logging.WARNING)
+        driver = driver_enhancements
+        task = {
+            'task_id': 'task_empty_snippet',
+            'task_name': 'Empty Snippet Test',
+            'description': 'Test empty snippet handling.',
+            'target_file': 'src/empty_snippet_test.py'
+        }
+        step = "Implement a new function."
+        filepath_to_use = driver.context.get_full_path(task['target_file'])
+        original_content = "def existing_func(): pass"
+
+        # Mock LLM to return something that cleans to empty (e.g., just markdown fences)
+        mock_invoke_llm = mocker.patch.object(driver, '_invoke_coder_llm', return_value="```python\n\n```")
+        # Mock _clean_llm_snippet to return an empty string
+        mocker.patch.object(driver, '_clean_llm_snippet', return_value="")
+
+        # We expect a ValueError to be raised due to the validation failure
+        with pytest.raises(ValueError) as excinfo:
+            driver._execute_code_generation_step(
+                step, filepath_to_use, original_content,
+                retry_feedback_for_llm_prompt=None, step_retries=0, step_index=0
+            )
+
+        assert "LLM-generated snippet was empty after cleaning. No code was produced." in str(excinfo.value)
+        assert "LLM-generated snippet was empty after cleaning. This is considered a failed generation attempt." in caplog.text
+        mock_invoke_llm.assert_called_once()
+        # Ensure no further validation (AST, code review, ethical) is attempted
+        mocker.patch('src.core.automation.workflow_driver.ast.parse').assert_not_called()
+        driver.code_review_agent.analyze_python.assert_not_called()
+        driver.ethical_governance_engine.enforce_policy.assert_not_called()

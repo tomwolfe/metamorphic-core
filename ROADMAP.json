@@ -436,16 +436,59 @@
       "description": "Run a linter (e.g., `flake8`) and an autoformatter (e.g., `black`) across the entire `src` and `tests` directories to fix existing style violations (PEP8, etc.). This will reduce noise in future validation steps, allowing the autonomous system to more accurately identify new issues introduced by its own code modifications. This task should be completed before proceeding with further feature development."
     },
     {
-      "task_id": "task_1_8_19a_implement_differentiation",
+      "task_id": "task_1_8_19a_1_wrap_ast_parse",
       "priority": "High",
-      "task_name": "Implement Syntax Error Differentiation in Pre-Write Validation",
+      "task_name": "Wrap ast.parse in a try-except block for SyntaxError",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_2_F_4c_syntax_fix",
         "task_1_8_18_fix_string_literal_prompting"
       ],
-      "description": "Modify the pre-write validation logic in `WorkflowDriver` (within `_execute_code_generation_step`). When a `SyntaxError` occurs during the hypothetical merge check (`ast.parse`), analyze the error's line number (`se.lineno`). Compare this to the snippet's line range (which can be determined via `_get_hypothetical_snippet_line_range`). If the error is outside the snippet's range, identify it as a pre-existing source file error, log it, block the current task, and prepare to create a new high-priority 'fix syntax error' task targeting the source file."
+      "description": "In `_execute_code_generation_step`, find the `ast.parse(content_for_ast_check)` call. Wrap this specific call in a `try...except SyntaxError as se:` block. For now, inside the `except` block, simply re-raise the exception using `raise se`. This is the first step to build the differentiation logic, enabling safe detection of syntax errors without crashing the workflow."
+    },
+    {
+      "task_id": "task_1_8_19a_2_get_line_ranges",
+      "priority": "High",
+      "task_name": "Get and Log Snippet and Error Line Numbers",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_19a_1_wrap_ast_parse"
+      ],
+      "description": "Inside the `except SyntaxError as se:` block (before the `raise`), get the error line number using `se.lineno`. Also, call `self._get_hypothetical_snippet_line_range(original_full_content, cleaned_output)` to get the snippet's line range. Log these values for debugging purposes, providing crucial context for error differentiation."
+    },
+    {
+      "task_id": "task_1_8_19a_3_implement_conditional_logic",
+      "priority": "High",
+      "task_name": "Implement Conditional Logic for Error Location",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_19a_2_get_line_ranges"
+      ],
+      "description": "Inside the `except` block, add an `if` statement to check if `se.lineno` is *not* within the range returned by `_get_hypothetical_snippet_line_range`. This implements the core logic for differentiating pre-existing errors from snippet-introduced ones. For now, leave the `if` and `else` blocks empty (`pass`). Remove the `raise se` statement."
+    },
+    {
+      "task_id": "task_1_8_19a_4_handle_preexisting_error",
+      "priority": "High",
+      "task_name": "Implement Handling for Pre-existing Source File Errors",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_19a_3_implement_conditional_logic"
+      ],
+      "description": "In the `if` block (for errors outside the snippet), log an error message indicating a pre-existing syntax error was found. Then, raise a `ValueError` with a descriptive message to fail the step. This will trigger the task blocking mechanism, preventing the system from attempting to fix errors it didn't introduce."
+    },
+    {
+      "task_id": "task_1_8_19a_5_handle_snippet_error",
+      "priority": "High",
+      "task_name": "Implement Handling for Snippet-Introduced Errors",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_19a_4_handle_preexisting_error"
+      ],
+      "description": "In the `else` block (for errors inside the snippet), re-introduce the original failure logic. This involves setting `validation_passed = False`, creating an error message string, and appending it to `validation_feedback`. This ensures that errors caused by the LLM's generated code are correctly flagged for remediation."
     },
     {
       "task_id": "task_1_8_19b_add_tests_for_differentiation",
@@ -454,7 +497,7 @@
       "status": "Not Started",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
-        "task_1_8_19a_implement_differentiation"
+        "task_1_8_19a_5_handle_snippet_error"
       ],
       "description": "In `tests/test_phase1_8_features.py`, add new unit tests to verify the syntax error differentiation logic implemented in `task_1_8_19a`. The tests should cover cases where a `SyntaxError` occurs within the generated snippet and cases where the error exists in the original source file content, outside the snippet's range. Use `pytest.raises` and mock `ast.parse` to simulate these `SyntaxError` conditions."
     },
@@ -546,7 +589,7 @@
         "task_1_8_1",
         "task_1_8_5"
       ],
-      "description": "Add logic to the Workflow Driver or a Planning Agent to assess task complexity and automatically break down large tasks into smaller, dependent sub-tasks in the roadmap if needed."
+      "description": "Add logic to the Workflow Driver or a Planning Agent to assess task complexity and automatically break down large tasks into smaller, dependent sub-tasks in the roadmap if needed. As a reference implementation, analyze the manual decomposition of `task_1_8_19a` into `task_1_8_19a_1` through `task_1_8_19a_5`, which breaks down a complex code modification into atomic, verifiable steps. This decomposition reduces LLM cognitive load and improves retry effectiveness."
     },
     {
       "task_id": "task_1_8_8",
@@ -615,7 +658,7 @@
         "task_1_8_5"
       ],
       "description": "Develop a simple model (potentially using data from task_1_8_5) to predict the likelihood of autonomous success for a given task based on its characteristics. Use this to inform task selection or flag low-probability tasks for manual review."
-        },
+    },
     {
       "task_id": "task_1_8_13",
       "priority": "High",

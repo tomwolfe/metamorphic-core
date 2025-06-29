@@ -51,7 +51,7 @@ def _load_spacy_model():
 
 CODE_KEYWORDS = [
 "add", "import", "implement", "modify", "update", "refactor", "write", "fix", "debug", "handle", "change",
-"configure", "create", "test", "install", "use", "validate", "bug",
+"configure", "create", "test", "install", "validate", "bug", # Removed "use" as it's too generic and caused classification ties
 "constant", "constants", "logic",
 "refactor code", "add import",
 "define constants", "implement function", "modify class",
@@ -634,7 +634,7 @@ class WorkflowDriver:
                         logger.info(f"Using placeholder for NEW main Python target {filepath_to_use} for step: '{step_description}'.")
                     elif is_conceptual_step_for_main_target:
                         # If it's a conceptual step targeting the main Python file, skip placeholder write
-                        logger.info(f"Skipping placeholder write to main Python target {filepath_to_use} for conceptual step: '{step_description}'.")
+                        logger.info(f"Skipping placeholder write to main Python target {filepath_to_use} for conceptual step: '{step_description}'. This step should be handled by code generation.")
                         content_to_write = None
                     else:
                         # If it's a modification step targeting the main Python file, skip placeholder write
@@ -997,7 +997,7 @@ class WorkflowDriver:
                                 else:
                                     # Log message format matches the assertion in the test
                                     step_failure_reason = current_attempt_error_message # Set final failure reason
-                                    logger.error(f"Step {step_index + 1}/{len(solution_plan)} failed after {self.MAX_STEP_RETRIES} retries. Last error: {step_failure_reason}")
+                                    logger.error(f"Step {step_index + 1}/{len(solution_plan)} failed after {self.MAX_STEP_RETRIES + 1} attempts. Last error: {step_failure_reason}")
                                     task_failed_step = True # Mark task as failed due to step failure
                                     break # Exit retry loop for this step
 
@@ -1249,6 +1249,11 @@ class WorkflowDriver:
         cleaned_output = self._clean_llm_snippet(generated_output)
         self.logger.debug(f"Cleaned output (first 100 chars): {cleaned_output[:100]}...")
 
+        if not cleaned_output.strip():
+            self.logger.warning("LLM-generated snippet was empty after cleaning. This is considered a failed generation attempt.")
+            self._current_task_results['pre_write_validation_feedback'] = ["LLM-generated snippet was empty after cleaning. No code was produced."]
+            raise ValueError(self._current_task_results['pre_write_validation_feedback'][0]) # Raise error to fail step and trigger retry/block
+ 
         if is_multi_location_edit:
             content_for_validation = cleaned_output
             content_to_write = cleaned_output
@@ -2902,3 +2907,4 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
+        return None

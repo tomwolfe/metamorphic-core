@@ -315,7 +315,7 @@ class TestWorkflowRemediation:
         grade_report = create_mock_grade_report(code_review_status='failed', code_review_findings=[{'severity': 'error', 'code': 'E001', 'message': 'Style issue'}])
         task = {"task_id": "mock_task", "task_name": "Mock Task", "description": "Mock Desc", "status": "Not Started", "priority": "medium"}
         step_desc = "Mock Step"
-        file_path = "mock/file.py"
+        file_path = driver.context.get_full_path("mock/file.py") # Use resolved path
         original_code = "original code"
         corrected_code = "corrected code"
         mock_invoke = mocker.patch.object(driver, '_invoke_coder_llm', return_value=corrected_code)
@@ -325,8 +325,7 @@ class TestWorkflowRemediation:
         result = driver._attempt_code_style_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is True
         mock_invoke.assert_called_once()
-        # FIX: Assert with the relative path, not the resolved path
-        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True) # file_path is now resolved
         mock_analyze.assert_called_once_with(corrected_code)
 
     def test_return_false_on_write_failure_code_style(self, driver, mocker, caplog):
@@ -334,7 +333,7 @@ class TestWorkflowRemediation:
         grade_report = create_mock_grade_report(code_review_status='failed', code_review_findings=[{'severity': 'error', 'code': 'E001', 'message': 'Style issue'}])
         task = {"task_id": "mock_task", "task_name": "Mock Task", "description": "Mock Desc", "status": "Not Started", "priority": "medium"}
         step_desc = "Mock Step"
-        file_path = "mock/file.py"
+        file_path = driver.context.get_full_path("mock/file.py") # Use resolved path
         original_code = "original code"
         corrected_code = "corrected code"
         mock_invoke = mocker.patch.object(driver, '_invoke_coder_llm', return_value=corrected_code)
@@ -342,8 +341,7 @@ class TestWorkflowRemediation:
         result = driver._attempt_code_style_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is False
         mock_invoke.assert_called_once()
-        # FIX: Assert with the relative path, not the resolved path
-        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True) # file_path is now resolved
         mocker.patch.object(driver.code_review_agent, "analyze_python").assert_not_called()
 
     def test_return_true_if_revalidation_fails_code_style(self, driver, mocker, caplog):
@@ -351,7 +349,7 @@ class TestWorkflowRemediation:
         grade_report = create_mock_grade_report(code_review_status='failed', code_review_findings=[{'severity': 'error', 'code': 'E001', 'message': 'Style issue'}])
         task = {"task_id": "mock_task", "task_name": "Mock Task", "description": "Mock Desc", "status": "Not Started", "priority": "medium"}
         step_desc = "Mock Step"
-        file_path = "mock/file.py"
+        file_path = driver.context.get_full_path("mock/file.py") # Use resolved path
         original_code = "original code"
         corrected_code = "corrected code"
         mock_invoke = mocker.patch.object(driver, '_invoke_coder_llm', return_value=corrected_code)
@@ -361,8 +359,7 @@ class TestWorkflowRemediation:
         result = driver._attempt_code_style_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is True
         mock_invoke.assert_called_once()
-        # FIX: Assert with the relative path, not the resolved path
-        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True) # file_path is now resolved
         mock_analyze.assert_called_once_with(corrected_code)
 
     def test_error_handling_generic_exception_code_style(self, driver, mocker, caplog):
@@ -384,7 +381,7 @@ class TestWorkflowRemediation:
         grade_report = create_mock_grade_report(ethical_overall_status='approved', ethical_transparency_status='compliant')
         task = {"task_id": "mock_task", "task_name": "Mock Task", "description": "Mock Desc", "status": "Not Started", "priority": "medium"}
         step_desc = "Mock Step"
-        file_path = "mock/file.py"
+        file_path = driver.context.get_full_path("mock/file.py") # Use resolved path
         original_code = "original code"
         mock_invoke = mocker.patch.object(driver, '_invoke_coder_llm')
         mock_write = mocker.patch.object(driver, '_write_output_file')
@@ -398,7 +395,7 @@ class TestWorkflowRemediation:
         grade_report = create_mock_grade_report(ethical_overall_status='rejected', ethical_transparency_status='violation')
         task = {"task_id": "mock_task", "task_name": "Mock Task", "description": "Mock Desc", "status": "Not Started", "priority": "medium"}
         step_desc = "Mock Step"
-        file_path = "mock/file.py"
+        file_path = driver.context.get_full_path("mock/file.py") # Use resolved path
         original_code = "original code"
         mock_invoke = mocker.patch.object(driver, '_invoke_coder_llm', return_value=None)
         mock_write = mocker.patch.object(driver, '_write_output_file')
@@ -412,7 +409,7 @@ class TestWorkflowRemediation:
         grade_report = create_mock_grade_report(ethical_overall_status='rejected', ethical_transparency_status='violation')
         task = {"task_id": "mock_task", "task_name": "Mock Task", "description": "Mock Desc", "status": "Not Started", "priority": "medium"}
         step_desc = "Mock Step"
-        file_path = "mock/file.py"
+        file_path = driver.context.get_full_path("mock/file.py") # Use resolved path
         original_code = "original code"
         mock_invoke = mocker.patch.object(driver, '_invoke_coder_llm', return_value="original code")
         mock_write = mocker.patch.object(driver, '_write_output_file')
@@ -426,7 +423,7 @@ class TestWorkflowRemediation:
         grade_report = create_mock_grade_report(ethical_overall_status='rejected', ethical_transparency_status='violation')
         task = {"task_id": "mock_task", "task_name": "Mock Task", "description": "Mock Desc", "status": "Not Started", "priority": "medium"}
         step_desc = "Mock Step"
-        file_path = "mock/file.py"
+        file_path = driver.context.get_full_path("mock/file.py") # Use resolved path
         original_code = "original code"
         corrected_code = "corrected code"
         mock_invoke = mocker.patch.object(driver, '_invoke_coder_llm', return_value=corrected_code)
@@ -437,8 +434,7 @@ class TestWorkflowRemediation:
         result = driver._attempt_ethical_transparency_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is True
         mock_invoke.assert_called_once()
-        # FIX: Assert with the relative path, not the resolved path
-        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True) # file_path is now resolved
         mock_enforce.assert_called_once_with(corrected_code, driver.default_policy_config)
 
     def test_return_false_on_write_failure_ethical(self, driver, mocker, caplog):
@@ -446,7 +442,7 @@ class TestWorkflowRemediation:
         grade_report = create_mock_grade_report(ethical_overall_status='rejected', ethical_transparency_status='violation')
         task = {"task_id": "mock_task", "task_name": "Mock Task", "description": "Mock Desc", "status": "Not Started", "priority": "medium"}
         step_desc = "Mock Step"
-        file_path = "mock/file.py"
+        file_path = driver.context.get_full_path("mock/file.py") # Use resolved path
         original_code = "original code"
         corrected_code = "corrected code"
         mock_invoke = mocker.patch.object(driver, '_invoke_coder_llm', return_value=corrected_code)
@@ -454,8 +450,7 @@ class TestWorkflowRemediation:
         result = driver._attempt_ethical_transparency_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is False
         mock_invoke.assert_called_once()
-        # FIX: Assert with the relative path, not the resolved path
-        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True) # file_path is now resolved
         mocker.patch.object(driver.ethical_governance_engine, "enforce_policy").assert_not_called()
 
     def test_return_true_if_revalidation_fails_ethical(self, driver, mocker, caplog):
@@ -463,7 +458,7 @@ class TestWorkflowRemediation:
         grade_report = create_mock_grade_report(ethical_overall_status='rejected', ethical_transparency_status='violation')
         task = {"task_id": "mock_task", "task_name": "Mock Task", "description": "Mock Desc", "status": "Not Started", "priority": "medium"}
         step_desc = "Mock Step"
-        file_path = "mock/file.py"
+        file_path = driver.context.get_full_path("mock/file.py") # Use resolved path
         original_code = "original code"
         corrected_code = "corrected code"
         mock_invoke = mocker.patch.object(driver, '_invoke_coder_llm', return_value=corrected_code)
@@ -474,8 +469,7 @@ class TestWorkflowRemediation:
         result = driver._attempt_ethical_transparency_remediation(grade_report, task, step_desc, file_path, original_code)
         assert result is True
         mock_invoke.assert_called_once()
-        # FIX: Assert with the relative path, not the resolved path
-        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True)
+        mock_write.assert_called_once_with(file_path, corrected_code, overwrite=True) # file_path is now resolved
         mock_enforce.assert_called_once_with(corrected_code, driver.default_policy_config)
 
     def test_error_handling_generic_exception_ethical(self, driver, mocker, caplog):
@@ -538,8 +532,7 @@ class TestWorkflowRemediation:
         # ASSERTIONS ALIGNED WITH SUT BEHAVIOR (TASK BLOCKING)
         mock_remediation.assert_not_called() # Remediation should NOT be called
         # FIX: Use caplog.records to assert the log message presence and match the actual log format
-        # Match the log message format exactly, including the period after "retries"
-        assert any("Step 1/2 failed after 2 retries." in record.message for record in caplog.records)
+        assert any("Step 1/2 failed after 3 attempts." in record.message for record in caplog.records)
         assert "Task T1 marked as 'Blocked'." in caplog.text
         # Check that _update_task_status_in_roadmap was called to set status to Blocked
         # This requires _safe_write_roadmap_json to be called with the updated roadmap

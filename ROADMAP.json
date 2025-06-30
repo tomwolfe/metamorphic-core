@@ -439,7 +439,7 @@
       "task_id": "task_1_8_19a_1_wrap_ast_parse",
       "priority": "High",
       "task_name": "Wrap ast.parse in a try-except block for SyntaxError",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_18_fix_string_literal_prompting"
@@ -771,6 +771,17 @@
         "task_1_8_4"
       ],
       "description": "Enhance the `_parse_and_evaluate_grade_report` method to handle tasks that are expected to produce failing tests. Add a field to the task definition in `ROADMAP.json` (e.g., `\"expected_outcome\": \"tests_fail\"`). If this field is present, the grading logic should treat a 'failed' test status as a success for that specific task, allowing the system to proceed with Test-Driven Development workflows autonomously."
+    },
+    {
+      "task_id": "task_1_8_24_atomic_plan_generation",
+      "priority": "High",
+      "task_name": "Improve Planner for Atomic Code Modifications",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_19b_add_tests_for_differentiation"
+      ],
+      "description": "The failure of `task_1_8_19a_1_wrap_ast_parse` revealed that the planner can generate overly granular, error-prone plans for simple, atomic code modifications (like wrapping a line in a try/except block). Enhance the planning agent to recognize when a task description implies a single, localized change. For such tasks, the planner should generate a single, more descriptive plan step that instructs the Coder LLM to perform the entire modification at once, rather than breaking it into multiple tiny steps like 'insert line', 'indent line', etc. This will improve the reliability and efficiency of code generation for simple refactoring and additions."
     }
   ],
   "next_phase_actions": [

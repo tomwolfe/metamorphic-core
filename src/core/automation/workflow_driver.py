@@ -358,7 +358,7 @@ class WorkflowDriver:
             extracted_import_block = self._extract_import_block(file_content)
             
             if extracted_import_block.strip(): # Check if it's not just empty or whitespace
-                self.logger.debug(f"Extracted import block context for {Path(file_path).name}.")
+                self.logger.debug(f"Extracting import block context for {Path(file_path).name}.")
                 return extracted_import_block, True
             else:
                 # If _extract_import_block returns empty (e.g., truly empty file or no imports/initial comments/docstrings),
@@ -868,7 +868,7 @@ class WorkflowDriver:
                                             # Final fallback if no other target is found.
                                             test_target_path = "tests/"
                                             logger.warning(f"No valid test target found in task or step. Defaulting to '{test_target_path}'.")
-
+ 
                                     test_command.append(test_target_path)
  
                                     try:
@@ -902,18 +902,18 @@ class WorkflowDriver:
                                         if 'test_results' not in self._current_task_results or self._current_task_results['test_results'].get('status') != 'error':
                                             self._current_task_results['test_results'] = {'status': 'error', 'passed': 0, 'failed': 0, 'total': 0, 'message': str(e)}
                                         raise e # Re-raise to trigger retry/failure
-
+ 
                                 # Use filepath_to_use (the resolved determined target file) here
                                 elif prelim_flags['is_code_generation_step_prelim'] and filepath_to_use and filepath_to_use.endswith('.py'):
                                     # This step involves generating Python code and writing it to a .py file
                                     logger.info(f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.") # Log resolved path
                                     original_full_content = self._read_file_for_context(filepath_to_use)
-
+ 
                                     if original_full_content is None: # Handle read errors
                                         step_failure_reason = f"Failed to read current content of {filepath_to_use} for code generation."
                                         logger.error(step_failure_reason)
                                         raise RuntimeError(step_failure_reason)
-
+ 
                                     success, generated_output_content = self._execute_code_generation_step(
                                         step, filepath_to_use, original_full_content,
                                         retry_feedback_for_llm_prompt if step_retries > 0 else None, step_retries, step_index
@@ -924,7 +924,7 @@ class WorkflowDriver:
                                     else:
                                         step_failure_reason = self._current_task_results.get('pre_write_validation_feedback', ["Code generation failed for unknown reason."])[0]
                                         raise ValueError(step_failure_reason)
-
+ 
                                 # Use filepath_to_use (the resolved determined target file) here
                                 elif content_to_write is not None and filepath_to_use:
                                     # This step involves explicitly writing content (e.g., a placeholder file)
@@ -945,7 +945,7 @@ class WorkflowDriver:
                                         logger.error(f"Failed to write file {filepath_to_use}: {e}", exc_info=True)
                                         step_failure_reason = f"Failed to write file {filepath_to_use}: {e}"
                                         raise e # Re-raise to trigger retry/failure
-
+ 
                                 else:
                                     # Step is not identified as code generation, explicit file writing, or test execution.
                                     # Or it's a code generation step but filepath_to_use is None (e.g., path resolution failed).
@@ -961,11 +961,11 @@ class WorkflowDriver:
                                         logger.info(f"Step not identified as code generation, explicit file writing, or test execution. Skipping agent invocation/file write for step: {step}")
                                     # If the step wasn't meant to write or generate code, it succeeded implicitly.
                                     # If it was meant to write/generate but filepath_to_use was None, the exception above handles it.
-
-
+ 
+ 
                                 step_succeeded = True # If we reached here without raising an exception, the step succeeded (or was skipped appropriately)
                                 break # Exit retry loop for this step
-
+ 
                             except Exception as e:
                                 # Capture the specific error message for the next retry's prompt and for logging
                                 if isinstance(e, SyntaxError):
@@ -979,7 +979,7 @@ class WorkflowDriver:
                                     current_attempt_error_message = f"IOError: {str(e)}"
                                 else:
                                     current_attempt_error_message = f"{type(e).__name__}: {str(e)}"
-
+ 
                                 logger.error(f"Step execution failed (Attempt {step_retries + 1}/{self.MAX_STEP_RETRIES + 1}): {step}. Error: {current_attempt_error_message}", exc_info=True)
                                 self._current_task_results['step_errors'].append({
                                     'step_index': step_index + 1,
@@ -1000,7 +1000,7 @@ class WorkflowDriver:
                                     logger.error(f"Step {step_index + 1}/{len(solution_plan)} failed after {self.MAX_STEP_RETRIES + 1} attempts. Last error: {step_failure_reason}")
                                     task_failed_step = True # Mark task as failed due to step failure
                                     break # Exit retry loop for this step
-
+ 
                         if task_failed_step:
                             # If any step failed after retries, mark the task as Blocked and exit the step loop
                             new_status = "Blocked"
@@ -1016,14 +1016,14 @@ class WorkflowDriver:
                             if last_error_reason is None:
                                 # Construct the default message using a separate f-string
                                 last_error_reason = f'{last_error.get("error_type", "UnknownError")}: {last_error.get("error_message", "No specific error message.")}'
-
+ 
                             reason_blocked = f"Step {step_index + 1} ('{step}') failed after {self.MAX_STEP_RETRIES + 1} attempts. Last error: {last_error_reason}"
                             logger.warning(f"Task {task_id} marked as '{new_status}'. Reason: {reason_blocked}")
                             self._update_task_status_in_roadmap(task_id, new_status, reason_blocked)
                             break # Exit the step loop
-
+ 
                     # --- End of Step Loop ---
-
+ 
                     if not task_failed_step:
                         # If all steps completed without failing retries, proceed to task-level evaluation
                         logger.info("All plan steps executed successfully.")
@@ -1034,13 +1034,13 @@ class WorkflowDriver:
                         recommended_action = evaluation_result.get("recommended_action", "Manual Review Required")
                         justification = evaluation_result.get("justification", "Evaluation failed.")
                         logger.info(f"Initial Grade Report Evaluation: Recommended Action='{recommended_action}', Justification='{justification}'")
-
+ 
                         MAX_TASK_REMEDIATION_ATTEMPTS = 2 # Define max task-level remediation attempts
                         if recommended_action == "Regenerate Code":
                             if self.remediation_attempts < MAX_TASK_REMEDIATION_ATTEMPTS:
                                 logger.info(f"Attempting automated remediation (Attempt {self.remediation_attempts + 1}/{MAX_TASK_REMEDIATION_ATTEMPTS})...")
                                 self.remediation_occurred_in_pass = False # Reset flag for this remediation pass
-
+ 
                                 # Determine the target file for remediation. Prioritize task_target_file.
                                 # If task_target_file is multi-target or None, try to find the last file modified in the steps.
                                 filepath_for_remediation = None
@@ -1054,7 +1054,7 @@ class WorkflowDriver:
                                         filepath_for_remediation = step_filepath_rem
                                         logger.debug(f"Using file path from last file-modifying step for remediation: {filepath_for_remediation}")
                                         break # Found the last file-modifying step, break the loop
-
+ 
                                 if not filepath_for_remediation and self.task_target_file:
                                     # If no file-modifying step found, but task has a target, try the first task target
                                     targets = [f.strip() for f in self.task_target_file.split(',') if f.strip()]
@@ -1066,20 +1066,20 @@ class WorkflowDriver:
                                             logger.warning(f"Could not resolve first task target file '{targets[0]}' for remediation.")
                                 else:
                                     logger.warning("No file-modifying step found and no task target file specified. Cannot attempt automated remediation.")
-
-
+ 
+ 
                                 # If a target file for remediation was determined/resolved
                                 if filepath_for_remediation:
                                     # Read the current content of the file for the remediation prompt
                                     # filepath_for_remediation is already resolved absolute path
                                     current_file_content = self._read_file_for_context(filepath_for_remediation)
-
+ 
                                     if current_file_content is not None:
                                         # Identify the primary failure type from the grade report
                                         failure_type = self._identify_remediation_target(grade_report_json)
                                         remediation_attempted = False
                                         remediation_success = False
-
+ 
                                         # Attempt remediation based on failure type
                                         if failure_type == "Test Failure":
                                             remediation_attempted = True
@@ -1092,7 +1092,7 @@ class WorkflowDriver:
                                                 self.remediation_occurred_in_pass = True # Mark that remediation occurred in this pass
                                             else:
                                                 logger.warning("Test failure remediation attempt failed.")
-
+ 
                                         # If test remediation wasn't attempted or failed, try Code Style if applicable
                                         if not remediation_success and failure_type == "Code Style":
                                             remediation_attempted = True
@@ -1103,7 +1103,7 @@ class WorkflowDriver:
                                                 self.remediation_occurred_in_pass = True # Mark that remediation occurred in this pass
                                             else:
                                                 logger.warning("Style remediation attempt failed.")
-
+ 
                                         # If previous remediations aren't attempted or failed, try Ethical Transparency if applicable
                                         if not remediation_success and failure_type == "Ethical Transparency":
                                             remediation_attempted = True
@@ -1114,7 +1114,7 @@ class WorkflowDriver:
                                                 self.remediation_occurred_in_pass = True # Mark that remediation occurred in this pass
                                             else:
                                                 logger.warning("Ethical transparency remediation attempt failed.")
-
+ 
                                         # After attempting remediation, re-generate and re-evaluate the grade report
                                         # ONLY if remediation was attempted AND resulted in a file write (signaled by remediation_success)
                                         if remediation_attempted and remediation_success:
@@ -1132,19 +1132,19 @@ class WorkflowDriver:
                                             logger.warning("Remediation attempt failed to write code. Skipping re-evaluation.")
                                         else:
                                             logger.info("No applicable automated remediation identified or attempted.")
-
-
+ 
+ 
                             else:
                                 logger.warning(f"Maximum task-level remediation attempts ({MAX_TASK_REMEDIATION_ATTEMPTS}) reached for task {task_id}. Proceeding without further automated remediation.")
                                 # If max attempts reached, the recommended_action from the *initial* evaluation stands.
-
+ 
                         # --- Determine Final Status for Task Iteration ---
                         # If task_failed_step is True, status is already set to Blocked and loop continues.
                         # Otherwise, status is based on the final evaluation result (after any remediation).
                         if not task_failed_step:
                             new_status = next_task['status'] # Start with current status
                             reason_blocked = None # Reset reason
-
+ 
                             if recommended_action == "Completed":
                                 new_status = "Completed"
                             elif recommended_action == "Blocked":
@@ -1153,14 +1153,14 @@ class WorkflowDriver:
                             # If recommended_action is "Regenerate Code" or "Manual Review Required",
                             # the status remains "Not Started" (or whatever it was) for the next iteration
                             # unless it was explicitly set to Blocked above.
-
+ 
                             # Update roadmap status if it has changed
                             if new_status != next_task['status']:
                                 logger.info(f"Updating task status from '{next_task['status']}' to '{new_status}' for task {task_id}")
                                 self._update_task_status_in_roadmap(task_id, new_status, reason_blocked)
                             else:
                                 logger.info(f"Task status for {task_id} remains '{new_status}' based on evaluation.")
-
+ 
                 else:
                     # No solution plan generated
                     logger.warning(f"No solution plan generated for task {task_id}.")
@@ -1169,12 +1169,12 @@ class WorkflowDriver:
                     reason_blocked = "Failed to generate a solution plan."
                     logger.warning(f"Task {task_id} marked as '{new_status}'. Reason: {reason_blocked}")
                     self._update_task_status_in_roadmap(task_id, new_status, reason_blocked)
-
+ 
             else:
                 # No tasks available in "Not Started" status
                 logger.info('No tasks available in Not Started status. Exiting autonomous loop.')
                 break # Exit the main autonomous loop
-
+ 
             logger.info('Autonomous loop iteration finished.')
         logger.info('Autonomous loop terminated.')
 
@@ -1252,31 +1252,32 @@ class WorkflowDriver:
         if not cleaned_output.strip():
             self.logger.warning("LLM-generated snippet was empty after cleaning. This is considered a failed generation attempt.")
             self._current_task_results['pre_write_validation_feedback'] = ["LLM-generated snippet was empty after cleaning. No code was produced."]
-            raise ValueError(self._current_task_results['pre_write_validation_feedback'][0]) # Raise error to fail step and trigger retry/block
+            raise ValueError(self._current_task_results['pre_write_validation_feedback'][0])
  
-        if is_multi_location_edit:
-            content_for_validation = cleaned_output
-            content_to_write = cleaned_output
-            is_snippet_for_ethics = False
-        else:
-            content_for_validation = cleaned_output
-            content_to_write = self._merge_snippet(original_full_content, content_for_validation)
-            is_snippet_for_ethics = True
-
         # --- Pre-Write Validation ---
-        self.logger.info(f"Performing pre-write validation for {'full file' if is_multi_location_edit else 'snippet'} targeting {filepath_to_use}...")
+        self.logger.info(f"Performing pre-write validation for {'full file' if is_multi_location_edit else 'snippet'} targeting {filepath_to_use}.")
         validation_passed = True
-        validation_feedback = []
-
-        self.logger.info(f"Running code review and security scan for {filepath_to_use}...")
+        validation_feedback = [] # Initialize feedback list
+ 
+        # Determine the full content that will be written to the file if validation passes.
+        # This content is used for AST parsing, code review, ethical analysis, and security scans.
         try:
-            content_for_ast_check = content_to_write if is_multi_location_edit else self._merge_snippet(original_full_content, content_for_validation)
-            ast.parse(content_for_ast_check)
+            content_for_validation = cleaned_output if is_multi_location_edit else self._merge_snippet(original_full_content, cleaned_output)
+        except Exception as e:
+            # Catch errors that might occur during content preparation (e.g., snippet merge issues)
+            validation_passed = False
+            validation_feedback.append(f"Failed to prepare content for validation (e.g., snippet merge error): {e}")
+            self.logger.error(f"Validation preparation failed: {e}")
+            return validation_passed, validation_feedback
+ 
+        # Perform AST parse to ensure the final file will be syntactically valid.
+        try:
+            ast.parse(content_for_validation)
             self.logger.info("Pre-write full file syntax check (AST parse) passed.")
         except SyntaxError as se:
             # Differentiate between pre-existing source file errors and snippet-introduced errors.
             snippet_range = self._get_hypothetical_snippet_line_range(original_full_content, cleaned_output)
-
+ 
             # Check if the error is outside the snippet's range, indicating a pre-existing error.
             if snippet_range and not (snippet_range[0] <= se.lineno <= snippet_range[1]):
                 error_msg = (
@@ -1290,8 +1291,7 @@ class WorkflowDriver:
                 # TODO: Implement creation of a new high-priority 'fix syntax error' task.
                 # For now, we just block and raise to stop the current task execution.
                 raise ValueError(error_msg)  # Raise a specific error to be caught by the step retry loop
-            else:
-                # The syntax error was introduced by the snippet, the merge, or we can't determine the range.
+            else: # The syntax error was introduced by the snippet, the merge, or we can't determine the range.
                 validation_passed = False
                 error_msg = f"Pre-write syntax check failed: {se.msg} on line {se.lineno}."
                 validation_feedback.append(error_msg)
@@ -1307,10 +1307,10 @@ class WorkflowDriver:
                         current_task_id_str = getattr(self, '_current_task', {}).get('task_id', 'unknown_task')
                         sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', current_task_id_str)
                         current_step_index_str = str(step_index + 1)
-
+ 
                         filename = f"failed_snippet_{sanitized_task_id}_step{current_step_index_str}_{timestamp}.json"
                         filepath = debug_dir / filename
-
+ 
                         debug_data = {
                             "timestamp": datetime.now().isoformat(),
                             "task_id": current_task_id_str,
@@ -1331,26 +1331,31 @@ class WorkflowDriver:
                         self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
                 except Exception as write_err:
                     self.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
-
-        if validation_passed: # Check validation_passed again after previous check
-            if not self._validate_for_context_leakage(content_for_validation):
+ 
+            raise se # Re-raise the SyntaxError as per task_1_8_19a_1_wrap_ast_parse
+ 
+        # If we reach here, AST parse passed. Now continue with other validations.
+        self.logger.info(f"Running code review and security scan for {filepath_to_use}.")
+        if not self._validate_for_context_leakage(content_for_validation):
+            validation_passed = False
+            validation_feedback.append("Pre-write validation failed: Context leakage detected.")
+        
+        if validation_passed: # Check validation_passed again after previous check, after context leakage check
+            style_review_results = self.code_review_agent.analyze_python(content_for_validation)
+            critical_findings = [f for f in style_review_results.get('static_analysis', []) if f.get('severity') in ['error', 'security_high', 'security_medium']] # Include medium for pre-write
+            if critical_findings: # If any critical findings, fail validation
                 validation_passed = False
-                validation_feedback.append("Pre-write validation failed: Context leakage detected.")
-            if validation_passed: # Check validation_passed again after previous check
-                style_review_results = self.code_review_agent.analyze_python(content_for_validation)
-                critical_findings = [f for f in style_review_results.get('static_analysis', []) if f.get('severity') in ['error', 'security_high', 'security_medium']] # Include medium for pre-write
-                if critical_findings: # If any critical findings, fail validation
+                validation_feedback.append(f"Pre-write validation failed: Style/security check found critical findings: {critical_findings}")
+            self.logger.info(f"Code Review and Security Scan Results for {filepath_to_use}: {style_review_results}")
+            self.logger.info(f"Running ethical analysis for {filepath_to_use}.")
+            is_snippet_for_ethics = not is_multi_location_edit # Define is_snippet_for_ethics
+            ethical_results = {'overall_status': 'skipped', 'message': 'Ethical analysis skipped: Default policy not loaded.'} # Initialize ethical_results
+            if self.default_policy_config:
+                ethical_results = self.ethical_governance_engine.enforce_policy(content_for_validation, self.default_policy_config, is_snippet=is_snippet_for_ethics)
+                if ethical_results.get('overall_status') == 'rejected':
                     validation_passed = False
-                    validation_feedback.append(f"Pre-write validation failed: Style/security check found critical findings: {critical_findings}")
-                self.logger.info(f"Code Review and Security Scan Results for {filepath_to_use}: {style_review_results}")
-                self.logger.info(f"Running ethical analysis for {filepath_to_use}...")
-                ethical_results = {'overall_status': 'skipped', 'message': 'Ethical analysis skipped: Default policy not loaded.'} # Initialize ethical_results
-                if self.default_policy_config:
-                    ethical_results = self.ethical_governance_engine.enforce_policy(content_for_validation, self.default_policy_config, is_snippet=is_snippet_for_ethics)
-                    if ethical_results.get('overall_status') == 'rejected':
-                        validation_passed = False
-                        validation_feedback.append(f"Pre-write validation failed: Ethical check failed: {ethical_results}")
-                self.logger.info(f"Ethical Analysis Results for {filepath_to_use}: {ethical_results}")
+                    validation_feedback.append(f"Pre-write validation failed: Ethical check failed: {ethical_results}")
+            self.logger.info(f"Ethical Analysis Results for {filepath_to_use}: {ethical_results}")
 
 
         if not validation_passed:
@@ -1360,23 +1365,23 @@ class WorkflowDriver:
             return False, None
 
         self.logger.info(f"All pre-write validations passed. Proceeding with write to {filepath_to_use}.")
-        self._write_output_file(filepath_to_use, content_to_write, overwrite=True)
+        self._write_output_file(filepath_to_use, content_for_validation, overwrite=True)
         self.logger.info(f"Successfully wrote content to {filepath_to_use}.")
         
         # Post-Write Validation
-        self.logger.info(f"Running post-write validations for {filepath_to_use}...")
-        post_write_review = self.code_review_agent.analyze_python(content_to_write)
+        self.logger.info(f"Running post-write validations for {filepath_to_use}.")
+        post_write_review = self.code_review_agent.analyze_python(content_for_validation)
         self._current_task_results['code_review_results'] = post_write_review
         self.logger.info(f"Post-write Code Review Results: {post_write_review}")
         if self.default_policy_config:
-            post_write_ethical = self.ethical_governance_engine.enforce_policy(content_to_write, self.default_policy_config)
+            post_write_ethical = self.ethical_governance_engine.enforce_policy(content_for_validation, self.default_policy_config)
             self._current_task_results['ethical_analysis_results'] = post_write_ethical
             self.logger.info(f"Post-write Ethical Analysis Results: {post_write_ethical}")
         else:
             self.logger.warning("Skipping post-write ethical analysis: Default policy not loaded.")
             self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded.'}
 
-        return True, content_to_write
+        return True, content_for_validation
 
     def _classify_step_preliminary(self, step_description: str, task_target_file_spec: Optional[str] = None) -> dict:
         step_lower = step_description.lower()
@@ -2387,7 +2392,7 @@ Task Description:
             return None
 
     def _attempt_code_style_remediation(self, grade_report_json: str, task: dict, step_desc: str, file_path: str, original_code: str) -> bool:
-        logger.info(f"Attempting code style remediation for {file_path}...")
+        logger.info(f"Attempting code style remediation for {file_path}.")
         try:
             report_data = json.loads(grade_report_json)
             code_review_results = report_data.get('validation_results', {}).get('code_review', {})
@@ -2427,7 +2432,7 @@ Output only the complete, corrected Python code. Do not include explanations or 
                 logger.warning("LLM did not provide corrected code or code was unchanged.")
                 return False
 
-            logger.info("LLM provided corrected code. Applying and re-validating...")
+            logger.info("LLM provided corrected code. Applying and re-validating.")
             content_to_write = corrected_code
 
             resolved_file_path = file_path
@@ -2436,7 +2441,7 @@ Output only the complete, corrected Python code. Do not include explanations or 
 
             if write_success:
                 try:
-                    logger.info(f"Re-running code review for {file_path} after remediation...")
+                    logger.info(f"Re-running code review for {file_path} after remediation.")
                     new_review_results = self.code_review_agent.analyze_python(content_to_write)
                     self._current_task_results['code_review_results'] = new_review_results
                     logger.info(f"Code Review Results after remediation: {new_review_results}")
@@ -2457,7 +2462,7 @@ Output only the complete, corrected Python code. Do not include explanations or 
             return False
 
     def _attempt_ethical_transparency_remediation(self, grade_report_json: str, task: dict, step_desc: str, file_path: str, original_code: str) -> bool:
-        logger.info(f"Attempting ethical transparency remediation for {file_path}...")
+        logger.info(f"Attempting ethical transparency remediation for {file_path}.")
         try:
             report_data = json.loads(grade_report_json)
             ethical_results = report_data.get('validation_results', {}).get('ethical_analysis', {})
@@ -2501,7 +2506,7 @@ Output only the complete, corrected Python code with added documentation/comment
                 logger.warning("LLM did not provide corrected code or code was unchanged.")
                 return False
 
-            logger.info("LLM provided corrected code with docstrings. Applying and re-validating...")
+            logger.info("LLM provided corrected code with docstrings. Applying and re-validating.")
             content_to_write = corrected_code
 
             resolved_file_path = file_path
@@ -2511,7 +2516,7 @@ Output only the complete, corrected Python code with added documentation/comment
             if write_success:
                 if self.default_policy_config:
                     try:
-                        logger.info(f"Re-running ethical analysis for {file_path} after remediation...")
+                        logger.info(f"Re-running ethical analysis for {file_path} after remediation.")
                         new_ethical_results = self.ethical_governance_engine.enforce_policy(content_to_write, self.default_policy_config)
                         self._current_task_results['ethical_analysis_results'] = new_ethical_results
                         logger.info(f"Ethical Analysis Results after remediation: {new_ethical_results}")
@@ -2535,7 +2540,7 @@ Output only the complete, corrected Python code with added documentation/comment
             return False
 
     def _attempt_test_failure_remediation(self, grade_report_json: str, task: dict, step_desc: str, file_path: str, original_code: str) -> bool:
-        logger.info(f"Attempting test failure remediation for {file_path}...")
+        logger.info(f"Attempting test failure remediation for {file_path}.")
         try:
             stdout = self._current_task_results.get('test_stdout', '')
             stderr = self._current_task_results.get('test_stderr', '')
@@ -2591,7 +2596,7 @@ Your response should be the complete, corrected code content that addresses the 
                 logger.warning("LLM did not provide corrected code or code was unchanged.")
                 return False
 
-            logger.info("LLM provided corrected code for test failure. Applying and re-validating...")
+            logger.info("LLM provided corrected code for test failure. Applying and re-validating.")
             content_to_write = corrected_code
 
             resolved_file_path_write = file_path
@@ -2601,7 +2606,7 @@ Your response should be the complete, corrected code content that addresses the 
             if write_success:
                 logger.info(f"Successfully wrote fixed code to {file_path}")
                 try:
-                    logger.info(f"Re-running validations for {file_path} after test failure remediation...")
+                    logger.info(f"Re-running validations for {file_path} after test failure remediation.")
                     test_command = self._current_task_results.get('last_test_command', ['pytest', 'tests/'])
                     cwd = self._current_task_results.get('last_test_cwd', self.context.base_path)
                     return_code, new_stdout, new_stderr = self.execute_tests(test_command, cwd)
@@ -2907,4 +2912,3 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
-        return None

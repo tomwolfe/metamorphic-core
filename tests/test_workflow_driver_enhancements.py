@@ -466,7 +466,7 @@ class TestPhase1_8Features:
 
         assert content_to_write_decision is None
         mock_write_output.assert_not_called()
-        expected_log_message = f"Skipping placeholder write to main Python target {resolved_target_path} for conceptual step: '{plan_step}'."
+        expected_log_message = f"Skipping placeholder write to main Python target {resolved_target_path} for conceptual step: '{plan_step}'. This step should be handled by code generation."
         assert any(expected_log_message in record.message for record in caplog.records)
 
 
@@ -726,15 +726,14 @@ class TestContextExtraction:
             assert is_minimal is True
             expected_context = ( # Corrected expected_context to match actual extraction
                 "# A comment between classes\n"
-                "class TargetClass:\n"
-                "    def existing_method(self):\n"
+                "class TargetClass:\n" # Line 7
+                "    def existing_method(self):\n" # Line 8
                 "        return True\n"
                 "\n"
                 "class ThirdClass:\n"
                 "    pass"
             )
             assert context_str.strip() == expected_context.strip() # This assertion was already correct
-            # FIX: Update expected log message to reflect the correct filename
             mock_logger.debug.assert_called_with(f"Extracting class context for 'TargetClass' in processor.py: lines 6 to 12.")
 
     def test_extract_context_class_not_found(self, driver_for_context_tests):

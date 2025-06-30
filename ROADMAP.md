@@ -235,7 +235,7 @@
 *   **Task ID**: task_1_8_19a_1_wrap_ast_parse
     *   **Priority**: High
     *   **Task Name**: Wrap ast.parse in a try-except block for SyntaxError
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_18_fix_string_literal_prompting']
 
 *   **Task ID**: task_1_8_19a_2_get_line_ranges
@@ -405,4 +405,10 @@
     *   **Task Name**: Implement Success Criteria for Intentionally Failing Tests
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_4']
+
+*   **Task ID**: task_1_8_24_atomic_plan_generation
+    *   **Priority**: High
+    *   **Task Name**: Improve Planner for Atomic Code Modifications
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_19b_add_tests_for_differentiation']
 

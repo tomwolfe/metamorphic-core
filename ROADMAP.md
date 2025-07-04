@@ -238,35 +238,17 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_18_fix_string_literal_prompting']
 
-*   **Task ID**: task_1_8_19a_2_get_line_ranges
+*   **Task ID**: task_1_8_19a_2_combined_error_handling
     *   **Priority**: High
-    *   **Task Name**: Get and Log Snippet and Error Line Numbers
+    *   **Task Name**: Implement Syntax Error Differentiation Logic
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_19a_1_wrap_ast_parse']
-
-*   **Task ID**: task_1_8_19a_3_implement_conditional_logic
-    *   **Priority**: High
-    *   **Task Name**: Implement Conditional Logic for Error Location
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_19a_2_get_line_ranges']
-
-*   **Task ID**: task_1_8_19a_4_handle_preexisting_error
-    *   **Priority**: High
-    *   **Task Name**: Implement Handling for Pre-existing Source File Errors
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_19a_3_implement_conditional_logic']
-
-*   **Task ID**: task_1_8_19a_5_handle_snippet_error
-    *   **Priority**: High
-    *   **Task Name**: Implement Handling for Snippet-Introduced Errors
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_19a_4_handle_preexisting_error']
 
 *   **Task ID**: task_1_8_19b_add_tests_for_differentiation
     *   **Priority**: High
     *   **Task Name**: Add Unit Tests for Syntax Error Differentiation Logic
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_19a_5_handle_snippet_error']
+    *   **Depends On**: ['task_1_8_19a_2_combined_error_handling']
 
 *   **Task ID**: task_1_8_20_scoped_validation
     *   **Priority**: High

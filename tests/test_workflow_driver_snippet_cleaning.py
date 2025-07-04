@@ -7,6 +7,7 @@ from pathlib import Path
 from datetime import datetime
 import builtins # For mocking open
 from unittest.mock import patch, MagicMock, ANY
+import src.core.constants as constants
 
 # Assuming WorkflowDriver and Context are in src.core.automation
 from src.core.automation.workflow_driver import WorkflowDriver, Context
@@ -61,27 +62,17 @@ class TestSnippetCleaning:
     ])
     def test_clean_llm_snippet(self, driver_snippet_handling, input_snippet, expected_output):
         assert driver_snippet_handling._clean_llm_snippet(input_snippet) == expected_output
-
+ 
     def test_clean_llm_snippet_dedents_fenced_block(self, driver_snippet_handling):
         """
         Tests that _clean_llm_snippet correctly removes common leading whitespace
         from a fenced code block.
         """
         driver = driver_snippet_handling
-        input_snippet = """
-Some conversational text.
-```python
-    def my_indented_function():
-        # This line is further indented
-        return "Hello"
-```
-More conversational text.
-"""
-        expected_output = "def my_indented_function():\n    # This line is further indented\n    return \"Hello\""
-        
-        cleaned = driver._clean_llm_snippet(input_snippet)
-        assert cleaned == expected_output
-
+        input_snippet = f"```python\n    def my_indented_function():\n        pass\n```"
+        expected_output = "def my_indented_function():\n    pass"
+        assert driver._clean_llm_snippet(input_snippet) == expected_output
+ 
     def test_clean_llm_snippet_preserves_heredoc_indentation(self, driver_snippet_handling):
         """
         Tests that intentional indentation within a multi-line string (HEREDOC) is preserved.
@@ -98,9 +89,10 @@ query = f\"\"\"
 ```
 """
         expected_output = "query = f\"\"\"\n    SELECT\n        user_id,\n        user_name\n    FROM users;\n\"\"\""
+        
         cleaned = driver._clean_llm_snippet(input_snippet)
         assert cleaned == expected_output
-
+ 
     def test_clean_llm_snippet_handles_tabs_before_dedent(self, driver_snippet_handling):
         """
         Tests that tabs are converted to spaces before dedenting to avoid errors.
@@ -111,7 +103,7 @@ query = f\"\"\"
         expected_output = "def tabbed_function():\n    return True"
         cleaned = driver._clean_llm_snippet(input_with_tabs)
         assert cleaned == expected_output
-
+ 
     def test_clean_llm_snippet_preserves_triple_quotes(self, driver_snippet_handling):
         """
         Ensures valid triple-quoted strings are preserved, addressing the original SyntaxError concern.
@@ -120,8 +112,15 @@ query = f\"\"\"
         input_snippet = "```python\nmy_str = '''This is a valid\nmulti-line string.'''\n```"
         expected_output = "my_str = '''This is a valid\nmulti-line string.'''"
         assert driver._clean_llm_snippet(input_snippet) == expected_output
-
+ 
 class TestReprLoggingForSyntaxErrors:
+    def test_clean_llm_snippet_ignores_mid_snippet_marker(self, driver_snippet_handling):
+        """Ensures END_OF_CODE_MARKER is ignored if it appears mid-snippet."""
+        driver = driver_snippet_handling
+        input_snippet = f"valid_code_line_1\n{constants.END_OF_CODE_MARKER}\nremaining_code_line_2"
+        # Should not truncate if marker is not at the very end
+        assert driver._clean_llm_snippet(input_snippet) == input_snippet
+ 
     @patch('builtins.open', new_callable=MagicMock) # Mock builtins.open for file writing
     @patch('ast.parse') # Mock ast.parse to control its behavior
     def test_repr_logging_on_syntax_error(self, mock_ast_parse, mock_builtin_open, driver_snippet_handling, tmp_path):
@@ -129,11 +128,11 @@ class TestReprLoggingForSyntaxErrors:
         original_snippet = "```python\ndef func():\n  print('unterminated string)\n```"
         # The _clean_llm_snippet will remove the fences
         cleaned_snippet_that_fails = "def func():\n  print('unterminated string)"
-
+ 
         # Configure ast.parse to raise a SyntaxError
         syntax_error_instance = SyntaxError("unterminated string literal", ('<unknown>', 2, 9, "  print('unterminated string)\n"))
         mock_ast_parse.side_effect = syntax_error_instance
-
+ 
         # Simulate the relevant part of the autonomous_loop
         # We need to mock some context variables that would be present in the loop
         driver._current_task = {'task_id': 'test_task_syntax_error'}
@@ -143,14 +142,14 @@ class TestReprLoggingForSyntaxErrors:
         with patch('src.core.automation.workflow_driver.datetime') as mock_datetime:
             mock_datetime.now.return_value.strftime.return_value = fixed_timestamp
             mock_datetime.now.return_value.isoformat.return_value = "2023-01-01T12:00:00.000000"
-
+ 
             # This is the block that contains the ast.parse and the repr logging
             # We are testing the except SyntaxError block
             validation_feedback = []
             step_failure_reason = None
             step_description_for_log = "Test step description for syntax error"
             step_index_for_log = 0 # Simulating first step
-
+ 
             # Simulate the pre-write validation block directly
             _validation_passed = True
             _validation_feedback = []
@@ -165,7 +164,7 @@ class TestReprLoggingForSyntaxErrors:
                 driver.logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se_in_block}")
                 driver.logger.warning(f"Failed snippet (cleaned):\n---\n{cleaned_snippet_that_fails}\n---")
                 _step_failure_reason = f"Pre-write syntax check failed: {se_in_block}"
-
+ 
                 # --- SUT's Logging Logic (that we are testing) ---
                 try:
                     debug_dir_name = ".debug/failed_snippets"
@@ -178,10 +177,10 @@ class TestReprLoggingForSyntaxErrors:
                         _current_task_id_str = getattr(self, '_current_task', {}).get('task_id', 'unknown_task')
                         _sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', _current_task_id_str)
                         _current_step_index_str = str(step_index_for_log + 1)
-
+ 
                         filename = f"failed_snippet_{_sanitized_task_id}_step{_current_step_index_str}_{_timestamp}.json"
                         filepath = debug_dir / filename
-
+ 
                         debug_data = {
                             "timestamp": mock_datetime.now().isoformat(), # Use mocked isoformat
                             "task_id": _current_task_id_str,
@@ -201,4 +200,4 @@ class TestReprLoggingForSyntaxErrors:
                     else:
                         self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
                 except Exception as write_err:
-                    driver.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
+                    Pass

@@ -404,7 +404,7 @@
       "task_id": "task_1_8_19a_0_plan_step_bundling",
       "priority": "Critical",
       "task_name": "Implement Code Generation Step Bundling",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [],
       "description": "In `WorkflowDriver.autonomous_loop`, when a code generation step is identified, look ahead at the next `MAX_BUNDLE_LOOKAHEAD` steps. If they are also classified as code generation steps for the same file, bundle their descriptions into a single, more comprehensive prompt for the Coder LLM. Mark the bundled subsequent steps as 'subsumed' and skip their execution. This prevents failures from overly-granular plans."

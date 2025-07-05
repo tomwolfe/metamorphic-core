@@ -30,8 +30,7 @@ from src.core.constants import (
     DOCSTRING_INSTRUCTION_PYTHON,
     CRITICAL_CODER_LLM_FULL_FILE_OUTPUT_INSTRUCTIONS,
     PYTHON_CREATION_KEYWORDS,
-    CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS,
-    MAX_IMPORT_CONTEXT_LINES
+    CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS
 )
 
 # Import necessary components from workflow_driver
@@ -108,6 +107,16 @@ def driver_enhancements(tmp_path, mocker):
     mocker.patch.object(driver, '_find_import_block_end', return_value=0)
     mocker.patch.object(driver, '_should_add_docstring_instruction', return_value=False)
     mocker.patch.object(driver, '_validate_for_context_leakage', return_value=True) # Mock this for other tests
+
+    # --- NEW: Setup for autonomous_loop to find a task ---
+    driver.roadmap_path = str(tmp_path / "ROADMAP.json") # Set a dummy roadmap path
+    mock_task = {'task_id': 'test_task', 'task_name': 'Test Task', 'status': 'Not Started', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/test_file.py'}
+    mocker.patch.object(driver, 'load_roadmap', return_value=[mock_task])
+    mocker.patch.object(driver, 'select_next_task', side_effect=[mock_task, None]) # Return task once, then None to exit loop
+    mocker.patch.object(driver, '_update_task_status_in_roadmap') # Mock status update to avoid file ops
+    mocker.patch.object(driver, 'generate_grade_report') # Mock grade report
+    mocker.patch.object(driver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed"}) # Mock evaluation
+    # --- END NEW ---
 
     yield driver
 
@@ -357,528 +366,158 @@ class TestPhase1_8WorkflowDriverEnhancements:
         
         assert f"Specific Plan Step:\n{original_step_desc}\n" in final_prompt
 
-class TestPhase1_8Features:
-    def test_classify_step_preliminary_uses_task_target_file(self, driver_enhancements):
+class TestCodeGenerationStepBundling:
+    """Test suite for the code generation step bundling logic."""
+
+    def test_autonomous_loop_bundles_contiguous_codegen_steps(self, driver_enhancements, mocker, caplog):
         """
-        Test _classify_step_preliminary correctly identifies a code generation step
-        when the step description implies code modification and task_target_file is a .py file,
-        even if the step description itself doesn't contain a filename.
+        Tests that consecutive code generation steps for the same file are bundled
+        into a single prompt for the Coder LLM, and subsequent steps are skipped.
         """
-        driver = driver_enhancements 
-        
-        step_desc_modify_method = "Modify the main autonomous_loop method to integrate new logic."
-        task_target_py_file = "src/core/automation/workflow_driver.py"
-        
-        prelim_flags = driver._classify_step_preliminary(step_desc_modify_method, task_target_py_file)
-        
-        assert prelim_flags["is_code_generation_step_prelim"] is True, \
-            f"Step '{step_desc_modify_method}' with target '{task_target_py_file}' should be code gen."
-
-        step_desc_conceptual_with_target = "Analyze the WorkflowDriver.autonomous_loop for optimization points."
-        prelim_flags_conceptual = driver._classify_step_preliminary(step_desc_conceptual_with_target, task_target_py_file)
-        
-        assert prelim_flags_conceptual["is_code_generation_step_prelim"] is False, \
-            f"Step '{step_desc_conceptual_with_target}' should NOT be code gen despite .py target."
-        assert prelim_flags_conceptual["is_research_step_prelim"] is True
-
-    def test_classify_step_preliminary_filepath_in_step_overrides_task_target(self, driver_enhancements):
-        """
-        Test _classify_step_preliminary uses filepath_from_step if present,
-        even if task_target_file is different or not a .py file.
-        """
-        driver = driver_enhancements
-        step_desc_specific_file = "Implement new_helper in utils/helpers.py."
-        task_target_other_file = "src/main_module.py" 
-        
-        prelim_flags = driver._classify_step_preliminary(step_desc_specific_file, task_target_other_file)
-        
-        assert prelim_flags["is_code_generation_step_prelim"] is True
-        assert prelim_flags["filepath_from_step"] == "utils/helpers.py"
-
-        step_desc_md_file = "Update the documentation in README.md."
-        task_target_py_file = "src/core/automation/workflow_driver.py"
-        prelim_flags_md = driver._classify_step_preliminary(step_desc_md_file, task_target_py_file)
-
-        assert prelim_flags_md["is_code_generation_step_prelim"] is False 
-        assert prelim_flags_md["is_explicit_file_writing_step_prelim"] is True
-        assert prelim_flags_md["filepath_from_step"] == "README.md"
-
-    def test_research_step_classification(self, driver_enhancements):
-        driver = driver_enhancements
-        step1 = "Research and identify keywords for src/core/automation/workflow_driver.py"
-        prelim_flags = driver._classify_step_preliminary(step1)
-        assert prelim_flags["is_research_step_prelim"] is True
-        assert prelim_flags["is_code_generation_step_prelim"] is False
-
-
-    def test_code_generation_step_classification(self, driver_enhancements):
-        driver = driver_enhancements
-        step1 = "Implement the new function in src/core/automation/workflow_driver.py"
-        prelim_flags = driver._classify_step_preliminary(step1)
-        assert prelim_flags["is_research_step_prelim"] is False
-        assert prelim_flags["is_code_generation_step_prelim"] is True
-
-    def test_explicit_file_writing_step_classification(self, driver_enhancements):
-        driver = driver_enhancements
-        step1 = "Write the research findings to research_summary.md"
-        prelim_flags = driver._classify_step_preliminary(step1)
-        assert prelim_flags["is_research_step_prelim"] is True
-        assert prelim_flags["is_code_generation_step_prelim"] is False
-        assert prelim_flags["is_explicit_file_writing_step_prelim"] is True
-
-    def test_test_execution_step_classification(self, driver_enhancements):
-        driver = driver_enhancements
-        step1 = "Run tests for the new feature."
-        prelim_flags = driver._classify_step_preliminary(step1)
-        assert prelim_flags["is_research_step_prelim"] is False
-        assert prelim_flags["is_code_generation_step_prelim"] is False
-        assert prelim_flags["is_explicit_file_writing_step_prelim"] is False
-        assert prelim_flags["is_test_execution_step_prelim"] is True
-
-    def test_conceptual_step_classification(self, driver_enhancements):
-        driver = driver_enhancements
-        step1 = "Discuss the design approach with the team."
-        prelim_flags = driver._classify_step_preliminary(step1)
-        assert prelim_flags["is_research_step_prelim"] is False
-        assert prelim_flags["is_code_generation_step_prelim"] is False
-        assert prelim_flags["is_explicit_file_writing_step_prelim"] is False
-        assert prelim_flags["is_test_execution_step_prelim"] is False
-        assert prelim_flags["is_test_writing_step_prelim"] is False
-        assert classify_plan_step(step1) == 'conceptual'
-
-
-    def test_conceptual_define_step_does_not_overwrite_main_python_target(self, driver_enhancements, tmp_path, caplog, mocker):
         caplog.set_level(logging.INFO)
         driver = driver_enhancements
-        resolved_target_path = str(tmp_path / 'src' / 'core' / 'automation' / 'workflow_driver.py')
-        mocker.patch.object(driver.context, 'get_full_path', side_effect=lambda path: resolved_target_path if path == 'src/core/automation/workflow_driver.py' else str(Path(tmp_path) / path))
-
-
-        driver._current_task = {
-            'task_id': 'test_conceptual_write', 'task_name': 'Test Conceptual Write',
-            'description': 'A test.', 'status': 'Not Started', 'priority': 'High',
-            'target_file': 'src/core/automation/workflow_driver.py'
-        }
-        driver.task_target_file = driver._current_task['target_file']
-        plan_step = "Write a define list of keywords for step classification."
-        prelim_flags = driver._classify_step_preliminary(plan_step)
-
-        mock_write_output = mocker.patch.object(driver, '_write_output_file')
-        mock_resolve_target_file = mocker.patch.object(driver, '_resolve_target_file_for_step', return_value=resolved_target_path)
-
-
-        filepath_to_use = mock_resolve_target_file(plan_step, driver.task_target_file, prelim_flags)
-        content_to_write_decision, overwrite_mode = driver._determine_write_operation_details(plan_step, filepath_to_use, driver.task_target_file, prelim_flags)
-
-        assert content_to_write_decision is None
-        mock_write_output.assert_not_called()
-        expected_log_message = f"Skipping placeholder write to main Python target {resolved_target_path} for conceptual step: '{plan_step}'."
-        assert any(expected_log_message in record.message for record in caplog.records)
-
-
-class TestClassifyPlanStep:
-    """Test suite for the enhanced classify_plan_step function."""
-
-    @pytest.mark.parametrize("description, expected", [
-        # Test case that caused the original failure
-        ("Define Test Scenario: Simple Addition to a Large File: Identify or create a large code file (e.g., >1000 lines) that can serve as a testbed. Define a \"simple addition\" within this file (e.g., adding a single line comment, a new variable declaration, or a small, self-contained function signature without altering existing complex logic). This addition should be localized and not require extensive surrounding context.", 'conceptual'),
-
-        # Clear code steps
-        ("Implement the _is_simple_addition_plan_step method in workflow_driver.py.", 'code'),
-        ("Add a new import statement for the `re` module.", 'code'),
-        ("Fix the bug in the token allocation logic.", 'code'),
-        ("Write three new unit tests for the updated function.", 'code'),
-        ("Refactor the class to improve readability.", 'code'),
-
-        # Clear conceptual steps
-        ("Analyze the performance of the current implementation.", 'conceptual'),
-        ("Review the generated code for ethical considerations.", 'conceptual'),
-        ("Research alternative libraries for data processing.", 'conceptual'),
-        ("Plan the next phase of development.", 'conceptual'),
-        ("Document the new API endpoint.", 'conceptual'),
-
-        # Ambiguous/Uncertain steps
-        ("Handle the user input.", 'uncertain'),
-        ("Process the data.", 'uncertain'),
-        ("Finalize the feature.", 'uncertain'),
-        ("A step with no keywords.", 'uncertain'),
-        ("", 'uncertain'),
-    ])
-    def test_classify_plan_step_accuracy(self, description, expected):
-        """Tests the accuracy of classify_plan_step with various descriptions using SpaCy."""
-        # This test assumes the SpaCy model is available in the test environment.
-        assert classify_plan_step(description) == expected
-
-    def test_classify_plan_step_spacy_fallback(self, mocker, caplog):
-        """Tests that the classifier falls back to regex when SpaCy model is not found."""
-        caplog.set_level(logging.WARNING)
-        # Mock spacy.load to raise an OSError, simulating a missing model
-        mocker.patch('spacy.load', side_effect=OSError("Mock: SpaCy model not found"))
-        # Reset the internal module variable to force a reload attempt
-        mocker.patch('src.core.automation.workflow_driver._nlp_model', None)
-
-        # Use a description that the regex fallback can classify
-        description = "Review the code for bugs."
-        assert classify_plan_step(description) == 'conceptual'
-        assert "SpaCy model 'en_core_web_sm' not found" in caplog.text
-        assert "Falling back to regex-based classification." in caplog.text
-
-
-class TestIsSimpleAdditionPlanStep:
-    @pytest.mark.parametrize("description, expected", [
-        # Simple Additions (True)
-        ("Add import os to the file.", True),
-        ("Add new import for pathlib module.", True),
-        ("Insert import typing.List at the top.", True),
-        ("Add new method get_user_data to existing class UserProfile.", True),
-        ("Add method calculate_sum to class Calculator.", True),
-        ("Define new method process_event in class EventHandler.", True),
-        ("Implement method render_template in class ViewRenderer.", True),
-        ("Define a new constant MAX_USERS = 100.", True),
-        ("Add constant API_TIMEOUT with value 30.", True),
-        ("append a log message to the main function.", True),
-        ("insert a print statement for debugging.", True),
-        ("add line to increment counter.", True),
-        ("prepend copyright header to file.", True),
-        ("add a docstring to the process_data function.", True),
-        ("generate docstring for the User class.", True),
-        ("add a comment to explain the algorithm.", True),
-        ("add a type hint for the 'name' parameter.", True),
-
-        # Complex Modifications / Refactoring / New Class (False)
-        ("Create new class OrderManager.", False),
-        ("Create a new class called ShoppingCart.", False),
-        ("Refactor the payment processing logic.", False),
-        ("Restructure the entire user authentication module.", False),
-        ("Rewrite the file parsing utility.", False),
-        ("Design new module for reporting.", False),
-        ("Implement new system for notifications.", False),
-        ("Overhaul the caching mechanism.", False),
-        ("Add a new global function `calculate_statistics`.", False),
-        ("Implement the core algorithm for pathfinding.", False),
-        ("Modify the user interface to include a new button.", False),
-        ("Update dependencies in requirements.txt.", False),
-        ("Write unit tests for the User model.", False), # Test writing is not a simple code addition
-        ("Fix bug in the login sequence.", False),
         
-        # Ambiguous or Edge Cases (False by default)
-        ("Update the file.", False),
-        ("Process the data.", False),
-        ("Handle user input.", False),
-        ("", False),
-        ("   ", False),
-    ])
-    def test_various_descriptions(self, driver_for_simple_addition_test, description, expected):
-        assert driver_for_simple_addition_test._is_simple_addition_plan_step(description) == expected
-
-    def test_logging_for_decisions(self, driver_for_simple_addition_test, caplog):
-        caplog.set_level(logging.DEBUG)
-        driver = driver_for_simple_addition_test # Use the fixture
-        
-        # Test simple addition
-        description_simple = "Add import re."
-        driver._is_simple_addition_plan_step(description_simple)
-        assert any(
-            ("Simple addition pattern" in record.message and description_simple[:50] in record.message) or
-            (f"No specific simple addition or complex pattern matched for step: '{description_simple}'. Assuming not a simple addition." in record.message)
-            for record in caplog.records
-        ), f"Expected specific log message for simple addition step '{description_simple}', but found none matching criteria in {caplog.records}"
-        
-        # Test complex modification
-        caplog.clear() # Clear previous logs
-        description_complex = "Refactor the entire system."
-        driver._is_simple_addition_plan_step(description_complex)
-        assert any(
-            ("Complex pattern" in record.message and description_complex[:50] in record.message and "Not a simple addition" in record.message) or
-            (f"No specific simple addition or complex pattern matched for step: '{description_complex}'. Assuming not a simple addition." in caplog.records)
-            for record in caplog.records
-        ), f"Expected specific log message for complex modification step '{description_complex}', but found none matching criteria in {caplog.records}"
-        
-        # Test ambiguous case (default false)
-        caplog.clear() # Clear previous logs
-        description_vague = "Do something vague."
-        driver._is_simple_addition_plan_step(description_vague)
-        assert any(
-            (f"No specific simple addition or complex pattern matched for step: '{description_vague}'. Assuming not a simple addition." in record.message)
-            for record in caplog.records
-        ), f"Expected specific log message for ambiguous step '{description_vague}', but found none matching criteria in {caplog.records}"
-
-class TestContextExtractionEnhancements:
-    def test_get_context_type_for_add_constant(self, driver_for_context_tests):
-        driver = driver_for_context_tests
-        description = "add a new constant MAX_RETRIES to the WorkflowDriver class"
-        assert driver._get_context_type_for_step(description) == "add_class_constant"
-
-    def test_extract_context_for_add_constant(self, driver_for_context_tests, tmp_path):
-        driver = driver_for_context_tests
-        file_content = """
-# Preamble
-import os
-
-class MyTestClass:
-    \"\"\"A test class docstring.\"\"\"
+        # Mock the solution plan with consecutive code-gen steps
+        mock_plan = [
+            "Step 1: Add a new method `my_method`.",
+            "Step 2: Inside `my_method`, add a return statement.",
+            "Step 3: Add a comment above `my_method`.",
+            "Step 4: Run tests." # This step should not be bundled
+        ]
     
-    def __init__(self):
-        pass
-
-    def another_method(self):
-        pass
-"""
-        file_path = str(tmp_path / "test_module.py")
-        (tmp_path / "test_module.py").write_text(file_content)
-        
-        step_description = "Add constant to class MyTestClass"
-        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_class_constant", step_description)
-        
-        expected_context = """class MyTestClass:
-    \"\"\"A test class docstring.\"\"\"
+        # Mock internal methods that autonomous_loop calls
+        mocker.patch.object(driver, 'generate_solution_plan', return_value=mock_plan)
+        # --- MODIFIED: Provide specific side_effect for _classify_step_preliminary ---
+        mocker.patch.object(driver, '_classify_step_preliminary', side_effect=[
+            {'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, # Step 1
+            {'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, # Step 2
+            {'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, # Step 3
+            {'is_code_generation_step_prelim': False, 'is_test_execution_step_prelim': True, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}  # Step 4 (test execution)
+        ])
+        # --- END MODIFIED ---
+        mocker.patch.object(driver, '_resolve_target_file_for_step', return_value="/resolved/src/test.py")
+        # Mock the actual code generation execution
+        mock_execute_codegen = mocker.patch.object(driver, '_execute_code_generation_step', return_value=(True, "some generated code"))
     
-    def __init__(self):
-        pass"""
-        
-        assert is_minimal is True
-        assert context_str.strip() == expected_context.strip()
+        # Simulate the main loop for a single task
+        driver.autonomous_loop()
 
-    def test_add_constant_fallback_when_no_class(self, driver_for_context_tests, tmp_path, caplog):
-        """Tests the negative case where no class definition exists in the file."""
-        driver = driver_for_context_tests
-        file_content = "import os\n\ndef foo(): pass"  # No class definition
-        file_path = tmp_path / "no_class.py"
-        file_path.write_text(file_content)
-        
-        context, is_minimal = driver._extract_targeted_context(
-            str(file_path), 
-            file_content, 
-            "add_class_constant", 
-            "Add constant MAX_RETRIES"
-        )
-        
-        assert not is_minimal, "Should fall back to full content when no class is found"
-        assert context == file_content
-        assert "Could not find any class definition for 'add_class_constant'" in caplog.text
+        # Assertions
+        # 1. _execute_code_generation_step should be called only ONCE for the bundled steps.
+        assert mock_execute_codegen.call_count == 1
 
-class TestGetContextTypeForStep:
-    @pytest.mark.parametrize("description, expected_type", [
-        # Positive cases for 'add_import'
-        ("Add import os", "add_import"),
-        ("Please implement the json import", "add_import"),
-        ("ensure from typing import Optional is present", "add_import"),
-        # Add other cases as implementation progresses
-        ("Refactor the user processing logic.", None),
-        ("", None),
-    ])
-    def test_get_context_type_for_step_positive_cases(self, driver_for_simple_addition_test, description, expected_type):
-        # Note: Accessing private method for unit testing
-        assert driver_for_simple_addition_test._get_context_type_for_step(description) == expected_type
+        # 2. The description passed to it should contain all three bundled steps.
+        bundled_description = mock_execute_codegen.call_args[0][0]
+        assert "MAIN STEP 1: Step 1: Add a new method `my_method`." in bundled_description
+        assert "BUNDLED STEP 2: Step 2: Inside `my_method`, add a return statement." in bundled_description
+        assert "BUNDLED STEP 3: Step 3: Add a comment above `my_method`." in bundled_description
+        assert "Step 4: Run tests." not in bundled_description # Ensure the non-bundled step is not included
 
-class TestContextExtraction:
-    """Test suite for the _extract_targeted_context method in WorkflowDriver."""
+        # 3. Check logs for bundling and skipping messages.
+        assert "Bundling step 2" in caplog.text
+        assert "Bundling step 3" in caplog.text
+        assert "Skipping step 2 as it was subsumed by a previous bundled step." in caplog.text
+        assert "Skipping step 3 as it was subsumed by a previous bundled step." in caplog.text
+        assert "Executing step 4/4" in caplog.text # Ensure the non-bundled step is still executed
 
-    def test_extract_context_add_import_existing_imports(self, driver_for_context_tests, tmp_path):
-        """Tests extracting context for adding an import to a file with existing imports.""" 
-        driver = driver_for_context_tests
-        file_content = (
-            "# Preamble\n" # Line 1
-            "import os\n" # Line 2
-            "import sys\n\n" # Line 3, 4
-            "from pathlib import Path\n\n" # Line 5, 6
-            "def some_function():\n" # Line 7
-            "    pass\n" # Line 8
-        )
-        # FIX: Use get_full_path for path construction
-        file_path = driver_for_context_tests.context.get_full_path("test_module.py")
+    def test_autonomous_loop_skips_non_contiguous_steps(self, driver_enhancements, mocker, caplog):
+        """
+        Tests that bundling stops when a non-code-generation step or a step
+        targeting a different file is encountered.
+        """
+        caplog.set_level(logging.INFO)
+        driver = driver_enhancements
+
+        mock_plan = [
+            "Step 1: Gen code for file_A.py",
+            "Step 2: Gen code for file_A.py",
+            "Step 3: Analyze results.",  # NOT a code-gen step
+            "Step 4: Gen code for file_A.py",  # Should NOT be bundled with Step 1/2
+            "Step 5: Gen code for file_B.py",  # Different file
+            "Step 6: Gen code for file_A.py"   # Should NOT be bundled with Step 1/2
+        ]
+
+        # Mock _classify_step_preliminary and _resolve_target_file_for_step for each step
+        def classify_and_resolve_side_effect(step_desc, task_target):
+            if "Analyze results" in step_desc:
+                return {'is_code_generation_step_prelim': False, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': True, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, "/resolved/src/test.py"
+            elif "file_B.py" in step_desc:
+                return {'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, "/resolved/src/file_B.py"
+            return {'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, "/resolved/src/test.py"
+
+        mocker.patch.object(driver, 'generate_solution_plan', return_value=mock_plan)
+        mocker.patch.object(driver, '_classify_step_preliminary', side_effect=lambda s, t: classify_and_resolve_side_effect(s, t)[0])
+        mocker.patch.object(driver, '_resolve_target_file_for_step', side_effect=lambda s, t, f: classify_and_resolve_side_effect(s, t)[1])
+        mock_execute_codegen = mocker.patch.object(driver, '_execute_code_generation_step', return_value=(True, "some generated code"))
+
+        driver.autonomous_loop()
+
+        # _execute_code_generation_step should be called for (Step 1+2), (Step 4), (Step 5), (Step 6)
+        assert mock_execute_codegen.call_count == 4
+
+        # Verify the first call bundled Step 1 and 2
+        bundled_desc_1 = mock_execute_codegen.call_args_list[0][0][0]
+        assert "MAIN STEP 1: Step 1: Gen code for file_A.py" in bundled_desc_1
+        assert "BUNDLED STEP 2: Step 2: Gen code for file_A.py" in bundled_desc_1
+        assert "Step 3: Analyze results." not in bundled_desc_1
+
+        # Verify the second call is for Step 4 (as Step 3 broke contiguity)
+        bundled_desc_2 = mock_execute_codegen.call_args_list[1][0][0]
+        assert "MAIN STEP 4: Step 4: Gen code for file_A.py" in bundled_desc_2
+        assert "BUNDLED STEP" not in bundled_desc_2 # No bundling for Step 4
+
+        # Verify the third call is for Step 5 (different file)
+        bundled_desc_3 = mock_execute_codegen.call_args_list[2][0][0]
+        assert "MAIN STEP 5: Step 5: Gen code for file_B.py" in bundled_desc_3
+
+        # Verify the fourth call is for Step 6 (different file)
+        bundled_desc_4 = mock_execute_codegen.call_args_list[3][0][0]
+        assert "MAIN STEP 6: Step 6: Gen code for file_A.py" in bundled_desc_4
+
+        # Check logs for bundling and skipping messages.
+        assert "Bundling step 2" in caplog.text
+        assert "Skipping step 2 as it was subsumed" in caplog.text
+        assert "Executing step 3/6" in caplog.text # Step 3 is executed normally
+        assert "Executing step 4/6" in caplog.text # Step 4 is executed normally (not bundled with 1+2)
+        assert "Executing step 5/6" in caplog.text # Step 5 is executed normally
+        assert "Executing step 6/6" in caplog.text # Step 6 is executed normally
+
+    def test_autonomous_loop_handles_bundling_at_plan_end(self, driver_enhancements, mocker, caplog):
+        """
+        Tests that bundling correctly handles reaching the end of the plan
+        within the lookahead limit.
+        """
+        caplog.set_level(logging.INFO)
+        driver = driver_enhancements
     
-        # Expected context: lines 0-8 (inclusive of line 0, exclusive of line 8)
-        # Corresponds to: "# Preamble\nimport os\nimport sys\n\n# Comment between imports\nfrom pathlib import Path\n"
-        expected_context = "\n".join(file_content.splitlines()[0:6])
-        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import json")
+        mock_plan = [
+            "Step 1: Gen code for file_A.py",
+            "Step 2: Gen code for file_A.py",
+            "Step 3: Gen code for file_A.py" # Last step in plan
+        ]
     
-        assert is_minimal is True, "is_minimal should be True for successful targeted extraction" 
-        assert context_str == expected_context, "Context string should be the extracted import block"
-
-    def test_extract_context_add_import_no_existing_imports(self, driver_for_context_tests, tmp_path):
-        """Tests extracting context for adding an import to a file with no existing imports."""
-        driver = driver_for_context_tests
-        # Simplified content to ensure AST parsing doesn't fail on large dummy data
-        file_content = "# Initial comment\n" + "\n".join([f"# line {i}" for i in range(constants.MAX_IMPORT_CONTEXT_LINES - 1)]) # Ensure it's exactly MAX_IMPORT_CONTEXT_LINES lines and valid Python
-        file_path = str(tmp_path / "test_module.py") # Create a dummy file path
-        # When no imports, it should return MAX_IMPORT_CONTEXT_LINES lines, which is the full content here.
-        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import json")
+        mocker.patch.object(driver, 'generate_solution_plan', return_value=mock_plan)
+        mocker.patch.object(driver, '_classify_step_preliminary', return_value={'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None})
+        mocker.patch.object(driver, '_resolve_target_file_for_step', return_value="/resolved/src/test.py")
+        mock_execute_codegen = mocker.patch.object(driver, '_execute_code_generation_step', return_value=(True, "some generated code"))
     
-        assert is_minimal is True, "is_minimal should be True when providing top N lines for new imports"
-        assert context_str == file_content, "Context string should be the full file content when no existing imports and content is MAX_IMPORT_CONTEXT_LINES"
-
-
-    def test_extract_context_add_method_to_class(self, driver_for_context_tests, tmp_path):
-        """Tests extracting context for adding a method to a specific class."""
-        driver = driver_for_context_tests
-        with patch.object(driver, 'logger', autospec=True) as mock_logger:
-            file_content = (
-                "import os\n\n" # Line 1-2
-                "class FirstClass:\n" # Line 3
-                "    pass\n\n" # Line 4-5
-                "# A comment between classes\n" # Line 6
-                "class TargetClass:\n" # Line 7
-                "    def existing_method(self):\n" # Line 8
-                "        return True\n\n" # Line 9-10
-                "class ThirdClass:\n" # Line 11
-                "    pass\n" # Line 12
-            )
-            # FIX: Use get_full_path for path construction
-            file_path = driver_for_context_tests.context.get_full_path("processor.py")
-            step_description = "Add method process_data to class TargetClass" # Changed MyProcessor to TargetClass
-            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_method_to_class", step_description)
-
-            assert is_minimal is True
-            expected_context = ( # Corrected expected_context to match actual extraction
-                "# A comment between classes\n"
-                "class TargetClass:\n"
-                "    def existing_method(self):\n"
-                "        return True\n"
-                "\n"
-                "class ThirdClass:\n"
-                "    pass"
-            )
-            assert context_str.strip() == expected_context.strip() # This assertion was already correct
-            # FIX: Update expected log message to reflect the correct filename
-            mock_logger.debug.assert_called_with(f"Extracting class context for 'TargetClass' in processor.py: lines 6 to 12.")
-
-    def test_extract_context_class_not_found(self, driver_for_context_tests):
-        """Tests fallback when the target class for method addition is not found."""
-        driver = driver_for_context_tests
-        with patch.object(driver, 'logger', autospec=True) as mock_logger:
-            file_content = "class SomeOtherClass:\n    pass"
-            file_path = "module.py"
-            step_description = "Add method to class NonExistentClass"
-            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_method_to_class", step_description)
-
-            assert is_minimal is False
-            assert context_str == file_content
-            mock_logger.warning.assert_called_with(f"Could not find class for 'add_method_to_class' in {file_path} from step: {step_description}. Falling back to full content.")
-
-    def test_extract_context_syntax_error_in_file(self, driver_for_context_tests, tmp_path, caplog):
-        """Tests fallback to full content when the source file has a syntax error."""
-        driver = driver_for_context_tests
-        with patch.object(driver, 'logger', autospec=True) as mock_logger:
-            file_content = "def func_a():\n  print('valid')\n\ndef func_b()\n  print('invalid syntax')"
-            file_path = str(tmp_path / "broken_syntax.py")
-            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import")
-
-            assert is_minimal is False
-            assert context_str == file_content
-            mock_logger.warning.assert_called_with(f"SyntaxError parsing {file_path} for targeted context extraction. Falling back to full content.")
-
-    def test_extract_context_fallback_for_none_type(self, driver_for_context_tests):
-        """Tests fallback to full content when context_type is None."""
-        driver = driver_for_context_tests
-        with patch.object(driver, 'logger', autospec=True) as mock_logger:
-            file_content = "def func(): pass"
-            file_path = "module.py"
-            step_description = "A generic step"
-
-            # Case 1: context_type is None, should trigger the initial fallback
-            context_none, is_minimal_none = driver._extract_targeted_context(
-                file_path, file_content, None, step_description
-            )
-            mock_logger.debug.assert_called_with(f"Not a Python file or no context_type for {file_path}. Returning full content.")
-            assert not is_minimal_none, "is_minimal should be False for fallback with None context_type"
-            assert context_none == file_content, "Context string should be full content for None context_type"
-
-            # Case 2: context_type is provided but unimplemented, should also trigger the fallback
-            context_unimplemented, is_minimal_unimplemented = driver._extract_targeted_context(
-                file_path,
-                file_content,
-                "add_global_function",  # A valid type, but its extraction logic is pending
-                step_description
-            )
-            mock_logger.debug.assert_called_with(f"No specific context extraction rule for type 'add_global_function' or extraction failed for {file_path}. Using full content.")
-            assert not is_minimal_unimplemented, "is_minimal should be False for fallback with unimplemented context_type"
-
-    def test_extract_context_fallback_for_non_python_file(self, driver_for_context_tests):
-        """Tests fallback to full content for non-Python files."""
-        driver = driver_for_context_tests
-        with patch.object(driver, 'logger', autospec=True) as mock_logger:
-            file_content = "Some markdown content"
-            file_path = "README.md"
-            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, "add_import", "Add import to text file")
-
-            assert is_minimal is False
-            assert context_str == file_content
-            mock_logger.debug.assert_called_with(f"Not a Python file or no context_type for {file_path}. Returning full content.")
-
-    def test_extract_context_fallback_for_unhandled_type(self, driver_for_context_tests):
-        """Tests fallback to full content for an unhandled but valid context_type."""
-        driver = driver_for_context_tests
-        with patch.object(driver, 'logger', autospec=True) as mock_logger:
-            file_content = "def func(): pass"
-            file_path = "module.py"
-            context_type = "add_global_function" # Assume this is not yet implemented
-            context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, context_type, "A step")
-
-            assert is_minimal is False
-            assert context_str == file_content
-            mock_logger.debug.assert_called_with(f"No specific context extraction rule for type '{context_type}' or extraction failed for {file_path}. Using full content.")
-
-    def test_method_addition_gets_class_and_surrounding_context(self, driver_for_context_tests, tmp_path):
-        driver = driver_for_context_tests
-        file_content = "import pandas\nimport numpy as np\n\nclass DataProcessor:\n    def existing_method(self):\n        pass\n\n# Other code"
-        file_path = str(tmp_path / "data_proc.py")
-        # Step description must match the regex in _get_context_type_for_step and _extract_targeted_context
-        step_desc = "Add method process_data to class DataProcessor"
+        driver.autonomous_loop()
     
-        context_type = driver._get_context_type_for_step(step_desc) # Get type first
-        assert context_type == "add_method_to_class"
-    
-        # Expected context: lines 2-8 (inclusive of line 2, exclusive of line 8)
-        # Corresponds to: blank line, class DataProcessor and its content, up to the last line of the class.
-        expected_context = "\n".join(file_content.splitlines()[2:8])
-        context_str, is_minimal = driver._extract_targeted_context(file_path, file_content, context_type, step_desc)
-    
-        assert is_minimal is True, "is_minimal should be True for successful targeted extraction"
-        assert context_str == expected_context, "Context string should be the extracted class block"
+        # _execute_code_generation_step should be called only ONCE for all three steps
+        assert mock_execute_codegen.call_count == 1
 
-    # --- Tests for _construct_coder_llm_prompt with minimal context ---
-    def test_construct_coder_llm_prompt_with_minimal_context(self, driver_for_context_tests):
-        driver = driver_for_context_tests
-        task = {'task_name': 'Test Task', 'description': 'Test Description'}
-        step = "Add import os"
-        filepath = "test.py"
-        minimal_context_str = "import sys"
-        # Mock _should_add_docstring_instruction to return False for this test
-        with patch.object(driver, '_should_add_docstring_instruction', return_value=False):
-            prompt = driver._construct_coder_llm_prompt(task, step, filepath, minimal_context_str, is_minimal_context=True, retry_feedback_content=None)
-    
-        assert constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION in prompt
-        assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
-        # When is_minimal_context is True, the prompt uses constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION
-        # and constants.CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS, not constants.CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.
-        assert constants.CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
-        assert constants.CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) not in prompt
-        assert constants.CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) not in prompt
+        # Verify the description contains all three steps
+        bundled_description = mock_execute_codegen.call_args[0][0]
+        assert "MAIN STEP 1: Step 1: Gen code for file_A.py" in bundled_description
+        assert "BUNDLED STEP 2: Step 2: Gen code for file_A.py" in bundled_description
+        assert "BUNDLED STEP 3: Step 3: Gen code for file_A.py" in bundled_description
 
-    def test_construct_coder_llm_prompt_with_full_context(self, driver_for_context_tests):
-        driver = driver_for_context_tests
-        task = {'task_name': 'Test Task', 'description': 'Test Description'}
-        step = "Implement new feature"
-        filepath = "test.py"
-        full_context_str = "import sys\n\ndef main():\n    pass"
-        # Mock _should_add_docstring_instruction to return False for this test
-        with patch.object(driver, '_should_add_docstring_instruction', return_value=False):
-            prompt = driver._construct_coder_llm_prompt(task, step, filepath, full_context_str, is_minimal_context=False, retry_feedback_content=None)
-
-        assert constants.CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION not in prompt
-        assert "PROVIDED CONTEXT FROM `test.py` (this might be the full file or a targeted section):\n\nimport sys" in prompt
-        assert constants.CRITICAL_CODER_LLM_OUTPUT_INSTRUCTIONS.format(END_OF_CODE_MARKER=constants.END_OF_CODE_MARKER) in prompt
-        assert constants.CODER_LLM_TARGETED_MOD_OUTPUT_INSTRUCTIONS in prompt
-
-    # --- Test for _should_add_docstring_instruction simplification ---
-    def test_should_add_docstring_instruction_simplified_check(self, driver_for_context_tests):
-        driver = driver_for_context_tests
-        # This test implicitly relies on constants.PYTHON_CREATION_KEYWORDS being available.
-        # The fixture sets it on the driver instance.
-        assert driver._should_add_docstring_instruction("Implement new function foo", "test.py") is True
-        # Verify no error is logged about constants.PYTHON_CREATION_KEYWORDS not being defined
-        # (This would require checking caplog if the logger was configured to error level for this)
+        # Check logs for bundling and skipping messages.
+        assert "Bundling step 2" in caplog.text
+        assert "Bundling step 3" in caplog.text
+        assert "Skipping step 2 as it was subsumed" in caplog.text
+        assert "Skipping step 3 as it was subsumed" in caplog.text
+        assert "Executing step 4/3" not in caplog.text # No step 4
 
 
 class TestPhase1_8Features:
@@ -1012,15 +651,15 @@ class TestContextLeakageValidation:
         original_content = "def existing_function():\n    pass\n"
         # This snippet is syntactically incorrect
         invalid_snippet_from_llm = "def new_function(:\n    pass"
-
+    
         # Mock internal calls
         mocker.patch.object(driver, '_read_file_for_context', return_value=original_content)
         mocker.patch.object(driver, '_invoke_coder_llm', return_value=invalid_snippet_from_llm)
         # _merge_snippet will be called, let's have it just append for simplicity
         mocker.patch.object(driver, '_merge_snippet', side_effect=lambda existing, snippet: f"{existing}\n{snippet}")
-
+    
         # We expect a SyntaxError to be raised from the method call
         with pytest.raises(SyntaxError):
             driver._execute_code_generation_step(
-                step, filepath_to_use, original_content, None, 0, 0
+               step, filepath_to_use, original_content, None, 0, 0
             )

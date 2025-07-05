@@ -18,6 +18,7 @@ CONTEXT_LEAKAGE_INDICATORS: list[str] = [
 ]
 
 # Workflow Driver Constants
+MAX_BUNDLE_LOOKAHEAD = 3 # How many subsequent steps to look ahead for bundling
 MAX_STEP_RETRIES = 2  # Allows 2 retries per step (3 attempts total)
 
 # New constant for minimal context instruction (Task 1.8.A)

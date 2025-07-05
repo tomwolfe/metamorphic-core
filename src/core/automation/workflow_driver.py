@@ -28,7 +28,7 @@ from src.core.constants import (
     END_OF_CODE_MARKER, GENERAL_SNIPPET_GUIDELINES, DOCSTRING_INSTRUCTION_PYTHON,
     CRITICAL_CODER_LLM_FULL_FILE_OUTPUT_INSTRUCTIONS,
     PYTHON_CREATION_KEYWORDS, GENERAL_PYTHON_DOCSTRING_REMINDER, CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION,
-    CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS,
+    CRITICAL_CODER_LLM_FULL_BLOCK_OUTPUT_INSTRUCTIONS, MAX_BUNDLE_LOOKAHEAD,
     MAX_READ_FILE_SIZE, METAMORPHIC_INSERT_POINT, MAX_STEP_RETRIES, MAX_IMPORT_CONTEXT_LINES,
     CONTEXT_LEAKAGE_INDICATORS, MAX_FULL_REWRITE_SIZE
 )
@@ -119,9 +119,9 @@ def classify_plan_step(step_description: str) -> str: # noqa: E501
         elif conceptual_score > code_score:
             return 'conceptual'
         else: # Scores are equal or both are zero
+            # If SpaCy scores are equal or zero, classification is uncertain
             return 'uncertain'
-    else:
-        # Fallback to regex if SpaCy model couldn't be loaded
+    else: # If SpaCy model couldn't be loaded, fallback to regex-based classification
         return _classify_plan_step_regex_fallback(step_description_lower)
 class Context:
     def get_full_path(self, relative_path):
@@ -785,6 +785,8 @@ class WorkflowDriver:
             self._current_task_results['step_errors'] = []
             self.remediation_attempts = 0
             self._current_task = {}
+            # Tracks indices of steps that have been bundled into a previous step's execution
+            subsumed_step_indices = set()
             self.task_target_file = None
             self.remediation_occurred_in_pass = False
 
@@ -819,6 +821,12 @@ class WorkflowDriver:
                     task_failed_step = False
 
                     for step_index, step in enumerate(solution_plan):
+                        # Skip steps that were bundled into a previous step's execution
+                        if step_index in subsumed_step_indices:
+                            logger.info(f"Skipping step {step_index + 1} as it was subsumed by a previous bundled step.")
+                            continue
+
+
                         step_retries = 0
                         step_succeeded = False
                         step_failure_reason = None # Store reason for failure across retries
@@ -908,17 +916,44 @@ class WorkflowDriver:
  
                                 # Use filepath_to_use (the resolved determined target file) here
                                 elif prelim_flags['is_code_generation_step_prelim'] and filepath_to_use and filepath_to_use.endswith('.py'):
-                                    # This step involves generating Python code and writing it to a .py file
                                     logger.info(f"Step identified as code generation for file {filepath_to_use}. Orchestrating read-generate-merge-write.") # Log resolved path
+                                    # --- BUNDLING LOGIC START ---
+                                    # Collect descriptions for the current step and any subsequent bundlable steps
+                                    bundled_steps_descriptions = [f"MAIN STEP {step_index+1}: {step}"]
+                                    # Determine the end of the lookahead range, capped by plan length
+                                    lookahead_end = min(step_index + MAX_BUNDLE_LOOKAHEAD + 1, len(solution_plan))
+                                    
+                                    for lookahead_index in range(step_index + 1, lookahead_end):
+                                        # Ensure we don't go out of bounds if plan is shorter than lookahead_limit
+                                        if lookahead_index >= len(solution_plan): 
+                                            break
+                                            
+                                        next_step = solution_plan[lookahead_index]
+                                        next_step_flags = self._classify_step_preliminary(next_step, self.task_target_file)
+                                        next_step_filepath = self._resolve_target_file_for_step(next_step, self.task_target_file, next_step_flags)
+
+                                        # Bundle only if it's a code generation step for the same file
+                                        if next_step_flags['is_code_generation_step_prelim'] and next_step_filepath == filepath_to_use:
+                                            logger.info(f"Bundling step {lookahead_index + 1} ('{next_step[:50]}...') into current code generation prompt.")
+                                            bundled_steps_descriptions.append(f"BUNDLED STEP {lookahead_index+1}: {next_step}")
+                                            subsumed_step_indices.add(lookahead_index) # Mark this step as subsumed
+                                        else:
+                                            # Stop bundling if the next step is not a code-gen step for the same file
+                                            break
+                                    
+                                    # Combine all bundled step descriptions into a single string for the LLM prompt
+                                    bundled_step_description_for_llm = "\n\n".join(bundled_steps_descriptions)
+                                    logger.debug(f"Bundled {len(bundled_steps_descriptions)} steps for Coder LLM.")
+                                    # --- BUNDLING LOGIC END ---
                                     original_full_content = self._read_file_for_context(filepath_to_use)
- 
+  
                                     if original_full_content is None: # Handle read errors
                                         step_failure_reason = f"Failed to read current content of {filepath_to_use} for code generation."
                                         logger.error(step_failure_reason)
                                         raise RuntimeError(step_failure_reason)
- 
+  
                                     success, generated_output_content = self._execute_code_generation_step(
-                                        step, filepath_to_use, original_full_content,
+                                        bundled_step_description_for_llm, filepath_to_use, original_full_content,
                                         retry_feedback_for_llm_prompt if step_retries > 0 else None, step_retries, step_index
                                     )
                                     if success:
@@ -1317,9 +1352,9 @@ class WorkflowDriver:
                         debug_data = {
                             "timestamp": datetime.now().isoformat(),
                             "task_id": current_task_id_str,
-                            "step_description": step,
-                            "original_snippet_repr": repr(generated_output),
-                            "cleaned_snippet_repr": repr(cleaned_output),
+                            "step_description": step_description_for_log,
+                            "original_snippet_repr": repr(original_snippet),
+                            "cleaned_snippet_repr": repr(cleaned_snippet_that_fails),
                             "syntax_error_details": {
                                 "message": se.msg,
                                 "lineno": se.lineno,
@@ -1451,29 +1486,29 @@ class WorkflowDriver:
         # No need to resolve again, assume it's already resolved and validated
         full_path = full_file_path
         if not os.path.exists(full_path):
-            logger.warning(f"File not found for reading: {full_file_path}") # Log the original path passed in
+            logger.warning(f"File not found for reading: {full_path}") # Log the original path passed in
             return ""
         if not os.path.isfile(full_path):
-            logger.warning(f"Path is not a file: {full_file_path}") # Log the original path passed in
+            logger.warning(f"Path is not a file: {full_path}") # Log the original path passed in
             return ""
         try:
             file_size = os.path.getsize(full_path)
             if file_size > MAX_READ_FILE_SIZE:
-                logger.warning(f"File exceeds maximum read size ({MAX_READ_FILE_SIZE} bytes): {full_file_path} ({file_size} bytes)") # Log original path
+                logger.warning(f"File exceeds maximum read size ({MAX_READ_FILE_SIZE} bytes): {full_path} ({file_size} bytes)") # Log original path
                 return ""
         except Exception as e:
-            logger.error(f"Error checking file size for {full_file_path}: {e}", exc_info=True) # Log original path
+            logger.error(f"Error checking file size for {full_path}: {e}", exc_info=True) # Log original path
             return ""
         try:
             with builtins.open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
-            logger.debug(f"Successfully read {len(content)} characters from {full_file_path}") # Log original path
+            logger.debug(f"Successfully read {len(content)} characters from {full_path}") # Log original path
             return content
         except PermissionError:
-            logger.error(f"Permission denied when reading file: {full_file_path}") # Log original path
+            logger.error(f"Permission denied when reading file: {full_path}") # Log original path
             return ""
         except Exception as e:
-            logger.error(f"Unexpected error reading file {full_file_path}: {e}", exc_info=True) # Log original path
+            logger.error(f"Unexpected error reading file {full_path}: {e}", exc_info=True) # Log original path
             return ""
 
     def generate_solution_plan(self, task: dict) -> list[str]:
@@ -2913,4 +2948,3 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
-        return None

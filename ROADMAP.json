@@ -401,6 +401,48 @@
       "description": "The file `tests/test_phase1_8_features.py` contains a `SyntaxError: unterminated string literal` on line 262 (or nearby), specifically `mock_context_for_llm = \"class WorkflowDriver:\\n`. This string literal needs to be corrected to use triple quotes (`\"\"\"` or `'''`) to properly span multiple lines and be correctly terminated. This task is critical to unblock further development on `task_1_8_2_F_4c_add_passing_tests` and subsequent tasks."
     },
     {
+      "task_id": "task_1_8_19a_0_plan_step_bundling",
+      "priority": "Critical",
+      "task_name": "Implement Code Generation Step Bundling",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [],
+      "description": "In `WorkflowDriver.autonomous_loop`, when a code generation step is identified, look ahead at the next `MAX_BUNDLE_LOOKAHEAD` steps. If they are also classified as code generation steps for the same file, bundle their descriptions into a single, more comprehensive prompt for the Coder LLM. Mark the bundled subsequent steps as 'subsumed' and skip their execution. This prevents failures from overly-granular plans."
+    },
+    {
+      "task_id": "task_1_8_19a_1_wrap_ast_parse",
+      "priority": "High",
+      "task_name": "Wrap ast.parse in a try-except block for SyntaxError",
+      "status": "Completed",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_18_fix_string_literal_prompting"
+      ],
+      "description": "In `_execute_code_generation_step`, find the `ast.parse(content_for_ast_check)` call. Wrap this specific call in a `try...except SyntaxError as se:` block. For now, inside the `except` block, simply re-raise the exception using `raise se`. This is the first step to build the differentiation logic, enabling safe detection of syntax errors without crashing the workflow."
+    },
+    {
+      "task_id": "task_1_8_19a_2_combined_error_handling",
+      "priority": "High",
+      "task_name": "Implement Syntax Error Differentiation Logic",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_19a_0_plan_step_bundling"
+      ],
+      "description": "Inside the `except SyntaxError as se:` block, get the error line number (`se.lineno`), get the snippet's line range (`_get_hypothetical_snippet_line_range`), and implement the conditional logic to differentiate between pre-existing and snippet-introduced errors. Log the relevant details and handle each case appropriately (raise a `ValueError` for pre-existing errors, and append to `validation_feedback` for snippet-introduced errors)."
+    },
+    {
+      "task_id": "task_1_8_19b_add_tests_for_differentiation",
+      "priority": "High",
+      "task_name": "Add Unit Tests for Syntax Error Differentiation Logic",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_19a_2_combined_error_handling"
+      ],
+      "description": "In `tests/test_phase1_8_features.py`, add new unit tests to verify the syntax error differentiation logic implemented in `task_1_8_19a`. The tests should cover cases where a `SyntaxError` occurs within the generated snippet and cases where the error exists in the original source file content, outside the snippet's range. Use `pytest.raises` and mock `ast.parse` to simulate these `SyntaxError` conditions."
+    },
+    {
       "task_id": "task_1_8_2_F_4c_add_passing_tests",
       "priority": "High",
       "task_name": "Add Passing Unit Tests for Compliant Snippets",
@@ -434,39 +476,6 @@
         "task_1_8_2_G_atomic_planner"
       ],
       "description": "Run a linter (e.g., `flake8`) and an autoformatter (e.g., `black`) across the entire `src` and `tests` directories to fix existing style violations (PEP8, etc.). This will reduce noise in future validation steps, allowing the autonomous system to more accurately identify new issues introduced by its own code modifications. This task should be completed before proceeding with further feature development."
-    },
-    {
-      "task_id": "task_1_8_19a_1_wrap_ast_parse",
-      "priority": "High",
-      "task_name": "Wrap ast.parse in a try-except block for SyntaxError",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_18_fix_string_literal_prompting"
-      ],
-      "description": "In `_execute_code_generation_step`, find the `ast.parse(content_for_ast_check)` call. Wrap this specific call in a `try...except SyntaxError as se:` block. For now, inside the `except` block, simply re-raise the exception using `raise se`. This is the first step to build the differentiation logic, enabling safe detection of syntax errors without crashing the workflow."
-    },
-    {
-      "task_id": "task_1_8_19a_2_combined_error_handling",
-      "priority": "High",
-      "task_name": "Implement Syntax Error Differentiation Logic",
-      "status": "Not Started",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_19a_1_wrap_ast_parse"
-      ],
-      "description": "Inside the `except SyntaxError as se:` block, get the error line number (`se.lineno`), get the snippet's line range (`_get_hypothetical_snippet_line_range`), and implement the conditional logic to differentiate between pre-existing and snippet-introduced errors. Log the relevant details and handle each case appropriately (raise a `ValueError` for pre-existing errors, and append to `validation_feedback` for snippet-introduced errors)."
-    },
-    {
-      "task_id": "task_1_8_19b_add_tests_for_differentiation",
-      "priority": "High",
-      "task_name": "Add Unit Tests for Syntax Error Differentiation Logic",
-      "status": "Not Started",
-      "target_file": "tests/test_phase1_8_features.py",
-      "depends_on": [
-        "task_1_8_19a_2_combined_error_handling"
-      ],
-      "description": "In `tests/test_phase1_8_features.py`, add new unit tests to verify the syntax error differentiation logic implemented in `task_1_8_19a`. The tests should cover cases where a `SyntaxError` occurs within the generated snippet and cases where the error exists in the original source file content, outside the snippet's range. Use `pytest.raises` and mock `ast.parse` to simulate these `SyntaxError` conditions."
     },
     {
       "task_id": "task_1_8_20_scoped_validation",

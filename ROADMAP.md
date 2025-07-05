@@ -214,6 +214,30 @@
     *   **Status**: Completed
     *   **Depends On**: []
 
+*   **Task ID**: task_1_8_19a_0_plan_step_bundling
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Code Generation Step Bundling
+    *   **Status**: Not Started
+    *   **Depends On**: []
+
+*   **Task ID**: task_1_8_19a_1_wrap_ast_parse
+    *   **Priority**: High
+    *   **Task Name**: Wrap ast.parse in a try-except block for SyntaxError
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_18_fix_string_literal_prompting']
+
+*   **Task ID**: task_1_8_19a_2_combined_error_handling
+    *   **Priority**: High
+    *   **Task Name**: Implement Syntax Error Differentiation Logic
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_19a_0_plan_step_bundling']
+
+*   **Task ID**: task_1_8_19b_add_tests_for_differentiation
+    *   **Priority**: High
+    *   **Task Name**: Add Unit Tests for Syntax Error Differentiation Logic
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_19a_2_combined_error_handling']
+
 *   **Task ID**: task_1_8_2_F_4c_add_passing_tests
     *   **Priority**: High
     *   **Task Name**: Add Passing Unit Tests for Compliant Snippets
@@ -231,24 +255,6 @@
     *   **Task Name**: Codebase Linting and Style Conformance
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_G_atomic_planner']
-
-*   **Task ID**: task_1_8_19a_1_wrap_ast_parse
-    *   **Priority**: High
-    *   **Task Name**: Wrap ast.parse in a try-except block for SyntaxError
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_18_fix_string_literal_prompting']
-
-*   **Task ID**: task_1_8_19a_2_combined_error_handling
-    *   **Priority**: High
-    *   **Task Name**: Implement Syntax Error Differentiation Logic
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_19a_1_wrap_ast_parse']
-
-*   **Task ID**: task_1_8_19b_add_tests_for_differentiation
-    *   **Priority**: High
-    *   **Task Name**: Add Unit Tests for Syntax Error Differentiation Logic
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_19a_2_combined_error_handling']
 
 *   **Task ID**: task_1_8_20_scoped_validation
     *   **Priority**: High

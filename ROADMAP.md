@@ -146,7 +146,7 @@
     *   **Priority**: Critical
     *   **Task Name**: Add MAX_STEP_RETRIES Constant
     *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_B_enhance_retry_prompts']
+    *   **Depends On**: ['task_1_8_2_B_implement_while_loop']
 
 *   **Task ID**: task_1_8_2_B_implement_while_loop
     *   **Priority**: Critical
@@ -217,7 +217,7 @@
 *   **Task ID**: task_1_8_19a_0_plan_step_bundling
     *   **Priority**: Critical
     *   **Task Name**: Implement Code Generation Step Bundling
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: []
 
 *   **Task ID**: task_1_8_19a_1_wrap_ast_parse
@@ -226,17 +226,41 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_18_fix_string_literal_prompting']
 
-*   **Task ID**: task_1_8_19a_2_combined_error_handling
+*   **Task ID**: task_1_8_19a_2
     *   **Priority**: High
-    *   **Task Name**: Implement Syntax Error Differentiation Logic
+    *   **Task Name**: Get Syntax Error Line Number
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_19a_0_plan_step_bundling']
+    *   **Depends On**: ['task_1_8_19a_1_wrap_ast_parse']
+
+*   **Task ID**: task_1_8_19a_3
+    *   **Priority**: High
+    *   **Task Name**: Get Hypothetical Snippet Line Range
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_19a_2']
+
+*   **Task ID**: task_1_8_19a_4
+    *   **Priority**: High
+    *   **Task Name**: Implement Conditional Logic for Error Differentiation
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_19a_3']
+
+*   **Task ID**: task_1_8_19a_5
+    *   **Priority**: High
+    *   **Task Name**: Implement Snippet-Introduced Error Handling
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_19a_4']
+
+*   **Task ID**: task_1_8_19a_6
+    *   **Priority**: High
+    *   **Task Name**: Implement Pre-existing Error Handling
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_19a_4']
 
 *   **Task ID**: task_1_8_19b_add_tests_for_differentiation
     *   **Priority**: High
     *   **Task Name**: Add Unit Tests for Syntax Error Differentiation Logic
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_19a_2_combined_error_handling']
+    *   **Depends On**: ['task_1_8_19a_6']
 
 *   **Task ID**: task_1_8_2_F_4c_add_passing_tests
     *   **Priority**: High
@@ -370,12 +394,6 @@
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_improve_snippet_handling', 'task_1_8_5']
 
-*   **Task ID**: task_1_8_11b_failure_driven_decomposition
-    *   **Priority**: High
-    *   **Task Name**: Implement Failure-Driven Task Decomposition
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_11_auto_refinement']
-
 *   **Task ID**: task_1_8_21_raw_string_validation
     *   **Priority**: High
     *   **Task Name**: Implement Targeted Raw String Literal Validation
@@ -399,4 +417,10 @@
     *   **Task Name**: Improve Planner for Atomic Code Modifications
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_19b_add_tests_for_differentiation']
+
+*   **Task ID**: task_1_8_11b_failure_driven_decomposition
+    *   **Priority**: High
+    *   **Task Name**: Implement Failure-Driven Task Decomposition
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_11_auto_refinement']
 

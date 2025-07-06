@@ -106,114 +106,6 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_improve_snippet_handling']
 
-*   **Task ID**: task_1_8_A_optimize_large_context_epic
-    *   **Priority**: Critical
-    *   **Task Name**: EPIC: Optimize Large Context Handling for Code Generation Steps
-    *   **Status**: In Progress
-    *   **Depends On**: ['task_1_8_Y_ensure_docstrings_in_codegen']
-
-*   **Task ID**: task_1_8_A_1a_create_skeleton
-    *   **Priority**: Critical
-    *   **Task Name**: Create Skeleton for _is_simple_addition_plan_step Helper
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_improve_snippet_handling']
-
-*   **Task ID**: task_1_8_A_1b_implement_logic
-    *   **Priority**: Critical
-    *   **Task Name**: Implement Logic for _is_simple_addition_plan_step
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_1a_create_skeleton']
-
-*   **Task ID**: task_1_8_A_1c_add_tests
-    *   **Priority**: High
-    *   **Task Name**: Add Unit Tests for _is_simple_addition_plan_step
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_1b_implement_logic']
-
-*   **Task ID**: task_1_8_A_2_implement_and_test_get_context_type
-    *   **Priority**: Critical
-    *   **Task Name**: Implement and Test _get_context_type_for_step Method
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_1c_add_tests']
-
-*   **Task ID**: task_1_8_B_enhance_retry_prompts
-    *   **Priority**: High
-    *   **Task Name**: Enhance Retry Prompts with Specific Validation Feedback
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_A_optimize_large_context_epic']
-
-*   **Task ID**: task_1_8_2_A_add_max_retries_constant
-    *   **Priority**: Critical
-    *   **Task Name**: Add MAX_STEP_RETRIES Constant
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_2_B_implement_while_loop']
-
-*   **Task ID**: task_1_8_2_B_implement_while_loop
-    *   **Priority**: Critical
-    *   **Task Name**: Implement While Loop for Step Retries
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_2_A_add_max_retries_constant']
-
-*   **Task ID**: task_1_8_2_C_add_retry_counter
-    *   **Priority**: Critical
-    *   **Task Name**: Add and Increment Step Retry Counter
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_2_B_implement_while_loop']
-
-*   **Task ID**: task_1_8_2_D_add_feedback_reinvocation
-    *   **Priority**: Critical
-    *   **Task Name**: Add Feedback Construction for Retry Prompts
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_2_C_add_retry_counter']
-
-*   **Task ID**: task_1_8_2_E_add_exhaustion_error
-    *   **Priority**: Critical
-    *   **Task Name**: Add Logic to Block Task on Retry Exhaustion
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_2_D_add_feedback_reinvocation']
-
-*   **Task ID**: task_1_8_2_F_1_add_constant
-    *   **Priority**: High
-    *   **Task Name**: Add CONTEXT_LEAKAGE_INDICATORS Constant
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_2_E_add_exhaustion_error']
-
-*   **Task ID**: task_1_8_2_F_2_add_method
-    *   **Priority**: High
-    *   **Task Name**: Implement _validate_for_context_leakage Method
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_2_F_1_add_constant']
-
-*   **Task ID**: task_1_8_2_F_3_integrate_call
-    *   **Priority**: High
-    *   **Task Name**: Integrate Context Leakage Check into Pre-Write Validation
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_2_F_2_add_method']
-
-*   **Task ID**: task_1_8_2_F_4a_create_test_class
-    *   **Priority**: High
-    *   **Task Name**: Create Unittest-based Test Class for Context Leakage Validation
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_2_F_3_integrate_call']
-
-*   **Task ID**: task_1_8_2_F_4b_define_leakage_snippets
-    *   **Priority**: High
-    *   **Task Name**: Define Context Leakage Snippets List
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_2_F_4a_create_test_class']
-
-*   **Task ID**: task_1_8_2_F_4b_create_failing_test_method
-    *   **Priority**: High
-    *   **Task Name**: Create Failing Test Method for Context Leakage
-    *   **Status**: Completed
-    *   **Depends On**: ['task_1_8_2_F_4b_define_leakage_snippets']
-
-*   **Task ID**: task_1_8_2_F_4c_syntax_fix
-    *   **Priority**: Critical
-    *   **Task Name**: Fix Pre-existing Syntax Error in test_phase1_8_features.py
-    *   **Status**: Completed
-    *   **Depends On**: []
-
 *   **Task ID**: task_1_8_19a_0_plan_step_bundling
     *   **Priority**: Critical
     *   **Task Name**: Implement Code Generation Step Bundling
@@ -228,21 +120,15 @@
 
 *   **Task ID**: task_1_8_19a_2
     *   **Priority**: High
-    *   **Task Name**: Get Syntax Error Line Number
+    *   **Task Name**: Implement AST-Aware Syntax Error Differentiation
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_19a_1_wrap_ast_parse']
-
-*   **Task ID**: task_1_8_19a_3
-    *   **Priority**: High
-    *   **Task Name**: Get Hypothetical Snippet Line Range
-    *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_19a_2']
 
 *   **Task ID**: task_1_8_19a_4
     *   **Priority**: High
     *   **Task Name**: Implement Conditional Logic for Error Differentiation
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_19a_3']
+    *   **Depends On**: ['task_1_8_19a_2']
 
 *   **Task ID**: task_1_8_19a_5
     *   **Priority**: High

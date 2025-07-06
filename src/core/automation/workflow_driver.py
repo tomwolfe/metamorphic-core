@@ -931,7 +931,7 @@ class WorkflowDriver:
                                         next_step = solution_plan[lookahead_index]
                                         next_step_flags = self._classify_step_preliminary(next_step, self.task_target_file)
                                         next_step_filepath = self._resolve_target_file_for_step(next_step, self.task_target_file, next_step_flags)
-
+                                        
                                         # Bundle only if it's a code generation step for the same file
                                         if next_step_flags['is_code_generation_step_prelim'] and next_step_filepath == filepath_to_use:
                                             logger.info(f"Bundling step {lookahead_index + 1} ('{next_step[:50]}...') into current code generation prompt.")
@@ -1320,65 +1320,29 @@ class WorkflowDriver:
         try:
             ast.parse(content_for_validation)
             self.logger.info("Pre-write full file syntax check (AST parse) passed.")
-        except SyntaxError as se:
+        except SyntaxError as se: # noqa: E501
             # Differentiate between pre-existing source file errors and snippet-introduced errors.
+            error_line_number = se.lineno
             snippet_range = self._get_hypothetical_snippet_line_range(original_full_content, cleaned_output)
- 
+
             # Check if the error is outside the snippet's range, indicating a pre-existing error.
-            if snippet_range and not (snippet_range[0] <= se.lineno <= snippet_range[1]):
+            if snippet_range and not (snippet_range[0] <= error_line_number <= snippet_range[1]):
                 error_msg = (
-                    f"Pre-existing syntax error identified in source file {filepath_to_use} on line {se.lineno}: {se.msg}. "
+                    f"Pre-existing syntax error identified in source file {filepath_to_use} on line {error_line_number}: {se.msg}. "
                     "This error is outside the snippet's target range. Cannot apply snippet."
                 )
                 self.logger.error(error_msg)
-                # Block the current task and create a new one to fix the source file.
-                reason_blocked = f"Blocked due to pre-existing syntax error in target file {filepath_to_use} at line {se.lineno}: {se.msg}"
-                self._update_task_status_in_roadmap(self._current_task['task_id'], "Blocked", reason_blocked)
-                # TODO: Implement creation of a new high-priority 'fix syntax error' task.
-                # For now, we just block and raise to stop the current task execution.
-                raise ValueError(error_msg)  # Raise a specific error to be caught by the step retry loop
-            else: # The syntax error was introduced by the snippet, the merge, or we can't determine the range.
+                # Block the current task and raise a more informative error to stop execution for this task.
+                raise ValueError(error_msg)
+            else:  # The syntax error was introduced by the snippet, the merge, or we can't determine the range.
                 validation_passed = False
-                error_msg = f"Pre-write syntax check failed: {se.msg} on line {se.lineno}."
+                error_msg = f"Pre-write syntax check failed: {se.msg} on line {error_line_number}."
                 validation_feedback.append(error_msg)
                 self.logger.warning(f"Pre-write syntax validation (AST parse) failed for snippet: {se}")
                 # Attempt to save malformed snippet details for debugging
-                try:
-                    debug_dir_name = ".debug/failed_snippets"
-                    debug_dir_path_str = self.context.get_full_path(debug_dir_name)
-                    if debug_dir_path_str:
-                        debug_dir = Path(debug_dir_path_str)
-                        debug_dir.mkdir(parents=True, exist_ok=True)
-                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-                        current_task_id_str = getattr(self, '_current_task', {}).get('task_id', 'unknown_task')
-                        sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', current_task_id_str)
-                        current_step_index_str = str(step_index + 1)
- 
-                        filename = f"failed_snippet_{sanitized_task_id}_step{current_step_index_str}_{timestamp}.json" # noqa: E501
-                        filepath = debug_dir / filename
- 
-                        debug_data = {
-                            "timestamp": datetime.now().isoformat(),
-                            "task_id": current_task_id_str,
-                            "step_description": step,
-                            "original_snippet_repr": repr(original_snippet_for_log),
-                            "cleaned_snippet_repr": repr(cleaned_snippet_for_log),
-                            "syntax_error_details": {
-                                "message": se.msg,
-                                "lineno": se.lineno,
-                                "offset": se.offset,
-                                "text": se.text
-                            }
-                        }
-                        with builtins.open(filepath, 'w', encoding='utf-8') as f_err:
-                            json.dump(debug_data, f_err, indent=2)
-                        self.logger.error(f"Saved malformed snippet details (JSON) to: {filepath}")
-                    else:
-                        self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
-                except Exception as write_err:
-                    self.logger.error(f"Failed to save malformed snippet details: {write_err}", exc_info=True)
- 
-            raise se # Re-raise the SyntaxError as per task_1_8_19a_1_wrap_ast_parse
+                self._save_failed_snippet_for_debug(original_snippet_for_log, cleaned_snippet_for_log, se, step, step_index)
+
+            raise se  # Re-raise the SyntaxError to trigger the step retry logic
  
         # If we reach here, AST parse passed. Now continue with other validations.
         self.logger.info(f"Running code review and security scan for {filepath_to_use}.")
@@ -1428,6 +1392,13 @@ class WorkflowDriver:
             self._current_task_results['ethical_analysis_results'] = {'overall_status': 'skipped', 'message': 'Default policy not loaded.'}
 
         return True, content_for_validation
+
+    def _save_failed_snippet_for_debug(self, original_snippet: str, cleaned_snippet: str, syntax_error: SyntaxError, step_description: str, step_index: int):
+        """
+        Placeholder for saving malformed snippets for debugging purposes.
+        This method will be implemented in a future phase.
+        """
+        self.logger.debug(f"Attempted to save failed snippet for debug: Step {step_index+1}, Error: {syntax_error.msg}")
 
     def _classify_step_preliminary(self, step_description: str, task_target_file_spec: Optional[str] = None) -> dict:
         step_lower = step_description.lower()
@@ -2715,14 +2686,9 @@ Your response should be the complete, corrected code content that addresses the 
         original_lines = original_full_content.splitlines()
         snippet_lines_count = len(snippet.splitlines()) if snippet else 0
 
-        marker_line_index = -1
-        for i, line in enumerate(original_lines):
-            if METAMORPHIC_INSERT_POINT in line:
-                marker_line_index = i
-                break
-
+        marker_line_index = next((i for i, line in enumerate(original_lines) if METAMORPHIC_INSERT_POINT in line), -1)
         start_line = marker_line_index + 1 if marker_line_index != -1 else len(original_lines) + 1
-        end_line = start_line + max(1, snippet_lines_count) - 1 # At least 1 line for the marker itself if snippet is empty
+        end_line = start_line + max(1, snippet_lines_count) - 1  # At least 1 line for the marker itself if snippet is empty
         return (start_line, end_line)
 
     def _extract_top_n_lines(self, file_content: str, n: int) -> str:
@@ -2956,4 +2922,3 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
-        return None

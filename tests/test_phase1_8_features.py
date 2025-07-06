@@ -663,3 +663,61 @@ class TestContextLeakageValidation:
             driver._execute_code_generation_step(
                step, filepath_to_use, original_content, None, 0, 0
             )
+
+
+class TestSyntaxErrorDifferentiation:
+    """Tests for the logic that differentiates between pre-existing and snippet-introduced syntax errors."""
+
+    def test_get_hypothetical_snippet_line_range_with_marker(self, driver_enhancements):
+        """Test calculating line range when an insertion marker is present."""
+        driver = driver_enhancements
+        original_content = "line1\nline2\n# METAMORPHIC_INSERT_POINT\nline4"
+        snippet = "new_line1\nnew_line2"
+        expected_range = (3, 4)  # Marker is on line 3, snippet has 2 lines.
+        assert driver._get_hypothetical_snippet_line_range(original_content, snippet) == expected_range
+
+    def test_get_hypothetical_snippet_line_range_no_marker(self, driver_enhancements):
+        """Test calculating line range when no insertion marker is present (append)."""
+        driver = driver_enhancements
+        original_content = "line1\nline2\nline3\nline4"
+        snippet = "new_line1\nnew_line2"
+        expected_range = (5, 6)  # Appends after line 4, snippet has 2 lines.
+        assert driver._get_hypothetical_snippet_line_range(original_content, snippet) == expected_range
+
+    def test_execute_code_generation_step_raises_value_error_for_pre_existing_error(self, driver_enhancements, mocker):
+        """
+        Tests that a ValueError is raised if a SyntaxError occurs outside the snippet's
+        hypothetical range, indicating a pre-existing error in the source file.
+        """
+        driver = driver_enhancements
+        original_content = "def func_a():\n  print('valid')\n\ndef func_b()\n  print('invalid syntax')"
+        snippet = "def valid_snippet():\n    pass"
+        filepath_to_use = "/resolved/src/broken_file.py"
+
+        # Mock _get_hypothetical_snippet_line_range to place the snippet at the end
+        mocker.patch.object(driver, '_get_hypothetical_snippet_line_range', return_value=(5, 6))
+
+        # Mock ast.parse to raise a SyntaxError on line 3 (outside the snippet range)
+        pre_existing_error = SyntaxError("invalid syntax", ('<unknown>', 3, 12, "def func_b()\n"))
+        mocker.patch('src.core.automation.workflow_driver.ast.parse', side_effect=pre_existing_error)
+        mocker.patch.object(driver, '_invoke_coder_llm', return_value=snippet) # ADDED: Mock LLM output
+
+        with pytest.raises(ValueError, match=r"Pre-existing syntax error identified in source file"):
+            driver._execute_code_generation_step(
+                "A step", filepath_to_use, original_content, None, 0, 0
+            )
+
+    def test_execute_code_generation_step_reraises_syntax_error_for_snippet_error(self, driver_enhancements, mocker):
+        """Tests that a SyntaxError is re-raised if it occurs within the snippet's range."""
+        driver = driver_enhancements
+        original_content = "def func_a():\n    pass"
+        snippet = "def invalid_snippet(:\n    pass"
+        mocker.patch.object(driver, '_get_hypothetical_snippet_line_range', return_value=(3, 4))
+        snippet_error = SyntaxError("invalid syntax", ('<unknown>', 3, 22, "def invalid_snippet(:\n"))
+        mocker.patch('src.core.automation.workflow_driver.ast.parse', side_effect=snippet_error)
+        mocker.patch.object(driver, '_invoke_coder_llm', return_value=snippet) # ADDED: Mock LLM output
+
+        with pytest.raises(SyntaxError):
+            driver._execute_code_generation_step(
+                "A step", "file.py", original_content, None, 0, 0
+            )

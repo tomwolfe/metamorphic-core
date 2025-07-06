@@ -200,207 +200,6 @@
       "description": "The CoderLLM is repeatedly generating snippets with `SyntaxError: unterminated triple-quoted string literal`. To fix this, modify the `GENERAL_SNIPPET_GUIDELINES` constant in `src/core/constants.py`. Add a new, high-priority rule at the top of the guidelines under a heading like `CRITICAL SYNTAX RULES`. This rule must explicitly instruct the LLM on how to correctly handle string literals to avoid this specific error. Key points to include in the instruction are: 1. All string literals MUST be correctly terminated with matching quotes. 2. Be extremely careful with raw strings (r'...'), as a backslash (`\\`) cannot be the final character. 3. When a string literal must contain code (like a test case or a prompt), ALWAYS use triple quotes (`\"\"\"` or `'''`). Provide clear examples of correct and incorrect usage."
     },
     {
-      "task_id": "task_1_8_A_optimize_large_context_epic",
-      "priority": "Critical",
-      "task_name": "EPIC: Optimize Large Context Handling for Code Generation Steps",
-      "status": "In Progress",
-      "target_file": "src/core/automation/workflow_driver.py, src/core/llm_orchestration.py, src/core/chunking/recursive_summarizer.py",
-      "depends_on": [
-        "task_1_8_Y_ensure_docstrings_in_codegen"
-      ],
-      "description": "OVERARCHING GOAL: Refine `WorkflowDriver.autonomous_loop` and related components to significantly reduce redundant LLM calls when processing large context files for code generation steps, by providing minimal context for simple additions and prompting for only changed lines. This epic is achieved via sub-tasks task_1_8_A_1_helper_is_simple_addition through task_1_8_A_6."
-    },
-    {
-      "task_id": "task_1_8_A_1a_create_skeleton",
-      "priority": "Critical",
-      "task_name": "Create Skeleton for _is_simple_addition_plan_step Helper",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_improve_snippet_handling"
-      ],
-      "description": "In `WorkflowDriver`, create the new helper method `_is_simple_addition_plan_step(self, plan_step_description: str) -> bool`. The implementation should only contain a `pass` statement. A comprehensive docstring explaining the method's purpose, arguments, and return value must be included. **Ensure the method signature and docstring adhere strictly to PEP8 line length (max 79 chars) and formatting guidelines.** This creates the necessary structure for the subsequent implementation task."
-    },
-    {
-      "task_id": "task_1_8_A_1b_implement_logic",
-      "priority": "Critical",
-      "task_name": "Implement Logic for _is_simple_addition_plan_step",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_A_1a_create_skeleton"
-      ],
-      "description": "In `WorkflowDriver`, implement the logic for the `_is_simple_addition_plan_step` method. Use the `re` module to check the `plan_step_description` against a list of regex patterns that identify simple additions (e.g., adding an import, a new method, a constant). Ensure `import re` is present at the top of the file. The method should return True if a pattern matches, and False otherwise. **After implementation, ensure the code passes all Flake8 style and security checks (especially E501 line length) and that `import re` is correctly placed.**"
-    },
-    {
-      "task_id": "task_1_8_A_1c_add_tests",
-      "priority": "High",
-      "task_name": "Add Unit Tests for _is_simple_addition_plan_step",
-      "status": "Completed",
-      "target_file": "tests/test_phase1_8_features.py",
-      "depends_on": [
-        "task_1_8_A_1b_implement_logic"
-      ],
-      "description": "In a new test file `tests/test_phase1_8_features.py`, add comprehensive unit tests for the `WorkflowDriver._is_simple_addition_plan_step` method. Use `pytest.mark.parametrize` to cover various cases: simple additions that should return True, complex modifications that should return False, and edge cases like empty strings. **Ensure tests are self-contained and pass `pytest` and `flake8` checks.**"
-    },
-    {
-      "task_id": "task_1_8_A_2_implement_and_test_get_context_type",
-      "priority": "Critical",
-      "task_name": "Implement and Test _get_context_type_for_step Method",
-      "description": "In `WorkflowDriver`, create and implement the logic for the `_get_context_type_for_step(self, step_description: str) -> Optional[str]` helper method. Use the `re` module to check the `step_description` against a list of regex patterns that identify context types (e.g., 'add_import', 'add_method_to_class'). The method should return the context type as a string if a pattern matches, and None otherwise. Also, add comprehensive unit tests for this new method in `tests/test_phase1_8_features.py` to ensure its correctness, including handling of null or empty inputs.",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py, tests/test_phase1_8_features.py",
-      "depends_on": [
-        "task_1_8_A_1c_add_tests"
-      ]
-    },
-    {
-      "task_id": "task_1_8_B_enhance_retry_prompts",
-      "priority": "High",
-      "task_name": "Enhance Retry Prompts with Specific Validation Feedback",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_A_optimize_large_context_epic"
-      ],
-      "description": "Modify the retry logic within `WorkflowDriver.autonomous_loop`. When a plan step fails due to pre-write validation (syntax, style, ethics) or other captured errors (e.g., test failures post-write), the specific error message(s) should be extracted from `self._current_task_results['pre_write_validation_feedback']` or `self._current_task_results['step_errors']`. This detailed feedback must be appended to the prompt for the CoderLLM during the subsequent retry attempt. The goal is to provide the LLM with concrete information about what went wrong, enabling it to self-correct more effectively."
-    },
-    {
-      "task_id": "task_1_8_2_A_add_max_retries_constant",
-      "priority": "Critical",
-      "task_name": "Add MAX_STEP_RETRIES Constant",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_2_B_implement_while_loop"
-      ],
-      "description": "In `WorkflowDriver`, add a class-level constant `MAX_STEP_RETRIES` and set its value to 2. This constant will define the number of retries for a failing plan step.",
-      "success_criteria": "The constant `MAX_STEP_RETRIES = 2` is correctly added to the `WorkflowDriver` class. The file compiles and all existing tests pass."
-    },
-    {
-      "task_id": "task_1_8_2_B_implement_while_loop",
-      "priority": "Critical",
-      "task_name": "Implement While Loop for Step Retries",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_2_A_add_max_retries_constant"
-      ],
-      "description": "In `WorkflowDriver.autonomous_loop`, wrap the entire `try...except` block for a single step's execution (from `logger.info(f\"Executing step...`) inside a `while step_retries <= MAX_STEP_RETRIES:` loop. This will enable re-execution of a failing step.",
-      "success_criteria": "The step execution `try...except` block is correctly enclosed within a `while` loop that uses the `MAX_STEP_RETRIES` constant. The file compiles and all existing tests must pass."
-    },
-    {
-      "task_id": "task_1_8_2_C_add_retry_counter",
-      "priority": "Critical",
-      "task_name": "Add and Increment Step Retry Counter",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_2_B_implement_while_loop"
-      ],
-      "description": "In `WorkflowDriver.autonomous_loop`, initialize a `step_retries` counter to 0 before the `while` loop for step execution. Inside the `except` block of the step execution, increment this counter (`step_retries += 1`).",
-      "success_criteria": "The `step_retries` counter is initialized before the loop and incremented within the `except` block. The file must compile and all existing tests pass."
-    },
-    {
-      "task_id": "task_1_8_2_D_add_feedback_reinvocation",
-      "priority": "Critical",
-      "task_name": "Add Feedback Construction for Retry Prompts",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_2_C_add_retry_counter"
-      ],
-      "description": "In `WorkflowDriver.autonomous_loop`, inside the `except` block for step execution, capture the exception details. Construct a `retry_feedback_for_llm_prompt` string from the error. This feedback string should then be passed to the `_construct_coder_llm_prompt` method on the next iteration of the `while` loop to guide the Coder LLM.",
-      "success_criteria": "A feedback string is constructed from the exception and passed to the Coder LLM prompt on retries. The file must compile and all existing tests pass."
-    },
-    {
-      "task_id": "task_1_8_2_E_add_exhaustion_error",
-      "priority": "Critical",
-      "task_name": "Add Logic to Block Task on Retry Exhaustion",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_2_D_add_feedback_reinvocation"
-      ],
-      "description": "In `WorkflowDriver.autonomous_loop`, after the `step_retries` counter is incremented, add a check: `if step_retries > MAX_STEP_RETRIES:`. Inside this block, log a final error message, mark the task as failed (`task_failed_step = True`), and `break` from the `while` loop. This will cause the task to be marked as 'Blocked'.",
-      "success_criteria": "Logic to check for exhausted retries, log an error, and break the loop is correctly implemented. The file must compile and all existing tests pass."
-    },
-    {
-      "task_id": "task_1_8_2_F_1_add_constant",
-      "priority": "High",
-      "task_name": "Add CONTEXT_LEAKAGE_INDICATORS Constant",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_2_E_add_exhaustion_error"
-      ],
-      "description": "In `src/core/automation/workflow_driver.py`, add a class-level constant `CONTEXT_LEAKAGE_INDICATORS: List[str]` to the `WorkflowDriver` class. Initialize it with `['```python', 'As an AI language model', 'I am a large...`."
-    },
-    {
-      "task_id": "task_1_8_2_F_2_add_method",
-      "priority": "High",
-      "task_name": "Implement _validate_for_context_leakage Method",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_2_F_1_add_constant"
-      ],
-      "description": "In `src/core/automation/workflow_driver.py`, add a new private method `_validate_for_context_leakage(self, code_snippet: str) -> bool` to the `WorkflowDriver` class. This method should iterate through the `CONTEXT_LEAKAGE_INDICATORS` constant and return `False` if any indicator string is found within the `code_snippet`. If no indicators are found, it should return `True`."
-    },
-    {
-      "task_id": "task_1_8_2_F_3_integrate_call",
-      "priority": "High",
-      "task_name": "Integrate Context Leakage Check into Pre-Write Validation",
-      "status": "Completed",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_2_F_2_add_method"
-      ],
-      "description": "In `src/core/automation/workflow_driver.py`, integrate the new `_validate_for_context_leakage` method into the pre-write validation sequence within the `autonomous_loop`. Ensure that if the method returns `False`, a descriptive error message is added to the `validation_feedback` list, causing the step to fail and retry."
-    },
-    {
-      "task_id": "task_1_8_2_F_4a_create_test_class",
-      "priority": "High",
-      "task_name": "Create Unittest-based Test Class for Context Leakage Validation",
-      "status": "Completed",
-      "target_file": "tests/test_phase1_8_features.py",
-      "depends_on": [
-        "task_1_8_2_F_3_integrate_call"
-      ],
-      "description": "In `tests/test_phase1_8_features.py`, add `import unittest` at the top of the file, and then create a new empty `unittest.TestCase` class named `TestContextLeakageValidationUnittest`. The class should have a docstring explaining its purpose and a `pass` statement as its body. **This must be done in a single code modification step** to ensure the `import unittest` and its usage are added together, preventing 'unused import' errors."
-    },
-    {
-      "task_id": "task_1_8_2_F_4b_define_leakage_snippets",
-      "priority": "High",
-      "task_name": "Define Context Leakage Snippets List",
-      "status": "Completed",
-      "target_file": "tests/test_phase1_8_features.py",
-      "depends_on": [
-        "task_1_8_2_F_4a_create_test_class"
-      ],
-      "description": "In `tests/test_phase1_8_features.py`, inside the `TestContextLeakageValidationUnittest` class, define a class-level variable named `LEAKAGE_SNIPPETS`. This variable must be a Python list of strings. Each string should be a simple example of context leakage. Use raw, triple-quoted strings for each entry (e.g., `r\"\"\"As an AI, I think...\"\"\"`). Do not include complex examples with nested triple quotes for this step."
-    },
-    {
-      "task_id": "task_1_8_2_F_4b_create_failing_test_method",
-      "priority": "High",
-      "task_name": "Create Failing Test Method for Context Leakage",
-      "status": "Completed",
-      "target_file": "tests/test_phase1_8_features.py",
-      "depends_on": [
-        "task_1_8_2_F_4b_define_leakage_snippets"
-      ],
-      "description": "In `tests/test_phase1_8_features.py`, add a new test method `test_context_leakage_detection_finds_leaks` to the `TestContextLeakageValidationUnittest` class. This method must be decorated with `@pytest.mark.parametrize('snippet', TestContextLeakageValidationUnittest.LEAKAGE_SNIPPETS)`. Inside the test method, call `WorkflowDriver._validate_for_context_leakage(snippet)` and assert that the result is `False`. This test is expected to fail until the validation logic is implemented correctly."
-    },
-    {
-      "task_id": "task_1_8_2_F_4c_syntax_fix",
-      "priority": "Critical",
-      "task_name": "Fix Pre-existing Syntax Error in test_phase1_8_features.py",
-      "status": "Completed",
-      "target_file": "tests/test_phase1_8_features.py",
-      "depends_on": [],
-      "description": "The file `tests/test_phase1_8_features.py` contains a `SyntaxError: unterminated string literal` on line 262 (or nearby), specifically `mock_context_for_llm = \"class WorkflowDriver:\\n`. This string literal needs to be corrected to use triple quotes (`\"\"\"` or `'''`) to properly span multiple lines and be correctly terminated. This task is critical to unblock further development on `task_1_8_2_F_4c_add_passing_tests` and subsequent tasks."
-    },
-    {
       "task_id": "task_1_8_19a_0_plan_step_bundling",
       "priority": "Critical",
       "task_name": "Implement Code Generation Step Bundling",
@@ -423,24 +222,13 @@
     {
       "task_id": "task_1_8_19a_2",
       "priority": "High",
-      "task_name": "Get Syntax Error Line Number",
+      "task_name": "Implement AST-Aware Syntax Error Differentiation",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_19a_1_wrap_ast_parse"
       ],
-      "description": "Inside the `except SyntaxError as se:` block, get the error line number from the exception object and store it in a variable (e.g., `error_line_number = se.lineno`). This is the first step in differentiating the error source."
-    },
-    {
-      "task_id": "task_1_8_19a_3",
-      "priority": "High",
-      "task_name": "Get Hypothetical Snippet Line Range",
-      "status": "Not Started",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_19a_2"
-      ],
-      "description": "Immediately after getting the error line number, call the `_get_hypothetical_snippet_line_range` method to determine the line range where the generated snippet would be inserted. Store the result in a variable (e.g., `snippet_range`)."
+      "description": "In `_execute_code_generation_step`, enhance the `except SyntaxError as se:` block. Use AST parsing to programmatically locate the `except` block and provide it as scoped context to the Coder LLM. The LLM will return the entire modified block, which will then be merged. The logic within the block must differentiate between pre-existing and snippet-introduced syntax errors by comparing the error line number to the snippet's hypothetical insertion range."
     },
     {
       "task_id": "task_1_8_19a_4",
@@ -449,7 +237,7 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_19a_3"
+        "task_1_8_19a_2"
       ],
       "description": "Implement the conditional logic to differentiate between pre-existing and snippet-introduced errors. The condition should check if `snippet_range` is not None and if `error_line_number` is within the `snippet_range` (e.g., `if snippet_range and snippet_range[0] <= error_line_number <= snippet_range[1]:`)."
     },

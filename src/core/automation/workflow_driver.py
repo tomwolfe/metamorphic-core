@@ -1224,6 +1224,11 @@ class WorkflowDriver:
         is_multi_location_edit = self._is_multi_location_edit_step(step)
         
         step_description_for_coder = step
+        # Define these variables here to ensure they are available in the except block's scope
+        # in case of an early failure (e.g., during cleaning).
+        original_snippet_for_log = ""
+        cleaned_snippet_for_log = ""
+
         # Check for "Define Method Signature" pattern to refine prompt
         define_sig_pattern = r"Define Method Signature[^\n]*?(?:python\s*)?(def\s+\w+\([^)]*\)(?:\s*->\s*[\w\.\[\], ]+)?)\s*:?"
         define_sig_match = re.match(define_sig_pattern, step, re.IGNORECASE)
@@ -1285,6 +1290,9 @@ class WorkflowDriver:
 
         self.logger.info(f"Coder LLM generated output (first 100 chars): {generated_output[:100]}...")
         cleaned_output = self._clean_llm_snippet(generated_output)
+        # Assign to log-specific variables for use in the except block
+        original_snippet_for_log = generated_output
+        cleaned_snippet_for_log = cleaned_output
         self.logger.debug(f"Cleaned output (first 100 chars): {cleaned_output[:100]}...")
 
         if not cleaned_output.strip():
@@ -1346,15 +1354,15 @@ class WorkflowDriver:
                         sanitized_task_id = re.sub(r'[^\w\-_\.]', '_', current_task_id_str)
                         current_step_index_str = str(step_index + 1)
  
-                        filename = f"failed_snippet_{sanitized_task_id}_step{current_step_index_str}_{timestamp}.json"
+                        filename = f"failed_snippet_{sanitized_task_id}_step{current_step_index_str}_{timestamp}.json" # noqa: E501
                         filepath = debug_dir / filename
  
                         debug_data = {
                             "timestamp": datetime.now().isoformat(),
                             "task_id": current_task_id_str,
-                            "step_description": step_description_for_log,
-                            "original_snippet_repr": repr(original_snippet),
-                            "cleaned_snippet_repr": repr(cleaned_snippet_that_fails),
+                            "step_description": step,
+                            "original_snippet_repr": repr(original_snippet_for_log),
+                            "cleaned_snippet_repr": repr(cleaned_snippet_for_log),
                             "syntax_error_details": {
                                 "message": se.msg,
                                 "lineno": se.lineno,
@@ -2948,3 +2956,4 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
+        return None

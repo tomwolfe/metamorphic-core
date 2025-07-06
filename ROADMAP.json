@@ -272,7 +272,7 @@
       "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_B_enhance_retry_prompts"
+        "task_1_8_2_B_implement_while_loop"
       ],
       "description": "In `WorkflowDriver`, add a class-level constant `MAX_STEP_RETRIES` and set its value to 2. This constant will define the number of retries for a failing plan step.",
       "success_criteria": "The constant `MAX_STEP_RETRIES = 2` is correctly added to the `WorkflowDriver` class. The file compiles and all existing tests pass."
@@ -421,15 +421,59 @@
       "description": "In `_execute_code_generation_step`, find the `ast.parse(content_for_ast_check)` call. Wrap this specific call in a `try...except SyntaxError as se:` block. For now, inside the `except` block, simply re-raise the exception using `raise se`. This is the first step to build the differentiation logic, enabling safe detection of syntax errors without crashing the workflow."
     },
     {
-      "task_id": "task_1_8_19a_2_combined_error_handling",
+      "task_id": "task_1_8_19a_2",
       "priority": "High",
-      "task_name": "Implement Syntax Error Differentiation Logic",
+      "task_name": "Get Syntax Error Line Number",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_19a_0_plan_step_bundling"
+        "task_1_8_19a_1_wrap_ast_parse"
       ],
-      "description": "Inside the `except SyntaxError as se:` block, get the error line number (`se.lineno`), get the snippet's line range (`_get_hypothetical_snippet_line_range`), and implement the conditional logic to differentiate between pre-existing and snippet-introduced errors. Log the relevant details and handle each case appropriately (raise a `ValueError` for pre-existing errors, and append to `validation_feedback` for snippet-introduced errors)."
+      "description": "Inside the `except SyntaxError as se:` block, get the error line number from the exception object and store it in a variable (e.g., `error_line_number = se.lineno`). This is the first step in differentiating the error source."
+    },
+    {
+      "task_id": "task_1_8_19a_3",
+      "priority": "High",
+      "task_name": "Get Hypothetical Snippet Line Range",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_19a_2"
+      ],
+      "description": "Immediately after getting the error line number, call the `_get_hypothetical_snippet_line_range` method to determine the line range where the generated snippet would be inserted. Store the result in a variable (e.g., `snippet_range`)."
+    },
+    {
+      "task_id": "task_1_8_19a_4",
+      "priority": "High",
+      "task_name": "Implement Conditional Logic for Error Differentiation",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_19a_3"
+      ],
+      "description": "Implement the conditional logic to differentiate between pre-existing and snippet-introduced errors. The condition should check if `snippet_range` is not None and if `error_line_number` is within the `snippet_range` (e.g., `if snippet_range and snippet_range[0] <= error_line_number <= snippet_range[1]:`)."
+    },
+    {
+      "task_id": "task_1_8_19a_5",
+      "priority": "High",
+      "task_name": "Implement Snippet-Introduced Error Handling",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_19a_4"
+      ],
+      "description": "Inside the 'if' block (for snippet-introduced errors), log the relevant details (error message, line number, snippet range) and append a descriptive error message to the `validation_feedback` list. Then, re-raise the original `SyntaxError` to trigger the step retry logic."
+    },
+    {
+      "task_id": "task_1_8_19a_6",
+      "priority": "High",
+      "task_name": "Implement Pre-existing Error Handling",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_19a_4"
+      ],
+      "description": "Inside the 'else' block (for pre-existing errors), log the relevant details (error message, line number) and raise a `ValueError` with a descriptive message (e.g., 'File already contains syntax errors, cannot proceed with modifications.') to halt execution for the current task and mark it as 'Blocked'. This prevents the system from attempting to modify a file that is already broken."
     },
     {
       "task_id": "task_1_8_19b_add_tests_for_differentiation",
@@ -438,7 +482,7 @@
       "status": "Not Started",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
-        "task_1_8_19a_2_combined_error_handling"
+        "task_1_8_19a_6"
       ],
       "description": "In `tests/test_phase1_8_features.py`, add new unit tests to verify the syntax error differentiation logic implemented in `task_1_8_19a`. The tests should cover cases where a `SyntaxError` occurs within the generated snippet and cases where the error exists in the original source file content, outside the snippet's range. Use `pytest.raises` and mock `ast.parse` to simulate these `SyntaxError` conditions."
     },
@@ -707,17 +751,6 @@
       "description": "Introduce a new pre-write validation step in `WorkflowDriver.autonomous_loop`. Before writing the merged code, generate a diff between the original file content and the proposed merged content. If the diff indicates unintended modifications (e.g., changes outside the targeted area for a 'simple addition' task, or excessive unrelated lines), reject the change and provide specific feedback to the Coder LLM for remediation. This acts as a crucial guardrail against LLM over-generation or misinterpretation."
     },
     {
-      "task_id": "task_1_8_11b_failure_driven_decomposition",
-      "priority": "High",
-      "task_name": "Implement Failure-Driven Task Decomposition",
-      "status": "Not Started",
-      "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_11_auto_refinement"
-      ],
-      "description": "Enhance the Refinement Agent (from task_1_8_11_auto_refinement). When a task is blocked because a plan step failed all retries, and that step is not the last in the plan, the agent should attempt to decompose the task. It will split the original task into two: one containing the successful steps up to (but not including) the failure point, which will be marked as 'Completed'. The second, new task will be a copy of the original but with its plan starting from the failing step, and it will depend on the first part. This allows the system to make incremental progress on complex tasks that fail midway through their plan."
-    },
-    {
       "task_id": "task_1_8_21_raw_string_validation",
       "priority": "High",
       "task_name": "Implement Targeted Raw String Literal Validation",
@@ -758,6 +791,17 @@
         "task_1_8_19b_add_tests_for_differentiation"
       ],
       "description": "The failure of `task_1_8_19a_1_wrap_ast_parse` revealed that the planner can generate overly granular, error-prone plans for simple, atomic code modifications (like wrapping a line in a try/except block). Enhance the planning agent to recognize when a task description implies a single, localized change. For such tasks, the planner should generate a single, more descriptive plan step that instructs the Coder LLM to perform the entire modification at once, rather than breaking it into multiple tiny steps like 'insert line', 'indent line', etc. This will improve the reliability and efficiency of code generation for simple refactoring and additions."
+    },
+    {
+      "task_id": "task_1_8_11b_failure_driven_decomposition",
+      "priority": "High",
+      "task_name": "Implement Failure-Driven Task Decomposition",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_11_auto_refinement"
+      ],
+      "description": "Enhance the Refinement Agent (from task_1_8_11_auto_refinement). When a task is blocked because a plan step failed all retries, and that step is not the last in the plan, the agent should attempt to decompose the task. It will split the original task into two: one containing the successful steps up to (but not including) the failure point, which will be marked as 'Completed'. The second, new task will be a copy of the original but with its plan starting from the failing step, and it will depend on the first part. This allows the system to make incremental progress on complex tasks that fail midway through their plan."
     }
   ],
   "next_phase_actions": [

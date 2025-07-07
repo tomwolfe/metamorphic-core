@@ -281,8 +281,6 @@
       "status": "Not Started",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
-        "task_1_8_2_F_4b_create_failing_test_method",
-        "task_1_8_2_F_4c_syntax_fix",
         "task_1_8_19b_add_tests_for_differentiation"
       ],
       "description": "In `tests/test_phase1_8_features.py`, add another new test method to the `TestContextLeakageValidationUnittest` class. This method MUST use `pytest.mark.parametrize` to test multiple code snippets that *do not* contain any context leakage indicators. For each compliant snippet, the test must assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True`. Ensure all test case strings are defined using triple quotes (`\"\"\"` or `'''`)."
@@ -326,9 +324,7 @@
       "task_name": "Analyze task_1_8_A_1 Failures & Improve CodeGen",
       "status": "Not Started",
       "target_file": "src/core/llm/orchestration.py",
-      "depends_on": [
-        "task_1_8_A_optimize_large_context_epic"
-      ],
+      "depends_on": [],
       "description": "Analyze the failures encountered during the initial autonomous attempt of task_1_8_A_1 (_is_simple_addition_plan_step). Specifically, investigate why the CoderLLM failed to: 1. Correctly include `import re`. 2. Adhere to style guidelines (E302, E501). 3. Consistently include docstrings for new methods. 4. Avoided outputting spurious code that was appended to files. Implement improvements to CoderLLM prompting, snippet cleaning, or pre-write validation to prevent such issues in the future. This task focuses on the AI improving its own code generation process based on past failures."
     },
     {
@@ -348,9 +344,7 @@
       "task_name": "Implement Step-Level Remediation Loop",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
-      "depends_on": [
-        "task_1_8_2_F_3_integrate_call"
-      ],
+      "depends_on": [],
       "description": "If pre-write validation fails, provide targeted feedback to the Coder LLM and retry generating the snippet for that specific step (e.g., 2-3 attempts) before failing the step or task."
     },
     {
@@ -382,7 +376,6 @@
       "status": "Not Started",
       "target_file": "src/core/ethics/constraints.py, src/core/optimization/adaptive_token_allocator.py",
       "depends_on": [
-        "task_1_8_A_optimize_large_context_epic",
         "task_1_8_5"
       ],
       "description": "The temporary fix for AllocationError in EthicalAllocationPolicy bypassed diversity constraints. Implement a robust, ethical token allocation strategy that correctly handles large prompts and multiple chunks, potentially revising Z3 constraints or exploring alternative allocation methods. Ensure the policy promotes model diversity where feasible without causing allocation failures."
@@ -475,7 +468,6 @@
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_1",
-        "task_1_8_2_F_3_integrate_call",
         "task_1_8_3",
         "task_1_8_4",
         "task_1_8_5",
@@ -508,7 +500,6 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_A_optimize_large_context_epic",
         "task_1_8_5"
       ],
       "description": "Enhance the `WorkflowDriver`'s `_construct_coder_llm_prompt` and `_extract_targeted_context` methods. For plan steps identified as very small, atomic code modifications (e.g., inserting a single line, changing a variable initialization), the system should provide the Coder LLM with a highly localized context (e.g., 5-10 lines around the insertion/modification point) instead of the entire file. This aims to reduce LLM hallucination and improve the precision of code generation for minor changes.",
@@ -521,7 +512,6 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
-        "task_1_8_A_2_implement_and_test_get_context_type",
         "task_1_8_5"
       ],
       "description": "Replace or significantly enhance the current regex-based plan step classification in `WorkflowDriver` with a more robust, semantic approach (e.g., AST parsing of step descriptions, NLP semantic understanding, or a fine-tuned model). This aims to accurately identify the intent of each step (e.g., 'add constant', 'modify method', 'refactor block') to ensure precise context is provided to the Coder LLM, reducing hallucinations and improving code generation accuracy."

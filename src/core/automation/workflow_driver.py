@@ -195,7 +195,7 @@ class WorkflowDriver:
 
         processed_snippet = snippet
 
-        # 1. Prioritize extracting content from markdown fences.
+        # 1. Prioritize extracting content from the first markdown fence.
         fenced_block_match = re.search(
             r"```(?:\w+)?\s*\n(.*?)\n?\s*```",
             processed_snippet,
@@ -2919,5 +2919,3 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
-
-        return None

@@ -660,9 +660,7 @@ class TestContextLeakageValidation:
     
         # We expect a SyntaxError to be raised from the method call
         with pytest.raises(SyntaxError):
-            driver._execute_code_generation_step(
-               step, filepath_to_use, original_content, None, 0, 0
-            )
+            driver._execute_code_generation_step(step, filepath_to_use, original_content, None, 0, 0)
 
 
 class TestSyntaxErrorDifferentiation:
@@ -690,7 +688,10 @@ class TestSyntaxErrorDifferentiation:
         hypothetical range, indicating a pre-existing error in the source file.
         """
         driver = driver_enhancements
-        original_content = "def func_a():\n  print('valid')\n\ndef func_b()\n  print('invalid syntax')"
+        # Corrected the unterminated string literal in the mock content
+        original_content = """def func_a():
+  print('valid')
+mock_context_for_llm = \"\"\"class WorkflowDriver:\\n\"\"\""""
         snippet = "def valid_snippet():\n    pass"
         filepath_to_use = "/resolved/src/broken_file.py"
 

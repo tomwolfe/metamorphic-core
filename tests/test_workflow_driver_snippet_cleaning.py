@@ -53,7 +53,7 @@ class TestSnippetCleaning:
         ("  ```python\n  indented code\n  ```  ", "indented code"), # Dedent should remove common leading whitespace
         ("```\n  \n```", ""), # Fences with only whitespace
         ("Leading text ```python\ncode\n```", "code"), # Should extract code if fences found
-        ("```python\ncode\n``` Trailing text", "code"), # Should extract code if fences found
+        ("Text with `inline code` and ```python\nfenced_code()\n``` trailing text.", "fenced_code()"), # Test with inline code to validate fence prioritization
         ("```python\ncode1\n```\nSome text\n```python\ncode2\n```", "code1"), # Should extract first code block
         # Removed duplicate input "  Stripped raw code  " to avoid ambiguity
         (None, ""), # This case is fine, None input -> empty string
@@ -200,4 +200,4 @@ class TestReprLoggingForSyntaxErrors:
                     else:
                         self.logger.error(f"Could not resolve debug directory '{debug_dir_name}' using context. Cannot save malformed snippet.")
                 except Exception as write_err:
-                    Pass
+                    driver.logger.error(f"Error saving malformed snippet debug info: {write_err}", exc_info=True)

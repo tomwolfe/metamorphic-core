@@ -121,31 +121,31 @@
 *   **Task ID**: task_1_8_19a_2
     *   **Priority**: High
     *   **Task Name**: Implement AST-Aware Syntax Error Differentiation
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_19a_1_wrap_ast_parse']
 
 *   **Task ID**: task_1_8_19a_4
     *   **Priority**: High
     *   **Task Name**: Implement Conditional Logic for Error Differentiation
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_19a_2']
 
 *   **Task ID**: task_1_8_19a_5
     *   **Priority**: High
     *   **Task Name**: Implement Snippet-Introduced Error Handling
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_19a_4']
 
 *   **Task ID**: task_1_8_19a_6
     *   **Priority**: High
     *   **Task Name**: Implement Pre-existing Error Handling
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_19a_4']
 
 *   **Task ID**: task_1_8_19b_add_tests_for_differentiation
     *   **Priority**: High
     *   **Task Name**: Add Unit Tests for Syntax Error Differentiation Logic
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_19a_6']
 
 *   **Task ID**: task_1_8_2_F_4c_add_passing_tests
@@ -309,4 +309,10 @@
     *   **Task Name**: Implement Failure-Driven Task Decomposition
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_11_auto_refinement']
+
+*   **Task ID**: task_1_8_25_learn_from_manual_fixes
+    *   **Priority**: Medium
+    *   **Task Name**: Implement Learning from Manual Fixes
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_5']
 

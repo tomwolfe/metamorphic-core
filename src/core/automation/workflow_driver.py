@@ -118,9 +118,6 @@ def classify_plan_step(step_description: str) -> str: # noqa: E501
             return 'code'
         elif conceptual_score > code_score:
             return 'conceptual'
-        else: # Scores are equal or both are zero
-            # If SpaCy scores are equal or zero, classification is uncertain
-            return 'uncertain'
     else: # If SpaCy model couldn't be loaded, fallback to regex-based classification
         return _classify_plan_step_regex_fallback(step_description_lower)
 class Context:
@@ -2922,3 +2919,5 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
+
+        return None

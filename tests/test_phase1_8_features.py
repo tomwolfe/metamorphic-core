@@ -14,7 +14,7 @@ import ast as _original_ast # For simulating SyntaxError, keeping original ast r
 from unittest.mock import patch, MagicMock
 from unittest.mock import patch, call, ANY
 
-# Import constants as a module to access constants.NAME
+# Import constants and specific components for testing
 import src.core.constants as constants
 
 # Import constants from the centralized constants file
@@ -581,6 +581,41 @@ class TestContextLeakageValidation:
         result = WorkflowDriver._validate_for_context_leakage(driver, snippet)
         assert result == expected
 
+    @pytest.fixture
+    def driver_for_context_leakage_tests(tmp_path, mocker):
+        """Provides a WorkflowDriver instance pre-configured for context leakage validation tests."""
+        context = Context(str(tmp_path))
+        mocker.patch.object(WorkflowDriver, '_load_default_policy') # Mock policy loading
+        with patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator'), \
+            patch('src.core.automation.workflow_driver.CodeReviewAgent'), \
+            patch('src.core.automation.workflow_driver.EthicalGovernanceEngine'):
+            driver = WorkflowDriver(context)
+        return driver
+
+    @pytest.mark.parametrize("snippet", [
+        (r'''def a_compliant_function():
+    """This is a valid function."""
+    return True
+'''),
+        (r'''class MyCompliantClass:
+    # This class has no context leakage indicators.
+    def __init__(self):
+        self.value = 1
+'''),
+        (r'''# Just a simple comment
+x = 1 + 1
+'''),
+        (""), # Empty string is compliant
+        (r'''mock_context_for_llm = "class WorkflowDriver:\\n" # This is a valid string, not leakage.'''),
+    ])
+    def test_validate_for_context_leakage_compliant_snippets(self, driver_for_context_leakage_tests, snippet):
+        """
+        Tests that _validate_for_context_leakage correctly returns True for snippets
+        that do NOT contain any context leakage indicators.
+        """
+        driver = driver_for_context_leakage_tests
+        assert driver._validate_for_context_leakage(snippet) is True
+
 
     def test_autonomous_loop_handles_multi_location_edit(self, driver_enhancements, mocker, caplog):
         """
@@ -660,7 +695,8 @@ class TestContextLeakageValidation:
     
         # We expect a SyntaxError to be raised from the method call
         with pytest.raises(SyntaxError):
-            driver._execute_code_generation_step(step, filepath_to_use, original_content, None, 0, 0)
+            driver._execute_code_generation_step(step, filepath_to_use, original_content, None, 0, 0
+            )
 
 
 class TestSyntaxErrorDifferentiation:

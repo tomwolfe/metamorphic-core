@@ -278,12 +278,23 @@
       "task_id": "task_1_8_2_F_4c_add_passing_tests",
       "priority": "High",
       "task_name": "Add Passing Unit Tests for Compliant Snippets",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_19b_add_tests_for_differentiation"
       ],
       "description": "In `tests/test_phase1_8_features.py`, add another new test method to the `TestContextLeakageValidationUnittest` class. This method MUST use `pytest.mark.parametrize` to test multiple code snippets that *do not* contain any context leakage indicators. For each compliant snippet, the test must assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True`. Ensure all test case strings are defined using triple quotes (`\"\"\"` or `'''`)."
+    },
+    {
+      "task_id": "task_1_8_2_F_4d_learn_from_syntax_error_failure",
+      "priority": "High",
+      "task_name": "Learn from Manual Fix for SyntaxError in Code-Gen",
+      "status": "Not Started",
+      "target_file": "src/core/llm/knowledge_graph.py",
+      "depends_on": [
+        "task_1_8_2_F_4c_add_passing_tests"
+      ],
+      "description": "The previous task (`task_1_8_2_F_4c_add_passing_tests`) failed due to repeated `SyntaxError: unterminated string literal` and required a manual fix. This task is to learn from that failure. Analyze the `git diff` of the manual fix, the original task description, and the failure logs. The key insight to learn is that generating code that contains code-as-strings is high-risk. A potential successful strategy is 'Task Decomposition'. Implement this as a 'Multi-Stage Code Generation' protocol in the Knowledge Graph for the Planning Agent. The protocol should have these steps: 1) Generate test method skeleton, 2) Add @parametrize decorator, 3) Generate individual test cases as raw, triple-quoted strings, 4) Add validation logic. This makes the generation process more robust and isolates failure points."
     },
     {
       "task_id": "task_1_8_2_G_atomic_planner",
@@ -323,7 +334,7 @@
       "priority": "High",
       "task_name": "Analyze task_1_8_A_1 Failures & Improve CodeGen",
       "status": "Not Started",
-      "target_file": "src/core/llm/orchestration.py",
+      "target_file": "src/core/llm_orchestration.py",
       "depends_on": [],
       "description": "Analyze the failures encountered during the initial autonomous attempt of task_1_8_A_1 (_is_simple_addition_plan_step). Specifically, investigate why the CoderLLM failed to: 1. Correctly include `import re`. 2. Adhere to style guidelines (E302, E501). 3. Consistently include docstrings for new methods. 4. Avoided outputting spurious code that was appended to files. Implement improvements to CoderLLM prompting, snippet cleaning, or pre-write validation to prevent such issues in the future. This task focuses on the AI improving its own code generation process based on past failures."
     },
@@ -588,7 +599,9 @@
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py,src/core/agents/refinement_agent.py",
       "depends_on": [
-        "task_1_8_5"
+        "task_1_8_5",
+        "task_1_8_8",
+        "task_1_8_11_auto_refinement"
       ],
       "description": "When a task is 'Blocked' and then manually moved to 'Completed' via a git commit, trigger a new learning workflow. This workflow will perform a `git diff` to extract the human-provided code change. It will then analyze the diff in conjunction with the original task description and failure logs. The resulting analysis (e.g., 'the human added a try-except block to handle this error') will be stored in the Knowledge Graph as a successful remediation pattern for future reference by the planning and remediation agents.",
       "effort_estimate": "5 points",

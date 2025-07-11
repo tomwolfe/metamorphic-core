@@ -151,8 +151,50 @@
 *   **Task ID**: task_1_8_2_F_4c_add_passing_tests
     *   **Priority**: High
     *   **Task Name**: Add Passing Unit Tests for Compliant Snippets
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_19b_add_tests_for_differentiation']
+
+*   **Task ID**: task_1_8_2_F_4d_1_create_kg_file_and_class
+    *   **Priority**: High
+    *   **Task Name**: Create Knowledge Graph Protocol File and Class
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_2_F_4c_add_passing_tests']
+
+*   **Task ID**: task_1_8_2_F_4d_2_add_skeleton_method
+    *   **Priority**: High
+    *   **Task Name**: Implement Protocol Stage 1: Generate Test Method Skeleton
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_2_F_4d_1_create_kg_file_and_class']
+
+*   **Task ID**: task_1_8_2_F_4d_3_add_parametrize_method
+    *   **Priority**: High
+    *   **Task Name**: Implement Protocol Stage 2: Add Parametrize Decorator
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_2_F_4d_2_add_skeleton_method']
+
+*   **Task ID**: task_1_8_2_F_4d_4_add_test_case_gen_method
+    *   **Priority**: High
+    *   **Task Name**: Implement Protocol Stage 3: Generate Individual Test Cases
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_2_F_4d_3_add_parametrize_method']
+
+*   **Task ID**: task_1_8_2_F_4d_5_add_validation_logic_method
+    *   **Priority**: High
+    *   **Task Name**: Implement Protocol Stage 4: Add Validation Logic
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_2_F_4d_4_add_test_case_gen_method']
+
+*   **Task ID**: task_1_8_2_F_4d_6_add_tests
+    *   **Priority**: High
+    *   **Task Name**: Add Unit Tests for Multi-Stage Code Generation Protocol
+    *   **Status**: Completed
+    *   **Depends On**: ['task_1_8_2_F_4d_5_add_validation_logic_method']
+
+*   **Task ID**: task_1_8_2_I_failure_driven_decomposition_request
+    *   **Priority**: High
+    *   **Task Name**: Implement Failure-Driven Task Decomposition Request
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_F_4d_6_add_tests']
 
 *   **Task ID**: task_1_8_2_G_atomic_planner
     *   **Priority**: Critical
@@ -314,5 +356,5 @@
     *   **Priority**: Medium
     *   **Task Name**: Implement Learning from Manual Fixes
     *   **Status**: Not Started
-    *   **Depends On**: ['task_1_8_5']
+    *   **Depends On**: ['task_1_8_5', 'task_1_8_8', 'task_1_8_11_auto_refinement']
 

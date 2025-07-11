@@ -286,15 +286,81 @@
       "description": "In `tests/test_phase1_8_features.py`, add another new test method to the `TestContextLeakageValidationUnittest` class. This method MUST use `pytest.mark.parametrize` to test multiple code snippets that *do not* contain any context leakage indicators. For each compliant snippet, the test must assert that `WorkflowDriver._validate_for_context_leakage` correctly returns `True`. Ensure all test case strings are defined using triple quotes (`\"\"\"` or `'''`)."
     },
     {
-      "task_id": "task_1_8_2_F_4d_learn_from_syntax_error_failure",
+      "task_id": "task_1_8_2_F_4d_1_create_kg_file_and_class",
       "priority": "High",
-      "task_name": "Learn from Manual Fix for SyntaxError in Code-Gen",
-      "status": "Not Started",
+      "task_name": "Create Knowledge Graph Protocol File and Class",
+      "status": "Completed",
       "target_file": "src/core/llm/knowledge_graph.py",
       "depends_on": [
         "task_1_8_2_F_4c_add_passing_tests"
       ],
-      "description": "The previous task (`task_1_8_2_F_4c_add_passing_tests`) failed due to repeated `SyntaxError: unterminated string literal` and required a manual fix. This task is to learn from that failure. Analyze the `git diff` of the manual fix, the original task description, and the failure logs. The key insight to learn is that generating code that contains code-as-strings is high-risk. A potential successful strategy is 'Task Decomposition'. Implement this as a 'Multi-Stage Code Generation' protocol in the Knowledge Graph for the Planning Agent. The protocol should have these steps: 1) Generate test method skeleton, 2) Add @parametrize decorator, 3) Generate individual test cases as raw, triple-quoted strings, 4) Add validation logic. This makes the generation process more robust and isolates failure points."
+      "description": "Create the new file `src/core/llm/knowledge_graph.py`. In this file, define a new class `KnowledgeGraphWithMultiStageCodeGen` that inherits from `BaseKnowledgeGraph`. The class should have a basic `__init__` method that calls `super().__init__()` and accepts a logger. Ensure the file includes the necessary imports (`from .base import BaseKnowledgeGraph`). This is the first step in implementing the 'Multi-Stage Code Generation' protocol."
+    },
+    {
+      "task_id": "task_1_8_2_F_4d_2_add_skeleton_method",
+      "priority": "High",
+      "task_name": "Implement Protocol Stage 1: Generate Test Method Skeleton",
+      "status": "Completed",
+      "target_file": "src/core/llm/knowledge_graph.py",
+      "depends_on": [
+        "task_1_8_2_F_4d_1_create_kg_file_and_class"
+      ],
+      "description": "Implement the first stage of the 'Multi-Stage Code Generation' protocol. Add a new method `generate_test_method_skeleton` to the `KnowledgeGraphWithMultiStageCodeGen` class. This method should take a `test_method_name` and `function_to_test_name` as arguments and return a string containing a basic Python test function skeleton with a docstring and a `pass` statement."
+    },
+    {
+      "task_id": "task_1_8_2_F_4d_3_add_parametrize_method",
+      "priority": "High",
+      "task_name": "Implement Protocol Stage 2: Add Parametrize Decorator",
+      "status": "Completed",
+      "target_file": "src/core/llm/knowledge_graph.py",
+      "depends_on": [
+        "task_1_8_2_F_4d_2_add_skeleton_method"
+      ],
+      "description": "Implement the second stage of the 'Multi-Stage Code Generation' protocol. Add a new method `add_parametrize_decorator` to the `KnowledgeGraphWithMultiStageCodeGen` class. This method should take the existing `test_code` (as a string) and a list of `test_cases` as arguments. It should insert the `@pytest.mark.parametrize` decorator above the test function definition."
+    },
+    {
+      "task_id": "task_1_8_2_F_4d_4_add_test_case_gen_method",
+      "priority": "High",
+      "task_name": "Implement Protocol Stage 3: Generate Individual Test Cases",
+      "status": "Completed",
+      "target_file": "src/core/llm/knowledge_graph.py",
+      "depends_on": [
+        "task_1_8_2_F_4d_3_add_parametrize_method"
+      ],
+      "description": "Implement the third stage of the 'Multi-Stage Code Generation' protocol. Add a new method `generate_individual_test_cases` to the `KnowledgeGraphWithMultiStageCodeGen` class. This method should take a list of `test_cases` and generate the formatted string for the test case data within the `@pytest.mark.parametrize` decorator. The output should be a list of tuples as a string."
+    },
+    {
+      "task_id": "task_1_8_2_F_4d_5_add_validation_logic_method",
+      "priority": "High",
+      "task_name": "Implement Protocol Stage 4: Add Validation Logic",
+      "status": "Completed",
+      "target_file": "src/core/llm/knowledge_graph.py",
+      "depends_on": [
+        "task_1_8_2_F_4d_4_add_test_case_gen_method"
+      ],
+      "description": "Implement the fourth and final stage of the 'Multi-Stage Code Generation' protocol. Add a new method `add_validation_logic` to the `KnowledgeGraphWithMultiStageCodeGen` class. This method should take the `test_code` string and replace the `pass` statement with the actual test logic using AST transformation for robustness."
+    },
+    {
+      "task_id": "task_1_8_2_F_4d_6_add_tests",
+      "priority": "High",
+      "task_name": "Add Unit Tests for Multi-Stage Code Generation Protocol",
+      "status": "Completed",
+      "target_file": "tests/test_knowledge_graph_protocols.py",
+      "depends_on": [
+        "task_1_8_2_F_4d_5_add_validation_logic_method"
+      ],
+      "description": "Create a new test file `tests/test_knowledge_graph_protocols.py` and add unit tests for the new `KnowledgeGraphWithMultiStageCodeGen` class and its methods. Ensure each stage of the protocol is tested, including edge cases, to verify its correctness."
+    },
+    {
+      "task_id": "task_1_8_2_I_failure_driven_decomposition_request",
+      "priority": "High",
+      "task_name": "Implement Failure-Driven Task Decomposition Request",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_F_4d_6_add_tests"
+      ],
+      "description": "The failure of the original 'Learn from SyntaxError' task highlighted a weakness: the system's step-bundling logic can be too aggressive. Enhance the WorkflowDriver's main loop. If a task fails multiple times due to code generation validation errors on a step that was the result of bundling multiple plan steps, the system should recognize this pattern. Instead of just blocking the task, it should log a specific recommendation to 'Decompose the task into smaller, sequential sub-tasks in the roadmap.' This provides a clear, actionable suggestion for the human overseer (or a future meta-agent) to resolve the blockage, directly learning from this failure mode."
     },
     {
       "task_id": "task_1_8_2_G_atomic_planner",

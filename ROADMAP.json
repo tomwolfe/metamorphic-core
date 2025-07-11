@@ -352,15 +352,50 @@
       "description": "Create a new test file `tests/test_knowledge_graph_protocols.py` and add unit tests for the new `KnowledgeGraphWithMultiStageCodeGen` class and its methods. Ensure each stage of the protocol is tested, including edge cases, to verify its correctness."
     },
     {
-      "task_id": "task_1_8_2_I_failure_driven_decomposition_request",
+      "task_id": "task_1_8_2_I_part1_failure_tracking",
       "priority": "High",
-      "task_name": "Implement Failure-Driven Task Decomposition Request",
+      "task_name": "Implement Failure Tracking Mechanism",
       "status": "Not Started",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_F_4d_6_add_tests"
       ],
-      "description": "The failure of the original 'Learn from SyntaxError' task highlighted a weakness: the system's step-bundling logic can be too aggressive. Enhance the WorkflowDriver's main loop. If a task fails multiple times due to code generation validation errors on a step that was the result of bundling multiple plan steps, the system should recognize this pattern. Instead of just blocking the task, it should log a specific recommendation to 'Decompose the task into smaller, sequential sub-tasks in the roadmap.' This provides a clear, actionable suggestion for the human overseer (or a future meta-agent) to resolve the blockage, directly learning from this failure mode."
+      "description": "In `WorkflowDriver`, add an instance attribute `self.task_failure_counts = {}` in the `__init__` method to track task failures. Use task IDs as keys and integers (count of consecutive failures) as values. This counter should be reset to 0 for a task upon its successful completion."
+    },
+    {
+      "task_id": "task_1_8_2_I_part2_failure_detection",
+      "priority": "High",
+      "task_name": "Increment Failure Count on Step Error",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_I_part1_failure_tracking"
+      ],
+      "description": "In `WorkflowDriver.autonomous_loop`, modify the step failure handling logic. When a step fails after exhausting all retries (i.e., when the task is about to be marked 'Blocked'), increment the failure counter for the current task ID in `self.task_failure_counts`."
+    },
+    {
+      "task_id": "task_1_8_2_I_part3_decomposition_logic",
+      "priority": "High",
+      "task_name": "Implement Decomposition Recommendation Logic",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_I_part2_failure_detection"
+      ],
+      "description": "Enhance the failure handling in `WorkflowDriver.autonomous_loop`. After a task is marked 'Blocked', if its failure count in `self.task_failure_counts` is 3 or more, log a specific, prominent warning: 'DECOMPOSITION RECOMMENDED: Task [task_id] has failed repeatedly. Consider decomposing it into smaller, sequential sub-tasks in the roadmap.'"
+    },
+    {
+      "task_id": "task_1_8_2_I_part4_add_tests",
+      "priority": "High",
+      "task_name": "Add Unit Tests for Failure-Driven Decomposition",
+      "status": "Not Started",
+      "target_file": "tests/test_phase1_8_features.py",
+      "depends_on": [
+        "task_1_8_2_I_part1_failure_tracking",
+        "task_1_8_2_I_part2_failure_detection",
+        "task_1_8_2_I_part3_decomposition_logic"
+      ],
+      "description": "In `tests/test_phase1_8_features.py`, add unit tests to validate the new failure handling logic. Scenarios to test must include: 1. A task failing 3 times, verifying the counter increments and the 'DECOMPOSITION RECOMMENDED' log is triggered. 2. A task succeeding after 2 failures, verifying its counter is reset to 0. 3. Multiple tasks failing independently, verifying their counts are tracked separately."
     },
     {
       "task_id": "task_1_8_2_G_atomic_planner",
@@ -393,7 +428,7 @@
       "depends_on": [
         "task_1_8_2_H_lint_codebase"
       ],
-      "description": "Modify the validation logic in the WorkflowDriver to perform 'scoped' analysis. Instead of validating the entire file after a change, generate a diff of the proposed change and run linters (Flake8) and ethical checks only on the added/modified lines. This prevents the system from being blocked by pre-existing issues in a file and provides more targeted feedback to the Coder LLM."
+      "description": "Modify the validation logic in the WorkflowDriver to perform 'scoped' analysis. Instead of validating the entire file after a change, generate a diff between the original file content and the proposed merged content, and run linters (Flake8) and ethical checks only on the added/modified lines. This prevents the system from being blocked by pre-existing issues in a file and provides more targeted feedback to the Coder LLM."
     },
     {
       "task_id": "task_1_8_C_1_analyze_A1_failure_and_improve_codegen",
@@ -671,7 +706,11 @@
       ],
       "description": "When a task is 'Blocked' and then manually moved to 'Completed' via a git commit, trigger a new learning workflow. This workflow will perform a `git diff` to extract the human-provided code change. It will then analyze the diff in conjunction with the original task description and failure logs. The resulting analysis (e.g., 'the human added a try-except block to handle this error') will be stored in the Knowledge Graph as a successful remediation pattern for future reference by the planning and remediation agents.",
       "effort_estimate": "5 points",
-      "prerequisites": ["task_1_8_5", "task_1_8_8", "task_1_8_11_auto_refinement"]
+      "prerequisites": [
+        "task_1_8_5",
+        "task_1_8_8",
+        "task_1_8_11_auto_refinement"
+      ]
     }
   ],
   "next_phase_actions": [

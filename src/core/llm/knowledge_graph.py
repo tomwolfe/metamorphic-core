@@ -45,7 +45,7 @@ class KnowledgeGraphWithMultiStageCodeGen(BaseKnowledgeGraph):
     """
     # Declare _logger as a private attribute with a string literal type hint to avoid
     # 'TypeError: 'function' object is not subscriptable' during pytest collection.
-    _logger: PrivateAttr["logging.Logger"] = PrivateAttr(default_factory=lambda: logging.getLogger(__name__))
+    _logger: logging.Logger = PrivateAttr(default_factory=lambda: logging.getLogger(__name__))
 
     def __init__(self, logger: logging.Logger = None):
         """
@@ -128,5 +128,5 @@ class KnowledgeGraphWithMultiStageCodeGen(BaseKnowledgeGraph):
                 "Falling back to string replacement.", e
             )
             # Fallback to less robust string replacement if AST fails
-            validation_logic = f"    assert {function_to_test_name}(**test_input) == expected_output"
+            return test_code.replace("    pass", f"    assert {function_to_test_name}(**test_input) == expected_output")
             return test_code.replace("    pass", validation_logic, 1)

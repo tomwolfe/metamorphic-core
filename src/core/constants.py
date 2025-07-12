@@ -32,7 +32,7 @@ CODER_LLM_MINIMAL_CONTEXT_INSTRUCTION = (
 GENERAL_SNIPPET_GUIDELINES = (
     """**CRITICAL SYNTAX RULES (PRIORITIZE THESE TO PREVENT BLOCKAGES):**
     1.  **STRING TERMINATION (PREVENT `SyntaxError`):**
-        -   ALWAYS correctly terminate string literals with matching quotes (`'`, `"`, `'''`, `\"\"\"`).
+        -   ALWAYS correctly terminate string literals with matching quotes (`'`, `"`, `'''`, `\"\"\"`). Avoid common errors like mismatched quotes (e.g., `"string'`) or unclosed quotes.
         -   RAW STRINGS: A backslash (`\\`) CANNOT be the last character.
             ```python
             # BAD: r'C:\\'  |  GOOD: r'C:\\\\'` or `'C:\\\\'`

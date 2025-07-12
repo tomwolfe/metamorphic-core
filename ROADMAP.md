@@ -193,7 +193,7 @@
 *   **Task ID**: task_1_8_2_I_part1_failure_tracking
     *   **Priority**: High
     *   **Task Name**: Implement Failure Tracking Mechanism
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_F_4d_6_add_tests']
 
 *   **Task ID**: task_1_8_2_I_part2_failure_detection
@@ -213,6 +213,12 @@
     *   **Task Name**: Add Unit Tests for Failure-Driven Decomposition
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_I_part1_failure_tracking', 'task_1_8_2_I_part2_failure_detection', 'task_1_8_2_I_part3_decomposition_logic']
+
+*   **Task ID**: task_1_8_26_step_strategy_router
+    *   **Priority**: High
+    *   **Task Name**: Implement Step Execution Strategy Router
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_I_part4_add_tests']
 
 *   **Task ID**: task_1_8_2_G_atomic_planner
     *   **Priority**: Critical

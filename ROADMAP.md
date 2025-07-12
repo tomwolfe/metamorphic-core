@@ -199,19 +199,19 @@
 *   **Task ID**: task_1_8_2_I_part2_failure_detection
     *   **Priority**: High
     *   **Task Name**: Increment Failure Count on Step Error
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_I_part1_failure_tracking']
 
 *   **Task ID**: task_1_8_2_I_part3_decomposition_logic
     *   **Priority**: High
     *   **Task Name**: Implement Decomposition Recommendation Logic
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_I_part2_failure_detection']
 
 *   **Task ID**: task_1_8_2_I_part4_add_tests
     *   **Priority**: High
     *   **Task Name**: Add Unit Tests for Failure-Driven Decomposition
-    *   **Status**: Not Started
+    *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_I_part1_failure_tracking', 'task_1_8_2_I_part2_failure_detection', 'task_1_8_2_I_part3_decomposition_logic']
 
 *   **Task ID**: task_1_8_26_step_strategy_router
@@ -381,4 +381,10 @@
     *   **Task Name**: Implement Learning from Manual Fixes
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_5', 'task_1_8_8', 'task_1_8_11_auto_refinement']
+
+*   **Task ID**: task_1_8_27_learn_from_syntax_errors
+    *   **Priority**: High
+    *   **Task Name**: Implement Refinement Agent for Syntax Error Feedback
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_I_part4_add_tests']
 

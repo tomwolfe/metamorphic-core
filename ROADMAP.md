@@ -190,11 +190,29 @@
     *   **Status**: Completed
     *   **Depends On**: ['task_1_8_2_F_4d_5_add_validation_logic_method']
 
-*   **Task ID**: task_1_8_2_I_failure_driven_decomposition_request
+*   **Task ID**: task_1_8_2_I_part1_failure_tracking
     *   **Priority**: High
-    *   **Task Name**: Implement Failure-Driven Task Decomposition Request
+    *   **Task Name**: Implement Failure Tracking Mechanism
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_F_4d_6_add_tests']
+
+*   **Task ID**: task_1_8_2_I_part2_failure_detection
+    *   **Priority**: High
+    *   **Task Name**: Increment Failure Count on Step Error
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_I_part1_failure_tracking']
+
+*   **Task ID**: task_1_8_2_I_part3_decomposition_logic
+    *   **Priority**: High
+    *   **Task Name**: Implement Decomposition Recommendation Logic
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_I_part2_failure_detection']
+
+*   **Task ID**: task_1_8_2_I_part4_add_tests
+    *   **Priority**: High
+    *   **Task Name**: Add Unit Tests for Failure-Driven Decomposition
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_2_I_part1_failure_tracking', 'task_1_8_2_I_part2_failure_detection', 'task_1_8_2_I_part3_decomposition_logic']
 
 *   **Task ID**: task_1_8_2_G_atomic_planner
     *   **Priority**: Critical

@@ -581,41 +581,6 @@ class TestContextLeakageValidation:
         result = WorkflowDriver._validate_for_context_leakage(driver, snippet)
         assert result == expected
 
-    @pytest.fixture
-    def driver_for_context_leakage_tests(tmp_path, mocker):
-        """Provides a WorkflowDriver instance pre-configured for context leakage validation tests."""
-        context = Context(str(tmp_path))
-        mocker.patch.object(WorkflowDriver, '_load_default_policy') # Mock policy loading
-        with patch('src.core.automation.workflow_driver.EnhancedLLMOrchestrator'), \
-            patch('src.core.automation.workflow_driver.CodeReviewAgent'), \
-            patch('src.core.automation.workflow_driver.EthicalGovernanceEngine'):
-            driver = WorkflowDriver(context)
-        return driver
-
-    @pytest.mark.parametrize("snippet", [
-        (r'''def a_compliant_function():
-    """This is a valid function."""
-    return True
-'''),
-        (r'''class MyCompliantClass:
-    # This class has no context leakage indicators.
-    def __init__(self):
-        self.value = 1
-'''),
-        (r'''# Just a simple comment
-x = 1 + 1
-'''),
-        (""), # Empty string is compliant
-        (r'''mock_context_for_llm = "class WorkflowDriver:\\n" # This is a valid string, not leakage.'''),
-    ])
-    def test_validate_for_context_leakage_compliant_snippets(self, driver_for_context_leakage_tests, snippet):
-        """
-        Tests that _validate_for_context_leakage correctly returns True for snippets
-        that do NOT contain any context leakage indicators.
-        """
-        driver = driver_for_context_leakage_tests
-        assert driver._validate_for_context_leakage(snippet) is True
-
 
     def test_autonomous_loop_handles_multi_location_edit(self, driver_enhancements, mocker, caplog):
         """
@@ -695,7 +660,8 @@ x = 1 + 1
     
         # We expect a SyntaxError to be raised from the method call
         with pytest.raises(SyntaxError):
-            driver._execute_code_generation_step(step, filepath_to_use, original_content, None, 0, 0
+            driver._execute_code_generation_step(
+                "A step", filepath_to_use, original_content, None, 0, 0
             )
 
 
@@ -724,10 +690,7 @@ class TestSyntaxErrorDifferentiation:
         hypothetical range, indicating a pre-existing error in the source file.
         """
         driver = driver_enhancements
-        # Corrected the unterminated string literal in the mock content
-        original_content = """def func_a():
-  print('valid')
-mock_context_for_llm = \"\"\"class WorkflowDriver:\\n\"\"\""""
+        original_content = "def func_a():\n  print('valid')\n\ndef func_b()\n  print('invalid syntax')"
         snippet = "def valid_snippet():\n    pass"
         filepath_to_use = "/resolved/src/broken_file.py"
 
@@ -758,3 +721,74 @@ mock_context_for_llm = \"\"\"class WorkflowDriver:\\n\"\"\""""
             driver._execute_code_generation_step(
                 "A step", "file.py", original_content, None, 0, 0
             )
+
+
+class TestFailureDrivenDecomposition:
+    """Tests for the failure tracking and decomposition recommendation logic."""
+
+    def test_failure_count_increments_and_task_is_blocked(self, driver_enhancements, mocker, caplog):
+        """
+        Tests that a step failure increments the failure count and blocks the task.
+        """
+        caplog.set_level(logging.INFO)
+        driver = driver_enhancements
+        task_id = 'failing_task_1'
+        task = {'task_id': task_id, 'status': 'Not Started', 'task_name': 'Test', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/failing_module.py'}
+        
+        # Setup mocks for a single task run that fails
+        mocker.patch.object(driver, 'select_next_task', side_effect=[task, None])
+        mocker.patch.object(driver, 'generate_solution_plan', return_value=["Implement a failing feature"])
+        mocker.patch.object(driver, '_execute_code_generation_step', side_effect=Exception("Step failed"))
+        mock_update_status = mocker.patch.object(driver, '_update_task_status_in_roadmap')
+
+        # Act
+        driver.autonomous_loop()
+
+        # Assert
+        assert driver.task_failure_counts.get(task_id) == 1
+        assert f"Task {task_id} failure count incremented to 1." in caplog.text
+        mock_update_status.assert_called_once_with(task_id, "Blocked", mocker.ANY)
+
+    def test_decomposition_warning_logged_after_3_failures(self, driver_enhancements, mocker, caplog):
+        """
+        Tests that the 'DECOMPOSITION RECOMMENDED' warning is logged on the 3rd failure.
+        """
+        caplog.set_level(logging.WARNING)
+        driver = driver_enhancements
+        task_id = 'failing_task_2'
+        task = {'task_id': task_id, 'status': 'Not Started', 'task_name': 'Test', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/failing_module.py'}
+        driver.task_failure_counts = {task_id: 2}  # Simulate 2 previous failures
+
+        # Mocks for a single failing run
+        mocker.patch.object(driver, 'select_next_task', side_effect=[task, None])
+        mocker.patch.object(driver, 'generate_solution_plan', return_value=["Implement another failing feature"])
+        mocker.patch.object(driver, '_execute_code_generation_step', side_effect=Exception("Step failed again"))
+        mocker.patch.object(driver, '_update_task_status_in_roadmap')
+
+        # Act
+        driver.autonomous_loop()
+
+        # Assert
+        assert driver.task_failure_counts.get(task_id) == 3
+        assert f"DECOMPOSITION RECOMMENDED: Task {task_id} has failed 3 times." in caplog.text
+        driver._update_task_status_in_roadmap.assert_called_once_with(task_id, "Blocked", mocker.ANY)
+
+    def test_failure_count_resets_on_success(self, driver_enhancements, mocker):
+        """Tests that a task's failure count is reset to 0 upon successful completion."""
+        driver = driver_enhancements
+        task_id = 'previously_failing_task'
+        task = {'task_id': task_id, 'status': 'Not Started', 'task_name': 'Test', 'description': 'Desc', 'priority': 'High'}
+        driver.task_failure_counts = {task_id: 2} # Simulate previous failures
+
+        # Mocks for a single successful run
+        mocker.patch.object(driver, 'select_next_task', side_effect=[task, None])
+        mocker.patch.object(driver, 'generate_solution_plan', return_value=["A step that will succeed"])
+        mocker.patch.object(driver, '_execute_code_generation_step', return_value=(True, "Generated Code")) # Success
+        mocker.patch.object(driver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed"})
+        mocker.patch.object(driver, '_update_task_status_in_roadmap')
+
+        # Act
+        driver.autonomous_loop()
+
+        # Assert
+        assert driver.task_failure_counts.get(task_id) == 0

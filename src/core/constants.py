@@ -33,7 +33,10 @@ GENERAL_SNIPPET_GUIDELINES = (
     """**CRITICAL SYNTAX RULES (PRIORITIZE THESE TO PREVENT BLOCKAGES):**
     1.  **STRING TERMINATION (PREVENT `SyntaxError`):**
         -   ALWAYS correctly terminate string literals with matching quotes (`'`, `"`, `'''`, `\"\"\"`).
-        -   RAW STRINGS: A backslash (`\\`) CANNOT be the last character (e.g., `r'C:\\'`). Use `r'C:\\\\'` or `'C:\\\\'` instead.
+        -   RAW STRINGS: A backslash (`\\`) CANNOT be the last character.
+            ```python
+            # BAD: r'C:\\'  |  GOOD: r'C:\\\\'` or `'C:\\\\'`
+            ```
         -   STRINGS WITH CODE: Use triple quotes for strings containing quotes or newlines (e.g., `\"\"\"code = "x=1"\"\"\"`).
     2.  **INDENTATION:** Use 4 spaces per indentation level. Ensure correct internal indentation.
     3.  **COMPLETENESS:** Generate complete, runnable Python snippets. Avoid partial statements or unclosed brackets/parentheses.

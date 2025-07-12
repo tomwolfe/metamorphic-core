@@ -366,7 +366,7 @@
       "task_id": "task_1_8_2_I_part2_failure_detection",
       "priority": "High",
       "task_name": "Increment Failure Count on Step Error",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_I_part1_failure_tracking"
@@ -377,7 +377,7 @@
       "task_id": "task_1_8_2_I_part3_decomposition_logic",
       "priority": "High",
       "task_name": "Implement Decomposition Recommendation Logic",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_I_part2_failure_detection"
@@ -388,7 +388,7 @@
       "task_id": "task_1_8_2_I_part4_add_tests",
       "priority": "High",
       "task_name": "Add Unit Tests for Failure-Driven Decomposition",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "tests/test_phase1_8_features.py",
       "depends_on": [
         "task_1_8_2_I_part1_failure_tracking",
@@ -722,6 +722,17 @@
         "task_1_8_8",
         "task_1_8_11_auto_refinement"
       ]
+    },
+    {
+      "task_id": "task_1_8_27_learn_from_syntax_errors",
+      "priority": "High",
+      "task_name": "Implement Refinement Agent for Syntax Error Feedback",
+      "status": "Not Started",
+      "target_file": "src/core/agents/refinement_agent.py,src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_I_part4_add_tests"
+      ],
+      "description": "Create a new 'Refinement Agent'. When a task is blocked due to a recurring `SyntaxError` (like 'unterminated string literal'), this agent should be invoked. It will analyze the failing step, the error, and the generated snippet. Based on this analysis, it will generate a more prescriptive prompt for the Coder LLM for the next attempt. For example, it could add a one-time instruction to the prompt like 'CRITICAL: Ensure all string literals are correctly terminated with matching quotes.' This makes the remediation loop smarter and more targeted. The agent should be triggered from the `autonomous_loop` after a step has failed all retries due to a `SyntaxError`."
     }
   ],
   "next_phase_actions": [

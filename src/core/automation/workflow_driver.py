@@ -175,6 +175,7 @@ class WorkflowDriver:
         self.remediation_attempts = 0
         self._current_task = {}
         self.task_target_file = None
+        self.task_failure_counts = {}
         self.remediation_occurred_in_pass = False
         self.ethical_governance_engine = EthicalGovernanceEngine()
         self._load_default_policy()
@@ -1097,6 +1098,14 @@ class WorkflowDriver:
                                  if err['step_index'] == step_index + 1),
                                 {"error_type": "UnknownError", "error_message": "No specific error logged.", "reason": "Unknown reason."}
                             )
+                            # Increment failure count for the task
+                            self.task_failure_counts[task_id] = self.task_failure_counts.get(task_id, 0) + 1
+                            self.logger.info(f"Task {task_id} failure count incremented to {self.task_failure_counts[task_id]}.")
+
+                            # Check for repeated failures to recommend decomposition
+                            if self.task_failure_counts.get(task_id, 0) >= 3:
+                                self.logger.warning(f"DECOMPOSITION RECOMMENDED: Task {task_id} has failed {self.task_failure_counts[task_id]} times. Consider decomposing it into smaller, sequential sub-tasks in the roadmap.")
+
                             # Use the specific reason if available, otherwise fallback to type and message
                             # Calculate the last error reason separately to avoid nested f-string in expression
                             last_error_reason = last_error.get('reason')
@@ -1234,6 +1243,8 @@ class WorkflowDriver:
  
                             if recommended_action == "Completed":
                                 new_status = "Completed"
+                                # Reset failure count on success
+                                self.task_failure_counts[task_id] = 0
                             elif recommended_action == "Blocked":
                                 new_status = "Blocked"
                                 reason_blocked = justification
@@ -2968,7 +2979,6 @@ Your response should be the complete, corrected code content that addresses the 
             (r'\b(?:add|define|create)\s+.*?\bconstant\b', "add_class_constant"),
         ]
 
-        for pattern, context_type in context_patterns:
-            if re.search(pattern, step_lower, re.IGNORECASE):
-                return context_type
-        return None
+        for pattern in context_patterns:
+            if re.search(pattern[0], step_lower, re.IGNORECASE):
+                return pattern[1]

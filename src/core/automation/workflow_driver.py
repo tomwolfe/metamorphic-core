@@ -4,8 +4,8 @@ import json
 import logging
 import re
 import html
-from typing import List, Dict, Any, Optional, Tuple, Union
 import ast
+from typing import List, Dict, Any, Optional, Tuple, Union
 import textwrap
 from datetime import datetime
 from pathlib import Path
@@ -375,7 +375,7 @@ class WorkflowDriver:
                         start_idx = max(0, node.lineno - 2)  # Buffer: 1 line before class def (0-indexed) to capture preceding comments/blank lines
                         end_idx = min(len(lines), getattr(node, 'end_lineno', node.lineno) + 4)  # Include up to 3 lines after the end_lineno of the class (1-indexed) to capture trailing comments/blank lines
 
-                        self.logger.debug(f"Extracting class context for '{target_class_name}' in {Path(file_path).name}: lines {start_idx+1} to {end_idx}.")
+                        self.logger.debug(f"Extracting class context for '{target_class_name}' in {Path(file_path).name}.")
                         return "\n".join(lines[start_idx:end_idx]), True
             self.logger.warning(f"Could not find class for 'add_method_to_class' in {Path(file_path).name} from step: {step_description}. Falling back to full content.")
 
@@ -910,6 +910,58 @@ class WorkflowDriver:
                                         if 'test_results' not in self._current_task_results or self._current_task_results['test_results'].get('status') != 'error':
                                             self._current_task_results['test_results'] = {'status': 'error', 'passed': 0, 'failed': 0, 'total': 0, 'message': str(e)}
                                         raise e # Re-raise to trigger retry/failure
+ 
+                                # --- NEW: AST-based __init__ attribute injection ---
+                                # This should be checked BEFORE general code generation as it's a specific, non-LLM-based modification.
+                                elif re.search(r"add an instance attribute `(self\.\w+\s*=\s*.*)` in the `__init__` method", step, re.IGNORECASE) and filepath_to_use and filepath_to_use.endswith('.py'):
+                                    match = re.search(r"add an instance attribute `(self\.\w+\s*=\s*.*)` in the `__init__` method", step, re.IGNORECASE)
+                                    if not match: # Should not happen if the outer elif condition is met, but for robustness
+                                        logger.error(f"Regex match failed for AST injection step: {step}")
+                                        step_failure_reason = "Internal error: AST injection regex failed to match."
+                                        raise ValueError(step_failure_reason)
+                                    attribute_assignment_str = match.group(1)
+                                    logger.info(f"Step identified as __init__ attribute injection. Attempting AST-based modification for '{attribute_assignment_str}'.")
+                                    try:
+                                        source_code = self._read_file_for_context(filepath_to_use)
+                                        if source_code is None:
+                                            raise IOError(f"Could not read file {filepath_to_use} for AST modification.")
+
+                                        tree = ast.parse(source_code)
+                                        
+                                        class InitAttributeInjector(ast.NodeTransformer):
+                                            def __init__(self, attribute_assignment_str):
+                                                self.attribute_assignment_str = attribute_assignment_str
+                                                self.modified = False # Track if any modification occurred
+
+                                            def visit_FunctionDef(self, node):
+                                                if node.name == "__init__":
+                                                    # Create the new assignment node from the full assignment string
+                                                    # This is safer as it handles various value types (dicts, lists, calls, etc.)
+                                                    new_assign_node = ast.parse(self.attribute_assignment_str, mode='exec').body[0]
+                                                    
+                                                    # Insert the new assignment at the end of the __init__ body
+                                                    node.body.append(new_assign_node)
+                                                    self.modified = True # Mark as modified
+                                                return node
+
+                                        injector = InitAttributeInjector(attribute_assignment_str)
+                                        modified_tree = injector.visit(tree) # This visits the root of the AST
+                                        
+                                        if not injector.modified:
+                                            logger.warning(f"AST-based attribute injection: __init__ method not found in {filepath_to_use}. Skipping modification.")
+                                            step_failure_reason = f"AST-based attribute injection failed: __init__ method not found in {filepath_to_use}."
+                                            raise ValueError(step_failure_reason) # Raise an error to fail the step
+
+                                        ast.fix_missing_locations(modified_tree) # Apply to the root of the modified AST
+                                        
+                                        modified_code = ast.unparse(modified_tree)
+                                        self._write_output_file(filepath_to_use, modified_code, overwrite=True)
+                                        logger.info(f"Successfully injected '{attribute_assignment_str}' into __init__ in {filepath_to_use} using AST.")
+                                        code_written_in_iteration = True
+                                    except (SyntaxError, IOError, IndexError, Exception) as e:
+                                        logger.error(f"AST-based attribute injection failed for '{attribute_assignment_str}': {e}", exc_info=True)
+                                        step_failure_reason = f"AST-based attribute injection failed: {e}"
+                                        raise ValueError(step_failure_reason) from e
  
                                 # Use filepath_to_use (the resolved determined target file) here
                                 elif prelim_flags['is_code_generation_step_prelim'] and filepath_to_use and filepath_to_use.endswith('.py'):
@@ -2919,3 +2971,4 @@ Your response should be the complete, corrected code content that addresses the 
         for pattern, context_type in context_patterns:
             if re.search(pattern, step_lower, re.IGNORECASE):
                 return context_type
+        return None

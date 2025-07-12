@@ -355,7 +355,7 @@
       "task_id": "task_1_8_2_I_part1_failure_tracking",
       "priority": "High",
       "task_name": "Implement Failure Tracking Mechanism",
-      "status": "Not Started",
+      "status": "Completed",
       "target_file": "src/core/automation/workflow_driver.py",
       "depends_on": [
         "task_1_8_2_F_4d_6_add_tests"
@@ -396,6 +396,17 @@
         "task_1_8_2_I_part3_decomposition_logic"
       ],
       "description": "In `tests/test_phase1_8_features.py`, add unit tests to validate the new failure handling logic. Scenarios to test must include: 1. A task failing 3 times, verifying the counter increments and the 'DECOMPOSITION RECOMMENDED' log is triggered. 2. A task succeeding after 2 failures, verifying its counter is reset to 0. 3. Multiple tasks failing independently, verifying their counts are tracked separately."
+    },
+    {
+      "task_id": "task_1_8_26_step_strategy_router",
+      "priority": "High",
+      "task_name": "Implement Step Execution Strategy Router",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_2_I_part4_add_tests"
+      ],
+      "description": "Enhance the `autonomous_loop` in `WorkflowDriver` to include a 'Step Execution Strategy Router'. Before executing a plan step, this router will analyze the step's description using regex or other classifiers. Based on the analysis, it will select the appropriate execution method. For example, if a step matches 'add an instance attribute `...` in the `__init__` method', it will route to the new AST-based injection method. If no specific strategy matches, it will default to the existing Coder LLM-based code generation workflow. This makes the system more robust and efficient by using deterministic tools for deterministic tasks."
     },
     {
       "task_id": "task_1_8_2_G_atomic_planner",

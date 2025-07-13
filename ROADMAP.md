@@ -388,3 +388,9 @@
     *   **Status**: Not Started
     *   **Depends On**: ['task_1_8_2_I_part4_add_tests']
 
+*   **Task ID**: task_1_8_28_robust_snippet_cleaning
+    *   **Priority**: Critical
+    *   **Task Name**: Implement Robust Snippet Cleaning and Validation
+    *   **Status**: Not Started
+    *   **Depends On**: ['task_1_8_26_step_strategy_router']
+

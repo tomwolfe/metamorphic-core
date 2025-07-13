@@ -691,7 +691,7 @@
       "depends_on": [
         "task_1_8_19b_add_tests_for_differentiation"
       ],
-      "description": "The failure of `task_1_8_19a_1_wrap_ast_parse` revealed that the planner can generate overly granular, error-prone plans for simple, atomic code modifications (like wrapping a line in a try/except block). Enhance the planning agent to recognize when a task description implies a single, localized change. For such tasks, the planner should generate a single, more descriptive plan step that instructs the Coder LLM to perform the entire modification at once, rather than breaking it into multiple tiny steps like 'insert line', 'indent line', etc. This will improve the reliability and efficiency of code generation for simple refactoring and additions."
+      "description": "The failure of `task_1_8_19a_1_wrap_ast_parse` revealed that the planner can generate overly granular, error-prone plans for simple, atomic code modifications (like wrapping a line in a try/except block). Enhance the planning agent to recognize when a task description implies a single, localized change. For such tasks, the planner should generate a single, more descriptive plan step that instructs the Coder LLM to perform the entire modification at once, rather much than breaking it into multiple tiny steps like 'insert line', 'indent line', etc. This will improve the reliability and efficiency of code generation for simple refactoring and additions."
     },
     {
       "task_id": "task_1_8_11b_failure_driven_decomposition",
@@ -733,6 +733,17 @@
         "task_1_8_2_I_part4_add_tests"
       ],
       "description": "Create a new 'Refinement Agent'. When a task is blocked due to a recurring `SyntaxError` (like 'unterminated string literal'), this agent should be invoked. It will analyze the failing step, the error, and the generated snippet. Based on this analysis, it will generate a more prescriptive prompt for the Coder LLM for the next attempt. For example, it could add a one-time instruction to the prompt like 'CRITICAL: Ensure all string literals are correctly terminated with matching quotes.' This makes the remediation loop smarter and more targeted. The agent should be triggered from the `autonomous_loop` after a step has failed all retries due to a `SyntaxError`."
+    },
+    {
+      "task_id": "task_1_8_28_robust_snippet_cleaning",
+      "priority": "Critical",
+      "task_name": "Implement Robust Snippet Cleaning and Validation",
+      "status": "Not Started",
+      "target_file": "src/core/automation/workflow_driver.py",
+      "depends_on": [
+        "task_1_8_26_step_strategy_router"
+      ],
+      "description": "The current `_clean_llm_snippet` function is too basic and fails when the LLM produces malformed output, leading to `SyntaxError` or empty snippets. Enhance this function and the pre-write validation logic to be more robust. 1. In `_clean_llm_snippet`, add logic to detect and attempt to fix unterminated string literals (e.g., adding a closing quote if one is missing at the end of the snippet). 2. Before passing to `ast.parse`, perform a quick regex-based sanity check for common LLM syntax errors (e.g., `r\\\"\\\"\\\"`, unterminated triple quotes). 3. If a `SyntaxError` still occurs, provide more detailed, context-aware feedback to the CoderLLM for the retry attempt, pinpointing the likely cause of the error."
     }
   ],
   "next_phase_actions": [

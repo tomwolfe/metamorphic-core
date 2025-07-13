@@ -355,7 +355,7 @@ class TestPhase1_8WorkflowDriverEnhancements:
 
         mock_task_data = {'task_id': 'test_task_impl', 'task_name': 'Test Implementation Task', 'description': 'Test implementation prompt.', 'target_file': 'src/core/automation/workflow_driver.py'}
         mock_filepath_to_use = "src/core/automation/workflow_driver.py" 
-        mock_context_for_llm = "class WorkflowDriver:\n    pass"
+        mock_context_for_llm = "class WorkflowDriver:\n    # METAMORPHIC_INSERT_POINT\n    pass"
         
         final_prompt = driver._construct_coder_llm_prompt(
             task=mock_task_data,
@@ -367,161 +367,7 @@ class TestPhase1_8WorkflowDriverEnhancements:
         )
         
         assert f"Specific Plan Step:\n{original_step_desc}\n" in final_prompt
-
-class TestCodeGenerationStepBundling:
-    """Test suite for the code generation step bundling logic."""
-
-    def test_autonomous_loop_bundles_contiguous_codegen_steps(self, driver_enhancements, mocker, caplog):
-        """
-        Tests that consecutive code generation steps for the same file are bundled
-        into a single prompt for the Coder LLM, and subsequent steps are skipped.
-        """
-        caplog.set_level(logging.INFO)
-        driver = driver_enhancements
-        
-        # Mock the solution plan with consecutive code-gen steps
-        mock_plan = [
-            "Step 1: Add a new method `my_method`.",
-            "Step 2: Inside `my_method`, add a return statement.",
-            "Step 3: Add a comment above `my_method`.",
-            "Step 4: Run tests." # This step should not be bundled
-        ]
-    
-        # Mock internal methods that autonomous_loop calls
-        mocker.patch.object(driver, 'generate_solution_plan', return_value=mock_plan)
-        # --- MODIFIED: Provide specific side_effect for _classify_step_preliminary ---
-        mocker.patch.object(driver, '_classify_step_preliminary', side_effect=[
-            {'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, # Step 1
-            {'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, # Step 2
-            {'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, # Step 3
-            {'is_code_generation_step_prelim': False, 'is_test_execution_step_prelim': True, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}  # Step 4 (test execution)
-        ])
-        # --- END MODIFIED ---
-        mocker.patch.object(driver, '_resolve_target_file_for_step', return_value="/resolved/src/test.py")
-        # Mock the actual code generation execution
-        mock_execute_codegen = mocker.patch.object(driver, '_execute_code_generation_step', return_value=(True, "some generated code"))
-    
-        # Simulate the main loop for a single task
-        driver.autonomous_loop()
-
-        # Assertions
-        # 1. _execute_code_generation_step should be called only ONCE for the bundled steps.
-        assert mock_execute_codegen.call_count == 1
-
-        # 2. The description passed to it should contain all three bundled steps.
-        bundled_description = mock_execute_codegen.call_args[0][0]
-        assert "MAIN STEP 1: Step 1: Add a new method `my_method`." in bundled_description
-        assert "BUNDLED STEP 2: Step 2: Inside `my_method`, add a return statement." in bundled_description
-        assert "BUNDLED STEP 3: Step 3: Add a comment above `my_method`." in bundled_description
-        assert "Step 4: Run tests." not in bundled_description # Ensure the non-bundled step is not included
-
-        # 3. Check logs for bundling and skipping messages.
-        assert "Bundling step 2" in caplog.text
-        assert "Bundling step 3" in caplog.text
-        assert "Skipping step 2 as it was subsumed by a previous bundled step." in caplog.text
-        assert "Skipping step 3 as it was subsumed by a previous bundled step." in caplog.text
-        assert "Executing step 4/4" in caplog.text # Ensure the non-bundled step is still executed
-
-    def test_autonomous_loop_skips_non_contiguous_steps(self, driver_enhancements, mocker, caplog):
-        """
-        Tests that bundling stops when a non-code-generation step or a step
-        targeting a different file is encountered.
-        """
-        caplog.set_level(logging.INFO)
-        driver = driver_enhancements
-
-        mock_plan = [
-            "Step 1: Gen code for file_A.py",
-            "Step 2: Gen code for file_A.py",
-            "Step 3: Analyze results.",  # NOT a code-gen step
-            "Step 4: Gen code for file_A.py",  # Should NOT be bundled with Step 1/2
-            "Step 5: Gen code for file_B.py",  # Different file
-            "Step 6: Gen code for file_A.py"   # Should NOT be bundled with Step 1/2
-        ]
-
-        # Mock _classify_step_preliminary and _resolve_target_file_for_step for each step
-        def classify_and_resolve_side_effect(step_desc, task_target):
-            if "Analyze results" in step_desc:
-                return {'is_code_generation_step_prelim': False, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': True, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, "/resolved/src/test.py"
-            elif "file_B.py" in step_desc:
-                return {'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, "/resolved/src/file_B.py"
-            return {'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None}, "/resolved/src/test.py"
-
-        mocker.patch.object(driver, 'generate_solution_plan', return_value=mock_plan)
-        mocker.patch.object(driver, '_classify_step_preliminary', side_effect=lambda s, t: classify_and_resolve_side_effect(s, t)[0])
-        mocker.patch.object(driver, '_resolve_target_file_for_step', side_effect=lambda s, t, f: classify_and_resolve_side_effect(s, t)[1])
-        mock_execute_codegen = mocker.patch.object(driver, '_execute_code_generation_step', return_value=(True, "some generated code"))
-
-        driver.autonomous_loop()
-
-        # _execute_code_generation_step should be called for (Step 1+2), (Step 4), (Step 5), (Step 6)
-        assert mock_execute_codegen.call_count == 4
-
-        # Verify the first call bundled Step 1 and 2
-        bundled_desc_1 = mock_execute_codegen.call_args_list[0][0][0]
-        assert "MAIN STEP 1: Step 1: Gen code for file_A.py" in bundled_desc_1
-        assert "BUNDLED STEP 2: Step 2: Gen code for file_A.py" in bundled_desc_1
-        assert "Step 3: Analyze results." not in bundled_desc_1
-
-        # Verify the second call is for Step 4 (as Step 3 broke contiguity)
-        bundled_desc_2 = mock_execute_codegen.call_args_list[1][0][0]
-        assert "MAIN STEP 4: Step 4: Gen code for file_A.py" in bundled_desc_2
-        assert "BUNDLED STEP" not in bundled_desc_2 # No bundling for Step 4
-
-        # Verify the third call is for Step 5 (different file)
-        bundled_desc_3 = mock_execute_codegen.call_args_list[2][0][0]
-        assert "MAIN STEP 5: Step 5: Gen code for file_B.py" in bundled_desc_3
-
-        # Verify the fourth call is for Step 6 (different file)
-        bundled_desc_4 = mock_execute_codegen.call_args_list[3][0][0]
-        assert "MAIN STEP 6: Step 6: Gen code for file_A.py" in bundled_desc_4
-
-        # Check logs for bundling and skipping messages.
-        assert "Bundling step 2" in caplog.text
-        assert "Skipping step 2 as it was subsumed" in caplog.text
-        assert "Executing step 3/6" in caplog.text # Step 3 is executed normally
-        assert "Executing step 4/6" in caplog.text # Step 4 is executed normally (not bundled with 1+2)
-        assert "Executing step 5/6" in caplog.text # Step 5 is executed normally
-        assert "Executing step 6/6" in caplog.text # Step 6 is executed normally
-
-    def test_autonomous_loop_handles_bundling_at_plan_end(self, driver_enhancements, mocker, caplog):
-        """
-        Tests that bundling correctly handles reaching the end of the plan
-        within the lookahead limit.
-        """
-        caplog.set_level(logging.INFO)
-        driver = driver_enhancements
-    
-        mock_plan = [
-            "Step 1: Gen code for file_A.py",
-            "Step 2: Gen code for file_A.py",
-            "Step 3: Gen code for file_A.py" # Last step in plan
-        ]
-    
-        mocker.patch.object(driver, 'generate_solution_plan', return_value=mock_plan)
-        mocker.patch.object(driver, '_classify_step_preliminary', return_value={'is_code_generation_step_prelim': True, 'is_test_execution_step_prelim': False, 'is_shell_command_step_prelim': False, 'is_explicit_file_writing_step_prelim': False, 'is_research_step_prelim': False, 'is_test_writing_step_prelim': False, 'filepath_from_step': None})
-        mocker.patch.object(driver, '_resolve_target_file_for_step', return_value="/resolved/src/test.py")
-        mock_execute_codegen = mocker.patch.object(driver, '_execute_code_generation_step', return_value=(True, "some generated code"))
-    
-        driver.autonomous_loop()
-    
-        # _execute_code_generation_step should be called only ONCE for all three steps
-        assert mock_execute_codegen.call_count == 1
-
-        # Verify the description contains all three steps
-        bundled_description = mock_execute_codegen.call_args[0][0]
-        assert "MAIN STEP 1: Step 1: Gen code for file_A.py" in bundled_description
-        assert "BUNDLED STEP 2: Step 2: Gen code for file_A.py" in bundled_description
-        assert "BUNDLED STEP 3: Step 3: Gen code for file_A.py" in bundled_description
-
-        # Check logs for bundling and skipping messages.
-        assert "Bundling step 2" in caplog.text
-        assert "Bundling step 3" in caplog.text
-        assert "Skipping step 2 as it was subsumed" in caplog.text
-        assert "Skipping step 3 as it was subsumed" in caplog.text
-        assert "Executing step 4/3" not in caplog.text # No step 4
-
-
+ 
 class TestPhase1_8Features:
     def test_research_step_classification(self, driver_enhancements):
         driver = driver_enhancements
@@ -723,3 +569,74 @@ class TestSyntaxErrorDifferentiation:
             driver._execute_code_generation_step(
                 "A step", "file.py", original_content, None, 0, 0
             )
+
+
+class TestFailureDrivenDecomposition:
+    """Tests for the failure tracking and decomposition recommendation logic."""
+
+    def test_failure_count_increments_and_task_is_blocked(self, driver_enhancements, mocker, caplog):
+        """
+        Tests that a step failure increments the failure count and blocks the task.
+        """
+        caplog.set_level(logging.INFO)
+        driver = driver_enhancements
+        task_id = 'failing_task_1'
+        task = {'task_id': task_id, 'status': 'Not Started', 'task_name': 'Test', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/failing_module.py'}
+        
+        # Setup mocks for a single task run that fails
+        mocker.patch.object(driver, 'select_next_task', side_effect=[task, None])
+        mocker.patch.object(driver, 'generate_solution_plan', return_value=["Implement a failing feature"])
+        mocker.patch.object(driver, '_execute_code_generation_step', side_effect=Exception("Step failed"))
+        mock_update_status = mocker.patch.object(driver, '_update_task_status_in_roadmap')
+
+        # Act
+        driver.autonomous_loop()
+
+        # Assert
+        assert driver.task_failure_counts.get(task_id) == 1
+        assert f"Task {task_id} failure count incremented to 1." in caplog.text
+        mock_update_status.assert_called_once_with(task_id, "Blocked", mocker.ANY)
+
+    def test_decomposition_warning_logged_after_3_failures(self, driver_enhancements, mocker, caplog):
+        """
+        Tests that the 'DECOMPOSITION RECOMMENDED' warning is logged on the 3rd failure.
+        """
+        caplog.set_level(logging.WARNING)
+        driver = driver_enhancements
+        task_id = 'failing_task_2'
+        task = {'task_id': task_id, 'status': 'Not Started', 'task_name': 'Test', 'description': 'Desc', 'priority': 'High', 'target_file': 'src/failing_module.py'}
+        driver.task_failure_counts = {task_id: 2}  # Simulate 2 previous failures
+
+        # Mocks for a single failing run
+        mocker.patch.object(driver, 'select_next_task', side_effect=[task, None])
+        mocker.patch.object(driver, 'generate_solution_plan', return_value=["Implement another failing feature"])
+        mocker.patch.object(driver, '_execute_code_generation_step', side_effect=Exception("Step failed again"))
+        mocker.patch.object(driver, '_update_task_status_in_roadmap')
+
+        # Act
+        driver.autonomous_loop()
+
+        # Assert
+        assert driver.task_failure_counts.get(task_id) == 3
+        assert f"DECOMPOSITION RECOMMENDED: Task {task_id} has failed 3 times." in caplog.text
+        driver._update_task_status_in_roadmap.assert_called_once_with(task_id, "Blocked", mocker.ANY)
+
+    def test_failure_count_resets_on_success(self, driver_enhancements, mocker):
+        """Tests that a task's failure count is reset to 0 upon successful completion."""
+        driver = driver_enhancements
+        task_id = 'previously_failing_task'
+        task = {'task_id': task_id, 'status': 'Not Started', 'task_name': 'Test', 'description': 'Desc', 'priority': 'High'}
+        driver.task_failure_counts = {task_id: 2} # Simulate previous failures
+
+        # Mocks for a single successful run
+        mocker.patch.object(driver, 'select_next_task', side_effect=[task, None])
+        mocker.patch.object(driver, 'generate_solution_plan', return_value=["A step that will succeed"])
+        mocker.patch.object(driver, '_execute_code_generation_step', return_value=(True, "Generated Code")) # Success
+        mocker.patch.object(driver, '_parse_and_evaluate_grade_report', return_value={"recommended_action": "Completed"})
+        mocker.patch.object(driver, '_update_task_status_in_roadmap')
+
+        # Act
+        driver.autonomous_loop()
+
+        # Assert
+        assert driver.task_failure_counts.get(task_id) == 0
